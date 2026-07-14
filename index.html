@@ -552,7 +552,34 @@ type deformer</textarea>
         return result;
       }
 
-      function classify(cp) {
+      // Unicode property based classification (full Unicode coverage);
+      // falls back to the original range checks on old engines.
+      var uni = (function () {
+        try {
+          return {
+            punct: new RegExp('\\p{P}', 'u'),
+            hira: new RegExp('\\p{sc=Hiragana}', 'u'),
+            kata: new RegExp('\\p{sc=Katakana}', 'u'),
+            han: new RegExp('[\\p{sc=Han}\\p{sc=Hangul}]', 'u'),
+            latin: new RegExp('[\\p{sc=Latin}0-9]', 'u'),
+            // approximation of UAX#50: what stays upright in vertical flow
+            upright: new RegExp('[\\p{sc=Han}\\p{sc=Hiragana}\\p{sc=Katakana}\\p{sc=Hangul}\\p{sc=Bopomofo}\\p{sc=Yi}\\uFF01-\\uFF60\\uFFE0-\\uFFE6\\u3000-\\u303F\\u3190-\\u319F\\u3200-\\u32FF\\u3300-\\u33FF\\u2460-\\u24FF\\u3040-\\u30FF\\uFE30-\\uFE4F]|\\p{Extended_Pictographic}', 'u'),
+            rtl: new RegExp('[\\p{sc=Arabic}\\p{sc=Hebrew}\\p{sc=Syriac}\\p{sc=Thaana}\\p{sc=Nko}]', 'u'),
+            // scripts whose letters connect / reshape across characters —
+            // kept together per word so shaping survives the span split
+            joining: new RegExp('[\\p{sc=Arabic}\\p{sc=Syriac}\\p{sc=Mongolian}\\p{sc=Nko}\\p{sc=Devanagari}\\p{sc=Bengali}\\p{sc=Gurmukhi}\\p{sc=Gujarati}\\p{sc=Oriya}\\p{sc=Tamil}\\p{sc=Telugu}\\p{sc=Kannada}\\p{sc=Malayalam}\\p{sc=Sinhala}\\p{sc=Myanmar}\\p{sc=Khmer}\\p{sc=Lao}\\p{sc=Thai}\\p{sc=Tibetan}]', 'u')
+          };
+        } catch (e) { return null; }
+      })();
+
+      function classify(ch, cp) {
+        if (uni) {
+          if (uni.hira.test(ch)) return 'hira';
+          if (uni.kata.test(ch)) return 'kata';
+          if (uni.han.test(ch)) return 'kanji';
+          if (uni.latin.test(ch)) return 'latin';
+          return 'other';
+        }
         if ((cp >= 0x0041 && cp <= 0x024F) || (cp >= 0x0030 && cp <= 0x0039)) return 'latin';
         if (cp >= 0x3040 && cp <= 0x309F) return 'hira';
         if (cp >= 0x30A0 && cp <= 0x30FF) return 'kata';
@@ -561,6 +588,10 @@ type deformer</textarea>
       }
 
       var punctStr = '、。，．！？・：；（）［］｛｝「」『』—…‥,.!?;:(){}[]—–…‥';
+
+      function isPunctCluster(ch) {
+        return uni ? uni.punct.test(ch) : punctStr.indexOf(ch) !== -1;
+      }
 
       function quant(x, step) { return Math.round(x / step) * step; }
 
@@ -574,6 +605,50 @@ type deformer</textarea>
       var metricsDirty = true;
       var undoStack = [], redoStack = [];   // deform/lock history (cleared on text change)
 
+      // One token = one deformable unit. Usually a single grapheme cluster,
+      // but joining scripts (Arabic, Indic, …) are grouped per word so
+      // contextual shaping survives the per-span split.
+      function tokenizeLine(line) {
+        var chars = toGraphemes(line);
+        var tokens = [];
+        for (var i = 0; i < chars.length; i++) {
+          var ch = chars[i];
+          var cp = ch.codePointAt(0);
+          if (cp === 32 || cp === 9 || cp === 160) {
+            tokens.push({ space: true, text: ' ' });
+            continue;
+          }
+          var joins = !!(uni && uni.joining.test(ch));
+          if (joins && tokens.length && tokens[tokens.length - 1].join) {
+            tokens[tokens.length - 1].text += ch;
+          } else {
+            tokens.push({ text: ch, join: joins });
+          }
+        }
+        // single-level bidi approximation: flip runs of RTL tokens
+        // (neutrals between two RTL tokens travel with the run)
+        if (uni) {
+          var a = 0;
+          while (a < tokens.length) {
+            if (!tokens[a].space && uni.rtl.test(tokens[a].text)) {
+              var lastRtl = a, k = a + 1;
+              while (k < tokens.length) {
+                var t = tokens[k];
+                if (!t.space && uni.rtl.test(t.text)) { lastRtl = k; k++; }
+                else if (t.space || isPunctCluster(t.text)) { k++; }
+                else break;
+              }
+              if (lastRtl > a) {
+                var run = tokens.slice(a, lastRtl + 1).reverse();
+                for (var r = 0; r < run.length; r++) tokens[a + r] = run[r];
+              }
+              a = lastRtl + 1;
+            } else a++;
+          }
+        }
+        return tokens;
+      }
+
       function createSpans(text) {
         stage.innerHTML = '';
         letters = [];
@@ -581,22 +656,20 @@ type deformer</textarea>
         var globalIndex = 0;
         for (var li = 0; li < lines.length; li++) {
           var p = document.createElement('p');
-          var chars = toGraphemes(lines[li]);
-          for (var j = 0; j < chars.length; j++) {
-            var ch = chars[j];
-            var cp = ch.codePointAt(0);
-            if (cp === 32 || cp === 9 || cp === 160) { p.appendChild(document.createTextNode(' ')); continue; }
+          var tokens = tokenizeLine(lines[li]);
+          for (var j = 0; j < tokens.length; j++) {
+            var tok = tokens[j];
+            if (tok.space) { p.appendChild(document.createTextNode(tok.text)); continue; }
             var span = document.createElement('span');
-            var isPunct = punctStr.indexOf(ch) !== -1;
-            span.className = 'c' + (isPunct ? ' punct' : '');
+            span.className = 'c' + (isPunctCluster(tok.text) ? ' punct' : '');
             span.dataset.j = j;
-            span.dataset.cp = cp;
+            span.dataset.cp = tok.text.codePointAt(0);
             span.style.setProperty('--i', globalIndex++);
-            span.textContent = ch;
+            span.textContent = tok.text;
             p.appendChild(span);
             letters.push(span);
           }
-          if (!chars.length) p.appendChild(document.createElement('br'));
+          if (!tokens.length) p.appendChild(document.createElement('br'));
           stage.appendChild(p);
         }
         applyRandom();
@@ -612,8 +685,9 @@ type deformer</textarea>
           var j = parseInt(span.dataset.j, 10);
           var cp = parseInt(span.dataset.cp, 10);
           var ch = span.textContent;
-          var isPunct = punctStr.indexOf(ch) !== -1;
-          var cls = classify(cp);
+          var isPunct = isPunctCluster(ch);
+          var cls = classify(ch, cp);
+          span.dataset.upright = (uni ? uni.upright.test(ch) : cls !== 'latin') ? '1' : '';
 
           var r1 = hash(j, cp, 12.9898);
           var r2 = hash(j, cp, 78.233);
@@ -1082,7 +1156,7 @@ type deformer</textarea>
           while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
           glyphs.push({
             ch: el.textContent,
-            latin: classify(parseInt(el.dataset.cp, 10) || 0) === 'latin',
+            upright: el.dataset.upright === '1',
             accent: el.dataset.accent === '1',
             x: x, y: y, w: w, h: h,
             ox: x + w / 2, oy: y + h * 0.75,   // transform-origin 50% 75%
@@ -1202,12 +1276,12 @@ type deformer</textarea>
           ctx.fillStyle = g.accent ? params.accent : params.ink;
           if (params.vertical) {
             // vertical flow: glyphs sit centred in their layout box;
-            // latin glyphs are rotated 90° by text-orientation: mixed
+            // non-upright scripts are rotated 90° by text-orientation: mixed
             var cx = g.x + g.w / 2;
             var cy = g.y + g.h / 2;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            if (g.latin) {
+            if (!g.upright) {
               ctx.translate(cx, cy);
               ctx.rotate(Math.PI / 2);
               ctx.fillText(g.ch, 0, 0);
@@ -1278,7 +1352,7 @@ type deformer</textarea>
           if (params.vertical) {
             var cx = g.x + g.w / 2;
             var cy = g.y + g.h / 2;
-            tr += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (g.latin ? ' rotate(90)' : '');
+            tr += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (!g.upright ? ' rotate(90)' : '');
             parts.push('<text x="0" y="0" text-anchor="middle" dominant-baseline="central"' + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
           } else {
             var x = g.x;
