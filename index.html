@@ -458,6 +458,7 @@ type deformer</textarea>
         <span class="val" id="vExportSize"></span>
       </div>
       <div class="row"><label for="pTransparent">Transparent BG</label><input type="checkbox" id="pTransparent"></div>
+      <div class="row"><label for="pDeformedOnly">Deformed only <span style="color:var(--dim)">変形のみ</span></label><input type="checkbox" id="pDeformedOnly"></div>
       <div class="btns">
         <button class="primary" id="btnPng">PNG ↓</button>
         <button class="primary" id="btnSvg">SVG ↓</button>
@@ -523,6 +524,7 @@ type deformer</textarea>
         marginPct: 6,
         exportScale: 2,
         transparentBg: false,
+        deformedOnly: false,
         mode: 'flow'   // 'flow' | 'lock' | 'edit'
       };
 
@@ -1218,6 +1220,8 @@ type deformer</textarea>
           var iy = parseFloat(cs.getPropertyValue('--iy')) || 1;
           var tx = (parseFloat(cs.getPropertyValue('--tx')) || 0) * params.fontSize; // em → px
           var ty = (parseFloat(cs.getPropertyValue('--ty')) || 0) * params.fontSize;
+          // deformed-only export: skip letters at their resting shape
+          if (params.deformedOnly && ix === 1 && iy === 1) continue;
           var rot = parseFloat(cs.getPropertyValue('--rot')) || 0; // deg
           var w = el.offsetWidth, h = el.offsetHeight;
           var x = 0, y = 0, o = el;
@@ -1366,13 +1370,26 @@ type deformer</textarea>
         return canvas;
       }
 
+      function nothingToExport() {
+        if (!params.deformedOnly) return false;
+        for (var i = 0; i < metrics.length; i++) {
+          var st = metrics[i].el.style;
+          if ((parseFloat(st.getPropertyValue('--ix')) || 1) !== 1 ||
+              (parseFloat(st.getPropertyValue('--iy')) || 1) !== 1) return false;
+        }
+        alert('変形（拡大）された文字がありません。Deformed only をオフにするか、文字を変形してください。');
+        return true;
+      }
+
       function exportPng() {
+        if (nothingToExport()) return;
         renderCanvas(params.exportScale).toBlob(function (blob) {
           if (blob) download(blob, 'type-deform-' + stamp() + '.png');
         }, 'image/png');
       }
 
       function copyPng(btn) {
+        if (nothingToExport()) return;
         renderCanvas(params.exportScale).toBlob(function (blob) {
           if (!blob) return;
           var done = function (ok) {
@@ -1395,6 +1412,7 @@ type deformer</textarea>
       }
 
       function exportSvg() {
+        if (nothingToExport()) return;
         var glyphs = snapshotGlyphs();
         var bounds = contentBounds(glyphs, exportBoundsPad());
         var L = exportLayout(bounds);
@@ -1531,6 +1549,9 @@ type deformer</textarea>
       document.getElementById('pTransparent').addEventListener('change', function (e) {
         params.transparentBg = e.target.checked;
       });
+      document.getElementById('pDeformedOnly').addEventListener('change', function (e) {
+        params.deformedOnly = e.target.checked;
+      });
 
       /* artboard */
       var abSelect = document.getElementById('pArtboard');
@@ -1577,6 +1598,7 @@ type deformer</textarea>
       /* preview */
       var previewOverlay = document.getElementById('previewOverlay');
       function openPreview() {
+        if (nothingToExport()) return;
         var run = function () {
           var c = renderCanvas(params.exportScale);
           document.getElementById('previewImg').src = c.toDataURL('image/png');
@@ -1690,6 +1712,7 @@ type deformer</textarea>
         document.getElementById('pAccent').value = params.accent;
         document.getElementById('pAlign').value = params.align;
         document.getElementById('pTransparent').checked = params.transparentBg;
+        document.getElementById('pDeformedOnly').checked = params.deformedOnly;
         abSelect.value = params.artboard;
         abCustomRow.style.display = params.artboard === 'custom' ? '' : 'none';
         abW.value = params.abW;
