@@ -250,14 +250,27 @@
       --ix: 1; --iy: 1;
       transform: translateX(var(--tx, 0)) translateY(var(--ty, 0)) rotate(var(--rot, 0deg)) scale(var(--sx, 1), var(--sy, 1)) scale(var(--ix, 1), var(--iy, 1));
       transform-origin: 50% 75%;
-      will-change: transform;
       transition: transform .1s cubic-bezier(.25, .82, .25, 1);
       opacity: 0;
       translate: 0 15px;
       scale: 0.95;
       filter: blur(4px);
       animation: reveal 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards;
-      animation-delay: calc(var(--i) * 0.003s + 0.05s);
+      animation-delay: min(calc(var(--i) * 0.003s + 0.05s), 1.5s);
+    }
+
+    /* large texts: cheap reveal (no per-glyph blur/motion) */
+    .stage.many .c {
+      translate: 0 0;
+      scale: 1;
+      filter: none;
+      animation: reveal-lite 0.45s ease-out forwards;
+      animation-delay: min(calc(var(--i) * 0.0008s), 0.8s);
+    }
+
+    @keyframes reveal-lite {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
     }
 
     @keyframes reveal {
@@ -593,6 +606,26 @@ type deformer</textarea>
         return uni ? uni.punct.test(ch) : punctStr.indexOf(ch) !== -1;
       }
 
+      // Per-token classification cache — texts repeat characters heavily,
+      // so this removes almost all regex work from rebuilds of large texts.
+      var charInfoCache = new Map();
+      function charInfo(ch, cp) {
+        var c = charInfoCache.get(ch);
+        if (!c) {
+          if (charInfoCache.size > 20000) charInfoCache.clear();
+          var cls = classify(ch, cp);
+          c = {
+            cls: cls,
+            punct: isPunctCluster(ch),
+            upright: uni ? uni.upright.test(ch) : cls !== 'latin',
+            joins: !!(uni && uni.joining.test(ch)),
+            rtl: !!(uni && uni.rtl.test(ch))
+          };
+          charInfoCache.set(ch, c);
+        }
+        return c;
+      }
+
       function quant(x, step) { return Math.round(x / step) * step; }
 
       function hash(j, cp, k) {
@@ -618,7 +651,7 @@ type deformer</textarea>
             tokens.push({ space: true, text: ' ' });
             continue;
           }
-          var joins = !!(uni && uni.joining.test(ch));
+          var joins = charInfo(ch, cp).joins;
           if (joins && tokens.length && tokens[tokens.length - 1].join) {
             tokens[tokens.length - 1].text += ch;
           } else {
@@ -628,14 +661,15 @@ type deformer</textarea>
         // single-level bidi approximation: flip runs of RTL tokens
         // (neutrals between two RTL tokens travel with the run)
         if (uni) {
+          var tokInfo = function (t) { return charInfo(t.text, t.text.codePointAt(0)); };
           var a = 0;
           while (a < tokens.length) {
-            if (!tokens[a].space && uni.rtl.test(tokens[a].text)) {
+            if (!tokens[a].space && tokInfo(tokens[a]).rtl) {
               var lastRtl = a, k = a + 1;
               while (k < tokens.length) {
                 var t = tokens[k];
-                if (!t.space && uni.rtl.test(t.text)) { lastRtl = k; k++; }
-                else if (t.space || isPunctCluster(t.text)) { k++; }
+                if (!t.space && tokInfo(t).rtl) { lastRtl = k; k++; }
+                else if (t.space || tokInfo(t).punct) { k++; }
                 else break;
               }
               if (lastRtl > a) {
@@ -654,6 +688,7 @@ type deformer</textarea>
         letters = [];
         var lines = text.replace(/\r\n?/g, '\n').split('\n');
         var globalIndex = 0;
+        var frag = document.createDocumentFragment();
         for (var li = 0; li < lines.length; li++) {
           var p = document.createElement('p');
           var tokens = tokenizeLine(lines[li]);
@@ -661,7 +696,7 @@ type deformer</textarea>
             var tok = tokens[j];
             if (tok.space) { p.appendChild(document.createTextNode(tok.text)); continue; }
             var span = document.createElement('span');
-            span.className = 'c' + (isPunctCluster(tok.text) ? ' punct' : '');
+            span.className = 'c' + (charInfo(tok.text, tok.text.codePointAt(0)).punct ? ' punct' : '');
             span.dataset.j = j;
             span.dataset.cp = tok.text.codePointAt(0);
             span.style.setProperty('--i', globalIndex++);
@@ -670,8 +705,10 @@ type deformer</textarea>
             letters.push(span);
           }
           if (!tokens.length) p.appendChild(document.createElement('br'));
-          stage.appendChild(p);
+          frag.appendChild(p);
         }
+        stage.appendChild(frag);
+        stage.classList.toggle('many', letters.length > 600);
         applyRandom();
         rebuildMetrics();
         undoStack.length = 0;
@@ -685,9 +722,10 @@ type deformer</textarea>
           var j = parseInt(span.dataset.j, 10);
           var cp = parseInt(span.dataset.cp, 10);
           var ch = span.textContent;
-          var isPunct = isPunctCluster(ch);
-          var cls = classify(ch, cp);
-          span.dataset.upright = (uni ? uni.upright.test(ch) : cls !== 'latin') ? '1' : '';
+          var info = charInfo(ch, cp);
+          var isPunct = info.punct;
+          var cls = info.cls;
+          span.dataset.upright = info.upright ? '1' : '';
 
           var r1 = hash(j, cp, 12.9898);
           var r2 = hash(j, cp, 78.233);
@@ -756,7 +794,7 @@ type deformer</textarea>
         metrics = letters.map(function (el) {
           return {
             el: el,
-            absX: 0, absY: 0,
+            relX: 0, relY: 0,
             seedX: 0, seedY: 0, mode: 'organic', stepX: 0.28, stepY: 0.34, blend: 0.32,
             active: false,
             toggled: false,
@@ -784,20 +822,17 @@ type deformer</textarea>
         }
       }
 
-      // Positions only — never touches toggle/lock state, so it is safe on resize.
-      function measure() {
-        var scrollX = window.scrollX || window.pageXOffset;
-        var scrollY = window.scrollY || window.pageYOffset;
+      // Stage-relative layout centres — recomputed only when layout changes
+      // (text, font, size, resize). Scrolling never invalidates these; the
+      // per-frame pointer math reads the stage rect once instead.
+      function measureLayout() {
         for (var i = 0; i < metrics.length; i++) {
           var m = metrics[i];
-          // layout box centre, independent of the current transform
           var el = m.el;
-          var w = el.offsetWidth, h = el.offsetHeight;
           var x = 0, y = 0, o = el;
           while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
-          var stageRect = stage.getBoundingClientRect();
-          m.absX = stageRect.left + scrollX + x + w / 2;
-          m.absY = stageRect.top + scrollY + y + h / 2;
+          m.relX = x + el.offsetWidth / 2;
+          m.relY = y + el.offsetHeight / 2;
         }
         metricsDirty = false;
       }
@@ -815,7 +850,7 @@ type deformer</textarea>
       function update() {
         raf = null;
         if (!metrics.length) return;
-        if (metricsDirty) measure();
+        if (metricsDirty) measureLayout();
         pointer.x += (pointer.targetX - pointer.x) * 0.22;
         pointer.y += (pointer.targetY - pointer.y) * 0.22;
         var targetStrength = pointer.active ? 1 : 0;
@@ -823,8 +858,10 @@ type deformer</textarea>
 
         var radius = params.radius * (pointer.type === 'touch' ? 1.33 : 1);
         var radiusSq = radius * radius;
-        var scrollX = window.scrollX || window.pageXOffset;
-        var scrollY = window.scrollY || window.pageYOffset;
+        var stageRect = stage.getBoundingClientRect();
+        var px = pointer.x - stageRect.left;
+        var py = pointer.y - stageRect.top;
+        var flow = params.mode === 'flow' && pointer.active;
 
         var keepAnimating = pointer.active || pointer.strength > 0.002;
 
@@ -832,12 +869,12 @@ type deformer</textarea>
           var info = metrics[i];
           if (info.locked) continue; // frozen — keep current style untouched
 
-          var dx = pointer.x - (info.absX - scrollX);
-          var dy = pointer.y - (info.absY - scrollY);
+          var dx = px - info.relX;
+          var dy = py - info.relY;
           var distSq = dx * dx + dy * dy;
 
           // toggle: flips each time the pointer sweeps through (flow mode only)
-          if (params.mode === 'flow' && pointer.active && distSq < radiusSq) {
+          if (flow && distSq < radiusSq) {
             if (!info.hovered) {
               info.toggled = !info.toggled;
               info.hovered = true;
@@ -846,17 +883,25 @@ type deformer</textarea>
             info.hovered = false;
           }
 
-          var targetIntensity = info.toggled ? 1.0 : 0.0;
-          info.currentIntensity += (targetIntensity - info.currentIntensity) * params.ease;
-
-          if (info.currentIntensity < 0.001 && !info.toggled) {
-            if (info.active) {
-              info.el.style.removeProperty('--ix');
-              info.el.style.removeProperty('--iy');
-              info.active = false;
+          var target = info.toggled ? 1.0 : 0.0;
+          var diff = target - info.currentIntensity;
+          if (diff < 0.0015 && diff > -0.0015) {
+            // settled — snap once, then stop touching this letter entirely
+            if (info.currentIntensity !== target) {
+              info.currentIntensity = target;
+              if (target === 0) {
+                if (info.active) {
+                  info.el.style.removeProperty('--ix');
+                  info.el.style.removeProperty('--iy');
+                  info.active = false;
+                }
+              } else {
+                applyStretch(info);
+              }
             }
             continue;
           }
+          info.currentIntensity += diff * params.ease;
           keepAnimating = true;
           applyStretch(info);
         }
@@ -1104,8 +1149,19 @@ type deformer</textarea>
         return s;
       }
 
+      // compact string snapshot — cheap enough to take on every gesture
+      // even with thousands of letters
       function snapState() {
-        return JSON.stringify({ seed: params.seed, letters: metrics.map(letterState) });
+        var n = metrics.length;
+        var arr = new Array(n);
+        for (var i = 0; i < n; i++) {
+          var m = metrics[i];
+          arr[i] = (m.toggled ? 1 : 0) + ',' + (m.locked ? 1 : 0) + ',' +
+            Math.round(m.currentIntensity * 1000) + ',' +
+            (m.manualX ? Math.round(m.manualX * 1000) : '') + ',' +
+            (m.manualY ? Math.round(m.manualY * 1000) : '');
+        }
+        return params.seed + '|' + arr.join(';');
       }
 
       function pushHistory() {
@@ -1116,13 +1172,25 @@ type deformer</textarea>
         redoStack.length = 0;
       }
 
-      function applySnap(json) {
-        var d = JSON.parse(json);
-        if (d.seed !== params.seed) {
-          params.seed = d.seed;
+      function applySnap(snap) {
+        var sep = snap.indexOf('|');
+        var seed = parseFloat(snap.slice(0, sep));
+        if (seed !== params.seed) {
+          params.seed = seed;
           applyRandom();
         }
-        restoreStates(d.letters || []);
+        var rows = snap.slice(sep + 1).split(';');
+        var states = [];
+        for (var i = 0; i < rows.length; i++) {
+          if (!rows[i]) continue;
+          var f = rows[i].split(',');
+          states.push({
+            t: +f[0], l: +f[1], i: (+f[2]) / 1000,
+            mx: f[3] ? (+f[3]) / 1000 : 0,
+            my: f[4] ? (+f[4]) / 1000 : 0
+          });
+        }
+        restoreStates(states);
       }
 
       function undo() {
@@ -1384,17 +1452,45 @@ type deformer</textarea>
       var f1 = function (v) { return v.toFixed(1); };
       var f0 = function (v) { return String(Math.round(v)); };
 
-      bindRange('pStretchX', 'vStretchX', 'stretchX', f2);
-      bindRange('pStretchY', 'vStretchY', 'stretchY', f2);
+      // rAF-throttled full recompute for slider drags (one pass per frame,
+      // not one per input event)
+      var randomQueued = false;
+      function queueApplyRandom() {
+        if (randomQueued) return;
+        randomQueued = true;
+        requestAnimationFrame(function () {
+          randomQueued = false;
+          applyRandom();
+        });
+      }
+
+      // settled letters no longer re-render every frame, so a stretch-factor
+      // change must explicitly re-apply the current intensities
+      var stretchQueued = false;
+      function reapplyStretches() {
+        if (stretchQueued) return;
+        stretchQueued = true;
+        requestAnimationFrame(function () {
+          stretchQueued = false;
+          for (var i = 0; i < metrics.length; i++) {
+            var m = metrics[i];
+            if (m.manualX || m.manualY) continue; // manual values are absolute
+            if (m.currentIntensity > 0.001) applyStretch(m);
+          }
+        });
+      }
+
+      bindRange('pStretchX', 'vStretchX', 'stretchX', f2, reapplyStretches);
+      bindRange('pStretchY', 'vStretchY', 'stretchY', f2, reapplyStretches);
       bindRange('pRadius', 'vRadius', 'radius', f0);
       bindRange('pReturn', 'vReturn', 'ease', f2);
-      bindRange('pGeo', 'vGeo', 'geoRatio', f2, applyRandom);
-      bindRange('pRandom', 'vRandom', 'randomness', f2, applyRandom);
-      bindRange('pRot', 'vRot', 'rotation', f1, applyRandom);
+      bindRange('pGeo', 'vGeo', 'geoRatio', f2, queueApplyRandom);
+      bindRange('pRandom', 'vRandom', 'randomness', f2, queueApplyRandom);
+      bindRange('pRot', 'vRot', 'rotation', f1, queueApplyRandom);
       bindRange('pSize', 'vSize', 'fontSize', f0, applyStyle);
       bindRange('pLine', 'vLine', 'lineHeight', f2, applyStyle);
       bindRange('pTrack', 'vTrack', 'letterSpacing', f2, applyStyle);
-      bindRange('pAccentRatio', 'vAccentRatio', 'accentRatio', f2, applyRandom);
+      bindRange('pAccentRatio', 'vAccentRatio', 'accentRatio', f2, queueApplyRandom);
       bindRange('pMargin', 'vMargin', 'marginPct', f0);
 
       var fontSelect = document.getElementById('pFont');
@@ -1415,7 +1511,7 @@ type deformer</textarea>
       });
       document.getElementById('pAccent').addEventListener('input', function (e) {
         params.accent = e.target.value;
-        applyRandom();
+        queueApplyRandom();
       });
       document.getElementById('pInk').addEventListener('input', function (e) {
         params.ink = e.target.value; applyStyle();
@@ -1653,7 +1749,8 @@ type deformer</textarea>
 
       /* ---------------- boot ---------------- */
       window.addEventListener('resize', scheduleMeasure, { passive: true });
-      stageWrap.addEventListener('scroll', scheduleMeasure, { passive: true });
+      // no scroll listener: positions are stage-relative, and the pointer
+      // math reads the stage rect once per animation frame
       if (document.fonts) {
         if (document.fonts.ready) document.fonts.ready.then(scheduleMeasure).catch(function () { });
         if (document.fonts.addEventListener) {
