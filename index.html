@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>type deformer — text graphic editor</title>
+  <meta name="theme-color" content="#f4f3ef">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Zen+Old+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f4f3ef;
+      --ink: #17140f;
+      --red: #c41f1f;
+      --dim: #8f887a;
+      --line: #d9d5c9;
+      --card: #fdfdfb;
+      --mono: "Space Mono", Menlo, Consolas, monospace;
+      --jp: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--jp);
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    ::selection { background: var(--red); color: #fff; }
+
+    /* topbar */
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.4em 1.6em;
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--paper);
+      z-index: 500;
+    }
+    .topbar .brand { font-weight: 700; }
+    .topbar .jp { font-family: var(--jp); color: var(--dim); letter-spacing: 0.3em; margin-left: 1em; text-transform: none; }
+    .topbar .hint { margin-left: auto; color: var(--dim); }
+    .topbar .hint b { color: var(--red); font-weight: 400; }
+
+    /* layout */
+    .app {
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      min-height: 0;
+    }
+
+    /* control panel */
+    .panel {
+      border-right: 1px solid var(--ink);
+      background: var(--card);
+      overflow-y: auto;
+      padding: 1rem 1rem 3rem;
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+    }
+
+    .sec-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.58rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--red);
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 0.5em;
+      margin: 1.6em 0 1em;
+    }
+    .sec-head:first-child { margin-top: 0; }
+    .sec-head .r { color: var(--dim); }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 7em;
+      resize: vertical;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      color: var(--ink);
+      font-family: var(--jp);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      padding: 0.6em 0.7em;
+    }
+    textarea:focus { outline: 2px solid var(--red); outline-offset: -1px; }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8em;
+      margin: 0.55em 0;
+    }
+    .row label { flex: 0 0 auto; text-transform: uppercase; }
+    .row .val { color: var(--red); min-width: 3.2em; text-align: right; font-size: 0.95em; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1 1 auto;
+      height: 1px;
+      background: var(--ink);
+      outline: none;
+      margin: 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 11px; height: 11px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      cursor: ew-resize;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { background: var(--red); }
+    input[type="range"]::-moz-range-thumb {
+      width: 9px; height: 9px;
+      border-radius: 0;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      cursor: ew-resize;
+    }
+
+    select, input[type="color"], input[type="text"], input[type="number"] {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      color: var(--ink);
+      padding: 0.25em 0.4em;
+    }
+    select, input[type="text"] { flex: 1 1 auto; }
+    input[type="text"], input[type="number"] { box-sizing: border-box; }
+    input[type="number"] { width: 5.5em; }
+    select:focus, input[type="text"]:focus, input[type="number"]:focus { outline: 2px solid var(--red); outline-offset: -1px; }
+    input[type="color"] {
+      width: 3.4em; height: 1.8em; padding: 1px; cursor: pointer;
+    }
+    input[type="checkbox"] { accent-color: var(--red); width: 1.05em; height: 1.05em; margin: 0; cursor: pointer; }
+
+    button {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: var(--card);
+      border: 1px solid var(--ink);
+      box-shadow: 2px 2px 0 rgba(23, 20, 15, 0.22);
+      color: var(--ink);
+      padding: 0.55em 0.8em;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    button:hover {
+      background: var(--ink); color: var(--paper);
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0 rgba(23, 20, 15, 0.28);
+    }
+    button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(23,20,15,.25); }
+    button.primary { background: var(--ink); color: var(--paper); }
+    button.primary:hover { background: var(--red); border-color: var(--red); }
+    button[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+
+    .btns { display: flex; flex-wrap: wrap; gap: 0.5em; margin: 0.7em 0; }
+
+    .note { color: var(--dim); line-height: 1.7; letter-spacing: 0.06em; margin: 0.6em 0 0; }
+
+    /* stage */
+    .stage-wrap {
+      position: relative;
+      overflow: auto;
+      background: var(--paper);
+    }
+    .stage-wrap::before,
+    .stage-wrap::after {
+      content: "";
+      position: absolute;
+      width: 9px; height: 9px;
+      z-index: 6;
+      pointer-events: none;
+      opacity: 0.45;
+      background:
+        linear-gradient(var(--ink), var(--ink)) center / 1px 100% no-repeat,
+        linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat;
+    }
+    .stage-wrap::before { top: 12px; left: 12px; }
+    .stage-wrap::after { bottom: 12px; right: 12px; }
+
+    .stage {
+      position: relative;
+      min-height: 100%;
+      box-sizing: border-box;
+      padding: clamp(40px, 8vh, 96px) clamp(28px, 5vw, 80px);
+      letter-spacing: -0.03em;
+      font-kerning: normal;
+      font-variant-east-asian: proportional-width;
+      font-feature-settings: "palt" 1, "kern" 1;
+      text-rendering: optimizeLegibility;
+      line-break: strict;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+      cursor: crosshair;
+    }
+    .stage.lock-mode { cursor: pointer; }
+    .stage.edit-mode { cursor: default; touch-action: none; }
+    .stage.edit-mode .c {
+      outline: 1px dashed rgba(196, 31, 31, 0.4);
+      outline-offset: 2px;
+      cursor: grab;
+    }
+    .stage.edit-mode .c.editing {
+      outline-style: solid;
+      background: rgba(196, 31, 31, 0.07);
+      cursor: grabbing;
+    }
+
+    .stage p { margin: 0 0 0.55em; }
+
+    .stage.vertical {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+    .stage.vertical p { margin: 0 0.55em 0 0; }
+
+    .stage .c {
+      display: inline-block;
+      --ix: 1; --iy: 1;
+      transform: translateX(var(--tx, 0)) translateY(var(--ty, 0)) rotate(var(--rot, 0deg)) scale(var(--sx, 1), var(--sy, 1)) scale(var(--ix, 1), var(--iy, 1));
+      transform-origin: 50% 75%;
+      will-change: transform;
+      transition: transform .1s cubic-bezier(.25, .82, .25, 1);
+      opacity: 0;
+      translate: 0 15px;
+      scale: 0.95;
+      filter: blur(4px);
+      animation: reveal 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+      animation-delay: calc(var(--i) * 0.003s + 0.05s);
+    }
+
+    @keyframes reveal {
+      0% { opacity: 0; translate: 0 15px; scale: 0.95; filter: blur(4px); }
+      100% { opacity: 1; translate: 0 0; scale: 1; filter: blur(0); }
+    }
+
+    .stage .c.punct { margin-left: -0.03em; margin-right: -0.03em; }
+
+    .stage .c.locked {
+      background: rgba(196, 31, 31, 0.09);
+      box-shadow: 0 1px 0 var(--red);
+    }
+
+    /* export preview overlay */
+    #previewOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(23, 20, 15, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #previewOverlay[hidden] { display: none; }
+    #previewOverlay figure {
+      margin: 0;
+      background: var(--card);
+      border: 1px solid var(--ink);
+      box-shadow: 6px 6px 0 rgba(23, 20, 15, 0.3);
+      padding: 14px;
+      max-width: 88%;
+      max-height: 88%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #previewOverlay img {
+      max-width: 100%;
+      max-height: 72vh;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      background: repeating-conic-gradient(#e4e2da 0 25%, #fdfdfb 0 50%) 0 0 / 16px 16px;
+    }
+    #previewOverlay figcaption {
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--dim);
+      text-align: center;
+    }
+    #previewOverlay figcaption b { color: var(--red); font-weight: 400; }
+
+    /* paper grain */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 950;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23g)'/%3E%3C/svg%3E");
+      background-size: 260px 260px;
+      mix-blend-mode: multiply;
+      opacity: 0.05;
+    }
+
+    @media (max-width: 760px) {
+      body { overflow: auto; height: auto; }
+      .app { grid-template-columns: 1fr; }
+      .panel { border-right: 0; border-bottom: 1px solid var(--ink); max-height: none; }
+      .stage-wrap { min-height: 70svh; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <span class="brand">TYPE DEFORMER<span class="jp">文字変形機</span></span>
+    <span class="hint"><b>L</b> lock — <b>E</b> edit — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
+  </header>
+
+  <div class="app">
+    <aside class="panel">
+      <div class="sec-head"><span>Text</span><span class="r">入力</span></div>
+      <textarea id="textInput" spellcheck="false">テクスト。デザイン。グラフィック。
+type deformer</textarea>
+
+      <div class="sec-head"><span>Deform</span><span class="r">変形</span></div>
+      <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
+      <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
+      <div class="row"><label for="pRadius">Radius</label><input type="range" id="pRadius" min="15" max="180" step="1" value="45"><span class="val" id="vRadius">45</span></div>
+      <div class="row"><label for="pReturn">Ease</label><input type="range" id="pReturn" min="0.02" max="0.3" step="0.01" value="0.08"><span class="val" id="vReturn">0.08</span></div>
+      <div class="row"><label for="pGeo">Geo ratio</label><input type="range" id="pGeo" min="0" max="1" step="0.02" value="0.32"><span class="val" id="vGeo">0.32</span></div>
+      <div class="row"><label for="pRandom">Randomness</label><input type="range" id="pRandom" min="0" max="2" step="0.05" value="1"><span class="val" id="vRandom">1.00</span></div>
+      <div class="row"><label for="pRot">Rotation</label><input type="range" id="pRot" min="0" max="45" step="0.5" value="0"><span class="val" id="vRot">0.0</span></div>
+      <div class="btns">
+        <button id="btnShuffle">Shuffle 乱数</button>
+      </div>
+
+      <div class="sec-head"><span>Mode</span><span class="r">操作</span></div>
+      <div class="btns">
+        <button id="btnModeFlow" aria-pressed="true">Flow なぞる</button>
+        <button id="btnModeLock" aria-pressed="false">Lock 固定</button>
+        <button id="btnModeEdit" aria-pressed="false">Edit 手動</button>
+      </div>
+      <div class="btns">
+        <button id="btnLockAll">Lock all</button>
+        <button id="btnUnlockAll">Unlock all</button>
+        <button id="btnReset">Reset</button>
+      </div>
+      <p class="note">FLOW: なぞった文字が伸縮し、再度なぞると戻ります。LOCK: クリックで現在の形を固定／解除。EDIT: 文字枠をドラッグして向きと強さを直接指定（右・上＝伸ばす、左・下＝縮める。ダブルクリックで初期化）。EDITした文字は自動的に固定されます。固定中は薄い赤で表示（書き出しには含まれません）。</p>
+
+      <div class="sec-head"><span>Style</span><span class="r">体裁</span></div>
+      <div class="row"><label for="pFont">Font</label>
+        <select id="pFont">
+          <option value='"Zen Old Mincho", "Hiragino Mincho ProN", serif' selected>Zen Old Mincho</option>
+          <option value='"Noto Sans JP", "Hiragino Sans", sans-serif'>Noto Sans JP</option>
+          <option value='"Zen Kaku Gothic New", "Hiragino Sans", sans-serif'>Zen Kaku Gothic New</option>
+          <option value='"EB Garamond", "Times New Roman", serif'>EB Garamond</option>
+          <option value='"Space Mono", Menlo, monospace'>Space Mono</option>
+        </select>
+      </div>
+      <div class="row"><label for="pFontCustom">Custom</label><input type="text" id="pFontCustom" placeholder="ローカルフォント名（例: A1明朝）" spellcheck="false"></div>
+      <div class="row"><label for="pWeight">Weight</label>
+        <select id="pWeight">
+          <option value="400" selected>Regular 400</option>
+          <option value="700">Bold 700</option>
+        </select>
+      </div>
+      <div class="row"><label for="pSize">Size</label><input type="range" id="pSize" min="18" max="160" step="1" value="52"><span class="val" id="vSize">52</span></div>
+      <div class="row"><label for="pLine">Leading</label><input type="range" id="pLine" min="0.9" max="2.2" step="0.02" value="1.1"><span class="val" id="vLine">1.10</span></div>
+      <div class="row"><label for="pTrack">Tracking</label><input type="range" id="pTrack" min="-0.1" max="0.5" step="0.01" value="-0.03"><span class="val" id="vTrack">-0.03</span></div>
+      <div class="row"><label for="pAlign">Align</label>
+        <select id="pAlign">
+          <option value="left" selected>Left 左揃え</option>
+          <option value="center">Center 中央</option>
+          <option value="right">Right 右揃え</option>
+        </select>
+        <button id="btnVertical" aria-pressed="false">縦書き</button>
+      </div>
+      <div class="row"><label for="pInk">Ink</label><input type="color" id="pInk" value="#17140f"><label for="pPaper" style="margin-left:auto">Paper</label><input type="color" id="pPaper" value="#f4f3ef"></div>
+      <div class="row"><label for="pAccent">Accent</label><input type="color" id="pAccent" value="#c41f1f"><input type="range" id="pAccentRatio" min="0" max="1" step="0.02" value="0"><span class="val" id="vAccentRatio">0.00</span></div>
+
+      <div class="sec-head"><span>Artboard</span><span class="r">画板</span></div>
+      <div class="row"><label for="pArtboard">Size</label>
+        <select id="pArtboard">
+          <option value="auto" selected>Auto（コンテンツなり）</option>
+          <option value="1080x1080">1080×1080 — SNS正方形</option>
+          <option value="1080x1350">1080×1350 — 4:5</option>
+          <option value="1080x1920">1080×1920 — ストーリー</option>
+          <option value="1920x1080">1920×1080 — 16:9</option>
+          <option value="2480x3508">2480×3508 — A4縦 300dpi</option>
+          <option value="3508x2480">3508×2480 — A4横 300dpi</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="row" id="abCustomRow" style="display:none">
+        <label for="pAbW">W</label><input type="number" id="pAbW" min="16" max="20000" value="1080">
+        <label for="pAbH">H</label><input type="number" id="pAbH" min="16" max="20000" value="1080">
+        <span style="color:var(--dim)">px</span>
+      </div>
+      <div class="row"><label for="pAnchor">Anchor</label>
+        <select id="pAnchor">
+          <option value="tl">左上</option><option value="tc">上</option><option value="tr">右上</option>
+          <option value="cl">左</option><option value="cc" selected>中央</option><option value="cr">右</option>
+          <option value="bl">左下</option><option value="bc">下</option><option value="br">右下</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="pFit">Fit</label><input type="checkbox" id="pFit" checked>
+        <label for="pMargin" style="margin-left:auto">Margin</label><input type="range" id="pMargin" min="0" max="25" step="1" value="6" style="flex:0 1 6em"><span class="val" id="vMargin">6</span>
+      </div>
+      <p class="note">Auto以外では指定サイズの画板に書き出します。Fit ONで余白（Margin %）内に収まるよう拡縮、OFFで原寸配置。</p>
+
+      <div class="sec-head"><span>Export</span><span class="r">書出</span></div>
+      <div class="row"><label for="pScale">PNG scale</label>
+        <select id="pScale">
+          <option value="1">1x</option>
+          <option value="2" selected>2x</option>
+          <option value="4">4x</option>
+          <option value="8">8x</option>
+        </select>
+        <span class="val" id="vExportSize"></span>
+      </div>
+      <div class="row"><label for="pTransparent">Transparent BG</label><input type="checkbox" id="pTransparent"></div>
+      <div class="btns">
+        <button class="primary" id="btnPng">PNG ↓</button>
+        <button class="primary" id="btnSvg">SVG ↓</button>
+        <button id="btnCopy">Copy PNG</button>
+        <button id="btnPreview">Preview 校正</button>
+      </div>
+      <p class="note">SVGはtext要素+transformで出力します。Illustrator等で開く場合は同じフォントのインストールが必要です。縦書き時の約物（。「」等）は書き出しで位置が変わることがあります。</p>
+
+      <div class="sec-head"><span>Project</span><span class="r">保存</span></div>
+      <div class="btns">
+        <button id="btnSaveProj">Save .json</button>
+        <button id="btnLoadProj">Load .json</button>
+        <input type="file" id="projFile" accept=".json,application/json" hidden>
+      </div>
+      <p class="note">テキスト・パラメータ・変形/固定の状態をまとめて保存し、あとで再開できます。</p>
+    </aside>
+
+    <div class="stage-wrap" id="stageWrap">
+      <div class="stage" id="stage" aria-label="変形キャンバス"></div>
+    </div>
+  </div>
+
+  <div id="previewOverlay" hidden>
+    <figure>
+      <img id="previewImg" alt="書き出しプレビュー">
+      <figcaption id="previewCaption"></figcaption>
+    </figure>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var stage = document.getElementById('stage');
+      var stageWrap = document.getElementById('stageWrap');
+
+      /* ---------------- state ---------------- */
+      var params = {
+        stretchX: 1,
+        stretchY: 1,
+        radius: 45,
+        ease: 0.08,
+        geoRatio: 0.32,
+        randomness: 1,
+        rotation: 0,
+        seed: 1,
+        fontFamily: '"Zen Old Mincho", "Hiragino Mincho ProN", serif',
+        fontSize: 52,
+        lineHeight: 1.1,
+        letterSpacing: -0.03,
+        align: 'left',
+        vertical: false,
+        ink: '#17140f',
+        paper: '#f4f3ef',
+        accent: '#c41f1f',
+        accentRatio: 0,
+        fontWeight: 400,
+        artboard: 'auto',
+        abW: 1080,
+        abH: 1080,
+        anchor: 'cc',
+        fit: true,
+        marginPct: 6,
+        exportScale: 2,
+        transparentBg: false,
+        mode: 'flow'   // 'flow' | 'lock' | 'edit'
+      };
+
+      /* ---------------- grapheme splitting (ported) ---------------- */
+      var graphemeSegmenter = (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function')
+        ? new Intl.Segmenter('ja', { granularity: 'grapheme' }) : null;
+
+      function toGraphemes(str) {
+        if (graphemeSegmenter) {
+          return Array.from(graphemeSegmenter.segment(str), function (entry) { return entry.segment; });
+        }
+        return fallbackGraphemes(str);
+      }
+
+      function fallbackGraphemes(str) {
+        var result = [], index = 0;
+        while (index < str.length) {
+          var cp = str.codePointAt(index);
+          var cluster = String.fromCodePoint(cp);
+          index += cp > 0xFFFF ? 2 : 1;
+          while (index < str.length) {
+            var nextCp = str.codePointAt(index);
+            if (nextCp === 0x200D) {
+              cluster += String.fromCodePoint(nextCp);
+              index += 1;
+              if (index < str.length) {
+                nextCp = str.codePointAt(index);
+                cluster += String.fromCodePoint(nextCp);
+                index += nextCp > 0xFFFF ? 2 : 1;
+                continue;
+              }
+              break;
+            }
+            if (nextCp === 0xFE0F || nextCp === 0xFE0E) { cluster += String.fromCodePoint(nextCp); index += 1; continue; }
+            if (nextCp >= 0x1F3FB && nextCp <= 0x1F3FF) { cluster += String.fromCodePoint(nextCp); index += nextCp > 0xFFFF ? 2 : 1; continue; }
+            break;
+          }
+          result.push(cluster);
+        }
+        return result;
+      }
+
+      function classify(cp) {
+        if ((cp >= 0x0041 && cp <= 0x024F) || (cp >= 0x0030 && cp <= 0x0039)) return 'latin';
+        if (cp >= 0x3040 && cp <= 0x309F) return 'hira';
+        if (cp >= 0x30A0 && cp <= 0x30FF) return 'kata';
+        if (cp >= 0x4E00 && cp <= 0x9FFF) return 'kanji';
+        return 'other';
+      }
+
+      var punctStr = '、。，．！？・：；（）［］｛｝「」『』—…‥,.!?;:(){}[]—–…‥';
+
+      function quant(x, step) { return Math.round(x / step) * step; }
+
+      function hash(j, cp, k) {
+        return (Math.abs(Math.sin((j + 1) * (cp + 1) * (k + params.seed * 13.37))) * 43758.5453) % 1;
+      }
+
+      /* ---------------- letters: create + randomize ---------------- */
+      var letters = [];   // span elements
+      var metrics = [];   // per-letter lens state (parallel to letters)
+      var metricsDirty = true;
+      var undoStack = [], redoStack = [];   // deform/lock history (cleared on text change)
+
+      function createSpans(text) {
+        stage.innerHTML = '';
+        letters = [];
+        var lines = text.replace(/\r\n?/g, '\n').split('\n');
+        var globalIndex = 0;
+        for (var li = 0; li < lines.length; li++) {
+          var p = document.createElement('p');
+          var chars = toGraphemes(lines[li]);
+          for (var j = 0; j < chars.length; j++) {
+            var ch = chars[j];
+            var cp = ch.codePointAt(0);
+            if (cp === 32 || cp === 9 || cp === 160) { p.appendChild(document.createTextNode(' ')); continue; }
+            var span = document.createElement('span');
+            var isPunct = punctStr.indexOf(ch) !== -1;
+            span.className = 'c' + (isPunct ? ' punct' : '');
+            span.dataset.j = j;
+            span.dataset.cp = cp;
+            span.style.setProperty('--i', globalIndex++);
+            span.textContent = ch;
+            p.appendChild(span);
+            letters.push(span);
+          }
+          if (!chars.length) p.appendChild(document.createElement('br'));
+          stage.appendChild(p);
+        }
+        applyRandom();
+        rebuildMetrics();
+        undoStack.length = 0;
+        redoStack.length = 0;
+      }
+
+      // Recompute per-letter random values without recreating spans (keeps lock/toggle state).
+      function applyRandom() {
+        for (var i = 0; i < letters.length; i++) {
+          var span = letters[i];
+          var j = parseInt(span.dataset.j, 10);
+          var cp = parseInt(span.dataset.cp, 10);
+          var ch = span.textContent;
+          var isPunct = punctStr.indexOf(ch) !== -1;
+          var cls = classify(cp);
+
+          var r1 = hash(j, cp, 12.9898);
+          var r2 = hash(j, cp, 78.233);
+          var r3 = hash(j, cp, 192.456);
+          var r4 = hash(j, cp, 421.887);
+          var r5 = hash(j, cp, 333.777);
+          var r6 = hash(j, cp, 77.113);
+
+          var sxMin = 0.78, sxRange = 0.56, syMin = 0.82, syRange = 0.40;
+          if (isPunct) { sxMin = 0.97; sxRange = 0.06; syMin = 0.97; syRange = 0.06; }
+          else if (cls === 'latin') { sxMin = 0.86; sxRange = 0.38; syMin = 0.88; syRange = 0.30; }
+          else if (cls === 'hira' || cls === 'kata') { sxMin = 0.76; sxRange = 0.52; syMin = 0.84; syRange = 0.36; }
+          else if (cls === 'kanji') { sxMin = 0.72; sxRange = 0.56; syMin = 0.80; syRange = 0.40; }
+
+          var R = params.randomness;
+          // randomness=1 reproduces the original; 0 gives uniform glyphs.
+          var sx = 1 - (1 - (sxMin + sxRange * r1)) * R;
+          var sy = 1 - (1 - (syMin + syRange * r2)) * R;
+          var tx = ((r1 - 0.5) * 0.026) * R;
+          var ty = ((r2 - 0.5) * 0.056) * R;
+          sx = quant(sx, 0.005); sy = quant(sy, 0.005);
+          tx = quant(tx, 0.002); ty = quant(ty, 0.002);
+
+          span.style.setProperty('--sx', sx.toFixed(3));
+          span.style.setProperty('--sy', sy.toFixed(3));
+          span.style.setProperty('--tx', tx.toFixed(3) + 'em');
+          span.style.setProperty('--ty', ty.toFixed(3) + 'em');
+          span.style.setProperty('--rot', ((r5 - 0.5) * 2 * params.rotation).toFixed(2) + 'deg');
+          if (r6 < params.accentRatio) {
+            span.style.color = params.accent;
+            span.dataset.accent = '1';
+          } else {
+            span.style.removeProperty('color');
+            span.dataset.accent = '';
+          }
+          span.dataset.lensX = ((r1 * 2) - 1).toFixed(3);
+          span.dataset.lensY = ((r2 * 2) - 1).toFixed(3);
+
+          var geo = r3 > (1 - params.geoRatio);
+          span.dataset.lensMode = geo ? 'geo' : 'organic';
+          var stepX, stepY, blendSeed;
+          if (geo) {
+            stepX = 0.22 + r3 * 0.28;
+            stepY = 0.26 + r4 * 0.32;
+            blendSeed = 0.58 + r4 * 0.24;
+          } else {
+            stepX = 0.16 + r3 * 0.10;
+            stepY = 0.20 + r4 * 0.12;
+            blendSeed = 0.18 + r4 * 0.20;
+          }
+          span.dataset.lensStepX = stepX.toFixed(3);
+          span.dataset.lensStepY = stepY.toFixed(3);
+          span.dataset.lensBlend = blendSeed.toFixed(3);
+        }
+        syncMetricsSeeds();
+        metricsDirty = true;
+        schedule();
+      }
+
+      /* ---------------- lens engine (ported, + lock) ---------------- */
+      var raf = null;
+      var activePointerId = null;
+      var pointer = { x: 0, y: 0, targetX: 0, targetY: 0, strength: 0, active: false, type: 'mouse' };
+
+      function rebuildMetrics() {
+        metrics = letters.map(function (el) {
+          return {
+            el: el,
+            absX: 0, absY: 0,
+            seedX: 0, seedY: 0, mode: 'organic', stepX: 0.28, stepY: 0.34, blend: 0.32,
+            active: false,
+            toggled: false,
+            hovered: false,
+            locked: false,
+            manualX: null,
+            manualY: null,
+            currentIntensity: 0
+          };
+        });
+        syncMetricsSeeds();
+        metricsDirty = true;
+        schedule();
+      }
+
+      function syncMetricsSeeds() {
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i], el = m.el;
+          m.seedX = parseFloat(el.dataset.lensX || 0);
+          m.seedY = parseFloat(el.dataset.lensY || 0);
+          m.mode = el.dataset.lensMode || 'organic';
+          m.stepX = parseFloat(el.dataset.lensStepX || '0.28');
+          m.stepY = parseFloat(el.dataset.lensStepY || '0.34');
+          m.blend = parseFloat(el.dataset.lensBlend || '0.32');
+        }
+      }
+
+      // Positions only — never touches toggle/lock state, so it is safe on resize.
+      function measure() {
+        var scrollX = window.scrollX || window.pageXOffset;
+        var scrollY = window.scrollY || window.pageYOffset;
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i];
+          // layout box centre, independent of the current transform
+          var el = m.el;
+          var w = el.offsetWidth, h = el.offsetHeight;
+          var x = 0, y = 0, o = el;
+          while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
+          var stageRect = stage.getBoundingClientRect();
+          m.absX = stageRect.left + scrollX + x + w / 2;
+          m.absY = stageRect.top + scrollY + y + h / 2;
+        }
+        metricsDirty = false;
+      }
+
+      function schedule() {
+        if (raf) return;
+        raf = requestAnimationFrame(update);
+      }
+
+      function scheduleMeasure() {
+        metricsDirty = true;
+        schedule();
+      }
+
+      function update() {
+        raf = null;
+        if (!metrics.length) return;
+        if (metricsDirty) measure();
+        pointer.x += (pointer.targetX - pointer.x) * 0.22;
+        pointer.y += (pointer.targetY - pointer.y) * 0.22;
+        var targetStrength = pointer.active ? 1 : 0;
+        pointer.strength += (targetStrength - pointer.strength) * 0.16;
+
+        var radius = params.radius * (pointer.type === 'touch' ? 1.33 : 1);
+        var radiusSq = radius * radius;
+        var scrollX = window.scrollX || window.pageXOffset;
+        var scrollY = window.scrollY || window.pageYOffset;
+
+        var keepAnimating = pointer.active || pointer.strength > 0.002;
+
+        for (var i = 0; i < metrics.length; i++) {
+          var info = metrics[i];
+          if (info.locked) continue; // frozen — keep current style untouched
+
+          var dx = pointer.x - (info.absX - scrollX);
+          var dy = pointer.y - (info.absY - scrollY);
+          var distSq = dx * dx + dy * dy;
+
+          // toggle: flips each time the pointer sweeps through (flow mode only)
+          if (params.mode === 'flow' && pointer.active && distSq < radiusSq) {
+            if (!info.hovered) {
+              info.toggled = !info.toggled;
+              info.hovered = true;
+            }
+          } else if (distSq >= radiusSq) {
+            info.hovered = false;
+          }
+
+          var targetIntensity = info.toggled ? 1.0 : 0.0;
+          info.currentIntensity += (targetIntensity - info.currentIntensity) * params.ease;
+
+          if (info.currentIntensity < 0.001 && !info.toggled) {
+            if (info.active) {
+              info.el.style.removeProperty('--ix');
+              info.el.style.removeProperty('--iy');
+              info.active = false;
+            }
+            continue;
+          }
+          keepAnimating = true;
+          applyStretch(info);
+        }
+
+        if (keepAnimating) schedule();
+      }
+
+      // Compute and apply --ix/--iy from currentIntensity. Also used to
+      // restore a saved project without waiting for the animation loop.
+      function applyStretch(info) {
+        var seedX = info.seedX, seedY = info.seedY;
+        var directional = seedX * 0.5;
+
+        var stretchX = 1 + info.currentIntensity * (1.48 + seedX * 0.85 + directional * 0.42) * params.stretchX;
+        var stretchY = 1 + info.currentIntensity * (1.82 + seedY * 1.05 - directional * 0.36) * params.stretchY;
+        var stepX = isFinite(info.stepX) && info.stepX > 0 ? info.stepX : 0.28;
+        var stepY = isFinite(info.stepY) && info.stepY > 0 ? info.stepY : 0.34;
+        var baseBlend = isFinite(info.blend) ? info.blend : 0.32;
+        if (info.mode === 'geo') {
+          var blend = Math.min(0.94, Math.max(0.42, baseBlend + info.currentIntensity * 0.35));
+          var steppedX = 1 + Math.round((stretchX - 1) / stepX) * stepX;
+          var steppedY = 1 + Math.round((stretchY - 1) / stepY) * stepY;
+          stretchX = stretchX * (1 - blend) + steppedX * blend;
+          stretchY = stretchY * (1 - blend) + steppedY * blend;
+          stretchX += (seedX * 0.12 + seedY * 0.08) * info.currentIntensity;
+          stretchY += (seedY * 0.14 - seedX * 0.05) * info.currentIntensity;
+        } else {
+          var softBlend = Math.max(0, Math.min(0.55, baseBlend * info.currentIntensity));
+          if (softBlend > 0.02) {
+            var easedX = 1 + Math.round((stretchX - 1) / stepX) * stepX;
+            var easedY = 1 + Math.round((stretchY - 1) / stepY) * stepY;
+            stretchX = stretchX * (1 - softBlend) + easedX * softBlend;
+            stretchY = stretchY * (1 - softBlend) + easedY * softBlend;
+          }
+        }
+        if (stretchX < 1) stretchX = 1; else if (stretchX > 8.0) stretchX = 8.0;
+        if (stretchY < 1) stretchY = 1; else if (stretchY > 9.0) stretchY = 9.0;
+
+        info.el.style.setProperty('--ix', stretchX.toFixed(3));
+        info.el.style.setProperty('--iy', stretchY.toFixed(3));
+        info.active = true;
+      }
+
+      function updatePointerFromEvent(e) {
+        pointer.targetX = e.clientX;
+        pointer.targetY = e.clientY;
+        if (e.pointerType) pointer.type = e.pointerType;
+      }
+
+      stage.addEventListener('pointerenter', function (e) {
+        if (params.mode === 'flow') pushHistory();
+        updatePointerFromEvent(e);
+        pointer.active = true;
+        schedule();
+      });
+
+      stage.addEventListener('pointermove', function (e) {
+        if (activePointerId !== null && e.pointerId !== activePointerId && e.pointerType !== 'mouse') return;
+        updatePointerFromEvent(e);
+        if (e.pointerType === 'touch') {
+          if (e.isPrimary && typeof stage.setPointerCapture === 'function') {
+            try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+          }
+        } else if (e.pointerType === 'mouse') {
+          pointer.active = true;
+        }
+        schedule();
+      }, { passive: true });
+
+      stage.addEventListener('pointerdown', function (e) {
+        if (params.mode === 'flow') pushHistory();
+        activePointerId = e.pointerId;
+        updatePointerFromEvent(e);
+        pointer.active = true;
+        if (e.pointerType === 'touch' && typeof stage.setPointerCapture === 'function') {
+          try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+        }
+        schedule();
+      });
+
+      function handlePointerEnd(e) {
+        if (activePointerId !== null && e.pointerId !== activePointerId && e.pointerType !== 'mouse') return;
+        if (e.pointerId === activePointerId) activePointerId = null;
+        if (e.pointerType === 'touch' && typeof stage.releasePointerCapture === 'function') {
+          try { stage.releasePointerCapture(e.pointerId); } catch (err) { }
+        }
+        pointer.active = false;
+        schedule();
+      }
+      stage.addEventListener('pointerup', handlePointerEnd);
+      stage.addEventListener('pointercancel', handlePointerEnd);
+      stage.addEventListener('pointerleave', function (e) {
+        if (e.pointerType === 'mouse') { pointer.active = false; schedule(); }
+      });
+
+      /* ---------------- lock ---------------- */
+      function findMetric(el) {
+        if (!el || !el.classList || !el.classList.contains('c')) return null;
+        for (var i = 0; i < metrics.length; i++) {
+          if (metrics[i].el === el) return metrics[i];
+        }
+        return null;
+      }
+
+      stage.addEventListener('click', function (e) {
+        if (params.mode !== 'lock') return;
+        var m = findMetric(e.target);
+        if (!m) return;
+        pushHistory();
+        m.locked = !m.locked;
+        m.el.classList.toggle('locked', m.locked);
+        if (!m.locked) {
+          m.manualX = m.manualY = null;
+          schedule(); // resume easing when released
+        }
+      });
+
+      /* ---------------- edit mode: drag a letter to shape it ---------------- */
+      var editDrag = null;
+
+      // right/up = stretch, left/down = squash (relative to the value at drag start)
+      function dragStretch(base, d) {
+        return d >= 0 ? base * (1 + d / 60) : base / (1 + (-d) / 90);
+      }
+
+      stage.addEventListener('pointerdown', function (e) {
+        if (params.mode !== 'edit') return;
+        var m = findMetric(e.target);
+        if (!m) return;
+        pushHistory();
+        editDrag = {
+          m: m,
+          id: e.pointerId,
+          x0: e.clientX,
+          y0: e.clientY,
+          baseX: parseFloat(m.el.style.getPropertyValue('--ix')) || 1,
+          baseY: parseFloat(m.el.style.getPropertyValue('--iy')) || 1
+        };
+        m.el.classList.add('editing');
+        try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+        if (e.cancelable) e.preventDefault();
+      });
+
+      stage.addEventListener('pointermove', function (e) {
+        if (!editDrag || e.pointerId !== editDrag.id) return;
+        var dx = e.clientX - editDrag.x0;
+        var dy = e.clientY - editDrag.y0;
+        var ix = Math.min(8, Math.max(0.25, dragStretch(editDrag.baseX, dx)));
+        var iy = Math.min(9, Math.max(0.25, dragStretch(editDrag.baseY, -dy)));
+        var m = editDrag.m;
+        m.manualX = ix;
+        m.manualY = iy;
+        m.locked = true;
+        m.active = true;
+        m.el.classList.add('locked');
+        m.el.style.setProperty('--ix', ix.toFixed(3));
+        m.el.style.setProperty('--iy', iy.toFixed(3));
+        if (e.cancelable) e.preventDefault();
+      });
+
+      function endEditDrag(e) {
+        if (!editDrag || e.pointerId !== editDrag.id) return;
+        editDrag.m.el.classList.remove('editing');
+        editDrag = null;
+      }
+      stage.addEventListener('pointerup', endEditDrag);
+      stage.addEventListener('pointercancel', endEditDrag);
+
+      stage.addEventListener('dblclick', function (e) {
+        if (params.mode !== 'edit') return;
+        var m = findMetric(e.target);
+        if (!m) return;
+        pushHistory();
+        m.manualX = m.manualY = null;
+        m.locked = false;
+        m.toggled = false;
+        m.currentIntensity = 0;
+        m.active = false;
+        m.el.classList.remove('locked');
+        m.el.style.removeProperty('--ix');
+        m.el.style.removeProperty('--iy');
+        schedule();
+      });
+
+      function lockAll() {
+        for (var i = 0; i < metrics.length; i++) {
+          metrics[i].locked = true;
+          metrics[i].el.classList.add('locked');
+        }
+      }
+      function unlockAll() {
+        for (var i = 0; i < metrics.length; i++) {
+          metrics[i].locked = false;
+          metrics[i].manualX = metrics[i].manualY = null;
+          metrics[i].el.classList.remove('locked');
+        }
+        schedule();
+      }
+      function resetAll() {
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i];
+          m.locked = false;
+          m.toggled = false;
+          m.hovered = false;
+          m.manualX = m.manualY = null;
+          m.el.classList.remove('locked');
+        }
+        schedule();
+      }
+
+      /* ---------------- per-letter state restore (undo / project load) ---------------- */
+      function restoreStates(states) {
+        var n = Math.min(states.length, metrics.length);
+        for (var i = 0; i < n; i++) {
+          var m = metrics[i], s = states[i];
+          m.toggled = !!s.t;
+          m.locked = !!s.l;
+          m.hovered = false;
+          m.currentIntensity = +s.i || 0;
+          m.manualX = s.mx ? +s.mx : null;
+          m.manualY = s.my ? +s.my : null;
+          m.el.classList.toggle('locked', m.locked);
+          if (m.manualX || m.manualY) {
+            m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
+            m.el.style.setProperty('--iy', (m.manualY || 1).toFixed(3));
+            m.active = true;
+          } else if (m.currentIntensity > 0.001) {
+            applyStretch(m);
+          } else {
+            m.el.style.removeProperty('--ix');
+            m.el.style.removeProperty('--iy');
+            m.active = false;
+          }
+        }
+        scheduleMeasure();
+      }
+
+      /* ---------------- undo / redo ---------------- */
+      function letterState(m) {
+        var s = { t: m.toggled ? 1 : 0, l: m.locked ? 1 : 0, i: Math.round(m.currentIntensity * 1000) / 1000 };
+        if (m.manualX || m.manualY) {
+          s.mx = Math.round((m.manualX || 1) * 1000) / 1000;
+          s.my = Math.round((m.manualY || 1) * 1000) / 1000;
+        }
+        return s;
+      }
+
+      function snapState() {
+        return JSON.stringify({ seed: params.seed, letters: metrics.map(letterState) });
+      }
+
+      function pushHistory() {
+        var s = snapState();
+        if (undoStack.length && undoStack[undoStack.length - 1] === s) return;
+        undoStack.push(s);
+        if (undoStack.length > 100) undoStack.shift();
+        redoStack.length = 0;
+      }
+
+      function applySnap(json) {
+        var d = JSON.parse(json);
+        if (d.seed !== params.seed) {
+          params.seed = d.seed;
+          applyRandom();
+        }
+        restoreStates(d.letters || []);
+      }
+
+      function undo() {
+        if (!undoStack.length) return;
+        redoStack.push(snapState());
+        applySnap(undoStack.pop());
+      }
+
+      function redo() {
+        if (!redoStack.length) return;
+        undoStack.push(snapState());
+        applySnap(redoStack.pop());
+      }
+
+      /* ---------------- export helpers ---------------- */
+      // Snapshot of every visible glyph: layout box + effective transform.
+      function snapshotGlyphs() {
+        var glyphs = [];
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i], el = m.el;
+          var cs = getComputedStyle(el);
+          var sx = parseFloat(cs.getPropertyValue('--sx')) || 1;
+          var sy = parseFloat(cs.getPropertyValue('--sy')) || 1;
+          var ix = parseFloat(cs.getPropertyValue('--ix')) || 1;
+          var iy = parseFloat(cs.getPropertyValue('--iy')) || 1;
+          var tx = (parseFloat(cs.getPropertyValue('--tx')) || 0) * params.fontSize; // em → px
+          var ty = (parseFloat(cs.getPropertyValue('--ty')) || 0) * params.fontSize;
+          var rot = parseFloat(cs.getPropertyValue('--rot')) || 0; // deg
+          var w = el.offsetWidth, h = el.offsetHeight;
+          var x = 0, y = 0, o = el;
+          while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
+          glyphs.push({
+            ch: el.textContent,
+            latin: classify(parseInt(el.dataset.cp, 10) || 0) === 'latin',
+            accent: el.dataset.accent === '1',
+            x: x, y: y, w: w, h: h,
+            ox: x + w / 2, oy: y + h * 0.75,   // transform-origin 50% 75%
+            tx: tx, ty: ty, rot: rot,
+            scaleX: sx * ix, scaleY: sy * iy
+          });
+        }
+        return glyphs;
+      }
+
+      function contentBounds(glyphs, pad) {
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (var i = 0; i < glyphs.length; i++) {
+          var g = glyphs[i];
+          // transformed corners: p' = O + t + R·S·(p − O)
+          var rad = (g.rot || 0) * Math.PI / 180;
+          var cosR = Math.cos(rad), sinR = Math.sin(rad);
+          var xs = [g.x, g.x + g.w], ys = [g.y, g.y + g.h];
+          for (var a = 0; a < 2; a++) for (var b = 0; b < 2; b++) {
+            var lx = g.scaleX * (xs[a] - g.ox);
+            var ly = g.scaleY * (ys[b] - g.oy);
+            var px = g.ox + g.tx + cosR * lx - sinR * ly;
+            var py = g.oy + g.ty + sinR * lx + cosR * ly;
+            if (px < minX) minX = px; if (px > maxX) maxX = px;
+            if (py < minY) minY = py; if (py > maxY) maxY = py;
+          }
+        }
+        if (!glyphs.length) { minX = minY = 0; maxX = maxY = 100; }
+        return { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
+      }
+
+      function fontMetrics() {
+        var c = document.createElement('canvas');
+        var ctx = c.getContext('2d');
+        ctx.font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+        var m = ctx.measureText('国Hg');
+        var ascent = (m.fontBoundingBoxAscent != null) ? m.fontBoundingBoxAscent : params.fontSize * 0.88;
+        var descent = (m.fontBoundingBoxDescent != null) ? m.fontBoundingBoxDescent : params.fontSize * 0.12;
+        return { ascent: ascent, descent: descent };
+      }
+
+      // baseline y inside a glyph's layout box (half-leading model)
+      function baselineOffset(g, fm) {
+        var leading = g.h - (fm.ascent + fm.descent);
+        return leading / 2 + fm.ascent;
+      }
+
+      // Where the content goes on the output: auto = tight bounds,
+      // otherwise a fixed artboard with anchor / margin / fit-scale.
+      function exportLayout(bounds) {
+        if (params.artboard === 'auto') {
+          return { w: bounds.w, h: bounds.h, s: 1, dx: -bounds.x, dy: -bounds.y };
+        }
+        var W = Math.max(16, Math.round(params.abW) || 1080);
+        var H = Math.max(16, Math.round(params.abH) || 1080);
+        var m = Math.min(W, H) * params.marginPct / 100;
+        var availW = Math.max(1, W - 2 * m);
+        var availH = Math.max(1, H - 2 * m);
+        var s = params.fit ? Math.min(availW / bounds.w, availH / bounds.h) : 1;
+        var ax = { l: 0, c: 0.5, r: 1 }[params.anchor.charAt(1)] || 0.5;
+        var ay = { t: 0, c: 0.5, b: 1 }[params.anchor.charAt(0)] || 0.5;
+        var dx = m + (availW - bounds.w * s) * ax - bounds.x * s;
+        var dy = m + (availH - bounds.h * s) * ay - bounds.y * s;
+        return { w: W, h: H, s: s, dx: dx, dy: dy };
+      }
+
+      function exportBoundsPad() {
+        return params.artboard === 'auto' ? 40 : 0;
+      }
+
+      function download(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      }
+
+      function stamp() {
+        var d = new Date();
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+        return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+      }
+
+      /* ---------------- PNG export ---------------- */
+      function renderCanvas(scale) {
+        var glyphs = snapshotGlyphs();
+        var bounds = contentBounds(glyphs, exportBoundsPad());
+        var L = exportLayout(bounds);
+        var fm = fontMetrics();
+
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(L.w * scale));
+        canvas.height = Math.max(1, Math.round(L.h * scale));
+        var ctx = canvas.getContext('2d');
+
+        if (!params.transparentBg) {
+          ctx.fillStyle = params.paper;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        var font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+
+        for (var i = 0; i < glyphs.length; i++) {
+          var g = glyphs[i];
+          // artboard placement, then the glyph's own deform transform
+          ctx.setTransform(scale, 0, 0, scale, 0, 0);
+          ctx.translate(L.dx, L.dy);
+          ctx.scale(L.s, L.s);
+          ctx.translate(g.ox + g.tx, g.oy + g.ty);
+          ctx.rotate((g.rot || 0) * Math.PI / 180);
+          ctx.scale(g.scaleX, g.scaleY);
+          ctx.translate(-g.ox, -g.oy);
+          ctx.font = font;
+          ctx.fillStyle = g.accent ? params.accent : params.ink;
+          if (params.vertical) {
+            // vertical flow: glyphs sit centred in their layout box;
+            // latin glyphs are rotated 90° by text-orientation: mixed
+            var cx = g.x + g.w / 2;
+            var cy = g.y + g.h / 2;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (g.latin) {
+              ctx.translate(cx, cy);
+              ctx.rotate(Math.PI / 2);
+              ctx.fillText(g.ch, 0, 0);
+            } else {
+              ctx.fillText(g.ch, cx, cy);
+            }
+          } else {
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(g.ch, g.x, g.y + baselineOffset(g, fm));
+          }
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        return canvas;
+      }
+
+      function exportPng() {
+        renderCanvas(params.exportScale).toBlob(function (blob) {
+          if (blob) download(blob, 'type-deform-' + stamp() + '.png');
+        }, 'image/png');
+      }
+
+      function copyPng(btn) {
+        renderCanvas(params.exportScale).toBlob(function (blob) {
+          if (!blob) return;
+          var done = function (ok) {
+            var old = btn.textContent;
+            btn.textContent = ok ? 'Copied!' : 'Copy failed';
+            setTimeout(function () { btn.textContent = old; }, 1400);
+          };
+          if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+              .then(function () { done(true); }, function () { done(false); });
+          } else {
+            done(false);
+          }
+        }, 'image/png');
+      }
+
+      /* ---------------- SVG export ---------------- */
+      function escXml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function exportSvg() {
+        var glyphs = snapshotGlyphs();
+        var bounds = contentBounds(glyphs, exportBoundsPad());
+        var L = exportLayout(bounds);
+        var fm = fontMetrics();
+        var W = Math.round(L.w), H = Math.round(L.h);
+
+        var parts = [];
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
+        parts.push('<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond&amp;family=Space+Mono&amp;family=Zen+Old+Mincho&amp;family=Noto+Sans+JP&amp;family=Zen+Kaku+Gothic+New&amp;display=swap");</style>');
+        if (!params.transparentBg) {
+          parts.push('<rect width="100%" height="100%" fill="' + params.paper + '"/>');
+        }
+        parts.push('<g transform="translate(' + L.dx.toFixed(2) + ' ' + L.dy.toFixed(2) + ') scale(' + L.s.toFixed(5) + ')">');
+        parts.push('<g font-family=\'' + params.fontFamily.replace(/'/g, '') + '\' font-size="' + params.fontSize + '" font-weight="' + params.fontWeight + '" fill="' + params.ink + '">');
+
+        for (var i = 0; i < glyphs.length; i++) {
+          var g = glyphs[i];
+          var fill = g.accent ? ' fill="' + params.accent + '"' : '';
+          var tr = 'translate(' + (g.ox + g.tx).toFixed(2) + ' ' + (g.oy + g.ty).toFixed(2) + ')'
+            + (g.rot ? ' rotate(' + g.rot.toFixed(2) + ')' : '')
+            + ' scale(' + g.scaleX.toFixed(4) + ' ' + g.scaleY.toFixed(4) + ')'
+            + ' translate(' + (-g.ox).toFixed(2) + ' ' + (-g.oy).toFixed(2) + ')';
+          if (params.vertical) {
+            var cx = g.x + g.w / 2;
+            var cy = g.y + g.h / 2;
+            tr += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (g.latin ? ' rotate(90)' : '');
+            parts.push('<text x="0" y="0" text-anchor="middle" dominant-baseline="central"' + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
+          } else {
+            var x = g.x;
+            var y = g.y + baselineOffset(g, fm);
+            parts.push('<text x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '"' + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
+          }
+        }
+        parts.push('</g></g></svg>');
+
+        var blob = new Blob([parts.join('\n')], { type: 'image/svg+xml' });
+        download(blob, 'type-deform-' + stamp() + '.svg');
+      }
+
+      /* ---------------- UI wiring ---------------- */
+      var rangeControls = [];
+      function bindRange(id, valId, key, fmt, onChange) {
+        var input = document.getElementById(id);
+        var val = document.getElementById(valId);
+        input.addEventListener('input', function () {
+          params[key] = parseFloat(input.value);
+          val.textContent = fmt(params[key]);
+          if (onChange) onChange();
+        });
+        val.textContent = fmt(parseFloat(input.value));
+        rangeControls.push({ input: input, val: val, key: key, fmt: fmt });
+      }
+
+      var f2 = function (v) { return v.toFixed(2); };
+      var f1 = function (v) { return v.toFixed(1); };
+      var f0 = function (v) { return String(Math.round(v)); };
+
+      bindRange('pStretchX', 'vStretchX', 'stretchX', f2);
+      bindRange('pStretchY', 'vStretchY', 'stretchY', f2);
+      bindRange('pRadius', 'vRadius', 'radius', f0);
+      bindRange('pReturn', 'vReturn', 'ease', f2);
+      bindRange('pGeo', 'vGeo', 'geoRatio', f2, applyRandom);
+      bindRange('pRandom', 'vRandom', 'randomness', f2, applyRandom);
+      bindRange('pRot', 'vRot', 'rotation', f1, applyRandom);
+      bindRange('pSize', 'vSize', 'fontSize', f0, applyStyle);
+      bindRange('pLine', 'vLine', 'lineHeight', f2, applyStyle);
+      bindRange('pTrack', 'vTrack', 'letterSpacing', f2, applyStyle);
+      bindRange('pAccentRatio', 'vAccentRatio', 'accentRatio', f2, applyRandom);
+      bindRange('pMargin', 'vMargin', 'marginPct', f0);
+
+      var fontSelect = document.getElementById('pFont');
+      var fontCustom = document.getElementById('pFontCustom');
+      fontSelect.addEventListener('change', function (e) {
+        fontCustom.value = '';
+        params.fontFamily = e.target.value;
+        applyStyle();
+      });
+      fontCustom.addEventListener('change', function () {
+        var v = fontCustom.value.trim().replace(/"/g, '');
+        params.fontFamily = v ? '"' + v + '", ' + fontSelect.value : fontSelect.value;
+        applyStyle();
+      });
+      document.getElementById('pWeight').addEventListener('change', function (e) {
+        params.fontWeight = parseInt(e.target.value, 10) || 400;
+        applyStyle();
+      });
+      document.getElementById('pAccent').addEventListener('input', function (e) {
+        params.accent = e.target.value;
+        applyRandom();
+      });
+      document.getElementById('pInk').addEventListener('input', function (e) {
+        params.ink = e.target.value; applyStyle();
+      });
+      document.getElementById('pPaper').addEventListener('input', function (e) {
+        params.paper = e.target.value; applyStyle();
+      });
+      document.getElementById('pAlign').addEventListener('change', function (e) {
+        params.align = e.target.value; applyStyle();
+      });
+      var btnVertical = document.getElementById('btnVertical');
+      btnVertical.addEventListener('click', function () {
+        params.vertical = !params.vertical;
+        btnVertical.setAttribute('aria-pressed', String(params.vertical));
+        applyStyle();
+      });
+      document.getElementById('pTransparent').addEventListener('change', function (e) {
+        params.transparentBg = e.target.checked;
+      });
+
+      /* artboard */
+      var abSelect = document.getElementById('pArtboard');
+      var abCustomRow = document.getElementById('abCustomRow');
+      var abW = document.getElementById('pAbW');
+      var abH = document.getElementById('pAbH');
+
+      function updateExportInfo() {
+        var el = document.getElementById('vExportSize');
+        if (params.artboard === 'auto') {
+          el.textContent = 'auto';
+        } else {
+          el.textContent = Math.round(params.abW * params.exportScale) + '×' + Math.round(params.abH * params.exportScale);
+        }
+      }
+
+      abSelect.addEventListener('change', function () {
+        params.artboard = abSelect.value;
+        if (abSelect.value === 'custom') {
+          abCustomRow.style.display = '';
+          params.abW = parseInt(abW.value, 10) || 1080;
+          params.abH = parseInt(abH.value, 10) || 1080;
+        } else if (abSelect.value !== 'auto') {
+          abCustomRow.style.display = 'none';
+          var wh = abSelect.value.split('x');
+          params.abW = parseInt(wh[0], 10);
+          params.abH = parseInt(wh[1], 10);
+          abW.value = params.abW;
+          abH.value = params.abH;
+        } else {
+          abCustomRow.style.display = 'none';
+        }
+        updateExportInfo();
+      });
+      abW.addEventListener('input', function () { params.abW = parseInt(abW.value, 10) || 1080; updateExportInfo(); });
+      abH.addEventListener('input', function () { params.abH = parseInt(abH.value, 10) || 1080; updateExportInfo(); });
+      document.getElementById('pAnchor').addEventListener('change', function (e) { params.anchor = e.target.value; });
+      document.getElementById('pFit').addEventListener('change', function (e) { params.fit = e.target.checked; });
+      document.getElementById('pScale').addEventListener('change', function (e) {
+        params.exportScale = parseFloat(e.target.value) || 2;
+        updateExportInfo();
+      });
+
+      /* preview */
+      var previewOverlay = document.getElementById('previewOverlay');
+      function openPreview() {
+        var run = function () {
+          var c = renderCanvas(params.exportScale);
+          document.getElementById('previewImg').src = c.toDataURL('image/png');
+          document.getElementById('previewCaption').textContent =
+            c.width + ' × ' + c.height + ' px — ' + (params.transparentBg ? '透過 / ' : '') + 'クリックで閉じる';
+          previewOverlay.hidden = false;
+        };
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(run); else run();
+      }
+      previewOverlay.addEventListener('click', function () { previewOverlay.hidden = true; });
+      document.getElementById('btnPreview').addEventListener('click', openPreview);
+
+      /* keyboard shortcuts */
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !previewOverlay.hidden) {
+          previewOverlay.hidden = true;
+          return;
+        }
+        var tag = (e.target.tagName || '').toLowerCase();
+        var inField = tag === 'input' || tag === 'textarea' || tag === 'select';
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+          if (inField) return; // keep native undo in form fields
+          e.preventDefault();
+          if (e.shiftKey) redo(); else undo();
+          return;
+        }
+        if (inField || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.key === 'l' || e.key === 'L') setMode(params.mode === 'lock' ? 'flow' : 'lock');
+        else if (e.key === 'e' || e.key === 'E') setMode(params.mode === 'edit' ? 'flow' : 'edit');
+        else if (e.key === 's' || e.key === 'S') document.getElementById('btnShuffle').click();
+        else if (e.key === 'p' || e.key === 'P') openPreview();
+      });
+
+      function applyStyle() {
+        stage.style.fontFamily = params.fontFamily;
+        stage.style.fontWeight = params.fontWeight;
+        stage.style.fontSize = params.fontSize + 'px';
+        stage.style.lineHeight = params.lineHeight;
+        stage.style.letterSpacing = params.letterSpacing + 'em';
+        stage.style.textAlign = params.align;
+        stage.classList.toggle('vertical', params.vertical);
+        stage.style.color = params.ink;
+        stageWrap.style.background = params.paper;
+        scheduleMeasure();
+      }
+
+      var textInput = document.getElementById('textInput');
+      var rebuildTimer = null;
+      textInput.addEventListener('input', function () {
+        clearTimeout(rebuildTimer);
+        rebuildTimer = setTimeout(function () { createSpans(textInput.value); }, 250);
+      });
+
+      document.getElementById('btnShuffle').addEventListener('click', function () {
+        pushHistory();
+        params.seed = (params.seed * 16807 + 0.4327) % 97 + 0.13;
+        applyRandom();
+      });
+
+      var modeButtons = {
+        flow: document.getElementById('btnModeFlow'),
+        lock: document.getElementById('btnModeLock'),
+        edit: document.getElementById('btnModeEdit')
+      };
+      function setMode(mode) {
+        params.mode = mode;
+        for (var k in modeButtons) modeButtons[k].setAttribute('aria-pressed', String(k === mode));
+        stage.classList.toggle('lock-mode', mode === 'lock');
+        stage.classList.toggle('edit-mode', mode === 'edit');
+      }
+      modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
+      modeButtons.lock.addEventListener('click', function () { setMode('lock'); });
+      modeButtons.edit.addEventListener('click', function () { setMode('edit'); });
+      document.getElementById('btnLockAll').addEventListener('click', function () { pushHistory(); lockAll(); });
+      document.getElementById('btnUnlockAll').addEventListener('click', function () { pushHistory(); unlockAll(); });
+      document.getElementById('btnReset').addEventListener('click', function () { pushHistory(); resetAll(); });
+
+      document.getElementById('btnPng').addEventListener('click', function () {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(exportPng);
+        } else exportPng();
+      });
+      document.getElementById('btnSvg').addEventListener('click', exportSvg);
+      var btnCopy = document.getElementById('btnCopy');
+      btnCopy.addEventListener('click', function () {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(function () { copyPng(btnCopy); });
+        } else copyPng(btnCopy);
+      });
+
+      /* ---------------- project save / load ---------------- */
+      function syncUI() {
+        for (var i = 0; i < rangeControls.length; i++) {
+          var c = rangeControls[i];
+          c.input.value = params[c.key];
+          c.val.textContent = c.fmt(params[c.key]);
+        }
+        var isPreset = false;
+        for (var j = 0; j < fontSelect.options.length; j++) {
+          if (fontSelect.options[j].value === params.fontFamily) { isPreset = true; break; }
+        }
+        if (isPreset) {
+          fontSelect.value = params.fontFamily;
+          fontCustom.value = '';
+        } else {
+          fontCustom.value = (params.fontFamily.split(',')[0] || '').replace(/"/g, '').trim();
+        }
+        document.getElementById('pWeight').value = String(params.fontWeight);
+        document.getElementById('pInk').value = params.ink;
+        document.getElementById('pPaper').value = params.paper;
+        document.getElementById('pAccent').value = params.accent;
+        document.getElementById('pAlign').value = params.align;
+        document.getElementById('pTransparent').checked = params.transparentBg;
+        abSelect.value = params.artboard;
+        abCustomRow.style.display = params.artboard === 'custom' ? '' : 'none';
+        abW.value = params.abW;
+        abH.value = params.abH;
+        document.getElementById('pAnchor').value = params.anchor;
+        document.getElementById('pFit').checked = params.fit;
+        document.getElementById('pScale').value = String(params.exportScale);
+        btnVertical.setAttribute('aria-pressed', String(params.vertical));
+        setMode(params.mode);
+        updateExportInfo();
+      }
+
+      function saveProject() {
+        var data = {
+          app: 'type-deformer',
+          version: 1,
+          text: textInput.value,
+          params: params,
+          letters: metrics.map(letterState)
+        };
+        var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        download(blob, 'type-deform-project-' + stamp() + '.json');
+      }
+
+      function loadProject(data) {
+        if (!data || data.app !== 'type-deformer' || !data.params) {
+          alert('プロジェクトファイルではないようです。');
+          return;
+        }
+        for (var k in params) {
+          if (Object.prototype.hasOwnProperty.call(data.params, k)) params[k] = data.params[k];
+        }
+        params.mode = 'flow';
+        textInput.value = data.text || '';
+        syncUI();
+        applyStyle();
+        createSpans(textInput.value);
+        // restore per-letter state synchronously — no layout needed, and
+        // rAF never fires while the tab is hidden
+        restoreStates(data.letters || []);
+      }
+
+      document.getElementById('btnSaveProj').addEventListener('click', saveProject);
+      var projFile = document.getElementById('projFile');
+      document.getElementById('btnLoadProj').addEventListener('click', function () { projFile.click(); });
+      projFile.addEventListener('change', function () {
+        var file = projFile.files && projFile.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try { loadProject(JSON.parse(reader.result)); }
+          catch (err) { alert('読み込みに失敗しました: ' + err.message); }
+        };
+        reader.readAsText(file);
+        projFile.value = '';
+      });
+
+      /* ---------------- boot ---------------- */
+      window.addEventListener('resize', scheduleMeasure, { passive: true });
+      stageWrap.addEventListener('scroll', scheduleMeasure, { passive: true });
+      if (document.fonts) {
+        if (document.fonts.ready) document.fonts.ready.then(scheduleMeasure).catch(function () { });
+        if (document.fonts.addEventListener) {
+          document.fonts.addEventListener('loadingdone', scheduleMeasure);
+          document.fonts.addEventListener('loadingerror', scheduleMeasure);
+        }
+      }
+
+      applyStyle();
+      createSpans(textInput.value);
+      updateExportInfo();
+      setTimeout(scheduleMeasure, 400);
+    })();
+  </script>
+</body>
+
+</html>
