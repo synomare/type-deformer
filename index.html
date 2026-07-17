@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>type deformer — text graphic editor</title>
   <meta name="theme-color" content="#f4f3ef">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,7 +45,7 @@
       flex-wrap: wrap;
       align-items: baseline;
       gap: 0.4em 1.6em;
-      padding: 0.7rem 1rem;
+      padding: calc(0.7rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right)) 0.7rem calc(1rem + env(safe-area-inset-left));
       border-bottom: 1px solid var(--ink);
       font-family: var(--mono);
       font-size: 0.62rem;
@@ -71,7 +71,8 @@
       border-right: 1px solid var(--ink);
       background: var(--card);
       overflow-y: auto;
-      padding: 1rem 1rem 3rem;
+      -webkit-overflow-scrolling: touch;
+      padding: 1rem calc(1rem + env(safe-area-inset-right)) 3rem calc(1rem + env(safe-area-inset-left));
       font-family: var(--mono);
       font-size: 0.62rem;
       letter-spacing: 0.1em;
@@ -340,10 +341,30 @@
     }
 
     @media (max-width: 760px) {
-      body { overflow: auto; height: auto; }
-      .app { grid-template-columns: 1fr; }
-      .panel { border-right: 0; border-bottom: 1px solid var(--ink); max-height: none; }
-      .stage-wrap { min-height: 70svh; }
+      .topbar .hint { display: none; }
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 52svh) minmax(0, 1fr);
+      }
+      .stage-wrap { grid-row: 1; border-bottom: 1px solid var(--ink); }
+      .panel {
+        grid-row: 2;
+        border-right: 0;
+        padding-bottom: calc(3rem + env(safe-area-inset-bottom));
+      }
+    }
+
+    /* touch devices: larger targets, no focus-zoom on iOS */
+    @media (pointer: coarse) {
+      button { padding: 0.8em 1em; font-size: 0.66rem; -webkit-tap-highlight-color: transparent; }
+      .row { margin: 0.8em 0; }
+      input[type="range"] { height: 2px; }
+      input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; }
+      input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; }
+      input[type="checkbox"] { width: 1.4em; height: 1.4em; }
+      /* 16px stops iOS Safari from zooming the viewport on focus */
+      textarea, select, input[type="text"], input[type="number"] { font-size: 16px; }
+      .stage { -webkit-tap-highlight-color: transparent; }
     }
   </style>
 </head>
@@ -1029,6 +1050,25 @@ type deformer</textarea>
         return d >= 0 ? base * (1 + d / 60) : base / (1 + (-d) / 90);
       }
 
+      function resetLetter(m) {
+        pushHistory();
+        m.manualX = m.manualY = null;
+        m.locked = false;
+        m.toggled = false;
+        m.currentIntensity = 0;
+        m.active = false;
+        m.el.classList.remove('locked');
+        m.el.style.removeProperty('--ix');
+        m.el.style.removeProperty('--iy');
+        schedule();
+      }
+
+      // Manual double-tap detection (independent of the 'dblclick' event,
+      // which iOS Safari does not reliably synthesize once pointerdown
+      // calls preventDefault).
+      var lastTap = null; // { m, time, x, y }
+      var TAP_MOVE_MAX = 12, TAP_TIME_MAX = 400;
+
       stage.addEventListener('pointerdown', function (e) {
         if (params.mode !== 'edit') return;
         var m = findMetric(e.target);
@@ -1039,6 +1079,7 @@ type deformer</textarea>
           id: e.pointerId,
           x0: e.clientX,
           y0: e.clientY,
+          moved: false,
           baseX: parseFloat(m.el.style.getPropertyValue('--ix')) || 1,
           baseY: parseFloat(m.el.style.getPropertyValue('--iy')) || 1
         };
@@ -1051,6 +1092,7 @@ type deformer</textarea>
         if (!editDrag || e.pointerId !== editDrag.id) return;
         var dx = e.clientX - editDrag.x0;
         var dy = e.clientY - editDrag.y0;
+        if (Math.abs(dx) > TAP_MOVE_MAX || Math.abs(dy) > TAP_MOVE_MAX) editDrag.moved = true;
         var ix = Math.min(8, Math.max(0.25, dragStretch(editDrag.baseX, dx)));
         var iy = Math.min(9, Math.max(0.25, dragStretch(editDrag.baseY, -dy)));
         var m = editDrag.m;
@@ -1066,26 +1108,33 @@ type deformer</textarea>
 
       function endEditDrag(e) {
         if (!editDrag || e.pointerId !== editDrag.id) return;
-        editDrag.m.el.classList.remove('editing');
+        var m = editDrag.m;
+        m.el.classList.remove('editing');
+        if (!editDrag.moved) {
+          // a tap, not a drag — check whether it completes a double-tap
+          var now = Date.now();
+          if (lastTap && lastTap.m === m && now - lastTap.time < TAP_TIME_MAX &&
+              Math.abs(e.clientX - lastTap.x) < TAP_MOVE_MAX && Math.abs(e.clientY - lastTap.y) < TAP_MOVE_MAX) {
+            resetLetter(m);
+            lastTap = null;
+          } else {
+            lastTap = { m: m, time: now, x: e.clientX, y: e.clientY };
+          }
+        } else {
+          lastTap = null;
+        }
         editDrag = null;
       }
       stage.addEventListener('pointerup', endEditDrag);
       stage.addEventListener('pointercancel', endEditDrag);
 
+      // Desktop mouse dblclick still works (and fires alongside the manual
+      // detection above, but resetLetter is idempotent so this is harmless).
       stage.addEventListener('dblclick', function (e) {
         if (params.mode !== 'edit') return;
         var m = findMetric(e.target);
         if (!m) return;
-        pushHistory();
-        m.manualX = m.manualY = null;
-        m.locked = false;
-        m.toggled = false;
-        m.currentIntensity = 0;
-        m.active = false;
-        m.el.classList.remove('locked');
-        m.el.style.removeProperty('--ix');
-        m.el.style.removeProperty('--iy');
-        schedule();
+        resetLetter(m);
       });
 
       function lockAll() {
@@ -1299,7 +1348,23 @@ type deformer</textarea>
         return params.artboard === 'auto' ? 40 : 0;
       }
 
+      var isIOS = /iP(hone|ad|od)/.test(navigator.platform) ||
+        (navigator.userAgent.indexOf('Mac') !== -1 && 'ontouchend' in document); // iPadOS reports as Mac
+
+      // iOS Safari does not honor the `download` attribute on blob: URLs —
+      // tapping the anchor just navigates to it. Prefer the share sheet
+      // (lets the user "Save Image" straight to Photos / Files); fall back
+      // to opening the blob in a new tab so they can long-press to save.
       function download(blob, filename) {
+        if (isIOS) {
+          var file = (typeof File !== 'undefined') ? new File([blob], filename, { type: blob.type }) : null;
+          if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file] }).catch(function () { openBlobTab(blob); });
+            return;
+          }
+          openBlobTab(blob);
+          return;
+        }
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
@@ -1308,6 +1373,16 @@ type deformer</textarea>
         a.click();
         a.remove();
         setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      }
+
+      function openBlobTab(blob) {
+        var url = URL.createObjectURL(blob);
+        var win = window.open(url, '_blank');
+        if (!win) {
+          // popup blocked — navigate the current tab as a last resort
+          window.location.href = url;
+        }
+        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
       }
 
       function stamp() {
@@ -1388,22 +1463,43 @@ type deformer</textarea>
         }, 'image/png');
       }
 
+      function pngBlobPromise() {
+        var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+        return ready.then(function () {
+          return new Promise(function (resolve, reject) {
+            renderCanvas(params.exportScale).toBlob(function (blob) {
+              if (blob) resolve(blob); else reject(new Error('toBlob failed'));
+            }, 'image/png');
+          });
+        });
+      }
+
+      // Safari (and the current Clipboard API spec) requires
+      // navigator.clipboard.write() to be called synchronously inside the
+      // user-gesture handler; it accepts a Promise<Blob> and defers actually
+      // reading it. Awaiting font-ready / canvas.toBlob() first — as a naive
+      // implementation would — breaks that gesture chain and Safari silently
+      // rejects with NotAllowedError.
       function copyPng(btn) {
         if (nothingToExport()) return;
-        renderCanvas(params.exportScale).toBlob(function (blob) {
-          if (!blob) return;
-          var done = function (ok) {
-            var old = btn.textContent;
-            btn.textContent = ok ? 'Copied!' : 'Copy failed';
-            setTimeout(function () { btn.textContent = old; }, 1400);
-          };
-          if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
-            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-              .then(function () { done(true); }, function () { done(false); });
-          } else {
-            done(false);
-          }
-        }, 'image/png');
+        var done = function (ok) {
+          var old = btn.textContent;
+          btn.textContent = ok ? 'Copied!' : 'Copy failed';
+          setTimeout(function () { btn.textContent = old; }, 1400);
+        };
+        if (!navigator.clipboard || typeof ClipboardItem === 'undefined') { done(false); return; }
+        var writePromise;
+        try {
+          writePromise = navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlobPromise() })]);
+        } catch (err) {
+          // engines that reject promise-valued ClipboardItem entries: resolve
+          // the blob first and write it directly (best effort, may still be
+          // blocked by the broken gesture chain on strict browsers)
+          writePromise = pngBlobPromise().then(function (blob) {
+            return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          });
+        }
+        writePromise.then(function () { done(true); }, function () { done(false); });
       }
 
       /* ---------------- SVG export ---------------- */
@@ -1683,11 +1779,7 @@ type deformer</textarea>
       });
       document.getElementById('btnSvg').addEventListener('click', exportSvg);
       var btnCopy = document.getElementById('btnCopy');
-      btnCopy.addEventListener('click', function () {
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(function () { copyPng(btnCopy); });
-        } else copyPng(btnCopy);
-      });
+      btnCopy.addEventListener('click', function () { copyPng(btnCopy); });
 
       /* ---------------- project save / load ---------------- */
       function syncUI() {
