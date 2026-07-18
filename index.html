@@ -193,10 +193,26 @@
     .stage-wrap {
       position: relative;
       overflow: auto;
+      background: #e7e4db;
+    }
+
+    /* resizable canvas frame — drag the bottom-right corner to change
+       the preview canvas size; native resize starts from the current
+       computed box, so it begins filling the wrap and locks to a
+       fixed px size on first drag. */
+    .stage-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 160px;
+      min-height: 160px;
+      box-sizing: border-box;
+      overflow: auto;
+      resize: both;
       background: var(--paper);
     }
-    .stage-wrap::before,
-    .stage-wrap::after {
+    .stage-frame::before,
+    .stage-frame::after {
       content: "";
       position: absolute;
       width: 9px; height: 9px;
@@ -207,8 +223,37 @@
         linear-gradient(var(--ink), var(--ink)) center / 1px 100% no-repeat,
         linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat;
     }
-    .stage-wrap::before { top: 12px; left: 12px; }
-    .stage-wrap::after { bottom: 12px; right: 12px; }
+    .stage-frame::before { top: 12px; left: 12px; }
+    .stage-frame::after { bottom: 12px; right: 12px; }
+
+    .canvas-size-badge {
+      position: absolute;
+      top: 12px; right: 12px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      background: var(--card);
+      border: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+      color: var(--dim);
+      padding: 0.35em 0.5em;
+    }
+    .canvas-size-badge b { color: var(--ink); font-weight: 400; }
+    .canvas-size-badge button {
+      font-family: var(--mono);
+      font-size: 0.56rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: transparent;
+      border: 1px solid var(--ink);
+      box-shadow: none;
+      padding: 0.15em 0.45em;
+      cursor: pointer;
+    }
+    .canvas-size-badge button:hover { background: var(--ink); color: var(--paper); }
 
     .stage {
       position: relative;
@@ -580,7 +625,13 @@ type deformer</textarea>
     </aside>
 
     <div class="stage-wrap" id="stageWrap">
-      <div class="stage" id="stage" aria-label="変形キャンバス"></div>
+      <div class="stage-frame" id="stageFrame">
+        <div class="stage" id="stage" aria-label="変形キャンバス"></div>
+      </div>
+      <div class="canvas-size-badge" id="canvasSizeBadge">
+        <span id="canvasSizeText"></span>
+        <button type="button" id="btnCanvasReset" title="キャンバスサイズをリセット">reset</button>
+      </div>
     </div>
   </div>
 
@@ -599,6 +650,52 @@ type deformer</textarea>
 
       var stage = document.getElementById('stage');
       var stageWrap = document.getElementById('stageWrap');
+      var stageFrame = document.getElementById('stageFrame');
+
+      /* ---------------- resizable canvas frame ---------------- */
+      (function () {
+        var badgeText = document.getElementById('canvasSizeText');
+        var btnReset = document.getElementById('btnCanvasReset');
+        var SIZE_KEY = 'typeDeformer.frameSize.v1';
+
+        function updateBadge() {
+          var r = stageFrame.getBoundingClientRect();
+          badgeText.innerHTML = '<b>' + Math.round(r.width) + '</b> × <b>' + Math.round(r.height) + '</b>';
+        }
+        function saveSize() {
+          try {
+            if (stageFrame.style.width && stageFrame.style.height) {
+              localStorage.setItem(SIZE_KEY, JSON.stringify({
+                w: stageFrame.style.width, h: stageFrame.style.height
+              }));
+            } else {
+              localStorage.removeItem(SIZE_KEY);
+            }
+          } catch (e) { /* ignore */ }
+        }
+        try {
+          var saved = JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
+          if (saved && saved.w && saved.h) {
+            stageFrame.style.width = saved.w;
+            stageFrame.style.height = saved.h;
+          }
+        } catch (e) { /* ignore */ }
+
+        if (window.ResizeObserver) {
+          new ResizeObserver(updateBadge).observe(stageFrame);
+        } else {
+          window.addEventListener('resize', updateBadge);
+        }
+        stageFrame.addEventListener('mouseup', function () { saveSize(); updateBadge(); });
+        stageFrame.addEventListener('touchend', function () { saveSize(); updateBadge(); });
+        btnReset.addEventListener('click', function () {
+          stageFrame.style.width = '';
+          stageFrame.style.height = '';
+          saveSize();
+          updateBadge();
+        });
+        updateBadge();
+      })();
 
       /* ---------------- state ---------------- */
       var params = {
@@ -2073,7 +2170,7 @@ type deformer</textarea>
         stage.style.textAlign = params.align;
         stage.classList.toggle('vertical', params.vertical);
         stage.style.color = params.ink;
-        stageWrap.style.background = params.paper;
+        stageFrame.style.background = params.paper;
         scheduleMeasure();
       }
 
