@@ -417,6 +417,17 @@ type deformer</textarea>
       </div>
       <p class="note">FLOW: なぞった文字が伸縮し、再度なぞると戻ります。LOCK: クリックで現在の形を固定／解除。EDIT: 文字枠をドラッグして向きと強さを直接指定（右・上＝伸ばす、左・下＝縮める。ダブルクリックで初期化）。EDITした文字は自動的に固定されます。固定中は薄い赤で表示（書き出しには含まれません）。</p>
 
+      <div class="sec-head"><span>Batch</span><span class="r">一括</span></div>
+      <div class="btns">
+        <button data-batch="kanji">漢字</button>
+        <button data-batch="hira">ひらがな</button>
+        <button data-batch="kata">カタカナ</button>
+        <button data-batch="latin">ABC</button>
+        <button data-batch="digit">123</button>
+        <button data-batch="punct">約物</button>
+      </div>
+      <p class="note">クリックでその文字種の全文字を一括で伸縮します。すでに全部伸びているときは一括で解除。固定中の文字は対象外です。</p>
+
       <div class="sec-head"><span>Style</span><span class="r">体裁</span></div>
       <div class="row"><label for="pFont">Font</label>
         <select id="pFont">
@@ -1174,6 +1185,44 @@ type deformer</textarea>
         schedule();
       }
 
+      /* ---------------- batch toggle by character class ---------------- */
+      var digitRe = (function () {
+        try { return new RegExp('\\p{Nd}', 'u'); } catch (e) { return /[0-9０-９]/; }
+      })();
+
+      var batchMatchers = {
+        kanji: function (ch, cp) { return charInfo(ch, cp).cls === 'kanji'; },
+        hira: function (ch, cp) { return charInfo(ch, cp).cls === 'hira'; },
+        kata: function (ch, cp) { return charInfo(ch, cp).cls === 'kata'; },
+        latin: function (ch, cp) { return charInfo(ch, cp).cls === 'latin' && !digitRe.test(ch); },
+        digit: function (ch) { return digitRe.test(ch); },
+        punct: function (ch, cp) { return charInfo(ch, cp).punct; }
+      };
+
+      // stretch every (unlocked) letter of one class at once; if the whole
+      // class is already stretched, release it instead
+      function batchToggle(matcher) {
+        var targets = [];
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i];
+          if (m.locked) continue;
+          var ch = m.el.textContent;
+          var cp = parseInt(m.el.dataset.cp, 10) || ch.codePointAt(0);
+          if (matcher(ch, cp)) targets.push(m);
+        }
+        if (!targets.length) return;
+        pushHistory();
+        var allOn = true;
+        for (var j = 0; j < targets.length; j++) {
+          if (!targets[j].toggled) { allOn = false; break; }
+        }
+        for (var k = 0; k < targets.length; k++) {
+          targets[k].toggled = !allOn;
+          targets[k].hovered = false;
+        }
+        schedule();
+      }
+
       /* ---------------- per-letter state restore (undo / project load) ---------------- */
       function applyLetterState(m, s) {
         m.toggled = !!s.t;
@@ -1835,6 +1884,11 @@ type deformer</textarea>
       modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
       modeButtons.lock.addEventListener('click', function () { setMode('lock'); });
       modeButtons.edit.addEventListener('click', function () { setMode('edit'); });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-batch]'), function (btn) {
+        btn.addEventListener('click', function () {
+          batchToggle(batchMatchers[btn.dataset.batch]);
+        });
+      });
       document.getElementById('btnLockAll').addEventListener('click', function () { pushHistory(); lockAll(); });
       document.getElementById('btnUnlockAll').addEventListener('click', function () { pushHistory(); unlockAll(); });
       document.getElementById('btnReset').addEventListener('click', function () { pushHistory(); resetAll(); });
