@@ -274,6 +274,17 @@
       100% { opacity: 1; }
     }
 
+    /* letters carried over a text edit keep their place without re-revealing
+       (after .many so it wins for large texts too) */
+    .stage .c.settled,
+    .stage.many .c.settled {
+      animation: none;
+      opacity: 1;
+      translate: 0 0;
+      scale: 1;
+      filter: none;
+    }
+
     @keyframes reveal {
       0% { opacity: 0; translate: 0 15px; scale: 0.95; filter: blur(4px); }
       100% { opacity: 1; translate: 0 0; scale: 1; filter: blur(0); }
@@ -1164,29 +1175,85 @@ type deformer</textarea>
       }
 
       /* ---------------- per-letter state restore (undo / project load) ---------------- */
+      function applyLetterState(m, s) {
+        m.toggled = !!s.t;
+        m.locked = !!s.l;
+        m.hovered = false;
+        m.currentIntensity = +s.i || 0;
+        m.manualX = s.mx ? +s.mx : null;
+        m.manualY = s.my ? +s.my : null;
+        m.el.classList.toggle('locked', m.locked);
+        if (m.manualX || m.manualY) {
+          m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
+          m.el.style.setProperty('--iy', (m.manualY || 1).toFixed(3));
+          m.active = true;
+        } else if (m.currentIntensity > 0.001) {
+          applyStretch(m);
+        } else {
+          m.el.style.removeProperty('--ix');
+          m.el.style.removeProperty('--iy');
+          m.active = false;
+        }
+      }
+
       function restoreStates(states) {
         var n = Math.min(states.length, metrics.length);
-        for (var i = 0; i < n; i++) {
-          var m = metrics[i], s = states[i];
-          m.toggled = !!s.t;
-          m.locked = !!s.l;
-          m.hovered = false;
-          m.currentIntensity = +s.i || 0;
-          m.manualX = s.mx ? +s.mx : null;
-          m.manualY = s.my ? +s.my : null;
-          m.el.classList.toggle('locked', m.locked);
-          if (m.manualX || m.manualY) {
-            m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
-            m.el.style.setProperty('--iy', (m.manualY || 1).toFixed(3));
-            m.active = true;
-          } else if (m.currentIntensity > 0.001) {
-            applyStretch(m);
-          } else {
-            m.el.style.removeProperty('--ix');
-            m.el.style.removeProperty('--iy');
-            m.active = false;
-          }
-        }
+        for (var i = 0; i < n; i++) applyLetterState(metrics[i], states[i]);
+        scheduleMeasure();
+      }
+
+      /* ---------------- edit text without losing the composition ---------------- */
+      // Rebuilding spans wipes every deform. To survive text edits, snapshot
+      // each letter (state + inline style + data-* randoms), rebuild, then
+      // re-attach the snapshots to the letters that are still the same token —
+      // matched as the longest common prefix and suffix of the token streams.
+      // A debounced edit burst is localized, so this pairs correctly in
+      // practice; only the actually-changed middle gets fresh letters.
+      function snapshotLetters() {
+        return metrics.map(function (m) {
+          var el = m.el;
+          var data = {};
+          for (var k in el.dataset) data[k] = el.dataset[k];
+          return { text: el.textContent, style: el.getAttribute('style') || '', data: data, s: letterState(m) };
+        });
+      }
+
+      function carryLetter(m, o) {
+        var el = m.el;
+        // restore the exact random base (--sx/--sy/--tx/--ty/--rot, lens seeds,
+        // accent colour) AND the current --ix/--iy, so the glyph is
+        // bit-identical to before the edit; keeping the old data-j also keeps
+        // its randoms stable on future applyRandom passes
+        el.setAttribute('style', o.style);
+        for (var k in o.data) el.dataset[k] = o.data[k];
+        el.classList.add('settled'); // skip the reveal animation
+        var s = o.s;
+        m.toggled = !!s.t;
+        m.locked = !!s.l;
+        m.hovered = false;
+        m.currentIntensity = +s.i || 0;
+        m.manualX = s.mx ? +s.mx : null;
+        m.manualY = s.my ? +s.my : null;
+        el.classList.toggle('locked', m.locked);
+        // unlike applyLetterState, never recompute or clear --ix/--iy here —
+        // the restored style attribute is the exact visual truth, including
+        // lock-frozen stretches that exist only as inline styles
+        m.active = !!(el.style.getPropertyValue('--ix') || el.style.getPropertyValue('--iy'));
+      }
+
+      function rebuildPreservingState(text) {
+        var old = snapshotLetters();
+        createSpans(text);
+        if (!old.length || !metrics.length) return;
+        var nw = metrics;
+        var lim = Math.min(old.length, nw.length);
+        var p = 0;
+        while (p < lim && old[p].text === nw[p].el.textContent) p++;
+        var s = 0, sLim = lim - p;
+        while (s < sLim && old[old.length - 1 - s].text === nw[nw.length - 1 - s].el.textContent) s++;
+        for (var i = 0; i < p; i++) carryLetter(nw[i], old[i]);
+        for (var k = 0; k < s; k++) carryLetter(nw[nw.length - 1 - k], old[old.length - 1 - k]);
+        syncMetricsSeeds(); // metrics were built from pre-carry dataset values
         scheduleMeasure();
       }
 
@@ -1745,7 +1812,7 @@ type deformer</textarea>
       var rebuildTimer = null;
       textInput.addEventListener('input', function () {
         clearTimeout(rebuildTimer);
-        rebuildTimer = setTimeout(function () { createSpans(textInput.value); }, 250);
+        rebuildTimer = setTimeout(function () { rebuildPreservingState(textInput.value); }, 250);
       });
 
       document.getElementById('btnShuffle').addEventListener('click', function () {
