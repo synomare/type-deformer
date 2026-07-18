@@ -403,6 +403,13 @@ type deformer</textarea>
       <div class="btns">
         <button id="btnShuffle">Shuffle 乱数</button>
       </div>
+      <div class="row"><label for="pPreset">Preset</label>
+        <select id="pPreset"></select>
+      </div>
+      <div class="btns">
+        <button id="btnSavePreset">Save preset</button>
+        <button id="btnDelPreset">Del</button>
+      </div>
 
       <div class="sec-head"><span>Mode</span><span class="r">操作</span></div>
       <div class="btns">
@@ -514,9 +521,11 @@ type deformer</textarea>
       <div class="btns">
         <button id="btnSaveProj">Save .json</button>
         <button id="btnLoadProj">Load .json</button>
+        <button class="primary" id="btnShare">Share URL</button>
+        <button id="btnNew">New 新規</button>
         <input type="file" id="projFile" accept=".json,application/json" hidden>
       </div>
-      <p class="note">テキスト・パラメータ・変形/固定の状態をまとめて保存し、あとで再開できます。</p>
+      <p class="note">数秒ごとに自動保存され、次回開いたとき復元されます。Share URLは作品全体をURLに埋め込み、リンクを開くだけで同じ状態を再現できます。</p>
     </aside>
 
     <div class="stage-wrap" id="stageWrap">
@@ -1938,15 +1947,18 @@ type deformer</textarea>
         updateExportInfo();
       }
 
-      function saveProject() {
-        var data = {
+      function projectData() {
+        return {
           app: 'type-deformer',
           version: 1,
           text: textInput.value,
           params: params,
           letters: metrics.map(letterState)
         };
-        var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      }
+
+      function saveProject() {
+        var blob = new Blob([JSON.stringify(projectData())], { type: 'application/json' });
         download(blob, 'type-deform-project-' + stamp() + '.json');
       }
 
@@ -1983,6 +1995,232 @@ type deformer</textarea>
         projFile.value = '';
       });
 
+      /* ---------------- autosave ---------------- */
+      var AUTOSAVE_KEY = 'typeDeformer.autosave.v1';
+
+      function saveAutosave() {
+        try {
+          localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(projectData()));
+        } catch (e) { /* storage full or unavailable — silently skip */ }
+      }
+
+      function tryRestoreAutosave() {
+        try {
+          var raw = localStorage.getItem(AUTOSAVE_KEY);
+          if (!raw) return false;
+          var data = JSON.parse(raw);
+          if (!data || data.app !== 'type-deformer' || !data.params) return false;
+          loadProject(data);
+          return true;
+        } catch (e) { return false; }
+      }
+
+      function startAutosave() {
+        setInterval(saveAutosave, 8000);
+        window.addEventListener('pagehide', saveAutosave);
+        document.addEventListener('visibilitychange', function () {
+          if (document.hidden) saveAutosave();
+        });
+      }
+
+      document.getElementById('btnNew').addEventListener('click', function () {
+        if (!confirm('作品を初期化しますか？（自動保存も消去されます）')) return;
+        try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) { }
+        location.replace(location.pathname + location.search);
+      });
+
+      /* ---------------- parameter presets ---------------- */
+      var PRESET_KEY = 'typeDeformer.presets.v1';
+      var BUILTIN_PRESET_KEYS = ['stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation'];
+      var builtinPresets = {
+        subtle: { label: 'Subtle 控えめ', p: { stretchX: 0.6, stretchY: 0.6, radius: 40, ease: 0.06, geoRatio: 0.2, randomness: 0.5, rotation: 0 } },
+        extreme: { label: 'Extreme 過剰', p: { stretchX: 2.2, stretchY: 2.4, radius: 80, ease: 0.12, geoRatio: 0.4, randomness: 1.6, rotation: 12 } },
+        geometric: { label: 'Geometric 幾何', p: { stretchX: 1.4, stretchY: 1.4, radius: 55, ease: 0.1, geoRatio: 1, randomness: 1, rotation: 0 } },
+        organic: { label: 'Organic 有機', p: { stretchX: 1.2, stretchY: 1.4, radius: 55, ease: 0.05, geoRatio: 0, randomness: 1.3, rotation: 4 } }
+      };
+
+      function loadUserPresets() {
+        try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || {}; }
+        catch (e) { return {}; }
+      }
+
+      function storeUserPresets(store) {
+        try { localStorage.setItem(PRESET_KEY, JSON.stringify(store)); } catch (e) { }
+      }
+
+      var presetSelect = document.getElementById('pPreset');
+
+      function populatePresets() {
+        presetSelect.innerHTML = '';
+        var ph = document.createElement('option');
+        ph.value = ''; ph.textContent = '— 選択して適用 —';
+        presetSelect.appendChild(ph);
+        for (var k in builtinPresets) {
+          var o = document.createElement('option');
+          o.value = 'b:' + k; o.textContent = builtinPresets[k].label;
+          presetSelect.appendChild(o);
+        }
+        var store = loadUserPresets();
+        Object.keys(store).sort().forEach(function (name) {
+          var o = document.createElement('option');
+          o.value = 'u:' + name; o.textContent = '★ ' + name;
+          presetSelect.appendChild(o);
+        });
+      }
+
+      presetSelect.addEventListener('change', function () {
+        var v = presetSelect.value;
+        if (!v) return;
+        if (v.indexOf('b:') === 0) {
+          var bp = builtinPresets[v.slice(2)];
+          if (bp) for (var i = 0; i < BUILTIN_PRESET_KEYS.length; i++) {
+            params[BUILTIN_PRESET_KEYS[i]] = bp.p[BUILTIN_PRESET_KEYS[i]];
+          }
+        } else {
+          var up = loadUserPresets()[v.slice(2)];
+          if (up) for (var k in params) {
+            if (k !== 'mode' && Object.prototype.hasOwnProperty.call(up, k)) params[k] = up[k];
+          }
+        }
+        syncUI();
+        applyStyle();
+        applyRandom();
+        reapplyStretches();
+        presetSelect.value = ''; // so the same preset can be re-applied later
+      });
+
+      document.getElementById('btnSavePreset').addEventListener('click', function () {
+        var name = prompt('プリセット名を入力してください');
+        if (!name) return;
+        name = name.trim().slice(0, 40);
+        if (!name) return;
+        var store = loadUserPresets();
+        var snap = {};
+        for (var k in params) { if (k !== 'mode') snap[k] = params[k]; }
+        store[name] = snap;
+        storeUserPresets(store);
+        populatePresets();
+      });
+
+      document.getElementById('btnDelPreset').addEventListener('click', function () {
+        var store = loadUserPresets();
+        var names = Object.keys(store);
+        if (!names.length) { alert('保存済みプリセットはありません。'); return; }
+        var name = prompt('削除するプリセット名:\n' + names.join(', '));
+        if (!name || !Object.prototype.hasOwnProperty.call(store, name)) return;
+        delete store[name];
+        storeUserPresets(store);
+        populatePresets();
+      });
+
+      /* ---------------- share via URL ---------------- */
+      function bytesToB64url(bytes) {
+        var s = '';
+        for (var i = 0; i < bytes.length; i += 0x8000) {
+          s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        }
+        return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+
+      function b64urlToBytes(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (str.length % 4) str += '=';
+        var bin = atob(str);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+      }
+
+      function compressString(str) {
+        var enc = new TextEncoder().encode(str);
+        if (typeof CompressionStream === 'undefined') {
+          return Promise.resolve({ tag: 'r', bytes: enc });
+        }
+        var stream = new Blob([enc]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        return new Response(stream).arrayBuffer().then(function (buf) {
+          return { tag: 'd', bytes: new Uint8Array(buf) };
+        });
+      }
+
+      function decompressToString(tag, bytes) {
+        if (tag === 'r') return Promise.resolve(new TextDecoder().decode(bytes));
+        var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        return new Response(stream).text();
+      }
+
+      // sparse letter encoding: only letters that deviate from rest
+      function shareData() {
+        var d = { a: 'td', v: 1, text: textInput.value, params: {}, L: [] };
+        for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
+        for (var i = 0; i < metrics.length; i++) {
+          var s = letterState(metrics[i]);
+          if (s.t || s.l || s.i > 0.001 || s.mx || s.my) {
+            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0]);
+          }
+        }
+        return d;
+      }
+
+      function buildShareUrl() {
+        return compressString(JSON.stringify(shareData())).then(function (r) {
+          return location.origin + location.pathname + location.search + '#p=' + r.tag + '.' + bytesToB64url(r.bytes);
+        });
+      }
+
+      function applyShareData(d) {
+        if (!d || d.a !== 'td' || !d.params) throw new Error('not a share payload');
+        var letters = [];
+        var maxIdx = -1;
+        for (var i = 0; i < (d.L || []).length; i++) {
+          var row = d.L[i];
+          letters[row[0]] = { t: row[1], l: row[2], i: row[3] / 1000, mx: row[4] ? row[4] / 1000 : 0, my: row[5] ? row[5] / 1000 : 0 };
+          if (row[0] > maxIdx) maxIdx = row[0];
+        }
+        for (var j = 0; j <= maxIdx; j++) { if (!letters[j]) letters[j] = { t: 0, l: 0, i: 0 }; }
+        loadProject({ app: 'type-deformer', version: 1, text: d.text, params: d.params, letters: letters });
+      }
+
+      function tryRestoreFromHash() {
+        var h = location.hash;
+        if (h.indexOf('#p=') !== 0) return Promise.resolve(false);
+        var payload = h.slice(3);
+        var dot = payload.indexOf('.');
+        if (dot < 1) return Promise.resolve(false);
+        return decompressToString(payload.slice(0, dot), b64urlToBytes(payload.slice(dot + 1)))
+          .then(function (json) { applyShareData(JSON.parse(json)); return true; })
+          .catch(function () { return false; });
+      }
+
+      var btnShare = document.getElementById('btnShare');
+      btnShare.addEventListener('click', function () {
+        var urlP = buildShareUrl();
+        var done = function (ok) {
+          var old = 'Share URL';
+          btnShare.textContent = ok ? 'Copied!' : 'Copy failed';
+          setTimeout(function () { btnShare.textContent = old; }, 1600);
+        };
+        urlP.then(function (u) {
+          history.replaceState(null, '', u.slice(u.indexOf('#')));
+        });
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+          // same Safari rule as image copy: write() must start inside the
+          // gesture, with the async content wrapped in the ClipboardItem
+          var writePromise;
+          try {
+            writePromise = navigator.clipboard.write([new ClipboardItem({
+              'text/plain': urlP.then(function (u) { return new Blob([u], { type: 'text/plain' }); })
+            })]);
+          } catch (err) {
+            writePromise = urlP.then(function (u) { return navigator.clipboard.writeText(u); });
+          }
+          writePromise.then(function () { done(true); }, function () {
+            urlP.then(function (u) { prompt('このURLをコピーしてください', u); });
+          });
+        } else {
+          urlP.then(function (u) { prompt('このURLをコピーしてください', u); });
+        }
+      });
+
       /* ---------------- boot ---------------- */
       window.addEventListener('resize', scheduleMeasure, { passive: true });
       // no scroll listener: positions are stage-relative, and the pointer
@@ -1998,6 +2236,13 @@ type deformer</textarea>
       applyStyle();
       createSpans(textInput.value);
       updateExportInfo();
+      populatePresets();
+      // restore order: shared URL wins, then the autosave; autosaving only
+      // starts after restore so the default state never clobbers a session
+      tryRestoreFromHash().then(function (fromHash) {
+        if (!fromHash) tryRestoreAutosave();
+        startAutosave();
+      });
       setTimeout(scheduleMeasure, 400);
     })();
   </script>
