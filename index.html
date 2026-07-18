@@ -238,6 +238,55 @@
       cursor: grabbing;
     }
 
+    /* the letter the pointer would grab (nearest-hit preview) */
+    .stage.edit-mode .c.target,
+    .stage.lock-mode .c.target {
+      outline: 2px solid rgba(196, 31, 31, 0.85);
+      outline-offset: 2px;
+      z-index: 5;
+    }
+
+    .stage.edit-mode .c.selected {
+      outline: 2px solid var(--red);
+      outline-offset: 3px;
+      z-index: 6;
+    }
+
+    /* x-ray: see through the pile-ups while editing */
+    .stage.edit-mode.xray .c {
+      animation: none;
+      opacity: 0.4;
+      translate: 0 0;
+      scale: 1;
+      filter: none;
+    }
+    .stage.edit-mode.xray .c.target,
+    .stage.edit-mode.xray .c.selected,
+    .stage.edit-mode.xray .c.editing {
+      opacity: 1;
+    }
+
+    /* selected-letter readout */
+    #editHud {
+      position: fixed;
+      right: 14px;
+      bottom: calc(14px + env(safe-area-inset-bottom));
+      z-index: 600;
+      background: var(--card);
+      border: 1px solid var(--ink);
+      box-shadow: 3px 3px 0 rgba(23, 20, 15, 0.22);
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      padding: 0.5rem 0.7rem;
+      pointer-events: none;
+      max-width: 72vw;
+    }
+    #editHud[hidden] { display: none; }
+    #editHud b { font-family: var(--jp); font-size: 1.35em; font-weight: 400; margin-right: 0.7em; }
+    #editHud .v { color: var(--red); }
+    #editHud .hint { display: block; color: var(--dim); margin-top: 0.35em; letter-spacing: 0.06em; }
+
     .stage p { margin: 0 0 0.55em; }
 
     .stage.vertical {
@@ -248,6 +297,7 @@
 
     .stage .c {
       display: inline-block;
+      position: relative; /* enables z-index for target/selected emphasis */
       --ix: 1; --iy: 1;
       transform: translateX(var(--tx, 0)) translateY(var(--ty, 0)) rotate(var(--rot, 0deg)) scale(var(--sx, 1), var(--sy, 1)) scale(var(--ix, 1), var(--iy, 1));
       transform-origin: 50% 75%;
@@ -416,13 +466,14 @@ type deformer</textarea>
         <button id="btnModeFlow" aria-pressed="true">Flow なぞる</button>
         <button id="btnModeLock" aria-pressed="false">Lock 固定</button>
         <button id="btnModeEdit" aria-pressed="false">Edit 手動</button>
+        <button id="btnXray" aria-pressed="false">X-ray 透視</button>
       </div>
       <div class="btns">
         <button id="btnLockAll">Lock all</button>
         <button id="btnUnlockAll">Unlock all</button>
         <button id="btnReset">Reset</button>
       </div>
-      <p class="note">FLOW: なぞった文字が伸縮し、再度なぞると戻ります。LOCK: クリックで現在の形を固定／解除。EDIT: 文字枠をドラッグして向きと強さを直接指定（右・上＝伸ばす、左・下＝縮める。ダブルクリックで初期化）。EDITした文字は自動的に固定されます。固定中は薄い赤で表示（書き出しには含まれません）。</p>
+      <p class="note">FLOW: なぞった文字が伸縮し、再度なぞると戻ります。LOCK: クリックで現在の形を固定／解除。EDIT: 文字枠をドラッグして向きと強さを直接指定（右・上＝伸ばす、左・下＝縮める。⇧ドラッグで微調整、ダブルクリックで初期化）。重なっていてもポインタに最も近い文字が赤枠で示され、そこがつかめます。X-rayで透視表示。選択中の文字は矢印キーで微調整（⇧で大きく）、⌫で初期化。EDITした文字は自動的に固定されます。</p>
 
       <div class="sec-head"><span>Batch</span><span class="r">一括</span></div>
       <div class="btns">
@@ -539,6 +590,8 @@ type deformer</textarea>
       <figcaption id="previewCaption"></figcaption>
     </figure>
   </div>
+
+  <div id="editHud" hidden></div>
 
   <script>
     (function () {
@@ -738,6 +791,7 @@ type deformer</textarea>
       }
 
       function createSpans(text) {
+        clearEditSelection(); // old spans are being discarded
         stage.innerHTML = '';
         letters = [];
         var lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -885,10 +939,59 @@ type deformer</textarea>
           var el = m.el;
           var x = 0, y = 0, o = el;
           while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
-          m.relX = x + el.offsetWidth / 2;
-          m.relY = y + el.offsetHeight / 2;
+          m.w = el.offsetWidth;
+          m.h = el.offsetHeight;
+          m.relX = x + m.w / 2;
+          m.relY = y + m.h / 2;
         }
         metricsDirty = false;
+      }
+
+      // Nearest letter to a stage-space point, measured against each glyph's
+      // VISUAL centre (layout centre pushed through its current transform) and
+      // normalized by its scaled size — so in a pile-up you grab the letter
+      // you are aiming at, not whichever huge box the DOM stacks on top.
+      function findNearestLetter(px, py) {
+        if (metricsDirty) measureLayout();
+        var fs = params.fontSize;
+        // two tiers: among letters whose visual box contains the pointer, the
+        // one with the nearest centre wins (so a small glyph beats the huge
+        // stretched neighbour whose box merely covers it); with no containing
+        // box, fall back to the nearest centre within 80px
+        var bestIn = null, bestInD = Infinity;
+        var bestOut = null, bestOutD = 80 * 80;
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i];
+          // cheap spatial pre-filter on layout position: scales are capped at
+          // 8-9×, so a glyph's visual box can never reach further than about
+          // 5× its size from its layout centre — skip style reads beyond that
+          var reach = (m.w > m.h ? m.w : m.h) * 5 + 100;
+          if (px - m.relX > reach || m.relX - px > reach || py - m.relY > reach || m.relY - py > reach) continue;
+          var st = m.el.style;
+          var sx = (parseFloat(st.getPropertyValue('--sx')) || 1) * (parseFloat(st.getPropertyValue('--ix')) || 1);
+          var sy = (parseFloat(st.getPropertyValue('--sy')) || 1) * (parseFloat(st.getPropertyValue('--iy')) || 1);
+          var tx = (parseFloat(st.getPropertyValue('--tx')) || 0) * fs;
+          var ty = (parseFloat(st.getPropertyValue('--ty')) || 0) * fs;
+          var rot = (parseFloat(st.getPropertyValue('--rot')) || 0) * Math.PI / 180;
+          var cosR = Math.cos(rot), sinR = Math.sin(rot);
+          // transform-origin sits at 50% / 75% of the layout box
+          var ox = m.relX;
+          var oy = m.relY + 0.25 * m.h;
+          var off = -0.25 * m.h * sy; // centre is above the origin
+          var cx = ox + tx - sinR * off;
+          var cy = oy + ty + cosR * off;
+          var dx = px - cx, dy = py - cy;
+          var d = dx * dx + dy * dy;
+          // un-rotate into the glyph's local axes for the containment test
+          var lx = cosR * dx + sinR * dy;
+          var ly = -sinR * dx + cosR * dy;
+          if (Math.abs(lx) <= m.w * sx * 0.5 + 6 && Math.abs(ly) <= m.h * sy * 0.5 + 6) {
+            if (d < bestInD) { bestInD = d; bestIn = m; }
+          } else if (d < bestOutD) {
+            bestOutD = d; bestOut = m;
+          }
+        }
+        return bestIn || bestOut;
       }
 
       function schedule() {
@@ -1060,9 +1163,15 @@ type deformer</textarea>
         return null;
       }
 
+      function stagePoint(e) {
+        var rect = stage.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+
       stage.addEventListener('click', function (e) {
         if (params.mode !== 'lock') return;
-        var m = findMetric(e.target);
+        var pt = stagePoint(e);
+        var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
         if (!m) return;
         pushHistory();
         m.locked = !m.locked;
@@ -1072,6 +1181,64 @@ type deformer</textarea>
           schedule(); // resume easing when released
         }
       });
+
+      /* ---------------- target preview + selection (edit / lock) ---------------- */
+      var targetEl = null;
+      var selectedM = null;
+      var hoverPt = { t: 0 };
+      var editHud = document.getElementById('editHud');
+
+      function setTarget(m) {
+        var el = m ? m.el : null;
+        if (el === targetEl) return;
+        if (targetEl) targetEl.classList.remove('target');
+        targetEl = el;
+        if (el) el.classList.add('target');
+      }
+
+      function selectLetter(m) {
+        if (selectedM && selectedM.el) selectedM.el.classList.remove('selected');
+        selectedM = m || null;
+        if (selectedM) selectedM.el.classList.add('selected');
+        updateHud();
+      }
+
+      function clearEditSelection() {
+        setTarget(null);
+        selectLetter(null);
+      }
+
+      function updateHud() {
+        if (params.mode !== 'edit' || !selectedM) { editHud.hidden = true; return; }
+        var st = selectedM.el.style;
+        var ix = parseFloat(st.getPropertyValue('--ix')) || 1;
+        var iy = parseFloat(st.getPropertyValue('--iy')) || 1;
+        editHud.textContent = '';
+        var b = document.createElement('b');
+        b.textContent = selectedM.el.textContent;
+        editHud.appendChild(b);
+        var v = document.createElement('span');
+        v.className = 'v';
+        v.textContent = 'W ×' + ix.toFixed(2) + ' H ×' + iy.toFixed(2);
+        editHud.appendChild(v);
+        var h = document.createElement('span');
+        h.className = 'hint';
+        h.textContent = '←→↑↓ 微調整（⇧で大きく）・⌫ 初期化・esc 解除';
+        editHud.appendChild(h);
+        editHud.hidden = false;
+      }
+
+      stage.addEventListener('pointermove', function (e) {
+        if (params.mode === 'flow') return;
+        if (editDrag) { setTarget(editDrag.m); return; }
+        var now = Date.now();
+        if (now - hoverPt.t < 33) return; // ~30Hz is plenty for a highlight
+        hoverPt.t = now;
+        var pt = stagePoint(e);
+        setTarget(findNearestLetter(pt.x, pt.y));
+      });
+
+      stage.addEventListener('pointerleave', function () { setTarget(null); });
 
       /* ---------------- edit mode: drag a letter to shape it ---------------- */
       var editDrag = null;
@@ -1102,7 +1269,8 @@ type deformer</textarea>
 
       stage.addEventListener('pointerdown', function (e) {
         if (params.mode !== 'edit') return;
-        var m = findMetric(e.target);
+        var pt = stagePoint(e);
+        var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
         if (!m) return;
         pushHistory();
         editDrag = {
@@ -1115,15 +1283,18 @@ type deformer</textarea>
           baseY: parseFloat(m.el.style.getPropertyValue('--iy')) || 1
         };
         m.el.classList.add('editing');
+        setTarget(m);
+        selectLetter(m);
         try { stage.setPointerCapture(e.pointerId); } catch (err) { }
         if (e.cancelable) e.preventDefault();
       });
 
       stage.addEventListener('pointermove', function (e) {
         if (!editDrag || e.pointerId !== editDrag.id) return;
-        var dx = e.clientX - editDrag.x0;
-        var dy = e.clientY - editDrag.y0;
-        if (Math.abs(dx) > TAP_MOVE_MAX || Math.abs(dy) > TAP_MOVE_MAX) editDrag.moved = true;
+        var fine = e.shiftKey ? 0.25 : 1; // shift = fine adjustment
+        var dx = (e.clientX - editDrag.x0) * fine;
+        var dy = (e.clientY - editDrag.y0) * fine;
+        if (Math.abs(e.clientX - editDrag.x0) > TAP_MOVE_MAX || Math.abs(e.clientY - editDrag.y0) > TAP_MOVE_MAX) editDrag.moved = true;
         var ix = Math.min(8, Math.max(0.25, dragStretch(editDrag.baseX, dx)));
         var iy = Math.min(9, Math.max(0.25, dragStretch(editDrag.baseY, -dy)));
         var m = editDrag.m;
@@ -1134,6 +1305,7 @@ type deformer</textarea>
         m.el.classList.add('locked');
         m.el.style.setProperty('--ix', ix.toFixed(3));
         m.el.style.setProperty('--iy', iy.toFixed(3));
+        if (selectedM === m) updateHud();
         if (e.cancelable) e.preventDefault();
       });
 
@@ -1163,10 +1335,34 @@ type deformer</textarea>
       // detection above, but resetLetter is idempotent so this is harmless).
       stage.addEventListener('dblclick', function (e) {
         if (params.mode !== 'edit') return;
-        var m = findMetric(e.target);
+        var pt = stagePoint(e);
+        var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
         if (!m) return;
         resetLetter(m);
+        if (selectedM === m) updateHud();
       });
+
+      /* keyboard fine-nudge for the selected letter */
+      var lastNudgePush = 0;
+      function nudgeSelected(dx, dy) {
+        if (!selectedM) return;
+        var now = Date.now();
+        if (now - lastNudgePush > 600) pushHistory(); // one history entry per burst
+        lastNudgePush = now;
+        var el = selectedM.el;
+        var ix = parseFloat(el.style.getPropertyValue('--ix')) || 1;
+        var iy = parseFloat(el.style.getPropertyValue('--iy')) || 1;
+        ix = Math.min(8, Math.max(0.25, ix + dx));
+        iy = Math.min(9, Math.max(0.25, iy + dy));
+        selectedM.manualX = ix;
+        selectedM.manualY = iy;
+        selectedM.locked = true;
+        selectedM.active = true;
+        el.classList.add('locked');
+        el.style.setProperty('--ix', ix.toFixed(3));
+        el.style.setProperty('--iy', iy.toFixed(3));
+        updateHud();
+      }
 
       function lockAll() {
         for (var i = 0; i < metrics.length; i++) {
@@ -1847,8 +2043,23 @@ type deformer</textarea>
           return;
         }
         if (inField || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (params.mode === 'edit' && selectedM) {
+          var step = e.shiftKey ? 0.25 : 0.05;
+          if (e.key === 'ArrowRight') { nudgeSelected(step, 0); e.preventDefault(); return; }
+          if (e.key === 'ArrowLeft') { nudgeSelected(-step, 0); e.preventDefault(); return; }
+          if (e.key === 'ArrowUp') { nudgeSelected(0, step); e.preventDefault(); return; }
+          if (e.key === 'ArrowDown') { nudgeSelected(0, -step); e.preventDefault(); return; }
+          if (e.key === 'Backspace' || e.key === 'Delete') {
+            resetLetter(selectedM);
+            updateHud();
+            e.preventDefault();
+            return;
+          }
+          if (e.key === 'Escape') { clearEditSelection(); return; }
+        }
         if (e.key === 'l' || e.key === 'L') setMode(params.mode === 'lock' ? 'flow' : 'lock');
         else if (e.key === 'e' || e.key === 'E') setMode(params.mode === 'edit' ? 'flow' : 'edit');
+        else if (e.key === 'x' || e.key === 'X') document.getElementById('btnXray').click();
         else if (e.key === 's' || e.key === 'S') document.getElementById('btnShuffle').click();
         else if (e.key === 'p' || e.key === 'P') openPreview();
       });
@@ -1889,10 +2100,17 @@ type deformer</textarea>
         for (var k in modeButtons) modeButtons[k].setAttribute('aria-pressed', String(k === mode));
         stage.classList.toggle('lock-mode', mode === 'lock');
         stage.classList.toggle('edit-mode', mode === 'edit');
+        clearEditSelection();
       }
       modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
       modeButtons.lock.addEventListener('click', function () { setMode('lock'); });
       modeButtons.edit.addEventListener('click', function () { setMode('edit'); });
+      var btnXray = document.getElementById('btnXray');
+      btnXray.addEventListener('click', function () {
+        var on = btnXray.getAttribute('aria-pressed') !== 'true';
+        btnXray.setAttribute('aria-pressed', String(on));
+        stage.classList.toggle('xray', on);
+      });
       Array.prototype.forEach.call(document.querySelectorAll('[data-batch]'), function (btn) {
         btn.addEventListener('click', function () {
           batchToggle(batchMatchers[btn.dataset.batch]);
