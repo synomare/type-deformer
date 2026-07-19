@@ -311,6 +311,38 @@
       opacity: 1;
     }
 
+    /* grid typesetting: letters snap into absolute cells instead of flow */
+    .stage.grid-layout .c { position: absolute; }
+    .stage.grid-layout .c.punct { margin: 0; }
+    .stage.grid-layout p { margin: 0; line-height: 0; font-size: 0; }
+
+    #gridLines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px calc(var(--gc, 64px) + var(--gg, 0px))),
+        repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px calc(var(--gc, 64px) + var(--gg, 0px)));
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .stage.grid-layout #gridLines { opacity: 0.35; }
+    .stage.grid-layout.grid-mode #gridLines { opacity: 0.7; }
+
+    .stage.grid-mode { cursor: default; touch-action: none; }
+    .stage.grid-mode .c { cursor: grab; }
+    .stage.grid-mode .c.gdragging { cursor: grabbing; opacity: 0.5; }
+    .stage.grid-mode .c.target {
+      outline: 2px solid rgba(196, 31, 31, 0.85);
+      outline-offset: 2px;
+      z-index: 5;
+    }
+    .stage.grid-mode .c.selected {
+      outline: 2px solid var(--red);
+      outline-offset: 3px;
+      z-index: 6;
+    }
+
     /* selected-letter readout */
     #editHud {
       position: fixed;
@@ -511,6 +543,7 @@ type deformer</textarea>
         <button id="btnModeFlow" aria-pressed="true">Flow なぞる</button>
         <button id="btnModeLock" aria-pressed="false">Lock 固定</button>
         <button id="btnModeEdit" aria-pressed="false">Edit 手動</button>
+        <button id="btnModeGrid" aria-pressed="false">Grid 格子</button>
         <button id="btnXray" aria-pressed="false">X-ray 透視</button>
       </div>
       <div class="btns">
@@ -519,6 +552,21 @@ type deformer</textarea>
         <button id="btnReset">Reset</button>
       </div>
       <p class="note">FLOW: なぞった文字が伸縮し、再度なぞると戻ります。LOCK: クリックで現在の形を固定／解除。EDIT: 文字枠をドラッグして向きと強さを直接指定（右・上＝伸ばす、左・下＝縮める。⇧ドラッグで微調整、ダブルクリックで初期化）。重なっていてもポインタに最も近い文字が赤枠で示され、そこがつかめます。X-rayで透視表示。選択中の文字は矢印キーで微調整（⇧で大きく）、⌫で初期化。EDITした文字は自動的に固定されます。</p>
+
+      <div class="sec-head"><span>Grid</span><span class="r">格子</span></div>
+      <div class="row"><label for="pGridEnabled">Enable grid</label><input type="checkbox" id="pGridEnabled"></div>
+      <div class="row"><label for="pGridCols">Columns</label><input type="range" id="pGridCols" min="1" max="60" step="1" value="12"><span class="val" id="vGridCols">12</span></div>
+      <div class="row"><label for="pGridAutoRows">Auto rows</label><input type="checkbox" id="pGridAutoRows" checked></div>
+      <div class="row" id="gridRowsRow" style="display:none"><label for="pGridRows">Rows</label><input type="range" id="pGridRows" min="1" max="60" step="1" value="12"><span class="val" id="vGridRows">12</span></div>
+      <div class="row"><label for="pGridCellSize">Cell size</label><input type="range" id="pGridCellSize" min="16" max="240" step="1" value="64"><span class="val" id="vGridCellSize">64</span></div>
+      <div class="row"><label for="pGridGap">Gap</label><input type="range" id="pGridGap" min="0" max="40" step="1" value="0"><span class="val" id="vGridGap">0</span></div>
+      <div class="row"><label for="pGridLines">Show lines</label><input type="checkbox" id="pGridLines" checked></div>
+      <div class="row"><label for="pGridLineBreak">Line break → new row</label><input type="checkbox" id="pGridLineBreak" checked></div>
+      <div class="btns">
+        <button id="btnGridReset">Reset arrangement</button>
+      </div>
+      <p class="note" id="gridStatus"></p>
+      <p class="note">GRIDをONにすると文字が原稿用紙のような格子に自動で流し込まれます。GRIDモードで文字をドラッグすると別のマスへ入れ替え。選択中は矢印キーでマスを移動、⌫でマスの固定を解除（文字自体は消えません）。</p>
 
       <div class="sec-head"><span>Batch</span><span class="r">一括</span></div>
       <div class="btns">
@@ -727,7 +775,15 @@ type deformer</textarea>
         exportScale: 2,
         transparentBg: false,
         deformedOnly: false,
-        mode: 'flow'   // 'flow' | 'lock' | 'edit'
+        gridEnabled: false,
+        gridCols: 12,
+        gridAutoRows: true,
+        gridRows: 12,
+        gridCellSize: 64,
+        gridGap: 0,
+        gridLines: true,
+        gridLineBreak: true,
+        mode: 'flow'   // 'flow' | 'lock' | 'edit' | 'grid'
       };
 
       /* ---------------- grapheme splitting (ported) ---------------- */
@@ -841,6 +897,9 @@ type deformer</textarea>
       var metrics = [];   // per-letter lens state (parallel to letters)
       var metricsDirty = true;
       var undoStack = [], redoStack = [];   // deform/lock history (cleared on text change)
+      var lineEnds = [];  // cumulative letters.length after each source line (for grid line-breaks)
+      var gridLinesEl = document.createElement('div');
+      gridLinesEl.id = 'gridLines';
 
       // One token = one deformable unit. Usually a single grapheme cluster,
       // but joining scripts (Arabic, Indic, …) are grouped per word so
@@ -891,6 +950,7 @@ type deformer</textarea>
         clearEditSelection(); // old spans are being discarded
         stage.innerHTML = '';
         letters = [];
+        lineEnds = [];
         var lines = text.replace(/\r\n?/g, '\n').split('\n');
         var globalIndex = 0;
         var frag = document.createDocumentFragment();
@@ -911,11 +971,14 @@ type deformer</textarea>
           }
           if (!tokens.length) p.appendChild(document.createElement('br'));
           frag.appendChild(p);
+          lineEnds.push(letters.length);
         }
         stage.appendChild(frag);
+        if (gridLinesEl) stage.insertBefore(gridLinesEl, stage.firstChild);
         stage.classList.toggle('many', letters.length > 600);
         applyRandom();
         rebuildMetrics();
+        if (params.gridEnabled) layoutGrid();
         undoStack.length = 0;
         redoStack.length = 0;
       }
@@ -1007,7 +1070,8 @@ type deformer</textarea>
             locked: false,
             manualX: null,
             manualY: null,
-            currentIntensity: 0
+            currentIntensity: 0,
+            gridCell: null
           };
         });
         syncMetricsSeeds();
@@ -1042,6 +1106,153 @@ type deformer</textarea>
           m.relY = y + m.h / 2;
         }
         metricsDirty = false;
+      }
+
+      /* ---------------- grid typesetting ---------------- */
+
+      // Reading-order sequence of cell indices for a cols×rows grid.
+      // Horizontal: row-major, left-to-right, top-to-bottom.
+      // Vertical: genkou-youshi convention — columns right-to-left,
+      // each column read top-to-bottom.
+      function buildCellOrder(cols, rows, vertical) {
+        var order = [];
+        if (!vertical) {
+          for (var i = 0; i < cols * rows; i++) order.push(i);
+        } else {
+          for (var c = cols - 1; c >= 0; c--) {
+            for (var r = 0; r < rows; r++) order.push(r * cols + c);
+          }
+        }
+        return order;
+      }
+
+      function placeLetterAtCell(m, cellIndex, cols, cell, gap) {
+        var col = cellIndex % cols;
+        var row = Math.floor(cellIndex / cols);
+        var st = m.el.style;
+        st.position = 'absolute';
+        st.left = (col * (cell + gap)) + 'px';
+        st.top = (row * (cell + gap)) + 'px';
+        st.width = st.height = cell + 'px';
+        st.lineHeight = cell + 'px';
+        st.textAlign = 'center';
+        st.whiteSpace = 'nowrap';
+        st.overflow = 'hidden';
+        m.el.dataset.gridCell = cellIndex;
+      }
+
+      // Strip every grid-related inline override so normal flow resumes cleanly.
+      function clearGridStyles() {
+        for (var i = 0; i < metrics.length; i++) {
+          var st = metrics[i].el.style;
+          st.removeProperty('position');
+          st.removeProperty('left');
+          st.removeProperty('top');
+          st.removeProperty('width');
+          st.removeProperty('height');
+          st.removeProperty('line-height');
+          st.removeProperty('text-align');
+          st.removeProperty('white-space');
+          st.removeProperty('overflow');
+          delete metrics[i].el.dataset.gridCell;
+        }
+        stage.classList.remove('grid-layout');
+      }
+
+      function updateGridStatusNote(cols, rows, autoExtended) {
+        var el = document.getElementById('gridStatus');
+        if (!el) return;
+        el.textContent = autoExtended
+          ? '文字数が指定サイズに収まらないため、行を自動拡張しました（' + cols + ' × ' + rows + '）。'
+          : '';
+      }
+
+      // Recompute cell assignment for every letter and position it.
+      // Manually pinned letters (m.gridCell already set) keep their cell;
+      // everything else auto-flows into the remaining cells in reading order,
+      // honoring source line breaks when gridLineBreak is on.
+      function layoutGrid() {
+        if (!params.gridEnabled) return;
+        stage.classList.add('grid-layout');
+        gridLinesEl.style.setProperty('--gc', params.gridCellSize + 'px');
+        gridLinesEl.style.setProperty('--gg', params.gridGap + 'px');
+
+        var cols = Math.max(1, params.gridCols | 0);
+        var cell = params.gridCellSize, gap = params.gridGap;
+
+        // how many auto-flow slots are needed, honoring line breaks
+        var lineStart = 0, autoSlots = 0;
+        for (var li = 0; li < lineEnds.length; li++) {
+          var lineLen = lineEnds[li] - lineStart;
+          autoSlots += params.gridLineBreak ? (Math.ceil(Math.max(lineLen, 1) / cols) * cols) : lineLen;
+          lineStart = lineEnds[li];
+        }
+
+        var maxPinned = -1;
+        for (var i = 0; i < metrics.length; i++) {
+          if (metrics[i].gridCell != null && metrics[i].gridCell > maxPinned) maxPinned = metrics[i].gridCell;
+        }
+        var totalCells = Math.max(autoSlots, maxPinned + 1, cols, 1);
+        var rows = params.gridAutoRows
+          ? Math.max(1, Math.ceil(totalCells / cols))
+          : Math.max(params.gridRows, Math.ceil(totalCells / cols));
+        var autoExtended = !params.gridAutoRows && rows > params.gridRows;
+
+        var order = buildCellOrder(cols, rows, params.vertical);
+
+        var claimed = new Array(cols * rows);
+        var pinnedAt = {};
+        for (var pi = 0; pi < metrics.length; pi++) {
+          var gc = metrics[pi].gridCell;
+          if (gc != null && gc >= 0 && gc < cols * rows && !claimed[gc]) {
+            claimed[gc] = true;
+            pinnedAt[gc] = metrics[pi];
+          }
+        }
+
+        var cursor = 0;
+        lineStart = 0;
+        for (var li2 = 0; li2 < lineEnds.length; li2++) {
+          for (var k = lineStart; k < lineEnds[li2]; k++) {
+            var m = metrics[k];
+            if (m.gridCell != null && pinnedAt[m.gridCell] === m) continue; // already placed by pin
+            while (cursor < order.length && claimed[order[cursor]]) cursor++;
+            if (cursor >= order.length) continue; // shouldn't happen given totalCells sizing above
+            var targetCell = order[cursor++];
+            claimed[targetCell] = true;
+            placeLetterAtCell(m, targetCell, cols, cell, gap);
+          }
+          if (params.gridLineBreak) {
+            var used = Math.ceil(cursor / cols) * cols;
+            cursor = used;
+          }
+          lineStart = lineEnds[li2];
+        }
+        for (var pc in pinnedAt) placeLetterAtCell(pinnedAt[pc], +pc, cols, cell, gap);
+
+        updateGridStatusNote(cols, rows, autoExtended);
+        metricsDirty = true;
+        schedule();
+      }
+
+      function cellIndexAt(pt) {
+        var padLeft = parseFloat(getComputedStyle(stage).paddingLeft) || 0;
+        var padTop = parseFloat(getComputedStyle(stage).paddingTop) || 0;
+        var cols = Math.max(1, params.gridCols | 0);
+        var step = params.gridCellSize + params.gridGap;
+        var col = Math.floor((pt.x - padLeft) / step);
+        var row = Math.floor((pt.y - padTop) / step);
+        col = Math.max(0, Math.min(cols - 1, col));
+        row = Math.max(0, row);
+        return row * cols + col;
+      }
+
+      function cellMetricAt(pt) {
+        var idx = cellIndexAt(pt);
+        for (var i = 0; i < metrics.length; i++) {
+          if (metrics[i].gridCell === idx || metrics[i].el.dataset.gridCell == idx) return metrics[i];
+        }
+        return null;
       }
 
       // Nearest letter to a stage-space point, measured against each glyph's
@@ -1306,7 +1517,23 @@ type deformer</textarea>
       }
 
       function updateHud() {
-        if (params.mode !== 'edit' || !selectedM) { editHud.hidden = true; return; }
+        if ((params.mode !== 'edit' && params.mode !== 'grid') || !selectedM) { editHud.hidden = true; return; }
+        if (params.mode === 'grid') {
+          editHud.textContent = '';
+          var gb = document.createElement('b');
+          gb.textContent = selectedM.el.textContent;
+          editHud.appendChild(gb);
+          var gv = document.createElement('span');
+          gv.className = 'v';
+          gv.textContent = selectedM.gridCell != null ? 'Cell ' + selectedM.gridCell : 'Cell —';
+          editHud.appendChild(gv);
+          var gh = document.createElement('span');
+          gh.className = 'hint';
+          gh.textContent = 'move with arrows, drag to swap, backspace unpins, esc deselects';
+          editHud.appendChild(gh);
+          editHud.hidden = false;
+          return;
+        }
         var st = selectedM.el.style;
         var ix = parseFloat(st.getPropertyValue('--ix')) || 1;
         var iy = parseFloat(st.getPropertyValue('--iy')) || 1;
@@ -1328,6 +1555,7 @@ type deformer</textarea>
       stage.addEventListener('pointermove', function (e) {
         if (params.mode === 'flow') return;
         if (editDrag) { setTarget(editDrag.m); return; }
+        if (gridDrag) { setTarget(cellMetricAt(stagePoint(e))); return; }
         var now = Date.now();
         if (now - hoverPt.t < 33) return; // ~30Hz is plenty for a highlight
         hoverPt.t = now;
@@ -1439,6 +1667,77 @@ type deformer</textarea>
         if (selectedM === m) updateHud();
       });
 
+      /* ---------------- grid mode: drag a letter into a different cell ---------------- */
+      var gridDrag = null;
+
+      // give occupant the mover's old cell (or null if it had none) — a
+      // clean bijection, no letter is ever lost or overlapped
+      function swapGridCells(m, targetCell) {
+        var occupant = null;
+        for (var i = 0; i < metrics.length; i++) {
+          if (metrics[i] !== m && metrics[i].gridCell === targetCell) { occupant = metrics[i]; break; }
+        }
+        var prevCell = m.gridCell;
+        m.gridCell = targetCell;
+        if (occupant) occupant.gridCell = (prevCell != null) ? prevCell : null;
+        layoutGrid();
+      }
+
+      function unpinGridCell(m) {
+        pushHistory();
+        m.gridCell = null;
+        layoutGrid();
+        updateHud();
+      }
+
+      stage.addEventListener('pointerdown', function (e) {
+        if (params.mode !== 'grid') return;
+        var pt = stagePoint(e);
+        var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
+        if (!m) return;
+        pushHistory();
+        gridDrag = { m: m, id: e.pointerId, moved: false, x0: e.clientX, y0: e.clientY };
+        m.el.classList.add('gdragging');
+        selectLetter(m);
+        try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+        if (e.cancelable) e.preventDefault();
+      });
+
+      stage.addEventListener('pointermove', function (e) {
+        if (!gridDrag || e.pointerId !== gridDrag.id) return;
+        if (Math.abs(e.clientX - gridDrag.x0) > TAP_MOVE_MAX || Math.abs(e.clientY - gridDrag.y0) > TAP_MOVE_MAX) gridDrag.moved = true;
+      });
+
+      function endGridDrag(e) {
+        if (!gridDrag || e.pointerId !== gridDrag.id) return;
+        gridDrag.m.el.classList.remove('gdragging');
+        if (gridDrag.moved) {
+          var targetCell = cellIndexAt(stagePoint(e));
+          swapGridCells(gridDrag.m, targetCell);
+        }
+        gridDrag = null;
+      }
+      stage.addEventListener('pointerup', endGridDrag);
+      stage.addEventListener('pointercancel', endGridDrag);
+
+      /* keyboard cell-nudge for the selected letter (grid mode) */
+      function nudgeGridSelected(dCol, dRow) {
+        if (!selectedM) return;
+        pushHistory();
+        var cols = Math.max(1, params.gridCols | 0);
+        var current = selectedM.gridCell != null ? selectedM.gridCell : cellMetricCellOf(selectedM);
+        var col = current % cols, row = Math.floor(current / cols);
+        col = Math.max(0, col + dCol);
+        row = Math.max(0, row + dRow);
+        swapGridCells(selectedM, row * cols + col);
+        updateHud();
+      }
+
+      function cellMetricCellOf(m) {
+        var v = parseInt(m.el.dataset.gridCell, 10);
+        return isNaN(v) ? 0 : v;
+      }
+
       /* keyboard fine-nudge for the selected letter */
       var lastNudgePush = 0;
       function nudgeSelected(dx, dy) {
@@ -1533,6 +1832,7 @@ type deformer</textarea>
         m.currentIntensity = +s.i || 0;
         m.manualX = s.mx ? +s.mx : null;
         m.manualY = s.my ? +s.my : null;
+        m.gridCell = (s.gc != null && s.gc !== '') ? +s.gc : null;
         m.el.classList.toggle('locked', m.locked);
         if (m.manualX || m.manualY) {
           m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
@@ -1550,6 +1850,7 @@ type deformer</textarea>
       function restoreStates(states) {
         var n = Math.min(states.length, metrics.length);
         for (var i = 0; i < n; i++) applyLetterState(metrics[i], states[i]);
+        if (params.gridEnabled) layoutGrid();
         scheduleMeasure();
       }
 
@@ -1585,6 +1886,7 @@ type deformer</textarea>
         m.currentIntensity = +s.i || 0;
         m.manualX = s.mx ? +s.mx : null;
         m.manualY = s.my ? +s.my : null;
+        m.gridCell = (s.gc != null && s.gc !== '') ? +s.gc : null;
         el.classList.toggle('locked', m.locked);
         // unlike applyLetterState, never recompute or clear --ix/--iy here —
         // the restored style attribute is the exact visual truth, including
@@ -1605,6 +1907,7 @@ type deformer</textarea>
         for (var i = 0; i < p; i++) carryLetter(nw[i], old[i]);
         for (var k = 0; k < s; k++) carryLetter(nw[nw.length - 1 - k], old[old.length - 1 - k]);
         syncMetricsSeeds(); // metrics were built from pre-carry dataset values
+        if (params.gridEnabled) layoutGrid();
         scheduleMeasure();
       }
 
@@ -1615,6 +1918,7 @@ type deformer</textarea>
           s.mx = Math.round((m.manualX || 1) * 1000) / 1000;
           s.my = Math.round((m.manualY || 1) * 1000) / 1000;
         }
+        if (m.gridCell != null) s.gc = m.gridCell;
         return s;
       }
 
@@ -1628,7 +1932,8 @@ type deformer</textarea>
           arr[i] = (m.toggled ? 1 : 0) + ',' + (m.locked ? 1 : 0) + ',' +
             Math.round(m.currentIntensity * 1000) + ',' +
             (m.manualX ? Math.round(m.manualX * 1000) : '') + ',' +
-            (m.manualY ? Math.round(m.manualY * 1000) : '');
+            (m.manualY ? Math.round(m.manualY * 1000) : '') + ',' +
+            (m.gridCell != null ? m.gridCell : '');
         }
         return params.seed + '|' + arr.join(';');
       }
@@ -1656,7 +1961,8 @@ type deformer</textarea>
           states.push({
             t: +f[0], l: +f[1], i: (+f[2]) / 1000,
             mx: f[3] ? (+f[3]) / 1000 : 0,
-            my: f[4] ? (+f[4]) / 1000 : 0
+            my: f[4] ? (+f[4]) / 1000 : 0,
+            gc: f[5] ? +f[5] : null
           });
         }
         restoreStates(states);
@@ -2025,6 +2331,37 @@ type deformer</textarea>
       bindRange('pAccentRatio', 'vAccentRatio', 'accentRatio', f2, queueApplyRandom);
       bindRange('pMargin', 'vMargin', 'marginPct', f0);
 
+      /* grid */
+      function relayoutGrid() { if (params.gridEnabled) layoutGrid(); }
+      bindRange('pGridCols', 'vGridCols', 'gridCols', f0, relayoutGrid);
+      bindRange('pGridRows', 'vGridRows', 'gridRows', f0, relayoutGrid);
+      bindRange('pGridCellSize', 'vGridCellSize', 'gridCellSize', f0, relayoutGrid);
+      bindRange('pGridGap', 'vGridGap', 'gridGap', f0, relayoutGrid);
+
+      var gridRowsRow = document.getElementById('gridRowsRow');
+      document.getElementById('pGridEnabled').addEventListener('change', function (e) {
+        params.gridEnabled = e.target.checked;
+        if (params.gridEnabled) layoutGrid(); else clearGridStyles();
+      });
+      document.getElementById('pGridAutoRows').addEventListener('change', function (e) {
+        params.gridAutoRows = e.target.checked;
+        gridRowsRow.style.display = params.gridAutoRows ? 'none' : '';
+        relayoutGrid();
+      });
+      document.getElementById('pGridLines').addEventListener('change', function (e) {
+        params.gridLines = e.target.checked;
+        gridLinesEl.style.display = params.gridLines ? '' : 'none';
+      });
+      document.getElementById('pGridLineBreak').addEventListener('change', function (e) {
+        params.gridLineBreak = e.target.checked;
+        relayoutGrid();
+      });
+      document.getElementById('btnGridReset').addEventListener('click', function () {
+        pushHistory();
+        for (var i = 0; i < metrics.length; i++) metrics[i].gridCell = null;
+        relayoutGrid();
+      });
+
       var fontSelect = document.getElementById('pFont');
       var fontCustom = document.getElementById('pFontCustom');
       fontSelect.addEventListener('change', function (e) {
@@ -2059,6 +2396,7 @@ type deformer</textarea>
         params.vertical = !params.vertical;
         btnVertical.setAttribute('aria-pressed', String(params.vertical));
         applyStyle();
+        if (params.gridEnabled) layoutGrid();
       });
       document.getElementById('pTransparent').addEventListener('change', function (e) {
         params.transparentBg = e.target.checked;
@@ -2154,8 +2492,17 @@ type deformer</textarea>
           }
           if (e.key === 'Escape') { clearEditSelection(); return; }
         }
+        else if (params.mode === 'grid' && selectedM) {
+          if (e.key === 'ArrowRight') { nudgeGridSelected(1, 0); e.preventDefault(); return; }
+          if (e.key === 'ArrowLeft') { nudgeGridSelected(-1, 0); e.preventDefault(); return; }
+          if (e.key === 'ArrowUp') { nudgeGridSelected(0, -1); e.preventDefault(); return; }
+          if (e.key === 'ArrowDown') { nudgeGridSelected(0, 1); e.preventDefault(); return; }
+          if (e.key === 'Backspace' || e.key === 'Delete') { unpinGridCell(selectedM); e.preventDefault(); return; }
+          if (e.key === 'Escape') { clearEditSelection(); return; }
+        }
         if (e.key === 'l' || e.key === 'L') setMode(params.mode === 'lock' ? 'flow' : 'lock');
         else if (e.key === 'e' || e.key === 'E') setMode(params.mode === 'edit' ? 'flow' : 'edit');
+        else if (e.key === 'g' || e.key === 'G') setMode(params.mode === 'grid' ? 'flow' : 'grid');
         else if (e.key === 'x' || e.key === 'X') document.getElementById('btnXray').click();
         else if (e.key === 's' || e.key === 'S') document.getElementById('btnShuffle').click();
         else if (e.key === 'p' || e.key === 'P') openPreview();
@@ -2190,18 +2537,26 @@ type deformer</textarea>
       var modeButtons = {
         flow: document.getElementById('btnModeFlow'),
         lock: document.getElementById('btnModeLock'),
-        edit: document.getElementById('btnModeEdit')
+        edit: document.getElementById('btnModeEdit'),
+        grid: document.getElementById('btnModeGrid')
       };
       function setMode(mode) {
         params.mode = mode;
         for (var k in modeButtons) modeButtons[k].setAttribute('aria-pressed', String(k === mode));
         stage.classList.toggle('lock-mode', mode === 'lock');
         stage.classList.toggle('edit-mode', mode === 'edit');
+        stage.classList.toggle('grid-mode', mode === 'grid');
+        if (mode === 'grid' && !params.gridEnabled) {
+          params.gridEnabled = true;
+          document.getElementById('pGridEnabled').checked = true;
+          layoutGrid();
+        }
         clearEditSelection();
       }
       modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
       modeButtons.lock.addEventListener('click', function () { setMode('lock'); });
       modeButtons.edit.addEventListener('click', function () { setMode('edit'); });
+      modeButtons.grid.addEventListener('click', function () { setMode('grid'); });
       var btnXray = document.getElementById('btnXray');
       btnXray.addEventListener('click', function () {
         var on = btnXray.getAttribute('aria-pressed') !== 'true';
@@ -2258,6 +2613,13 @@ type deformer</textarea>
         document.getElementById('pFit').checked = params.fit;
         document.getElementById('pScale').value = String(params.exportScale);
         btnVertical.setAttribute('aria-pressed', String(params.vertical));
+        document.getElementById('pGridEnabled').checked = params.gridEnabled;
+        document.getElementById('pGridAutoRows').checked = params.gridAutoRows;
+        document.getElementById('pGridLines').checked = params.gridLines;
+        document.getElementById('pGridLineBreak').checked = params.gridLineBreak;
+        gridRowsRow.style.display = params.gridAutoRows ? 'none' : '';
+        gridLinesEl.style.display = params.gridLines ? '' : 'none';
+        stage.classList.toggle('grid-layout', params.gridEnabled);
         setMode(params.mode);
         updateExportInfo();
       }
@@ -2401,6 +2763,7 @@ type deformer</textarea>
         applyStyle();
         applyRandom();
         reapplyStretches();
+        if (params.gridEnabled) layoutGrid(); else clearGridStyles();
         presetSelect.value = ''; // so the same preset can be re-applied later
       });
 
@@ -2469,8 +2832,8 @@ type deformer</textarea>
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
-          if (s.t || s.l || s.i > 0.001 || s.mx || s.my) {
-            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0]);
+          if (s.t || s.l || s.i > 0.001 || s.mx || s.my || s.gc != null) {
+            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0, s.gc != null ? s.gc : -1]);
           }
         }
         return d;
@@ -2488,7 +2851,11 @@ type deformer</textarea>
         var maxIdx = -1;
         for (var i = 0; i < (d.L || []).length; i++) {
           var row = d.L[i];
-          letters[row[0]] = { t: row[1], l: row[2], i: row[3] / 1000, mx: row[4] ? row[4] / 1000 : 0, my: row[5] ? row[5] / 1000 : 0 };
+          letters[row[0]] = {
+            t: row[1], l: row[2], i: row[3] / 1000,
+            mx: row[4] ? row[4] / 1000 : 0, my: row[5] ? row[5] / 1000 : 0,
+            gc: (row[6] != null && row[6] !== -1) ? row[6] : null
+          };
           if (row[0] > maxIdx) maxIdx = row[0];
         }
         for (var j = 0; j <= maxIdx; j++) { if (!letters[j]) letters[j] = { t: 0, l: 0, i: 0 }; }
