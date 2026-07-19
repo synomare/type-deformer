@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#f4f3ef">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Zen+Old+Mincho:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&amp;family=Space+Mono:wght@400;700&amp;family=Zen+Old+Mincho:wght@400;700&amp;family=Noto+Sans+JP:wght@400;700&amp;family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
   <style>
     :root {
       --paper: #f4f3ef;
@@ -181,6 +181,8 @@
       box-shadow: 3px 3px 0 rgba(23, 20, 15, 0.28);
     }
     button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(23,20,15,.25); }
+    button:disabled { opacity: 0.38; cursor: default; transform: none; box-shadow: none; }
+    button:disabled:hover { background: var(--card); border-color: var(--ink); color: var(--ink); }
     button.primary { background: var(--ink); color: var(--paper); }
     button.primary:hover { background: var(--red); border-color: var(--red); }
     button[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
@@ -312,19 +314,35 @@
     }
 
     /* grid typesetting: letters snap into absolute cells instead of flow */
-    .stage.grid-layout .c { position: absolute; }
+    .stage.grid-layout {
+      min-width: max(100%, var(--grid-stage-width, 100%));
+      min-height: max(100%, var(--grid-stage-height, 100%));
+    }
+    .stage.grid-layout .c {
+      position: absolute;
+      /* grid paragraphs suppress their own inline flow; restore the stage's
+         live type size on the absolutely positioned glyphs. */
+      font-size: var(--grid-font-size, 52px);
+      /* The cell is a positioning unit, not a clipping mask. Large type and
+         stretched glyphs must be allowed to overlap adjacent cells. */
+      overflow: visible;
+    }
     .stage.grid-layout .c.punct { margin: 0; }
     .stage.grid-layout p { margin: 0; line-height: 0; font-size: 0; }
 
     #gridLines {
       position: absolute;
-      inset: 0;
+      left: var(--grid-origin-x, 0px);
+      top: var(--grid-origin-y, 0px);
+      width: var(--grid-width, 0px);
+      height: var(--grid-height, 0px);
       pointer-events: none;
       background-image:
         repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px calc(var(--gc, 64px) + var(--gg, 0px))),
         repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px calc(var(--gc, 64px) + var(--gg, 0px)));
       opacity: 0;
       transition: opacity 0.15s ease;
+      box-shadow: inset -1px -1px 0 var(--line);
     }
     .stage.grid-layout #gridLines { opacity: 0.35; }
     .stage.grid-layout.grid-mode #gridLines { opacity: 0.7; }
@@ -415,6 +433,18 @@
     @keyframes reveal {
       0% { opacity: 0; translate: 0 15px; scale: 0.95; filter: blur(4px); }
       100% { opacity: 1; translate: 0 0; scale: 1; filter: blur(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stage .c,
+      .stage.many .c {
+        animation: none;
+        transition: none;
+        opacity: 1;
+        translate: 0 0;
+        scale: 1;
+        filter: none;
+      }
     }
 
     .stage .c.punct { margin-left: -0.03em; margin-right: -0.03em; }
@@ -510,7 +540,7 @@
 <body>
   <header class="topbar">
     <span class="brand">TYPE DEFORMER<span class="jp">文字変形機</span></span>
-    <span class="hint"><b>L</b> lock — <b>E</b> edit — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
+    <span class="hint"><b>L</b> lock — <b>E</b> edit — <b>G</b> grid — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
   </header>
 
   <div class="app">
@@ -520,6 +550,19 @@
 type deformer</textarea>
 
       <div class="sec-head"><span>Deform</span><span class="r">変形</span></div>
+      <div class="row"><label for="pBatchProfile">Parameter target</label>
+        <select id="pBatchProfile">
+          <option value="all" selected>All 全文字</option>
+          <option value="kanji">漢字</option>
+          <option value="hira">ひらがな</option>
+          <option value="kata">カタカナ</option>
+          <option value="latin">ABC</option>
+          <option value="digit">123</option>
+          <option value="punct">約物</option>
+        </select>
+        <button id="btnBatchProfileReset" type="button">Reset to All</button>
+      </div>
+      <p class="note" id="batchProfileStatus">All：全文字の基準値</p>
       <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
       <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
       <div class="row"><label for="pRadius">Radius</label><input type="range" id="pRadius" min="15" max="180" step="1" value="45"><span class="val" id="vRadius">45</span></div>
@@ -577,7 +620,7 @@ type deformer</textarea>
         <button data-batch="digit">123</button>
         <button data-batch="punct">約物</button>
       </div>
-      <p class="note">クリックでその文字種の全文字を一括で伸縮します。すでに全部伸びているときは一括で解除。固定中の文字は対象外です。</p>
+      <p class="note">クリックでその文字種の全文字を一括で伸縮し、DeformのParameter targetも同じ文字種へ切り替えます。すでに全部伸びているときは一括で解除。固定中の文字は対象外です。</p>
 
       <div class="sec-head"><span>Style</span><span class="r">体裁</span></div>
       <div class="row"><label for="pFont">Font</label>
@@ -655,11 +698,12 @@ type deformer</textarea>
       <div class="row"><label for="pDeformedOnly">Deformed only <span style="color:var(--dim)">変形のみ</span></label><input type="checkbox" id="pDeformedOnly"></div>
       <div class="btns">
         <button class="primary" id="btnPng">PNG ↓</button>
+        <button class="primary" id="btnCapture">Canvas shot</button>
         <button class="primary" id="btnSvg">SVG ↓</button>
         <button id="btnCopy">Copy PNG</button>
         <button id="btnPreview">Preview 校正</button>
       </div>
-      <p class="note">SVGはtext要素+transformで出力します。Illustrator等で開く場合は同じフォントのインストールが必要です。縦書き時の約物（。「」等）は書き出しで位置が変わることがあります。</p>
+      <p class="note">Canvas shotは現在見えているキャンバス範囲を、枠サイズ・スクロール位置・紙色・表示中のGrid線ごとPNG化します（選択枠や操作HUDは除外）。SVGはtext要素+transformで出力します。Illustrator等で開く場合は同じフォントのインストールが必要です。縦書き時の約物（。「」等）は書き出しで位置が変わることがあります。</p>
 
       <div class="sec-head"><span>Project</span><span class="r">保存</span></div>
       <div class="btns">
@@ -669,7 +713,7 @@ type deformer</textarea>
         <button id="btnNew">New 新規</button>
         <input type="file" id="projFile" accept=".json,application/json" hidden>
       </div>
-      <p class="note">数秒ごとに自動保存され、次回開いたとき復元されます。Share URLは作品全体をURLに埋め込み、リンクを開くだけで同じ状態を再現できます。</p>
+      <p class="note">数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。Share URLは作品全体をURLに埋め込み、リンクを開くだけで同じ状態を再現できます。</p>
     </aside>
 
     <div class="stage-wrap" id="stageWrap">
@@ -729,18 +773,22 @@ type deformer</textarea>
           }
         } catch (e) { /* ignore */ }
 
-        if (window.ResizeObserver) {
-          new ResizeObserver(updateBadge).observe(stageFrame);
-        } else {
-          window.addEventListener('resize', updateBadge);
+        function notifyFrameResize() {
+          updateBadge();
+          window.dispatchEvent(new Event('type-deformer-frame-resize'));
         }
-        stageFrame.addEventListener('mouseup', function () { saveSize(); updateBadge(); });
-        stageFrame.addEventListener('touchend', function () { saveSize(); updateBadge(); });
+        if (window.ResizeObserver) {
+          new ResizeObserver(notifyFrameResize).observe(stageFrame);
+        } else {
+          window.addEventListener('resize', notifyFrameResize);
+        }
+        stageFrame.addEventListener('mouseup', function () { saveSize(); notifyFrameResize(); });
+        stageFrame.addEventListener('touchend', function () { saveSize(); notifyFrameResize(); });
         btnReset.addEventListener('click', function () {
           stageFrame.style.width = '';
           stageFrame.style.height = '';
           saveSize();
-          updateBadge();
+          notifyFrameResize();
         });
         updateBadge();
       })();
@@ -785,6 +833,125 @@ type deformer</textarea>
         gridLineBreak: true,
         mode: 'flow'   // 'flow' | 'lock' | 'edit' | 'grid'
       };
+
+      var BATCH_PROFILE_KEYS = ['kanji', 'hira', 'kata', 'latin', 'digit', 'punct'];
+      var BATCH_PROFILE_LABELS = {
+        all: 'All', kanji: '漢字', hira: 'ひらがな', kata: 'カタカナ',
+        latin: 'ABC', digit: '123', punct: '約物'
+      };
+      var BATCH_PARAM_KEYS = ['stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation'];
+      var BATCH_PARAM_LIMITS = {
+        stretchX: [0, 3], stretchY: [0, 3], radius: [15, 180], ease: [0.02, 0.3],
+        geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45]
+      };
+      var batchProfiles = {};
+      var activeBatchProfile = 'all';
+
+      function copyBaseDeformProfile() {
+        var profile = {};
+        for (var i = 0; i < BATCH_PARAM_KEYS.length; i++) {
+          var key = BATCH_PARAM_KEYS[i];
+          profile[key] = params[key];
+        }
+        return profile;
+      }
+
+      function batchProfileForKey(key) {
+        return key && batchProfiles[key] ? batchProfiles[key] : params;
+      }
+
+      function editableBatchProfile() {
+        if (activeBatchProfile === 'all') return params;
+        if (!batchProfiles[activeBatchProfile]) batchProfiles[activeBatchProfile] = copyBaseDeformProfile();
+        return batchProfiles[activeBatchProfile];
+      }
+
+      function normalizeBatchProfiles(raw) {
+        var normalized = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return normalized;
+        for (var i = 0; i < BATCH_PROFILE_KEYS.length; i++) {
+          var profileKey = BATCH_PROFILE_KEYS[i];
+          var source = raw[profileKey];
+          if (!source || typeof source !== 'object' || Array.isArray(source)) continue;
+          var profile = {};
+          for (var j = 0; j < BATCH_PARAM_KEYS.length; j++) {
+            var key = BATCH_PARAM_KEYS[j];
+            var limits = BATCH_PARAM_LIMITS[key];
+            var value = Number(source[key]);
+            if (!isFinite(value)) value = params[key];
+            profile[key] = Math.max(limits[0], Math.min(limits[1], value));
+          }
+          normalized[profileKey] = profile;
+        }
+        return normalized;
+      }
+
+      function cloneBatchProfiles() {
+        return JSON.parse(JSON.stringify(batchProfiles));
+      }
+
+      // Saved projects and URL payloads are user-editable input. Normalize them
+      // before they ever reach CSS, form controls, layout, or canvas allocation.
+      var PARAM_DEFAULTS = {};
+      for (var defaultKey in params) PARAM_DEFAULTS[defaultKey] = params[defaultKey];
+
+      function clampParam(key, min, max, integer) {
+        var value = Number(params[key]);
+        if (!isFinite(value)) value = PARAM_DEFAULTS[key];
+        value = Math.max(min, Math.min(max, value));
+        params[key] = integer ? Math.round(value) : value;
+      }
+
+      function chooseParam(key, values) {
+        if (values.indexOf(params[key]) === -1) params[key] = PARAM_DEFAULTS[key];
+      }
+
+      function normalizeParams() {
+        clampParam('stretchX', 0, 3, false);
+        clampParam('stretchY', 0, 3, false);
+        clampParam('radius', 15, 180, false);
+        clampParam('ease', 0.02, 0.3, false);
+        clampParam('geoRatio', 0, 1, false);
+        clampParam('randomness', 0, 2, false);
+        clampParam('rotation', 0, 45, false);
+        clampParam('seed', -1000000000, 1000000000, false);
+        clampParam('fontSize', 18, 160, false);
+        clampParam('lineHeight', 0.9, 2.2, false);
+        clampParam('letterSpacing', -0.1, 0.5, false);
+        clampParam('accentRatio', 0, 1, false);
+        clampParam('abW', 16, 20000, true);
+        clampParam('abH', 16, 20000, true);
+        clampParam('marginPct', 0, 25, false);
+        clampParam('gridCols', 1, 60, true);
+        clampParam('gridRows', 1, 60, true);
+        clampParam('gridCellSize', 16, 240, true);
+        clampParam('gridGap', 0, 40, true);
+
+        params.fontWeight = Number(params.fontWeight) === 700 ? 700 : 400;
+        params.exportScale = [1, 2, 4, 8].indexOf(Number(params.exportScale)) !== -1 ? Number(params.exportScale) : PARAM_DEFAULTS.exportScale;
+        chooseParam('align', ['left', 'center', 'right']);
+        chooseParam('anchor', ['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br']);
+        chooseParam('artboard', ['auto', 'custom', '1080x1080', '1080x1350', '1080x1920', '1920x1080', '2480x3508', '3508x2480']);
+        chooseParam('mode', ['flow', 'lock', 'edit', 'grid']);
+
+        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak'];
+        for (var i = 0; i < boolKeys.length; i++) {
+          var boolValue = params[boolKeys[i]];
+          params[boolKeys[i]] = boolValue === true || boolValue === 1;
+        }
+        var colorKeys = ['ink', 'paper', 'accent'];
+        for (var c = 0; c < colorKeys.length; c++) {
+          var colorKey = colorKeys[c];
+          if (typeof params[colorKey] !== 'string' || !/^#[0-9a-f]{6}$/i.test(params[colorKey])) {
+            params[colorKey] = PARAM_DEFAULTS[colorKey];
+          }
+        }
+        if (typeof params.fontFamily !== 'string' || !params.fontFamily.trim()) {
+          params.fontFamily = PARAM_DEFAULTS.fontFamily;
+        } else {
+          params.fontFamily = params.fontFamily.slice(0, 500).replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+        }
+      }
 
       /* ---------------- grapheme splitting (ported) ---------------- */
       var graphemeSegmenter = (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function')
@@ -886,6 +1053,18 @@ type deformer</textarea>
         return c;
       }
 
+      var digitRe = (function () {
+        try { return new RegExp('\\p{Nd}', 'u'); } catch (e) { return /[0-9０-９]/; }
+      })();
+
+      function batchKeyFor(ch, cp, info) {
+        info = info || charInfo(ch, cp);
+        if (info.punct) return 'punct';
+        if (digitRe.test(ch)) return 'digit';
+        if (info.cls === 'kanji' || info.cls === 'hira' || info.cls === 'kata' || info.cls === 'latin') return info.cls;
+        return '';
+      }
+
       function quant(x, step) { return Math.round(x / step) * step; }
 
       function hash(j, cp, k) {
@@ -895,11 +1074,14 @@ type deformer</textarea>
       /* ---------------- letters: create + randomize ---------------- */
       var letters = [];   // span elements
       var metrics = [];   // per-letter lens state (parallel to letters)
+      var metricByElement = new WeakMap();
       var metricsDirty = true;
       var undoStack = [], redoStack = [];   // deform/lock history (cleared on text change)
       var lineEnds = [];  // cumulative letters.length after each source line (for grid line-breaks)
       var gridLinesEl = document.createElement('div');
       gridLinesEl.id = 'gridLines';
+      var gridActualCols = 12;
+      var gridActualRows = 1;
 
       // One token = one deformable unit. Usually a single grapheme cluster,
       // but joining scripts (Arabic, Indic, …) are grouped per word so
@@ -993,6 +1175,9 @@ type deformer</textarea>
           var info = charInfo(ch, cp);
           var isPunct = info.punct;
           var cls = info.cls;
+          var batchKey = batchKeyFor(ch, cp, info);
+          var deform = batchProfileForKey(batchKey);
+          span.dataset.batch = batchKey;
           span.dataset.upright = info.upright ? '1' : '';
 
           var r1 = hash(j, cp, 12.9898);
@@ -1008,7 +1193,7 @@ type deformer</textarea>
           else if (cls === 'hira' || cls === 'kata') { sxMin = 0.76; sxRange = 0.52; syMin = 0.84; syRange = 0.36; }
           else if (cls === 'kanji') { sxMin = 0.72; sxRange = 0.56; syMin = 0.80; syRange = 0.40; }
 
-          var R = params.randomness;
+          var R = deform.randomness;
           // randomness=1 reproduces the original; 0 gives uniform glyphs.
           var sx = 1 - (1 - (sxMin + sxRange * r1)) * R;
           var sy = 1 - (1 - (syMin + syRange * r2)) * R;
@@ -1021,7 +1206,7 @@ type deformer</textarea>
           span.style.setProperty('--sy', sy.toFixed(3));
           span.style.setProperty('--tx', tx.toFixed(3) + 'em');
           span.style.setProperty('--ty', ty.toFixed(3) + 'em');
-          span.style.setProperty('--rot', ((r5 - 0.5) * 2 * params.rotation).toFixed(2) + 'deg');
+          span.style.setProperty('--rot', ((r5 - 0.5) * 2 * deform.rotation).toFixed(2) + 'deg');
           if (r6 < params.accentRatio) {
             span.style.color = params.accent;
             span.dataset.accent = '1';
@@ -1032,7 +1217,7 @@ type deformer</textarea>
           span.dataset.lensX = ((r1 * 2) - 1).toFixed(3);
           span.dataset.lensY = ((r2 * 2) - 1).toFixed(3);
 
-          var geo = r3 > (1 - params.geoRatio);
+          var geo = r3 > (1 - deform.geoRatio);
           span.dataset.lensMode = geo ? 'geo' : 'organic';
           var stepX, stepY, blendSeed;
           if (geo) {
@@ -1059,11 +1244,13 @@ type deformer</textarea>
       var pointer = { x: 0, y: 0, targetX: 0, targetY: 0, strength: 0, active: false, type: 'mouse' };
 
       function rebuildMetrics() {
+        metricByElement = new WeakMap();
         metrics = letters.map(function (el) {
-          return {
+          var metric = {
             el: el,
             relX: 0, relY: 0,
             seedX: 0, seedY: 0, mode: 'organic', stepX: 0.28, stepY: 0.34, blend: 0.32,
+            batchKey: el.dataset.batch || '',
             active: false,
             toggled: false,
             hovered: false,
@@ -1073,6 +1260,8 @@ type deformer</textarea>
             currentIntensity: 0,
             gridCell: null
           };
+          metricByElement.set(el, metric);
+          return metric;
         });
         syncMetricsSeeds();
         metricsDirty = true;
@@ -1088,6 +1277,7 @@ type deformer</textarea>
           m.stepX = parseFloat(el.dataset.lensStepX || '0.28');
           m.stepY = parseFloat(el.dataset.lensStepY || '0.34');
           m.blend = parseFloat(el.dataset.lensBlend || '0.32');
+          m.batchKey = el.dataset.batch || '';
         }
       }
 
@@ -1126,18 +1316,18 @@ type deformer</textarea>
         return order;
       }
 
-      function placeLetterAtCell(m, cellIndex, cols, cell, gap) {
+      function placeLetterAtCell(m, cellIndex, cols, cell, gap, originX, originY) {
         var col = cellIndex % cols;
         var row = Math.floor(cellIndex / cols);
         var st = m.el.style;
         st.position = 'absolute';
-        st.left = (col * (cell + gap)) + 'px';
-        st.top = (row * (cell + gap)) + 'px';
+        st.left = (originX + col * (cell + gap)) + 'px';
+        st.top = (originY + row * (cell + gap)) + 'px';
         st.width = st.height = cell + 'px';
         st.lineHeight = cell + 'px';
         st.textAlign = 'center';
         st.whiteSpace = 'nowrap';
-        st.overflow = 'hidden';
+        st.overflow = 'visible';
         m.el.dataset.gridCell = cellIndex;
       }
 
@@ -1157,14 +1347,25 @@ type deformer</textarea>
           delete metrics[i].el.dataset.gridCell;
         }
         stage.classList.remove('grid-layout');
+        stage.style.removeProperty('--grid-origin-x');
+        stage.style.removeProperty('--grid-origin-y');
+        stage.style.removeProperty('--grid-width');
+        stage.style.removeProperty('--grid-height');
+        stage.style.removeProperty('--grid-stage-width');
+        stage.style.removeProperty('--grid-stage-height');
+        gridActualCols = Math.max(1, params.gridCols | 0);
+        gridActualRows = 1;
+        updateGridStatusNote(0, 0, false, false, 0);
       }
 
-      function updateGridStatusNote(cols, rows, autoExtended) {
+      function updateGridStatusNote(cols, rows, rowsExtended, colsExtended, pinnedCount) {
         var el = document.getElementById('gridStatus');
         if (!el) return;
-        el.textContent = autoExtended
-          ? '文字数が指定サイズに収まらないため、行を自動拡張しました（' + cols + ' × ' + rows + '）。'
-          : '';
+        if (!cols || !rows) { el.textContent = ''; return; }
+        el.textContent = cols + ' × ' + rows + ' / ' + metrics.length + '文字'
+          + (pinnedCount ? ' / ' + pinnedCount + '字を固定配置' : '')
+          + (rowsExtended ? ' — 収まらない文字のため行を自動拡張' : '')
+          + (colsExtended ? ' — 縦書きの改行を守るため列を自動拡張' : '');
       }
 
       // Recompute cell assignment for every letter and position it.
@@ -1177,60 +1378,135 @@ type deformer</textarea>
         gridLinesEl.style.setProperty('--gc', params.gridCellSize + 'px');
         gridLinesEl.style.setProperty('--gg', params.gridGap + 'px');
 
-        var cols = Math.max(1, params.gridCols | 0);
+        var requestedCols = Math.max(1, params.gridCols | 0);
+        var cols = requestedCols;
         var cell = params.gridCellSize, gap = params.gridGap;
+        var step = cell + gap;
+        var stageStyle = getComputedStyle(stage);
+        var padLeft = parseFloat(stageStyle.paddingLeft) || 0;
+        var padRight = parseFloat(stageStyle.paddingRight) || 0;
+        var padTop = parseFloat(stageStyle.paddingTop) || 0;
+        var padBottom = parseFloat(stageStyle.paddingBottom) || 0;
 
-        // how many auto-flow slots are needed, honoring line breaks
-        var lineStart = 0, autoSlots = 0;
+        var lineStart = 0, autoSlots = 0, maxLineLen = 0;
+        var lineLengths = [];
         for (var li = 0; li < lineEnds.length; li++) {
           var lineLen = lineEnds[li] - lineStart;
-          autoSlots += params.gridLineBreak ? (Math.ceil(Math.max(lineLen, 1) / cols) * cols) : lineLen;
+          lineLengths.push(lineLen);
+          if (lineLen > maxLineLen) maxLineLen = lineLen;
           lineStart = lineEnds[li];
+        }
+
+        // Horizontal flow breaks to the next row. Vertical flow breaks to the
+        // next right-to-left column, so its row count must be known first.
+        var rows;
+        if (params.vertical && params.gridLineBreak) {
+          rows = params.gridAutoRows ? Math.max(1, maxLineLen) : Math.max(1, params.gridRows | 0);
+          var requiredCols = 0;
+          for (var vl = 0; vl < lineLengths.length; vl++) {
+            requiredCols += Math.ceil(Math.max(lineLengths[vl], 1) / rows);
+          }
+          cols = Math.max(requestedCols, requiredCols);
+          autoSlots = requiredCols * rows;
+        } else {
+          for (var hl = 0; hl < lineLengths.length; hl++) {
+            autoSlots += params.gridLineBreak
+              ? Math.ceil(Math.max(lineLengths[hl], 1) / cols) * cols
+              : lineLengths[hl];
+          }
+        }
+
+        // Cell indices encode row × column-count + column. Preserve the same
+        // physical row/column for manual pins when the column count changes.
+        if (gridActualCols !== cols) {
+          for (var ri = 0; ri < metrics.length; ri++) {
+            if (metrics[ri].gridCell == null) continue;
+            var oldCol = metrics[ri].gridCell % gridActualCols;
+            var oldRow = Math.floor(metrics[ri].gridCell / gridActualCols);
+            metrics[ri].gridCell = oldRow * cols + Math.min(oldCol, cols - 1);
+          }
         }
 
         var maxPinned = -1;
         for (var i = 0; i < metrics.length; i++) {
-          if (metrics[i].gridCell != null && metrics[i].gridCell > maxPinned) maxPinned = metrics[i].gridCell;
+          if (metrics[i].gridCell != null) {
+            if (metrics[i].gridCell > maxPinned) maxPinned = metrics[i].gridCell;
+          }
         }
         var totalCells = Math.max(autoSlots, maxPinned + 1, cols, 1);
-        var rows = params.gridAutoRows
-          ? Math.max(1, Math.ceil(totalCells / cols))
-          : Math.max(params.gridRows, Math.ceil(totalCells / cols));
-        var autoExtended = !params.gridAutoRows && rows > params.gridRows;
-
-        var order = buildCellOrder(cols, rows, params.vertical);
-
-        var claimed = new Array(cols * rows);
-        var pinnedAt = {};
-        for (var pi = 0; pi < metrics.length; pi++) {
-          var gc = metrics[pi].gridCell;
-          if (gc != null && gc >= 0 && gc < cols * rows && !claimed[gc]) {
-            claimed[gc] = true;
-            pinnedAt[gc] = metrics[pi];
-          }
+        if (!(params.vertical && params.gridLineBreak)) {
+          rows = params.gridAutoRows
+            ? Math.max(1, Math.ceil(totalCells / cols))
+            : Math.max(params.gridRows, Math.ceil(totalCells / cols));
+        } else {
+          rows = Math.max(rows, Math.ceil(totalCells / cols));
         }
 
-        var cursor = 0;
-        lineStart = 0;
-        for (var li2 = 0; li2 < lineEnds.length; li2++) {
-          for (var k = lineStart; k < lineEnds[li2]; k++) {
-            var m = metrics[k];
-            if (m.gridCell != null && pinnedAt[m.gridCell] === m) continue; // already placed by pin
-            while (cursor < order.length && claimed[order[cursor]]) cursor++;
-            if (cursor >= order.length) continue; // shouldn't happen given totalCells sizing above
-            var targetCell = order[cursor++];
-            claimed[targetCell] = true;
-            placeLetterAtCell(m, targetCell, cols, cell, gap);
+        // Dry-run the flow before touching the DOM. Pinned cells occasionally
+        // consume a slot needed after a source line-break; grow only when that
+        // actually happens, so a simple swap never creates a blank extra row.
+        function assignCells(rowCount) {
+          var order = buildCellOrder(cols, rowCount, params.vertical);
+          var claimed = new Array(cols * rowCount);
+          var placed = new Array(metrics.length);
+          for (var pi = 0; pi < metrics.length; pi++) {
+            var gc = metrics[pi].gridCell;
+            if (gc == null) continue;
+            if (gc >= 0 && gc < cols * rowCount && !claimed[gc]) {
+              claimed[gc] = true;
+              placed[pi] = gc;
+            } else {
+              // Repair stale/out-of-range or duplicate pins from old projects.
+              metrics[pi].gridCell = null;
+            }
           }
-          if (params.gridLineBreak) {
-            var used = Math.ceil(cursor / cols) * cols;
-            cursor = used;
-          }
-          lineStart = lineEnds[li2];
-        }
-        for (var pc in pinnedAt) placeLetterAtCell(pinnedAt[pc], +pc, cols, cell, gap);
 
-        updateGridStatusNote(cols, rows, autoExtended);
+          var cursor = 0;
+          var start = 0;
+          for (var li2 = 0; li2 < lineEnds.length; li2++) {
+            for (var k = start; k < lineEnds[li2]; k++) {
+              if (placed[k] != null) continue;
+              while (cursor < order.length && claimed[order[cursor]]) cursor++;
+              if (cursor >= order.length) return null;
+              var targetCell = order[cursor++];
+              claimed[targetCell] = true;
+              placed[k] = targetCell;
+            }
+            if (params.gridLineBreak) {
+              var lineSpan = params.vertical ? rowCount : cols;
+              cursor = Math.ceil(cursor / lineSpan) * lineSpan;
+            }
+            start = lineEnds[li2];
+          }
+          return placed;
+        }
+
+        var placements = assignCells(rows);
+        while (!placements) {
+          rows++;
+          placements = assignCells(rows);
+        }
+        var rowsExtended = !params.gridAutoRows && rows > params.gridRows;
+        var colsExtended = cols > requestedCols;
+        var pinnedCount = 0;
+        for (var pc = 0; pc < metrics.length; pc++) if (metrics[pc].gridCell != null) pinnedCount++;
+
+        var gridWidth = cols * step - gap;
+        var gridHeight = rows * step - gap;
+        stage.style.setProperty('--grid-origin-x', padLeft + 'px');
+        stage.style.setProperty('--grid-origin-y', padTop + 'px');
+        stage.style.setProperty('--grid-width', gridWidth + 'px');
+        stage.style.setProperty('--grid-height', gridHeight + 'px');
+        stage.style.setProperty('--grid-stage-width', (padLeft + gridWidth + padRight) + 'px');
+        stage.style.setProperty('--grid-stage-height', (padTop + gridHeight + padBottom) + 'px');
+
+        for (var q = 0; q < metrics.length; q++) {
+          if (placements[q] != null) placeLetterAtCell(metrics[q], placements[q], cols, cell, gap, padLeft, padTop);
+        }
+
+        gridActualCols = cols;
+        gridActualRows = rows;
+        updateGridStatusNote(cols, rows, rowsExtended, colsExtended, pinnedCount);
         metricsDirty = true;
         schedule();
       }
@@ -1238,7 +1514,7 @@ type deformer</textarea>
       function cellIndexAt(pt) {
         var padLeft = parseFloat(getComputedStyle(stage).paddingLeft) || 0;
         var padTop = parseFloat(getComputedStyle(stage).paddingTop) || 0;
-        var cols = Math.max(1, params.gridCols | 0);
+        var cols = Math.max(1, gridActualCols | 0);
         var step = params.gridCellSize + params.gridGap;
         var col = Math.floor((pt.x - padLeft) / step);
         var row = Math.floor((pt.y - padTop) / step);
@@ -1321,8 +1597,7 @@ type deformer</textarea>
         var targetStrength = pointer.active ? 1 : 0;
         pointer.strength += (targetStrength - pointer.strength) * 0.16;
 
-        var radius = params.radius * (pointer.type === 'touch' ? 1.33 : 1);
-        var radiusSq = radius * radius;
+        var radiusMultiplier = pointer.type === 'touch' ? 1.33 : 1;
         var stageRect = stage.getBoundingClientRect();
         var px = pointer.x - stageRect.left;
         var py = pointer.y - stageRect.top;
@@ -1332,11 +1607,17 @@ type deformer</textarea>
 
         for (var i = 0; i < metrics.length; i++) {
           var info = metrics[i];
-          if (info.locked) continue; // frozen — keep current style untouched
+          if (info.locked) {
+            info.hovered = false;
+            continue; // frozen — keep current style untouched
+          }
 
           var dx = px - info.relX;
           var dy = py - info.relY;
           var distSq = dx * dx + dy * dy;
+          var deform = batchProfileForKey(info.batchKey);
+          var radius = deform.radius * radiusMultiplier;
+          var radiusSq = radius * radius;
 
           // toggle: flips each time the pointer sweeps through (flow mode only)
           if (flow && distSq < radiusSq) {
@@ -1344,29 +1625,30 @@ type deformer</textarea>
               info.toggled = !info.toggled;
               info.hovered = true;
             }
-          } else if (distSq >= radiusSq) {
+          } else {
             info.hovered = false;
           }
 
           var target = info.toggled ? 1.0 : 0.0;
           var diff = target - info.currentIntensity;
           if (diff < 0.0015 && diff > -0.0015) {
-            // settled — snap once, then stop touching this letter entirely
-            if (info.currentIntensity !== target) {
-              info.currentIntensity = target;
-              if (target === 0) {
-                if (info.active) {
-                  info.el.style.removeProperty('--ix');
-                  info.el.style.removeProperty('--iy');
-                  info.active = false;
-                }
-              } else {
-                applyStretch(info);
+            // Settled — always reconcile the inline style. Manual Edit values
+            // can have intensity=0, so checking intensity alone left stale
+            // --ix/--iy behind after Unlock all / Reset.
+            var intensityChanged = info.currentIntensity !== target;
+            info.currentIntensity = target;
+            if (target === 0) {
+              if (info.active) {
+                info.el.style.removeProperty('--ix');
+                info.el.style.removeProperty('--iy');
+                info.active = false;
               }
+            } else if (intensityChanged || !info.active) {
+              applyStretch(info);
             }
             continue;
           }
-          info.currentIntensity += diff * params.ease;
+          info.currentIntensity += diff * deform.ease;
           keepAnimating = true;
           applyStretch(info);
         }
@@ -1379,9 +1661,10 @@ type deformer</textarea>
       function applyStretch(info) {
         var seedX = info.seedX, seedY = info.seedY;
         var directional = seedX * 0.5;
+        var deform = batchProfileForKey(info.batchKey);
 
-        var stretchX = 1 + info.currentIntensity * (1.48 + seedX * 0.85 + directional * 0.42) * params.stretchX;
-        var stretchY = 1 + info.currentIntensity * (1.82 + seedY * 1.05 - directional * 0.36) * params.stretchY;
+        var stretchX = 1 + info.currentIntensity * (1.48 + seedX * 0.85 + directional * 0.42) * deform.stretchX;
+        var stretchY = 1 + info.currentIntensity * (1.82 + seedY * 1.05 - directional * 0.36) * deform.stretchY;
         var stepX = isFinite(info.stepX) && info.stepX > 0 ? info.stepX : 0.28;
         var stepY = isFinite(info.stepY) && info.stepY > 0 ? info.stepY : 0.34;
         var baseBlend = isFinite(info.blend) ? info.blend : 0.32;
@@ -1465,10 +1748,7 @@ type deformer</textarea>
       /* ---------------- lock ---------------- */
       function findMetric(el) {
         if (!el || !el.classList || !el.classList.contains('c')) return null;
-        for (var i = 0; i < metrics.length; i++) {
-          if (metrics[i].el === el) return metrics[i];
-        }
-        return null;
+        return metricByElement.get(el) || null;
       }
 
       function stagePoint(e) {
@@ -1525,7 +1805,8 @@ type deformer</textarea>
           editHud.appendChild(gb);
           var gv = document.createElement('span');
           gv.className = 'v';
-          gv.textContent = selectedM.gridCell != null ? 'Cell ' + selectedM.gridCell : 'Cell —';
+          gv.textContent = 'Cell ' + cellMetricCellOf(selectedM)
+            + (selectedM.gridCell != null ? ' / fixed' : ' / auto');
           editHud.appendChild(gv);
           var gh = document.createElement('span');
           gh.className = 'hint';
@@ -1670,16 +1951,22 @@ type deformer</textarea>
       /* ---------------- grid mode: drag a letter into a different cell ---------------- */
       var gridDrag = null;
 
-      // give occupant the mover's old cell (or null if it had none) — a
-      // clean bijection, no letter is ever lost or overlapped
-      function swapGridCells(m, targetCell) {
-        var occupant = null;
+      function metricAtGridCell(cellIndex, exclude) {
         for (var i = 0; i < metrics.length; i++) {
-          if (metrics[i] !== m && metrics[i].gridCell === targetCell) { occupant = metrics[i]; break; }
+          if (metrics[i] !== exclude && cellMetricCellOf(metrics[i]) === cellIndex) return metrics[i];
         }
-        var prevCell = m.gridCell;
+        return null;
+      }
+
+      // Exchange the effective displayed cells, including automatically
+      // flowed letters. Keeping both ends pinned makes drag and arrow moves a
+      // true swap instead of unexpectedly reflowing the apparent occupant.
+      function swapGridCells(m, targetCell) {
+        var prevCell = cellMetricCellOf(m);
+        if (prevCell === targetCell) return;
+        var occupant = metricAtGridCell(targetCell, m);
         m.gridCell = targetCell;
-        if (occupant) occupant.gridCell = (prevCell != null) ? prevCell : null;
+        if (occupant) occupant.gridCell = prevCell;
         layoutGrid();
       }
 
@@ -1718,16 +2005,20 @@ type deformer</textarea>
         gridDrag = null;
       }
       stage.addEventListener('pointerup', endGridDrag);
-      stage.addEventListener('pointercancel', endGridDrag);
+      stage.addEventListener('pointercancel', function (e) {
+        if (!gridDrag || e.pointerId !== gridDrag.id) return;
+        gridDrag.m.el.classList.remove('gdragging');
+        gridDrag = null;
+      });
 
       /* keyboard cell-nudge for the selected letter (grid mode) */
       function nudgeGridSelected(dCol, dRow) {
         if (!selectedM) return;
         pushHistory();
-        var cols = Math.max(1, params.gridCols | 0);
+        var cols = Math.max(1, gridActualCols | 0);
         var current = selectedM.gridCell != null ? selectedM.gridCell : cellMetricCellOf(selectedM);
         var col = current % cols, row = Math.floor(current / cols);
-        col = Math.max(0, col + dCol);
+        col = Math.max(0, Math.min(cols - 1, col + dCol));
         row = Math.max(0, row + dRow);
         swapGridCells(selectedM, row * cols + col);
         updateHud();
@@ -1787,17 +2078,13 @@ type deformer</textarea>
       }
 
       /* ---------------- batch toggle by character class ---------------- */
-      var digitRe = (function () {
-        try { return new RegExp('\\p{Nd}', 'u'); } catch (e) { return /[0-9０-９]/; }
-      })();
-
       var batchMatchers = {
-        kanji: function (ch, cp) { return charInfo(ch, cp).cls === 'kanji'; },
-        hira: function (ch, cp) { return charInfo(ch, cp).cls === 'hira'; },
-        kata: function (ch, cp) { return charInfo(ch, cp).cls === 'kata'; },
-        latin: function (ch, cp) { return charInfo(ch, cp).cls === 'latin' && !digitRe.test(ch); },
-        digit: function (ch) { return digitRe.test(ch); },
-        punct: function (ch, cp) { return charInfo(ch, cp).punct; }
+        kanji: function (ch, cp) { return batchKeyFor(ch, cp) === 'kanji'; },
+        hira: function (ch, cp) { return batchKeyFor(ch, cp) === 'hira'; },
+        kata: function (ch, cp) { return batchKeyFor(ch, cp) === 'kata'; },
+        latin: function (ch, cp) { return batchKeyFor(ch, cp) === 'latin'; },
+        digit: function (ch, cp) { return batchKeyFor(ch, cp) === 'digit'; },
+        punct: function (ch, cp) { return batchKeyFor(ch, cp) === 'punct'; }
       };
 
       // stretch every (unlocked) letter of one class at once; if the whole
@@ -1826,13 +2113,17 @@ type deformer</textarea>
 
       /* ---------------- per-letter state restore (undo / project load) ---------------- */
       function applyLetterState(m, s) {
+        if (!s || typeof s !== 'object') return;
         m.toggled = !!s.t;
         m.locked = !!s.l;
         m.hovered = false;
-        m.currentIntensity = +s.i || 0;
-        m.manualX = s.mx ? +s.mx : null;
-        m.manualY = s.my ? +s.my : null;
-        m.gridCell = (s.gc != null && s.gc !== '') ? +s.gc : null;
+        var intensity = Number(s.i);
+        m.currentIntensity = isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0;
+        var manualX = Number(s.mx), manualY = Number(s.my);
+        m.manualX = isFinite(manualX) && manualX > 0 ? Math.max(0.1, Math.min(8, manualX)) : null;
+        m.manualY = isFinite(manualY) && manualY > 0 ? Math.max(0.1, Math.min(9, manualY)) : null;
+        var gridCell = Number(s.gc);
+        m.gridCell = s.gc != null && s.gc !== '' && isFinite(gridCell) && gridCell >= 0 ? Math.floor(gridCell) : null;
         m.el.classList.toggle('locked', m.locked);
         if (m.manualX || m.manualY) {
           m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
@@ -1848,6 +2139,7 @@ type deformer</textarea>
       }
 
       function restoreStates(states) {
+        if (!Array.isArray(states)) states = [];
         var n = Math.min(states.length, metrics.length);
         for (var i = 0; i < n; i++) applyLetterState(metrics[i], states[i]);
         if (params.gridEnabled) layoutGrid();
@@ -1939,6 +2231,7 @@ type deformer</textarea>
       }
 
       function pushHistory() {
+        markAutosaveDirty();
         var s = snapState();
         if (undoStack.length && undoStack[undoStack.length - 1] === s) return;
         undoStack.push(s);
@@ -1984,6 +2277,10 @@ type deformer</textarea>
       // Snapshot of every visible glyph: layout box + effective transform.
       function snapshotGlyphs() {
         var glyphs = [];
+        var measureCanvas = document.createElement('canvas');
+        var measureCtx = measureCanvas.getContext('2d');
+        var measuredFm = fontMetrics();
+        if (measureCtx) measureCtx.font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
         for (var i = 0; i < metrics.length; i++) {
           var m = metrics[i], el = m.el;
           var cs = getComputedStyle(el);
@@ -1999,11 +2296,43 @@ type deformer</textarea>
           var w = el.offsetWidth, h = el.offsetHeight;
           var x = 0, y = 0, o = el;
           while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
+          var isGridGlyph = el.dataset.gridCell != null;
+          var bx = x, by = y, bw = w, bh = h;
+          if (isGridGlyph) {
+            // A grid cell may be much smaller than its type. offsetWidth only
+            // reports the cell, so estimate the overflowing ink separately;
+            // otherwise Auto PNG/SVG bounds crop large glyphs to the cell.
+            var tm = measureCtx ? measureCtx.measureText(el.textContent) : null;
+            var inkW = tm ? Math.max(tm.width, (tm.actualBoundingBoxLeft || 0) + (tm.actualBoundingBoxRight || 0)) : params.fontSize;
+            var inkAscent = tm && tm.actualBoundingBoxAscent ? tm.actualBoundingBoxAscent : measuredFm.ascent;
+            var inkDescent = tm && tm.actualBoundingBoxDescent ? tm.actualBoundingBoxDescent : measuredFm.descent;
+            var inkH = inkAscent + inkDescent;
+            var centerX = x + w / 2;
+            var centerY = y + h / 2;
+            if (params.vertical) {
+              if (!el.dataset.upright) {
+                var swap = inkW; inkW = inkH; inkH = swap;
+              }
+              bx = centerX - inkW / 2;
+              by = centerY - inkH / 2;
+              bw = inkW;
+              bh = inkH;
+            } else {
+              var baseline = y + (h - (measuredFm.ascent + measuredFm.descent)) / 2 + measuredFm.ascent;
+              bx = centerX - inkW / 2;
+              by = baseline - inkAscent;
+              bw = inkW;
+              bh = inkH;
+            }
+          }
           glyphs.push({
             ch: el.textContent,
             upright: el.dataset.upright === '1',
             accent: el.dataset.accent === '1',
+            opacity: isFinite(parseFloat(cs.opacity)) ? parseFloat(cs.opacity) : 1,
             x: x, y: y, w: w, h: h,
+            bx: bx, by: by, bw: bw, bh: bh,
+            grid: isGridGlyph,
             ox: x + w / 2, oy: y + h * 0.75,   // transform-origin 50% 75%
             tx: tx, ty: ty, rot: rot,
             scaleX: sx * ix, scaleY: sy * iy
@@ -2019,7 +2348,11 @@ type deformer</textarea>
           // transformed corners: p' = O + t + R·S·(p − O)
           var rad = (g.rot || 0) * Math.PI / 180;
           var cosR = Math.cos(rad), sinR = Math.sin(rad);
-          var xs = [g.x, g.x + g.w], ys = [g.y, g.y + g.h];
+          var bx = g.bx != null ? g.bx : g.x;
+          var by = g.by != null ? g.by : g.y;
+          var bw = g.bw != null ? g.bw : g.w;
+          var bh = g.bh != null ? g.bh : g.h;
+          var xs = [bx, bx + bw], ys = [by, by + bh];
           for (var a = 0; a < 2; a++) for (var b = 0; b < 2; b++) {
             var lx = g.scaleX * (xs[a] - g.ox);
             var ly = g.scaleY * (ys[b] - g.oy);
@@ -2036,6 +2369,7 @@ type deformer</textarea>
       function fontMetrics() {
         var c = document.createElement('canvas');
         var ctx = c.getContext('2d');
+        if (!ctx) return { ascent: params.fontSize * 0.88, descent: params.fontSize * 0.12 };
         ctx.font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
         var m = ctx.measureText('国Hg');
         var ascent = (m.fontBoundingBoxAscent != null) ? m.fontBoundingBoxAscent : params.fontSize * 0.88;
@@ -2116,26 +2450,33 @@ type deformer</textarea>
       }
 
       /* ---------------- PNG export ---------------- */
-      function renderCanvas(scale) {
-        var glyphs = snapshotGlyphs();
-        var bounds = contentBounds(glyphs, exportBoundsPad());
-        var L = exportLayout(bounds);
-        var fm = fontMetrics();
+      function createSafeCanvas(cssWidth, cssHeight, scale, advice) {
+        var outW = Math.max(1, Math.round(cssWidth * scale));
+        var outH = Math.max(1, Math.round(cssHeight * scale));
+        var maxSide = isIOS ? 8192 : 16384;
+        var maxPixels = isIOS ? 32000000 : 96000000;
+        if (outW > maxSide || outH > maxSide || outW * outH > maxPixels) {
+          var sizeError = new Error(
+            'PNGサイズ ' + outW + ' × ' + outH + ' px は端末の安全上限を超えます。' +
+            (advice || 'PNG scaleを下げるか、解像度に依存しないSVGを書き出してください。')
+          );
+          sizeError.code = 'CANVAS_TOO_LARGE';
+          throw sizeError;
+        }
 
         var canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(L.w * scale));
-        canvas.height = Math.max(1, Math.round(L.h * scale));
+        canvas.width = outW;
+        canvas.height = outH;
         var ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('PNG描画用Canvasを作成できませんでした。');
+        return { canvas: canvas, ctx: ctx };
+      }
 
-        if (!params.transparentBg) {
-          ctx.fillStyle = params.paper;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+      function drawGlyphs(ctx, glyphs, scale, L, fm, useVisualOpacity) {
         var font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
-
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
-          // artboard placement, then the glyph's own deform transform
+          // artboard/viewport placement, then the glyph's own deform transform
           ctx.setTransform(scale, 0, 0, scale, 0, 0);
           ctx.translate(L.dx, L.dy);
           ctx.scale(L.s, L.s);
@@ -2143,6 +2484,7 @@ type deformer</textarea>
           ctx.rotate((g.rot || 0) * Math.PI / 180);
           ctx.scale(g.scaleX, g.scaleY);
           ctx.translate(-g.ox, -g.oy);
+          ctx.globalAlpha = useVisualOpacity ? g.opacity : 1;
           ctx.font = font;
           ctx.fillStyle = g.accent ? params.accent : params.ink;
           if (params.vertical) {
@@ -2160,16 +2502,101 @@ type deformer</textarea>
               ctx.fillText(g.ch, cx, cy);
             }
           } else {
-            ctx.textAlign = 'left';
+            ctx.textAlign = g.grid ? 'center' : 'left';
             ctx.textBaseline = 'alphabetic';
-            ctx.fillText(g.ch, g.x, g.y + baselineOffset(g, fm));
+            ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
           }
         }
+        ctx.globalAlpha = 1;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+
+      function renderCanvas(scale) {
+        var glyphs = snapshotGlyphs();
+        var bounds = contentBounds(glyphs, exportBoundsPad());
+        var L = exportLayout(bounds);
+        var fm = fontMetrics();
+        var output = createSafeCanvas(L.w, L.h, scale);
+        var canvas = output.canvas, ctx = output.ctx;
+
+        if (!params.transparentBg) {
+          ctx.fillStyle = params.paper;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        drawGlyphs(ctx, glyphs, scale, L, fm, false);
         return canvas;
       }
 
+      function drawScreenshotGrid(ctx, scale, scrollX, scrollY) {
+        if (!params.gridEnabled || !params.gridLines) return;
+        var style = getComputedStyle(gridLinesEl);
+        if (style.display === 'none') return;
+        var opacity = parseFloat(style.opacity);
+        if (!isFinite(opacity) || opacity <= 0) return;
+        var left = gridLinesEl.offsetLeft - scrollX;
+        var top = gridLinesEl.offsetTop - scrollY;
+        var width = gridLinesEl.offsetWidth;
+        var height = gridLinesEl.offsetHeight;
+        var step = params.gridCellSize + params.gridGap;
+        if (width <= 0 || height <= 0 || step <= 0) return;
+
+        var lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim() || '#d9d5c9';
+        ctx.save();
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = lineColor;
+        for (var x = left; x < left + width; x += step) ctx.fillRect(Math.round(x), top, 1, height);
+        for (var y = top; y < top + height; y += step) ctx.fillRect(left, Math.round(y), width, 1);
+        ctx.fillRect(left + width - 1, top, 1, height);
+        ctx.fillRect(left, top + height - 1, width, 1);
+        ctx.restore();
+      }
+
+      function renderCanvasScreenshot() {
+        flushPendingTextRebuild();
+        var cssWidth = Math.max(1, stageFrame.clientWidth);
+        var cssHeight = Math.max(1, stageFrame.clientHeight);
+        var scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+        var output = createSafeCanvas(cssWidth, cssHeight, scale, 'キャンバス枠を小さくして再試行してください。');
+        var canvas = output.canvas, ctx = output.ctx;
+        var scrollX = stageFrame.scrollLeft;
+        var scrollY = stageFrame.scrollTop;
+
+        // A canvas shot represents the visible artwork surface, so it always
+        // includes the paper currently shown on screen, independent of the
+        // Transparent BG setting used by the production PNG exporter.
+        ctx.fillStyle = getComputedStyle(stageFrame).backgroundColor || params.paper;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.beginPath();
+        ctx.rect(0, 0, cssWidth, cssHeight);
+        ctx.clip();
+        drawScreenshotGrid(ctx, scale, scrollX, scrollY);
+        drawGlyphs(ctx, snapshotGlyphs(), scale, {
+          w: cssWidth,
+          h: cssHeight,
+          s: 1,
+          dx: -scrollX,
+          dy: -scrollY
+        }, fontMetrics(), true);
+        ctx.restore();
+        return canvas;
+      }
+
+      function exportCanvasScreenshot() {
+        try {
+          renderCanvasScreenshot().toBlob(function (blob) {
+            if (blob) download(blob, 'type-deform-canvas-' + stamp() + '.png');
+            else alert('キャンバス画像の生成に失敗しました。');
+          }, 'image/png');
+        } catch (err) {
+          alert(err.message || 'キャンバス画像の生成に失敗しました。');
+        }
+      }
+
       function nothingToExport() {
+        flushPendingTextRebuild();
         if (!params.deformedOnly) return false;
         for (var i = 0; i < metrics.length; i++) {
           var st = metrics[i].el.style;
@@ -2182,18 +2609,25 @@ type deformer</textarea>
 
       function exportPng() {
         if (nothingToExport()) return;
-        renderCanvas(params.exportScale).toBlob(function (blob) {
-          if (blob) download(blob, 'type-deform-' + stamp() + '.png');
-        }, 'image/png');
+        try {
+          renderCanvas(params.exportScale).toBlob(function (blob) {
+            if (blob) download(blob, 'type-deform-' + stamp() + '.png');
+            else alert('PNGの生成に失敗しました。出力倍率を下げて再試行してください。');
+          }, 'image/png');
+        } catch (err) {
+          alert(err.message || 'PNGの生成に失敗しました。');
+        }
       }
 
       function pngBlobPromise() {
         var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-        return ready.then(function () {
+        return Promise.resolve(ready).catch(function () { }).then(function () {
           return new Promise(function (resolve, reject) {
-            renderCanvas(params.exportScale).toBlob(function (blob) {
-              if (blob) resolve(blob); else reject(new Error('toBlob failed'));
-            }, 'image/png');
+            try {
+              renderCanvas(params.exportScale).toBlob(function (blob) {
+                if (blob) resolve(blob); else reject(new Error('PNGの生成に失敗しました。'));
+              }, 'image/png');
+            } catch (err) { reject(err); }
           });
         });
       }
@@ -2223,12 +2657,19 @@ type deformer</textarea>
             return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
           });
         }
-        writePromise.then(function () { done(true); }, function () { done(false); });
+        writePromise.then(function () { done(true); }, function (err) {
+          done(false);
+          if (err && err.code === 'CANVAS_TOO_LARGE') alert(err.message);
+        });
       }
 
       /* ---------------- SVG export ---------------- */
       function escXml(s) {
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function escXmlAttr(s) {
+        return escXml(String(s)).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
       }
 
       function exportSvg() {
@@ -2246,7 +2687,7 @@ type deformer</textarea>
           parts.push('<rect width="100%" height="100%" fill="' + params.paper + '"/>');
         }
         parts.push('<g transform="translate(' + L.dx.toFixed(2) + ' ' + L.dy.toFixed(2) + ') scale(' + L.s.toFixed(5) + ')">');
-        parts.push('<g font-family=\'' + params.fontFamily.replace(/'/g, '') + '\' font-size="' + params.fontSize + '" font-weight="' + params.fontWeight + '" fill="' + params.ink + '">');
+        parts.push('<g font-family="' + escXmlAttr(params.fontFamily) + '" font-size="' + params.fontSize + '" font-weight="' + params.fontWeight + '" fill="' + params.ink + '">');
 
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
@@ -2261,9 +2702,10 @@ type deformer</textarea>
             tr += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (!g.upright ? ' rotate(90)' : '');
             parts.push('<text x="0" y="0" text-anchor="middle" dominant-baseline="central"' + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
           } else {
-            var x = g.x;
+            var x = g.grid ? g.x + g.w / 2 : g.x;
             var y = g.y + baselineOffset(g, fm);
-            parts.push('<text x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '"' + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
+            var anchor = g.grid ? ' text-anchor="middle"' : '';
+            parts.push('<text x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '"' + anchor + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
           }
         }
         parts.push('</g></g></svg>');
@@ -2274,16 +2716,44 @@ type deformer</textarea>
 
       /* ---------------- UI wiring ---------------- */
       var rangeControls = [];
+      var batchProfileSelect = document.getElementById('pBatchProfile');
+      var batchProfileStatus = document.getElementById('batchProfileStatus');
+      var btnBatchProfileReset = document.getElementById('btnBatchProfileReset');
+
+      function refreshBatchProfileControls() {
+        var source = batchProfileForKey(activeBatchProfile);
+        for (var i = 0; i < rangeControls.length; i++) {
+          var control = rangeControls[i];
+          if (!control.profiled) continue;
+          control.input.value = source[control.key];
+          control.val.textContent = control.fmt(source[control.key]);
+        }
+        var inherited = activeBatchProfile !== 'all' && !batchProfiles[activeBatchProfile];
+        batchProfileStatus.textContent = activeBatchProfile === 'all'
+          ? 'All：全文字の基準値'
+          : BATCH_PROFILE_LABELS[activeBatchProfile] + '：' + (inherited ? 'Allを継承中（スライダーを動かすと個別設定）' : '個別設定');
+        btnBatchProfileReset.disabled = activeBatchProfile === 'all' || inherited;
+      }
+
+      function setActiveBatchProfile(key) {
+        activeBatchProfile = key === 'all' || BATCH_PROFILE_KEYS.indexOf(key) !== -1 ? key : 'all';
+        batchProfileSelect.value = activeBatchProfile;
+        refreshBatchProfileControls();
+      }
+
       function bindRange(id, valId, key, fmt, onChange) {
         var input = document.getElementById(id);
         var val = document.getElementById(valId);
+        var profiled = BATCH_PARAM_KEYS.indexOf(key) !== -1;
         input.addEventListener('input', function () {
-          params[key] = parseFloat(input.value);
-          val.textContent = fmt(params[key]);
+          var target = profiled ? editableBatchProfile() : params;
+          target[key] = parseFloat(input.value);
+          val.textContent = fmt(target[key]);
+          if (profiled) refreshBatchProfileControls();
           if (onChange) onChange();
         });
         val.textContent = fmt(parseFloat(input.value));
-        rangeControls.push({ input: input, val: val, key: key, fmt: fmt });
+        rangeControls.push({ input: input, val: val, key: key, fmt: fmt, profiled: profiled });
       }
 
       var f2 = function (v) { return v.toFixed(2); };
@@ -2331,6 +2801,17 @@ type deformer</textarea>
       bindRange('pAccentRatio', 'vAccentRatio', 'accentRatio', f2, queueApplyRandom);
       bindRange('pMargin', 'vMargin', 'marginPct', f0);
 
+      batchProfileSelect.addEventListener('change', function () {
+        setActiveBatchProfile(batchProfileSelect.value);
+      });
+      btnBatchProfileReset.addEventListener('click', function () {
+        if (activeBatchProfile === 'all' || !batchProfiles[activeBatchProfile]) return;
+        delete batchProfiles[activeBatchProfile];
+        refreshBatchProfileControls();
+        applyRandom();
+        reapplyStretches();
+      });
+
       /* grid */
       function relayoutGrid() { if (params.gridEnabled) layoutGrid(); }
       bindRange('pGridCols', 'vGridCols', 'gridCols', f0, relayoutGrid);
@@ -2341,7 +2822,11 @@ type deformer</textarea>
       var gridRowsRow = document.getElementById('gridRowsRow');
       document.getElementById('pGridEnabled').addEventListener('change', function (e) {
         params.gridEnabled = e.target.checked;
-        if (params.gridEnabled) layoutGrid(); else clearGridStyles();
+        if (params.gridEnabled) layoutGrid();
+        else {
+          clearGridStyles();
+          if (params.mode === 'grid') setMode('flow');
+        }
       });
       document.getElementById('pGridAutoRows').addEventListener('change', function (e) {
         params.gridAutoRows = e.target.checked;
@@ -2371,7 +2856,13 @@ type deformer</textarea>
       });
       fontCustom.addEventListener('change', function () {
         var v = fontCustom.value.trim().replace(/"/g, '');
-        params.fontFamily = v ? '"' + v + '", ' + fontSelect.value : fontSelect.value;
+        if (v) {
+          params.fontFamily = '"' + v + '", ' + (fontSelect.value || 'sans-serif');
+          fontSelect.selectedIndex = -1;
+        } else {
+          if (fontSelect.selectedIndex < 0) fontSelect.selectedIndex = 0;
+          params.fontFamily = fontSelect.value;
+        }
         applyStyle();
       });
       document.getElementById('pWeight').addEventListener('change', function (e) {
@@ -2452,13 +2943,17 @@ type deformer</textarea>
       function openPreview() {
         if (nothingToExport()) return;
         var run = function () {
-          var c = renderCanvas(params.exportScale);
-          document.getElementById('previewImg').src = c.toDataURL('image/png');
-          document.getElementById('previewCaption').textContent =
-            c.width + ' × ' + c.height + ' px — ' + (params.transparentBg ? '透過 / ' : '') + 'クリックで閉じる';
-          previewOverlay.hidden = false;
+          try {
+            var c = renderCanvas(params.exportScale);
+            document.getElementById('previewImg').src = c.toDataURL('image/png');
+            document.getElementById('previewCaption').textContent =
+              c.width + ' × ' + c.height + ' px — ' + (params.transparentBg ? '透過 / ' : '') + 'クリックで閉じる';
+            previewOverlay.hidden = false;
+          } catch (err) {
+            alert(err.message || 'プレビューの生成に失敗しました。');
+          }
         };
-        if (document.fonts && document.fonts.ready) document.fonts.ready.then(run); else run();
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(run, run); else run();
       }
       previewOverlay.addEventListener('click', function () { previewOverlay.hidden = true; });
       document.getElementById('btnPreview').addEventListener('click', openPreview);
@@ -2512,6 +3007,7 @@ type deformer</textarea>
         stage.style.fontFamily = params.fontFamily;
         stage.style.fontWeight = params.fontWeight;
         stage.style.fontSize = params.fontSize + 'px';
+        stage.style.setProperty('--grid-font-size', params.fontSize + 'px');
         stage.style.lineHeight = params.lineHeight;
         stage.style.letterSpacing = params.letterSpacing + 'em';
         stage.style.textAlign = params.align;
@@ -2523,9 +3019,18 @@ type deformer</textarea>
 
       var textInput = document.getElementById('textInput');
       var rebuildTimer = null;
+      function flushPendingTextRebuild() {
+        if (rebuildTimer === null) return;
+        clearTimeout(rebuildTimer);
+        rebuildTimer = null;
+        rebuildPreservingState(textInput.value);
+      }
       textInput.addEventListener('input', function () {
         clearTimeout(rebuildTimer);
-        rebuildTimer = setTimeout(function () { rebuildPreservingState(textInput.value); }, 250);
+        rebuildTimer = setTimeout(function () {
+          rebuildTimer = null;
+          rebuildPreservingState(textInput.value);
+        }, 250);
       });
 
       document.getElementById('btnShuffle').addEventListener('click', function () {
@@ -2542,6 +3047,9 @@ type deformer</textarea>
       };
       function setMode(mode) {
         params.mode = mode;
+        // A hover latch from Flow must never survive a mode round-trip;
+        // otherwise the first sweep after returning to Flow can be ignored.
+        for (var i = 0; i < metrics.length; i++) metrics[i].hovered = false;
         for (var k in modeButtons) modeButtons[k].setAttribute('aria-pressed', String(k === mode));
         stage.classList.toggle('lock-mode', mode === 'lock');
         stage.classList.toggle('edit-mode', mode === 'edit');
@@ -2565,6 +3073,7 @@ type deformer</textarea>
       });
       Array.prototype.forEach.call(document.querySelectorAll('[data-batch]'), function (btn) {
         btn.addEventListener('click', function () {
+          setActiveBatchProfile(btn.dataset.batch);
           batchToggle(batchMatchers[btn.dataset.batch]);
         });
       });
@@ -2574,10 +3083,18 @@ type deformer</textarea>
 
       document.getElementById('btnPng').addEventListener('click', function () {
         if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(exportPng);
+          document.fonts.ready.then(exportPng, exportPng);
         } else exportPng();
       });
-      document.getElementById('btnSvg').addEventListener('click', exportSvg);
+      document.getElementById('btnCapture').addEventListener('click', function () {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(exportCanvasScreenshot, exportCanvasScreenshot);
+        } else exportCanvasScreenshot();
+      });
+      document.getElementById('btnSvg').addEventListener('click', function () {
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(exportSvg, exportSvg);
+        else exportSvg();
+      });
       var btnCopy = document.getElementById('btnCopy');
       btnCopy.addEventListener('click', function () { copyPng(btnCopy); });
 
@@ -2585,8 +3102,9 @@ type deformer</textarea>
       function syncUI() {
         for (var i = 0; i < rangeControls.length; i++) {
           var c = rangeControls[i];
-          c.input.value = params[c.key];
-          c.val.textContent = c.fmt(params[c.key]);
+          var source = c.profiled ? batchProfileForKey(activeBatchProfile) : params;
+          c.input.value = source[c.key];
+          c.val.textContent = c.fmt(source[c.key]);
         }
         var isPreset = false;
         for (var j = 0; j < fontSelect.options.length; j++) {
@@ -2596,6 +3114,7 @@ type deformer</textarea>
           fontSelect.value = params.fontFamily;
           fontCustom.value = '';
         } else {
+          fontSelect.selectedIndex = -1;
           fontCustom.value = (params.fontFamily.split(',')[0] || '').replace(/"/g, '').trim();
         }
         document.getElementById('pWeight').value = String(params.fontWeight);
@@ -2621,15 +3140,19 @@ type deformer</textarea>
         gridLinesEl.style.display = params.gridLines ? '' : 'none';
         stage.classList.toggle('grid-layout', params.gridEnabled);
         setMode(params.mode);
+        batchProfileSelect.value = activeBatchProfile;
+        refreshBatchProfileControls();
         updateExportInfo();
       }
 
       function projectData() {
+        flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 1,
+          version: 2,
           text: textInput.value,
           params: params,
+          batchProfiles: cloneBatchProfiles(),
           letters: metrics.map(letterState)
         };
       }
@@ -2639,22 +3162,42 @@ type deformer</textarea>
         download(blob, 'type-deform-project-' + stamp() + '.json');
       }
 
-      function loadProject(data) {
-        if (!data || data.app !== 'type-deformer' || !data.params) {
-          alert('プロジェクトファイルではないようです。');
-          return;
+      function isProjectData(data) {
+        return !!(data && data.app === 'type-deformer' && data.params && typeof data.params === 'object');
+      }
+
+      function loadProject(data, silent) {
+        if (!isProjectData(data)) {
+          if (!silent) alert('プロジェクトファイルではないようです。');
+          return false;
         }
+        if (data.version != null && data.version > 2) {
+          if (!silent) alert('このプロジェクトは新しいバージョンで保存されています。');
+          return false;
+        }
+        if (typeof data.text === 'string' && data.text.length > 500000) {
+          if (!silent) alert('テキストが大きすぎるため読み込めません（上限50万文字）。');
+          return false;
+        }
+        // Start from this version's defaults so fields absent from an older
+        // project do not accidentally inherit the currently open artwork.
+        for (var defaultParam in params) params[defaultParam] = PARAM_DEFAULTS[defaultParam];
         for (var k in params) {
           if (Object.prototype.hasOwnProperty.call(data.params, k)) params[k] = data.params[k];
         }
+        normalizeParams();
+        batchProfiles = normalizeBatchProfiles(data.batchProfiles);
+        activeBatchProfile = 'all';
         params.mode = 'flow';
-        textInput.value = data.text || '';
+        textInput.value = typeof data.text === 'string' ? data.text : '';
         syncUI();
         applyStyle();
         createSpans(textInput.value);
         // restore per-letter state synchronously — no layout needed, and
         // rAF never fires while the tab is hidden
-        restoreStates(data.letters || []);
+        restoreStates(Array.isArray(data.letters) ? data.letters : []);
+        markAutosaveDirty();
+        return true;
       }
 
       document.getElementById('btnSaveProj').addEventListener('click', saveProject);
@@ -2663,36 +3206,72 @@ type deformer</textarea>
       projFile.addEventListener('change', function () {
         var file = projFile.files && projFile.files[0];
         if (!file) return;
+        if (file.size > 64 * 1024 * 1024) {
+          alert('プロジェクトファイルが大きすぎます（上限64MB）。');
+          projFile.value = '';
+          return;
+        }
         var reader = new FileReader();
         reader.onload = function () {
           try { loadProject(JSON.parse(reader.result)); }
           catch (err) { alert('読み込みに失敗しました: ' + err.message); }
         };
+        reader.onerror = function () { alert('プロジェクトファイルを読み取れませんでした。'); };
         reader.readAsText(file);
         projFile.value = '';
       });
 
       /* ---------------- autosave ---------------- */
       var AUTOSAVE_KEY = 'typeDeformer.autosave.v1';
+      var AUTOSAVE_BACKUP_KEY = 'typeDeformer.autosave.backup.v1';
+      var autosaveDirty = true;
+      var autosaveSuspended = false;
+
+      function markAutosaveDirty() {
+        autosaveDirty = true;
+      }
 
       function saveAutosave() {
+        if (autosaveSuspended || !autosaveDirty) return;
         try {
-          localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(projectData()));
+          var next = JSON.stringify(projectData());
+          var previous = localStorage.getItem(AUTOSAVE_KEY);
+          if (previous === next) {
+            autosaveDirty = false;
+            return;
+          }
+          if (previous) {
+            try {
+              if (isProjectData(JSON.parse(previous))) localStorage.setItem(AUTOSAVE_BACKUP_KEY, previous);
+            } catch (invalidPrevious) { /* keep the last known backup */ }
+          }
+          localStorage.setItem(AUTOSAVE_KEY, next);
+          autosaveDirty = false;
         } catch (e) { /* storage full or unavailable — silently skip */ }
       }
 
       function tryRestoreAutosave() {
-        try {
-          var raw = localStorage.getItem(AUTOSAVE_KEY);
-          if (!raw) return false;
-          var data = JSON.parse(raw);
-          if (!data || data.app !== 'type-deformer' || !data.params) return false;
-          loadProject(data);
-          return true;
-        } catch (e) { return false; }
+        var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];
+        for (var i = 0; i < keys.length; i++) {
+          try {
+            var raw = localStorage.getItem(keys[i]);
+            if (!raw) continue;
+            if (loadProject(JSON.parse(raw), true)) return true;
+          } catch (e) { /* try the backup */ }
+        }
+        return false;
       }
 
       function startAutosave() {
+        var panel = document.querySelector('.panel');
+        if (panel) {
+          panel.addEventListener('input', markAutosaveDirty, true);
+          panel.addEventListener('change', markAutosaveDirty, true);
+          panel.addEventListener('click', markAutosaveDirty, true);
+          panel.addEventListener('click', flushPendingTextRebuild, true);
+        }
+        stage.addEventListener('pointerdown', markAutosaveDirty, { passive: true });
+        stage.addEventListener('pointermove', markAutosaveDirty, { passive: true });
         setInterval(saveAutosave, 8000);
         window.addEventListener('pagehide', saveAutosave);
         document.addEventListener('visibilitychange', function () {
@@ -2702,8 +3281,14 @@ type deformer</textarea>
 
       document.getElementById('btnNew').addEventListener('click', function () {
         if (!confirm('作品を初期化しますか？（自動保存も消去されます）')) return;
-        try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) { }
-        location.replace(location.pathname + location.search);
+        // pagehide fires during replace(); suspend first so the just-deleted
+        // project is not immediately written back by the pagehide autosave.
+        autosaveSuspended = true;
+        try {
+          localStorage.removeItem(AUTOSAVE_KEY);
+          localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
+        } catch (e) { }
+        location.replace(location.href.split('#')[0]);
       });
 
       /* ---------------- parameter presets ---------------- */
@@ -2717,7 +3302,10 @@ type deformer</textarea>
       };
 
       function loadUserPresets() {
-        try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || {}; }
+        try {
+          var store = JSON.parse(localStorage.getItem(PRESET_KEY)) || {};
+          return store && typeof store === 'object' && !Array.isArray(store) ? store : {};
+        }
         catch (e) { return {}; }
       }
 
@@ -2750,15 +3338,20 @@ type deformer</textarea>
         if (!v) return;
         if (v.indexOf('b:') === 0) {
           var bp = builtinPresets[v.slice(2)];
+          var presetTarget = editableBatchProfile();
           if (bp) for (var i = 0; i < BUILTIN_PRESET_KEYS.length; i++) {
-            params[BUILTIN_PRESET_KEYS[i]] = bp.p[BUILTIN_PRESET_KEYS[i]];
+            presetTarget[BUILTIN_PRESET_KEYS[i]] = bp.p[BUILTIN_PRESET_KEYS[i]];
           }
         } else {
           var up = loadUserPresets()[v.slice(2)];
           if (up) for (var k in params) {
             if (k !== 'mode' && Object.prototype.hasOwnProperty.call(up, k)) params[k] = up[k];
           }
+          if (up && Object.prototype.hasOwnProperty.call(up, '_batchProfiles')) {
+            batchProfiles = normalizeBatchProfiles(up._batchProfiles);
+          }
         }
+        normalizeParams();
         syncUI();
         applyStyle();
         applyRandom();
@@ -2775,6 +3368,7 @@ type deformer</textarea>
         var store = loadUserPresets();
         var snap = {};
         for (var k in params) { if (k !== 'mode') snap[k] = params[k]; }
+        snap._batchProfiles = cloneBatchProfiles();
         store[name] = snap;
         storeUserPresets(store);
         populatePresets();
@@ -2811,24 +3405,40 @@ type deformer</textarea>
 
       function compressString(str) {
         var enc = new TextEncoder().encode(str);
+        if (enc.length > 4 * 1024 * 1024) return Promise.reject(new Error('Share URLに収めるには作品データが大きすぎます。JSON保存を使用してください。'));
         if (typeof CompressionStream === 'undefined') {
           return Promise.resolve({ tag: 'r', bytes: enc });
         }
-        var stream = new Blob([enc]).stream().pipeThrough(new CompressionStream('deflate-raw'));
-        return new Response(stream).arrayBuffer().then(function (buf) {
-          return { tag: 'd', bytes: new Uint8Array(buf) };
-        });
+        try {
+          var stream = new Blob([enc]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+          return new Response(stream).arrayBuffer().then(function (buf) {
+            var bytes = new Uint8Array(buf);
+            if (bytes.length > 4 * 1024 * 1024) throw new Error('Share URLに収めるには作品データが大きすぎます。JSON保存を使用してください。');
+            return { tag: 'd', bytes: bytes };
+          }).catch(function () {
+            return { tag: 'r', bytes: enc };
+          });
+        } catch (unsupportedFormat) {
+          return Promise.resolve({ tag: 'r', bytes: enc });
+        }
       }
 
       function decompressToString(tag, bytes) {
+        if (tag !== 'r' && tag !== 'd') return Promise.reject(new Error('unknown compression type'));
+        if (bytes.length > 4 * 1024 * 1024) return Promise.reject(new Error('share payload is too large'));
         if (tag === 'r') return Promise.resolve(new TextDecoder().decode(bytes));
+        if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('compressed links are not supported in this browser'));
         var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-        return new Response(stream).text();
+        return new Response(stream).text().then(function (value) {
+          if (value.length > 8 * 1024 * 1024) throw new Error('expanded share payload is too large');
+          return value;
+        });
       }
 
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
-        var d = { a: 'td', v: 1, text: textInput.value, params: {}, L: [] };
+        flushPendingTextRebuild();
+        var d = { a: 'td', v: 2, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
@@ -2841,25 +3451,31 @@ type deformer</textarea>
 
       function buildShareUrl() {
         return compressString(JSON.stringify(shareData())).then(function (r) {
-          return location.origin + location.pathname + location.search + '#p=' + r.tag + '.' + bytesToB64url(r.bytes);
+          return location.href.split('#')[0] + '#p=' + r.tag + '.' + bytesToB64url(r.bytes);
         });
       }
 
       function applyShareData(d) {
         if (!d || d.a !== 'td' || !d.params) throw new Error('not a share payload');
+        if (typeof d.text !== 'string' || d.text.length > 500000) throw new Error('share text is too large');
+        if (d.L != null && !Array.isArray(d.L)) throw new Error('invalid letter data');
+        if ((d.L || []).length > 200000) throw new Error('too many letter states');
         var letters = [];
         var maxIdx = -1;
         for (var i = 0; i < (d.L || []).length; i++) {
           var row = d.L[i];
-          letters[row[0]] = {
+          if (!Array.isArray(row)) continue;
+          var rowIndex = Number(row[0]);
+          if (!isFinite(rowIndex) || rowIndex < 0 || rowIndex > 200000 || Math.floor(rowIndex) !== rowIndex) continue;
+          letters[rowIndex] = {
             t: row[1], l: row[2], i: row[3] / 1000,
             mx: row[4] ? row[4] / 1000 : 0, my: row[5] ? row[5] / 1000 : 0,
             gc: (row[6] != null && row[6] !== -1) ? row[6] : null
           };
-          if (row[0] > maxIdx) maxIdx = row[0];
+          if (rowIndex > maxIdx) maxIdx = rowIndex;
         }
         for (var j = 0; j <= maxIdx; j++) { if (!letters[j]) letters[j] = { t: 0, l: 0, i: 0 }; }
-        loadProject({ app: 'type-deformer', version: 1, text: d.text, params: d.params, letters: letters });
+        loadProject({ app: 'type-deformer', version: d.v || 1, text: d.text, params: d.params, batchProfiles: d.profiles, letters: letters });
       }
 
       function tryRestoreFromHash() {
@@ -2868,7 +3484,9 @@ type deformer</textarea>
         var payload = h.slice(3);
         var dot = payload.indexOf('.');
         if (dot < 1) return Promise.resolve(false);
-        return decompressToString(payload.slice(0, dot), b64urlToBytes(payload.slice(dot + 1)))
+        return Promise.resolve().then(function () {
+          return decompressToString(payload.slice(0, dot), b64urlToBytes(payload.slice(dot + 1)));
+        })
           .then(function (json) { applyShareData(JSON.parse(json)); return true; })
           .catch(function () { return false; });
       }
@@ -2882,7 +3500,11 @@ type deformer</textarea>
           setTimeout(function () { btnShare.textContent = old; }, 1600);
         };
         urlP.then(function (u) {
-          history.replaceState(null, '', u.slice(u.indexOf('#')));
+          try { history.replaceState(null, '', u.slice(u.indexOf('#'))); }
+          catch (historyError) { /* clipboard/prompt sharing still works */ }
+        }).catch(function (err) {
+          done(false);
+          alert((err && err.message) || 'Share URLの生成に失敗しました。');
         });
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
           // same Safari rule as image copy: write() must start inside the
@@ -2896,15 +3518,16 @@ type deformer</textarea>
             writePromise = urlP.then(function (u) { return navigator.clipboard.writeText(u); });
           }
           writePromise.then(function () { done(true); }, function () {
-            urlP.then(function (u) { prompt('このURLをコピーしてください', u); });
+            urlP.then(function (u) { prompt('このURLをコピーしてください', u); }).catch(function () { });
           });
         } else {
-          urlP.then(function (u) { prompt('このURLをコピーしてください', u); });
+          urlP.then(function (u) { prompt('このURLをコピーしてください', u); }).catch(function () { });
         }
       });
 
       /* ---------------- boot ---------------- */
       window.addEventListener('resize', scheduleMeasure, { passive: true });
+      window.addEventListener('type-deformer-frame-resize', scheduleMeasure);
       // no scroll listener: positions are stage-relative, and the pointer
       // math reads the stage rect once per animation frame
       if (document.fonts) {
