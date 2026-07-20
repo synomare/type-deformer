@@ -191,6 +191,13 @@
 
     .note { color: var(--dim); line-height: 1.7; letter-spacing: 0.06em; margin: 0.6em 0 0; }
 
+    .operator-panel[hidden] { display: none; }
+    .operator-panel {
+      border-left: 1px solid var(--line);
+      padding-left: 0.65em;
+      margin: 0.65em 0;
+    }
+
     /* stage */
     .stage-wrap {
       position: relative;
@@ -259,9 +266,18 @@
 
     .stage {
       position: relative;
-      min-height: 100%;
+      /* Transforms paint outside a glyph's layout box. Give that paint a
+         symmetric, dynamically calculated gutter so very large type and
+         extreme deforms remain reachable instead of disappearing into the
+         unscrollable negative side of the canvas. Adding the same amount to
+         both the box and its padding keeps the usable text width unchanged. */
+      --visual-overscan: 0px;
+      min-width: calc(100% + var(--visual-overscan) + var(--visual-overscan));
+      min-height: calc(100% + var(--visual-overscan) + var(--visual-overscan));
       box-sizing: border-box;
-      padding: clamp(40px, 8vh, 96px) clamp(28px, 5vw, 80px);
+      padding:
+        calc(clamp(40px, 8vh, 96px) + var(--visual-overscan))
+        calc(clamp(28px, 5vw, 80px) + var(--visual-overscan));
       letter-spacing: -0.03em;
       font-kerning: normal;
       font-variant-east-asian: proportional-width;
@@ -394,7 +410,16 @@
       display: inline-block;
       position: relative; /* enables z-index for target/selected emphasis */
       --ix: 1; --iy: 1;
-      transform: translateX(var(--tx, 0)) translateY(var(--ty, 0)) rotate(var(--rot, 0deg)) scale(var(--sx, 1), var(--sy, 1)) scale(var(--ix, 1), var(--iy, 1));
+      --op-baseline-x: 0em; --op-baseline-y: 0em;
+      --op-rotate: 0deg; --op-skew-x: 0deg; --op-skew-y: 0deg;
+      --op-mirror-x: 1; --op-mirror-y: 1;
+      transform:
+        translateX(var(--tx, 0)) translateY(var(--ty, 0))
+        translateX(var(--op-baseline-x)) translateY(var(--op-baseline-y))
+        rotate(var(--rot, 0deg)) rotate(var(--op-rotate))
+        skew(var(--op-skew-x), var(--op-skew-y))
+        scale(var(--op-mirror-x), var(--op-mirror-y))
+        scale(var(--sx, 1), var(--sy, 1)) scale(var(--ix, 1), var(--iy, 1));
       transform-origin: 50% 75%;
       transition: transform .1s cubic-bezier(.25, .82, .25, 1);
       opacity: 0;
@@ -403,6 +428,27 @@
       filter: blur(4px);
       animation: reveal 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards;
       animation-delay: min(calc(var(--i) * 0.003s + 0.05s), 1.5s);
+    }
+
+    /* Misregistration is evaluated after the box transform. The per-letter
+       translations are pre-distorted by the inverse glyph matrix so the two
+       ink passes land in page coordinates even on rotated or mirrored type. */
+    .stage .c[data-misregistration="1"]::before,
+    .stage .c[data-misregistration="1"]::after {
+      content: attr(data-render-text);
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      white-space: inherit;
+      color: var(--mr-color-a);
+      opacity: var(--mr-opacity, 0);
+      mix-blend-mode: multiply;
+      transform: translate(var(--mr-a-x, 0px), var(--mr-a-y, 0px));
+      transform-origin: 50% 75%;
+    }
+    .stage .c[data-misregistration="1"]::after {
+      color: var(--mr-color-b);
+      transform: translate(var(--mr-b-x, 0px), var(--mr-b-y, 0px));
     }
 
     /* large texts: cheap reveal (no per-glyph blur/motion) */
@@ -550,6 +596,16 @@
 type deformer</textarea>
 
       <div class="sec-head"><span>Deform</span><span class="r">変形</span></div>
+      <div class="row"><label for="pOperator">Operator</label>
+        <select id="pOperator">
+          <option value="stretch" selected>Stretch</option>
+          <option value="rotate">Rotate</option>
+          <option value="skew">Skew</option>
+          <option value="baselineShift">Baseline Shift</option>
+          <option value="mirror">Mirror</option>
+          <option value="misregistration">Misregistration</option>
+        </select>
+      </div>
       <div class="row"><label for="pBatchProfile">Parameter target</label>
         <select id="pBatchProfile">
           <option value="all" selected>All 全文字</option>
@@ -563,13 +619,34 @@ type deformer</textarea>
         <button id="btnBatchProfileReset" type="button">Reset to All</button>
       </div>
       <p class="note" id="batchProfileStatus">All：全文字の基準値</p>
-      <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
-      <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
       <div class="row"><label for="pRadius">Radius</label><input type="range" id="pRadius" min="15" max="180" step="1" value="45"><span class="val" id="vRadius">45</span></div>
       <div class="row"><label for="pReturn">Ease</label><input type="range" id="pReturn" min="0.02" max="0.3" step="0.01" value="0.08"><span class="val" id="vReturn">0.08</span></div>
-      <div class="row"><label for="pGeo">Geo ratio</label><input type="range" id="pGeo" min="0" max="1" step="0.02" value="0.32"><span class="val" id="vGeo">0.32</span></div>
-      <div class="row"><label for="pRandom">Randomness</label><input type="range" id="pRandom" min="0" max="2" step="0.05" value="1"><span class="val" id="vRandom">1.00</span></div>
-      <div class="row"><label for="pRot">Rotation</label><input type="range" id="pRot" min="0" max="45" step="0.5" value="0"><span class="val" id="vRot">0.0</span></div>
+      <div class="operator-panel" data-operator-panel="stretch">
+        <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
+        <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
+        <div class="row"><label for="pGeo">Geo ratio</label><input type="range" id="pGeo" min="0" max="1" step="0.02" value="0.32"><span class="val" id="vGeo">0.32</span></div>
+        <div class="row"><label for="pRandom">Randomness</label><input type="range" id="pRandom" min="0" max="2" step="0.05" value="1"><span class="val" id="vRandom">1.00</span></div>
+        <div class="row"><label for="pRot">Random rotation</label><input type="range" id="pRot" min="0" max="45" step="0.5" value="0"><span class="val" id="vRot">0.0</span></div>
+      </div>
+      <div class="operator-panel" data-operator-panel="rotate" hidden>
+        <div class="row"><label for="pRotateAngle">Target angle</label><input type="range" id="pRotateAngle" min="-180" max="180" step="1" value="60"><span class="val" id="vRotateAngle">60°</span></div>
+      </div>
+      <div class="operator-panel" data-operator-panel="skew" hidden>
+        <div class="row"><label for="pSkewX">Skew X</label><input type="range" id="pSkewX" min="-70" max="70" step="1" value="32"><span class="val" id="vSkewX">32°</span></div>
+        <div class="row"><label for="pSkewY">Skew Y</label><input type="range" id="pSkewY" min="-70" max="70" step="1" value="0"><span class="val" id="vSkewY">0°</span></div>
+      </div>
+      <div class="operator-panel" data-operator-panel="baselineShift" hidden>
+        <div class="row"><label for="pBaselineShift">Shift</label><input type="range" id="pBaselineShift" min="-3" max="3" step="0.05" value="1"><span class="val" id="vBaselineShift">1.00em</span></div>
+      </div>
+      <div class="operator-panel" data-operator-panel="mirror" hidden>
+        <div class="row"><label for="pMirrorX">Mirror X</label><input type="checkbox" id="pMirrorX" checked><label for="pMirrorY">Mirror Y</label><input type="checkbox" id="pMirrorY"></div>
+        <p class="note">強度0.5で一度ゼロ幅／高さに潰れ、1.0で完全に反転します。</p>
+      </div>
+      <div class="operator-panel" data-operator-panel="misregistration" hidden>
+        <div class="row"><label for="pMisregX">Offset X</label><input type="range" id="pMisregX" min="-40" max="40" step="1" value="8"><span class="val" id="vMisregX">8px</span></div>
+        <div class="row"><label for="pMisregY">Offset Y</label><input type="range" id="pMisregY" min="-40" max="40" step="1" value="-5"><span class="val" id="vMisregY">-5px</span></div>
+        <div class="row"><label for="pMisregColorA">Pass A</label><input type="color" id="pMisregColorA" value="#c41f1f"><label for="pMisregColorB" style="margin-left:auto">Pass B</label><input type="color" id="pMisregColorB" value="#1767a6"></div>
+      </div>
       <div class="btns">
         <button id="btnShuffle">Shuffle 乱数</button>
       </div>
@@ -594,7 +671,7 @@ type deformer</textarea>
         <button id="btnUnlockAll">Unlock all</button>
         <button id="btnReset">Reset</button>
       </div>
-      <p class="note">FLOW: なぞった文字が伸縮し、再度なぞると戻ります。LOCK: クリックで現在の形を固定／解除。EDIT: 文字枠をドラッグして向きと強さを直接指定（右・上＝伸ばす、左・下＝縮める。⇧ドラッグで微調整、ダブルクリックで初期化）。重なっていてもポインタに最も近い文字が赤枠で示され、そこがつかめます。X-rayで透視表示。選択中の文字は矢印キーで微調整（⇧で大きく）、⌫で初期化。EDITした文字は自動的に固定されます。</p>
+      <p class="note" id="modeHelp">FLOW: 選択中のOperatorをなぞって適用／解除。LOCK: クリックで全Operatorを固定／解除。EDIT: 選択中のOperatorの文字別目標値を直接編集。⇧ドラッグで微調整、ダブルクリック／⌫で選択中Operatorだけ初期化します。</p>
 
       <div class="sec-head"><span>Grid</span><span class="r">格子</span></div>
       <div class="row"><label for="pGridEnabled">Enable grid</label><input type="checkbox" id="pGridEnabled"></div>
@@ -620,7 +697,7 @@ type deformer</textarea>
         <button data-batch="digit">123</button>
         <button data-batch="punct">約物</button>
       </div>
-      <p class="note">クリックでその文字種の全文字を一括で伸縮し、DeformのParameter targetも同じ文字種へ切り替えます。すでに全部伸びているときは一括で解除。固定中の文字は対象外です。</p>
+      <p class="note">クリックでその文字種の全文字へ選択中Operatorを一括適用し、Parameter targetも同じ文字種へ切り替えます。すでに全部適用済みなら一括解除。固定中の文字は対象外です。</p>
 
       <div class="sec-head"><span>Style</span><span class="r">体裁</span></div>
       <div class="row"><label for="pFont">Font</label>
@@ -794,7 +871,41 @@ type deformer</textarea>
       })();
 
       /* ---------------- state ---------------- */
+      // Operators are deliberately data, not branches scattered through the UI.
+      // Layer order is evaluation order; operators may only be reordered
+      // inside their own layer. Every operator accepts strength 0..1 under one
+      // of the four contracts, while direction/sign stays in its target value.
+      var STRENGTH_MODES = {
+        CONTINUOUS: 'continuous',
+        STEPPED: 'stepped',
+        STOCHASTIC: 'stochastic',
+        STRUCTURAL: 'structural'
+      };
+      var EVALUATION_LAYERS = {
+        codepoint: 0, glyph: 1, stroke: 2, box: 3,
+        layout: 4, relation: 5, ink: 6
+      };
+      /** @typedef {{id:string, short:string, label:string, layer:string, layerOrder:number, order:number, strengthMode:string}} OperatorDefinition */
+      /** @type {Object.<string, OperatorDefinition>} */
+      var OPERATOR_DEFS = {
+        stretch: { id: 'stretch', short: 's', label: 'Stretch', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 10, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        rotate: { id: 'rotate', short: 'r', label: 'Rotate', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 20, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        skew: { id: 'skew', short: 'k', label: 'Skew', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 30, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        baselineShift: { id: 'baselineShift', short: 'b', label: 'Baseline Shift', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 40, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        mirror: { id: 'mirror', short: 'm', label: 'Mirror', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 50, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        misregistration: { id: 'misregistration', short: 'p', label: 'Misregistration', layer: 'ink', layerOrder: EVALUATION_LAYERS.ink, order: 60, strengthMode: STRENGTH_MODES.CONTINUOUS }
+      };
+      var OPERATOR_IDS = Object.keys(OPERATOR_DEFS).sort(function (a, b) {
+        return OPERATOR_DEFS[a].layerOrder - OPERATOR_DEFS[b].layerOrder || OPERATOR_DEFS[a].order - OPERATOR_DEFS[b].order;
+      });
+      var OPERATOR_BY_SHORT = {};
+      for (var operatorIndex = 0; operatorIndex < OPERATOR_IDS.length; operatorIndex++) {
+        var operatorId = OPERATOR_IDS[operatorIndex];
+        OPERATOR_BY_SHORT[OPERATOR_DEFS[operatorId].short] = operatorId;
+      }
+
       var params = {
+        activeOperator: 'stretch',
         stretchX: 1,
         stretchY: 1,
         radius: 45,
@@ -802,6 +913,16 @@ type deformer</textarea>
         geoRatio: 0.32,
         randomness: 1,
         rotation: 0,
+        rotateAngle: 60,
+        skewX: 32,
+        skewY: 0,
+        baselineShift: 1,
+        mirrorX: 1,
+        mirrorY: 0,
+        misregX: 8,
+        misregY: -5,
+        misregColorA: '#c41f1f',
+        misregColorB: '#1767a6',
         seed: 1,
         fontFamily: '"Zen Old Mincho", "Hiragino Mincho ProN", serif',
         fontSize: 52,
@@ -839,10 +960,17 @@ type deformer</textarea>
         all: 'All', kanji: '漢字', hira: 'ひらがな', kata: 'カタカナ',
         latin: 'ABC', digit: '123', punct: '約物'
       };
-      var BATCH_PARAM_KEYS = ['stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation'];
+      var BATCH_PARAM_KEYS = [
+        'stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation',
+        'rotateAngle', 'skewX', 'skewY', 'baselineShift', 'mirrorX', 'mirrorY',
+        'misregX', 'misregY'
+      ];
       var BATCH_PARAM_LIMITS = {
         stretchX: [0, 3], stretchY: [0, 3], radius: [15, 180], ease: [0.02, 0.3],
-        geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45]
+        geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45],
+        rotateAngle: [-180, 180], skewX: [-70, 70], skewY: [-70, 70],
+        baselineShift: [-3, 3], mirrorX: [0, 1], mirrorY: [0, 1],
+        misregX: [-40, 40], misregY: [-40, 40]
       };
       var batchProfiles = {};
       var activeBatchProfile = 'all';
@@ -914,6 +1042,14 @@ type deformer</textarea>
         clampParam('geoRatio', 0, 1, false);
         clampParam('randomness', 0, 2, false);
         clampParam('rotation', 0, 45, false);
+        clampParam('rotateAngle', -180, 180, false);
+        clampParam('skewX', -70, 70, false);
+        clampParam('skewY', -70, 70, false);
+        clampParam('baselineShift', -3, 3, false);
+        clampParam('mirrorX', 0, 1, true);
+        clampParam('mirrorY', 0, 1, true);
+        clampParam('misregX', -40, 40, false);
+        clampParam('misregY', -40, 40, false);
         clampParam('seed', -1000000000, 1000000000, false);
         clampParam('fontSize', 18, 160, false);
         clampParam('lineHeight', 0.9, 2.2, false);
@@ -933,13 +1069,14 @@ type deformer</textarea>
         chooseParam('anchor', ['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br']);
         chooseParam('artboard', ['auto', 'custom', '1080x1080', '1080x1350', '1080x1920', '1920x1080', '2480x3508', '3508x2480']);
         chooseParam('mode', ['flow', 'lock', 'edit', 'grid']);
+        chooseParam('activeOperator', OPERATOR_IDS);
 
         var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak'];
         for (var i = 0; i < boolKeys.length; i++) {
           var boolValue = params[boolKeys[i]];
           params[boolKeys[i]] = boolValue === true || boolValue === 1;
         }
-        var colorKeys = ['ink', 'paper', 'accent'];
+        var colorKeys = ['ink', 'paper', 'accent', 'misregColorA', 'misregColorB'];
         for (var c = 0; c < colorKeys.length; c++) {
           var colorKey = colorKeys[c];
           if (typeof params[colorKey] !== 'string' || !/^#[0-9a-f]{6}$/i.test(params[colorKey])) {
@@ -1076,6 +1213,8 @@ type deformer</textarea>
       var metrics = [];   // per-letter lens state (parallel to letters)
       var metricByElement = new WeakMap();
       var metricsDirty = true;
+      var visualOverscan = 0;
+      var overscanTimer = null;
       var undoStack = [], redoStack = [];   // deform/lock history (cleared on text change)
       var lineEnds = [];  // cumulative letters.length after each source line (for grid line-breaks)
       var gridLinesEl = document.createElement('div');
@@ -1146,6 +1285,7 @@ type deformer</textarea>
             span.className = 'c' + (charInfo(tok.text, tok.text.codePointAt(0)).punct ? ' punct' : '');
             span.dataset.j = j;
             span.dataset.cp = tok.text.codePointAt(0);
+            span.dataset.renderText = tok.text;
             span.style.setProperty('--i', globalIndex++);
             span.textContent = tok.text;
             p.appendChild(span);
@@ -1166,9 +1306,13 @@ type deformer</textarea>
       }
 
       // Recompute per-letter random values without recreating spans (keeps lock/toggle state).
-      function applyRandom() {
+      function applyRandom(includeLocked) {
         for (var i = 0; i < letters.length; i++) {
           var span = letters[i];
+          var existingMetric = metricByElement.get(span);
+          // Global/per-letter Lock freezes the entire rendered channel stack,
+          // including the seeded base transform and accent assignment.
+          if (!includeLocked && existingMetric && existingMetric.locked) continue;
           var j = parseInt(span.dataset.j, 10);
           var cp = parseInt(span.dataset.cp, 10);
           var ch = span.textContent;
@@ -1234,7 +1378,9 @@ type deformer</textarea>
           span.dataset.lensBlend = blendSeed.toFixed(3);
         }
         syncMetricsSeeds();
+        applyAllOperatorVisuals();
         metricsDirty = true;
+        scheduleVisualOverscan();
         schedule();
       }
 
@@ -1242,6 +1388,22 @@ type deformer</textarea>
       var raf = null;
       var activePointerId = null;
       var pointer = { x: 0, y: 0, targetX: 0, targetY: 0, strength: 0, active: false, type: 'mouse' };
+
+      /** @typedef {{toggled:boolean, hovered:boolean, current:number, manual:(number|{x:number,y:number}|null)}} LetterOperatorState */
+      /** @returns {Object.<string, LetterOperatorState>} */
+      function createOperatorStates() {
+        var states = {};
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          states[OPERATOR_IDS[i]] = { toggled: false, hovered: false, current: 0, manual: null };
+        }
+        return states;
+      }
+
+      function operatorState(m, id) {
+        if (!m.operatorStates) m.operatorStates = createOperatorStates();
+        if (!m.operatorStates[id]) m.operatorStates[id] = { toggled: false, hovered: false, current: 0, manual: null };
+        return m.operatorStates[id];
+      }
 
       function rebuildMetrics() {
         metricByElement = new WeakMap();
@@ -1252,19 +1414,28 @@ type deformer</textarea>
             seedX: 0, seedY: 0, mode: 'organic', stepX: 0.28, stepY: 0.34, blend: 0.32,
             batchKey: el.dataset.batch || '',
             active: false,
-            toggled: false,
-            hovered: false,
             locked: false,
+            explicitLock: false,
             manualX: null,
             manualY: null,
-            currentIntensity: 0,
+            operatorStates: createOperatorStates(),
             gridCell: null
           };
+          // Keep the proven v2 Stretch field names as accessors. Old projects,
+          // undo snapshots, and in-progress compositions remain valid while all
+          // new code evaluates the registry-backed operator state.
+          Object.defineProperties(metric, {
+            toggled: { get: function () { return metric.operatorStates.stretch.toggled; }, set: function (v) { metric.operatorStates.stretch.toggled = !!v; } },
+            hovered: { get: function () { return metric.operatorStates.stretch.hovered; }, set: function (v) { metric.operatorStates.stretch.hovered = !!v; } },
+            currentIntensity: { get: function () { return metric.operatorStates.stretch.current; }, set: function (v) { metric.operatorStates.stretch.current = Number(v) || 0; } }
+          });
           metricByElement.set(el, metric);
           return metric;
         });
         syncMetricsSeeds();
+        applyAllOperatorVisuals();
         metricsDirty = true;
+        scheduleVisualOverscan();
         schedule();
       }
 
@@ -1296,6 +1467,70 @@ type deformer</textarea>
           m.relY = y + m.h / 2;
         }
         metricsDirty = false;
+        scheduleVisualOverscan();
+      }
+
+      // CSS transforms do not expand scrollable layout bounds. Estimate each
+      // glyph's transformed corners around the real 50%/75% transform origin
+      // and reserve one uniform gutter large enough for every direction.
+      function updateVisualOverscan() {
+        overscanTimer = null;
+        var needed = 0;
+        for (var i = 0; i < metrics.length; i++) {
+          var m = metrics[i], el = m.el;
+          var w = Number(m.w) || el.offsetWidth || params.fontSize;
+          var h = Number(m.h) || el.offsetHeight || params.fontSize;
+          if (!(w > 0 && h > 0)) continue;
+          var matrix = glyphLinearMatrix(el);
+          var ox = w * 0.5, oy = h * 0.75;
+          var st = el.style;
+          var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0)
+            + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * params.fontSize;
+          var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0)
+            + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * params.fontSize;
+          var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          var corners = [[0, 0], [w, 0], [w, h], [0, h]];
+          for (var c = 0; c < corners.length; c++) {
+            var x = corners[c][0] - ox, y = corners[c][1] - oy;
+            var px = ox + matrix.a * x + matrix.c * y + tx;
+            var py = oy + matrix.b * x + matrix.d * y + ty;
+            minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+            minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+          }
+          var mrAx = parseFloat(st.getPropertyValue('--mr-a-x')) || 0;
+          var mrAy = parseFloat(st.getPropertyValue('--mr-a-y')) || 0;
+          var mrBx = parseFloat(st.getPropertyValue('--mr-b-x')) || 0;
+          var mrBy = parseFloat(st.getPropertyValue('--mr-b-y')) || 0;
+          var inkExtra = Math.max(
+            Math.abs(matrix.a * mrAx + matrix.c * mrAy), Math.abs(matrix.b * mrAx + matrix.d * mrAy),
+            Math.abs(matrix.a * mrBx + matrix.c * mrBy), Math.abs(matrix.b * mrBx + matrix.d * mrBy));
+          var glyphExtra = Math.max(
+            Math.max(0, -minX), Math.max(0, maxX - w),
+            Math.max(0, -minY), Math.max(0, maxY - h));
+          needed = Math.max(needed, glyphExtra + inkExtra);
+        }
+        var next = Math.min(20000, Math.max(0, Math.ceil(needed + (needed ? 24 : 0))));
+        if (Math.abs(next - visualOverscan) <= 1) return;
+        var delta = next - visualOverscan;
+        var oldScrollLeft = stageFrame.scrollLeft;
+        var oldScrollTop = stageFrame.scrollTop;
+        visualOverscan = next;
+        stage.style.setProperty('--visual-overscan', visualOverscan + 'px');
+        metricsDirty = true;
+        if (params.gridEnabled) layoutGrid();
+        else schedule();
+        // Padding moves the layout origin. During a live gesture compensate
+        // that movement so the artwork stays under the lens; batch/parameter
+        // changes instead reveal the new top/left gutter immediately.
+        if (pointer && pointer.active) {
+          stageFrame.scrollLeft = Math.max(0, oldScrollLeft + delta);
+          stageFrame.scrollTop = Math.max(0, oldScrollTop + delta);
+        }
+      }
+
+      function scheduleVisualOverscan() {
+        if (overscanTimer !== null) return;
+        overscanTimer = setTimeout(updateVisualOverscan, 48);
       }
 
       /* ---------------- grid typesetting ---------------- */
@@ -1552,24 +1787,26 @@ type deformer</textarea>
           var reach = (m.w > m.h ? m.w : m.h) * 5 + 100;
           if (px - m.relX > reach || m.relX - px > reach || py - m.relY > reach || m.relY - py > reach) continue;
           var st = m.el.style;
-          var sx = (parseFloat(st.getPropertyValue('--sx')) || 1) * (parseFloat(st.getPropertyValue('--ix')) || 1);
-          var sy = (parseFloat(st.getPropertyValue('--sy')) || 1) * (parseFloat(st.getPropertyValue('--iy')) || 1);
-          var tx = (parseFloat(st.getPropertyValue('--tx')) || 0) * fs;
-          var ty = (parseFloat(st.getPropertyValue('--ty')) || 0) * fs;
-          var rot = (parseFloat(st.getPropertyValue('--rot')) || 0) * Math.PI / 180;
-          var cosR = Math.cos(rot), sinR = Math.sin(rot);
+          var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * fs;
+          var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * fs;
+          var matrix = glyphLinearMatrix(m.el);
           // transform-origin sits at 50% / 75% of the layout box
           var ox = m.relX;
           var oy = m.relY + 0.25 * m.h;
-          var off = -0.25 * m.h * sy; // centre is above the origin
-          var cx = ox + tx - sinR * off;
-          var cy = oy + ty + cosR * off;
+          var centerOffX = m.relX - ox, centerOffY = m.relY - oy;
+          var cx = ox + tx + matrix.a * centerOffX + matrix.c * centerOffY;
+          var cy = oy + ty + matrix.b * centerOffX + matrix.d * centerOffY;
           var dx = px - cx, dy = py - cy;
           var d = dx * dx + dy * dy;
-          // un-rotate into the glyph's local axes for the containment test
-          var lx = cosR * dx + sinR * dy;
-          var ly = -sinR * dx + cosR * dy;
-          if (Math.abs(lx) <= m.w * sx * 0.5 + 6 && Math.abs(ly) <= m.h * sy * 0.5 + 6) {
+          var det = matrix.a * matrix.d - matrix.b * matrix.c;
+          var contains = false;
+          if (Math.abs(det) > 0.00001) {
+            var qx = px - (ox + tx), qy = py - (oy + ty);
+            var localX = ox + (matrix.d * qx - matrix.c * qy) / det;
+            var localY = oy + (-matrix.b * qx + matrix.a * qy) / det;
+            contains = Math.abs(localX - m.relX) <= m.w * 0.5 + 6 && Math.abs(localY - m.relY) <= m.h * 0.5 + 6;
+          }
+          if (contains) {
             if (d < bestInD) { bestInD = d; bestIn = m; }
           } else if (d < bestOutD) {
             bestOutD = d; bestOut = m;
@@ -1608,7 +1845,9 @@ type deformer</textarea>
         for (var i = 0; i < metrics.length; i++) {
           var info = metrics[i];
           if (info.locked) {
-            info.hovered = false;
+            for (var lockedIndex = 0; lockedIndex < OPERATOR_IDS.length; lockedIndex++) {
+              operatorState(info, OPERATOR_IDS[lockedIndex]).hovered = false;
+            }
             continue; // frozen — keep current style untouched
           }
 
@@ -1619,38 +1858,34 @@ type deformer</textarea>
           var radius = deform.radius * radiusMultiplier;
           var radiusSq = radius * radius;
 
-          // toggle: flips each time the pointer sweeps through (flow mode only)
+          // Only the selected operator receives the lens gesture. Every
+          // operator continues easing, so switching the panel never freezes a
+          // half-finished transition.
+          var selectedState = operatorState(info, params.activeOperator);
           if (flow && distSq < radiusSq) {
-            if (!info.hovered) {
-              info.toggled = !info.toggled;
-              info.hovered = true;
+            if (!selectedState.hovered) {
+              selectedState.toggled = !selectedState.toggled;
+              selectedState.hovered = true;
             }
           } else {
-            info.hovered = false;
+            selectedState.hovered = false;
           }
 
-          var target = info.toggled ? 1.0 : 0.0;
-          var diff = target - info.currentIntensity;
-          if (diff < 0.0015 && diff > -0.0015) {
-            // Settled — always reconcile the inline style. Manual Edit values
-            // can have intensity=0, so checking intensity alone left stale
-            // --ix/--iy behind after Unlock all / Reset.
-            var intensityChanged = info.currentIntensity !== target;
-            info.currentIntensity = target;
-            if (target === 0) {
-              if (info.active) {
-                info.el.style.removeProperty('--ix');
-                info.el.style.removeProperty('--iy');
-                info.active = false;
-              }
-            } else if (intensityChanged || !info.active) {
-              applyStretch(info);
+          var visualChanged = false;
+          for (var oi = 0; oi < OPERATOR_IDS.length; oi++) {
+            var opState = operatorState(info, OPERATOR_IDS[oi]);
+            if (opState.manual != null) continue;
+            var target = opState.toggled ? 1 : 0;
+            var diff = target - opState.current;
+            if (Math.abs(diff) < 0.0015) {
+              if (opState.current !== target) { opState.current = target; visualChanged = true; }
+            } else {
+              opState.current += diff * deform.ease;
+              visualChanged = true;
+              keepAnimating = true;
             }
-            continue;
           }
-          info.currentIntensity += diff * deform.ease;
-          keepAnimating = true;
-          applyStretch(info);
+          if (visualChanged) applyOperatorVisual(info);
         }
 
         if (keepAnimating) schedule();
@@ -1691,6 +1926,143 @@ type deformer</textarea>
         info.el.style.setProperty('--ix', stretchX.toFixed(3));
         info.el.style.setProperty('--iy', stretchY.toFixed(3));
         info.active = true;
+      }
+
+      function numericManual(state, fallback) {
+        return state.manual != null && isFinite(Number(state.manual)) ? Number(state.manual) : fallback;
+      }
+
+      function pairManual(state, x, y) {
+        return state.manual && typeof state.manual === 'object'
+          ? { x: isFinite(Number(state.manual.x)) ? Number(state.manual.x) : x, y: isFinite(Number(state.manual.y)) ? Number(state.manual.y) : y }
+          : { x: x, y: y };
+      }
+
+      function glyphLinearMatrix(el) {
+        var st = el.style;
+        function ownNumber(name, fallback) { var value = parseFloat(st.getPropertyValue(name)); return isFinite(value) ? value : fallback; }
+        var sx = ownNumber('--sx', 1) * ownNumber('--ix', 1) * ownNumber('--op-mirror-x', 1);
+        var sy = ownNumber('--sy', 1) * ownNumber('--iy', 1) * ownNumber('--op-mirror-y', 1);
+        var rot = ((parseFloat(st.getPropertyValue('--rot')) || 0) + (parseFloat(st.getPropertyValue('--op-rotate')) || 0)) * Math.PI / 180;
+        var tanX = Math.tan((parseFloat(st.getPropertyValue('--op-skew-x')) || 0) * Math.PI / 180);
+        var tanY = Math.tan((parseFloat(st.getPropertyValue('--op-skew-y')) || 0) * Math.PI / 180);
+        var cos = Math.cos(rot), sin = Math.sin(rot);
+        return {
+          a: cos * sx - sin * tanY * sx,
+          b: sin * sx + cos * tanY * sx,
+          c: cos * tanX * sy - sin * sy,
+          d: sin * tanX * sy + cos * sy
+        };
+      }
+
+      function inversePageOffset(matrix, x, y) {
+        var det = matrix.a * matrix.d - matrix.b * matrix.c;
+        if (Math.abs(det) < 0.00001) return { x: 0, y: 0 };
+        return { x: (matrix.d * x - matrix.c * y) / det, y: (-matrix.b * x + matrix.a * y) / det };
+      }
+
+      function applyMisregistrationVisual(info, deform) {
+        var el = info.el, style = el.style;
+        var misreg = operatorState(info, 'misregistration');
+        var misregValue = pairManual(misreg, deform.misregX * misreg.current, deform.misregY * misreg.current);
+        var amount = Math.max(Math.abs(misregValue.x), Math.abs(misregValue.y));
+        if (amount > 0.001) {
+          var matrix = glyphLinearMatrix(el);
+          var passA = inversePageOffset(matrix, misregValue.x, misregValue.y);
+          var passB = inversePageOffset(matrix, -misregValue.x * 0.65, -misregValue.y * 0.65);
+          style.setProperty('--mr-a-x', passA.x.toFixed(3) + 'px');
+          style.setProperty('--mr-a-y', passA.y.toFixed(3) + 'px');
+          style.setProperty('--mr-b-x', passB.x.toFixed(3) + 'px');
+          style.setProperty('--mr-b-y', passB.y.toFixed(3) + 'px');
+          style.setProperty('--mr-color-a', params.misregColorA);
+          style.setProperty('--mr-color-b', params.misregColorB);
+          style.setProperty('--mr-opacity', '0.72');
+          el.dataset.misregistration = '1';
+        } else {
+          delete el.dataset.misregistration;
+          style.removeProperty('--mr-opacity');
+        }
+      }
+
+      function applyOperatorVisual(info) {
+        var el = info.el, style = el.style;
+        var deform = batchProfileForKey(info.batchKey);
+        var stretch = operatorState(info, 'stretch');
+        if (info.manualX != null || info.manualY != null) {
+          style.setProperty('--ix', (info.manualX == null ? 1 : info.manualX).toFixed(3));
+          style.setProperty('--iy', (info.manualY == null ? 1 : info.manualY).toFixed(3));
+          info.active = true;
+        } else if (stretch.current > 0.0001) {
+          applyStretch(info);
+        } else {
+          style.removeProperty('--ix');
+          style.removeProperty('--iy');
+          info.active = false;
+        }
+
+        var rotate = operatorState(info, 'rotate');
+        var rotateValue = numericManual(rotate, deform.rotateAngle * rotate.current);
+        style.setProperty('--op-rotate', rotateValue.toFixed(3) + 'deg');
+
+        var skew = operatorState(info, 'skew');
+        var skewValue = pairManual(skew, deform.skewX * skew.current, deform.skewY * skew.current);
+        style.setProperty('--op-skew-x', skewValue.x.toFixed(3) + 'deg');
+        style.setProperty('--op-skew-y', skewValue.y.toFixed(3) + 'deg');
+
+        var baseline = operatorState(info, 'baselineShift');
+        var baselineValue = numericManual(baseline, deform.baselineShift * baseline.current);
+        style.setProperty('--op-baseline-x', (params.vertical ? baselineValue : 0).toFixed(3) + 'em');
+        style.setProperty('--op-baseline-y', (params.vertical ? 0 : -baselineValue).toFixed(3) + 'em');
+
+        var mirror = operatorState(info, 'mirror');
+        var mirrorValue = pairManual(mirror,
+          deform.mirrorX ? 1 - 2 * mirror.current : 1,
+          deform.mirrorY ? 1 - 2 * mirror.current : 1);
+        style.setProperty('--op-mirror-x', Math.max(-1, Math.min(1, mirrorValue.x)).toFixed(4));
+        style.setProperty('--op-mirror-y', Math.max(-1, Math.min(1, mirrorValue.y)).toFixed(4));
+
+        applyMisregistrationVisual(info, deform);
+        scheduleVisualOverscan();
+      }
+
+      function applyAllOperatorVisuals(includeLocked) {
+        for (var i = 0; i < metrics.length; i++) {
+          if (!includeLocked && metrics[i].locked) continue;
+          applyOperatorVisual(metrics[i]);
+        }
+      }
+
+      var OPERATOR_STYLE_PROPS = {
+        stretch: ['--ix', '--iy'],
+        rotate: ['--op-rotate'],
+        skew: ['--op-skew-x', '--op-skew-y'],
+        baselineShift: ['--op-baseline-x', '--op-baseline-y'],
+        mirror: ['--op-mirror-x', '--op-mirror-y'],
+        misregistration: ['--mr-a-x', '--mr-a-y', '--mr-b-x', '--mr-b-y', '--mr-color-a', '--mr-color-b', '--mr-opacity']
+      };
+
+      // Edit/Reset changes one operator on a frozen glyph. Preserve every
+      // other rendered channel verbatim even if its global parameter changed
+      // while the letter was locked.
+      function applySingleOperatorVisual(m, activeId) {
+        var saved = {};
+        for (var id in OPERATOR_STYLE_PROPS) {
+          if (id === activeId) continue;
+          var props = OPERATOR_STYLE_PROPS[id];
+          for (var p = 0; p < props.length; p++) saved[props[p]] = m.el.style.getPropertyValue(props[p]);
+        }
+        var savedMisreg = m.el.dataset.misregistration;
+        var savedActive = m.active;
+        applyOperatorVisual(m);
+        for (var name in saved) {
+          if (saved[name]) m.el.style.setProperty(name, saved[name]);
+          else m.el.style.removeProperty(name);
+        }
+        if (activeId !== 'misregistration') {
+          if (savedMisreg != null) m.el.dataset.misregistration = savedMisreg;
+          else delete m.el.dataset.misregistration;
+        } else applyMisregistrationVisual(m, batchProfileForKey(m.batchKey));
+        if (activeId !== 'stretch') m.active = savedActive;
       }
 
       function updatePointerFromEvent(e) {
@@ -1763,10 +2135,12 @@ type deformer</textarea>
         if (!m) return;
         pushHistory();
         m.locked = !m.locked;
+        m.explicitLock = m.locked;
         m.el.classList.toggle('locked', m.locked);
         if (!m.locked) {
           m.manualX = m.manualY = null;
-          schedule(); // resume easing when released
+          for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(m, OPERATOR_IDS[oi]).manual = null;
+          applyRandom(); // catch up with parameter/seed edits made while frozen
         }
       });
 
@@ -1824,7 +2198,21 @@ type deformer</textarea>
         editHud.appendChild(b);
         var v = document.createElement('span');
         v.className = 'v';
-        v.textContent = 'W ×' + ix.toFixed(2) + ' H ×' + iy.toFixed(2);
+        if (params.activeOperator === 'stretch') v.textContent = 'Stretch  W ×' + ix.toFixed(2) + ' H ×' + iy.toFixed(2);
+        else if (params.activeOperator === 'rotate') v.textContent = 'Rotate  ' + (parseFloat(st.getPropertyValue('--op-rotate')) || 0).toFixed(1) + '°';
+        else if (params.activeOperator === 'skew') v.textContent = 'Skew  X ' + (parseFloat(st.getPropertyValue('--op-skew-x')) || 0).toFixed(1) + '° Y ' + (parseFloat(st.getPropertyValue('--op-skew-y')) || 0).toFixed(1) + '°';
+        else if (params.activeOperator === 'baselineShift') {
+          var baselineState = operatorState(selectedM, 'baselineShift');
+          v.textContent = 'Baseline  ' + numericManual(baselineState, batchProfileForKey(selectedM.batchKey).baselineShift * baselineState.current).toFixed(2) + 'em';
+        }
+        else if (params.activeOperator === 'mirror') {
+          v.textContent = 'Mirror  X ' + (parseFloat(st.getPropertyValue('--op-mirror-x')) || 0).toFixed(2) + ' Y ' + (parseFloat(st.getPropertyValue('--op-mirror-y')) || 0).toFixed(2);
+        } else {
+          var mrState = operatorState(selectedM, 'misregistration');
+          var mrProfile = batchProfileForKey(selectedM.batchKey);
+          var mv = pairManual(mrState, mrProfile.misregX * mrState.current, mrProfile.misregY * mrState.current);
+          v.textContent = 'Misregistration  ' + mv.x.toFixed(1) + ', ' + mv.y.toFixed(1) + 'px';
+        }
         editHud.appendChild(v);
         var h = document.createElement('span');
         h.className = 'hint';
@@ -1854,17 +2242,46 @@ type deformer</textarea>
         return d >= 0 ? base * (1 + d / 60) : base / (1 + (-d) / 90);
       }
 
+      function hasManualOverrides(m) {
+        if (m.manualX != null || m.manualY != null) return true;
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          if (operatorState(m, OPERATOR_IDS[i]).manual != null) return true;
+        }
+        return false;
+      }
+
       function resetLetter(m) {
+        var state = operatorState(m, params.activeOperator);
+        var hasState = params.activeOperator === 'stretch'
+          ? (m.manualX != null || m.manualY != null || state.toggled || state.current > 0.0005)
+          : (state.manual != null || state.toggled || state.current > 0.0005);
+        if (!hasState) return;
         pushHistory();
-        m.manualX = m.manualY = null;
-        m.locked = false;
-        m.toggled = false;
-        m.currentIntensity = 0;
-        m.active = false;
-        m.el.classList.remove('locked');
-        m.el.style.removeProperty('--ix');
-        m.el.style.removeProperty('--iy');
+        state.toggled = false;
+        state.hovered = false;
+        state.current = 0;
+        state.manual = null;
+        if (params.activeOperator === 'stretch') m.manualX = m.manualY = null;
+        m.locked = m.explicitLock || hasManualOverrides(m);
+        m.el.classList.toggle('locked', m.locked);
+        applySingleOperatorVisual(m, params.activeOperator);
         schedule();
+      }
+
+      function manualValueAtDragStart(m, id) {
+        var state = operatorState(m, id), st = m.el.style;
+        if (id === 'stretch') return { x: parseFloat(st.getPropertyValue('--ix')) || 1, y: parseFloat(st.getPropertyValue('--iy')) || 1 };
+        if (id === 'rotate') return parseFloat(st.getPropertyValue('--op-rotate')) || 0;
+        if (id === 'skew') return { x: parseFloat(st.getPropertyValue('--op-skew-x')) || 0, y: parseFloat(st.getPropertyValue('--op-skew-y')) || 0 };
+        if (id === 'baselineShift') {
+          var raw = params.vertical ? parseFloat(st.getPropertyValue('--op-baseline-x')) : -parseFloat(st.getPropertyValue('--op-baseline-y'));
+          return isFinite(raw) ? raw : 0;
+        }
+        if (id === 'mirror') return {
+          x: isFinite(parseFloat(st.getPropertyValue('--op-mirror-x'))) ? parseFloat(st.getPropertyValue('--op-mirror-x')) : 1,
+          y: isFinite(parseFloat(st.getPropertyValue('--op-mirror-y'))) ? parseFloat(st.getPropertyValue('--op-mirror-y')) : 1
+        };
+        return pairManual(state, batchProfileForKey(m.batchKey).misregX * state.current, batchProfileForKey(m.batchKey).misregY * state.current);
       }
 
       // Manual double-tap detection (independent of the 'dblclick' event,
@@ -1878,15 +2295,16 @@ type deformer</textarea>
         var pt = stagePoint(e);
         var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
         if (!m) return;
-        pushHistory();
         editDrag = {
           m: m,
           id: e.pointerId,
           x0: e.clientX,
           y0: e.clientY,
           moved: false,
-          baseX: parseFloat(m.el.style.getPropertyValue('--ix')) || 1,
-          baseY: parseFloat(m.el.style.getPropertyValue('--iy')) || 1
+          changed: false,
+          historyPushed: false,
+          operator: params.activeOperator,
+          base: manualValueAtDragStart(m, params.activeOperator)
         };
         m.el.classList.add('editing');
         setTarget(m);
@@ -1900,17 +2318,36 @@ type deformer</textarea>
         var fine = e.shiftKey ? 0.25 : 1; // shift = fine adjustment
         var dx = (e.clientX - editDrag.x0) * fine;
         var dy = (e.clientY - editDrag.y0) * fine;
+        if (Math.abs(dx) <= 0.01 && Math.abs(dy) <= 0.01) return;
+        editDrag.changed = true;
+        if (!editDrag.historyPushed && (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01)) {
+          pushHistory();
+          editDrag.historyPushed = true;
+        }
         if (Math.abs(e.clientX - editDrag.x0) > TAP_MOVE_MAX || Math.abs(e.clientY - editDrag.y0) > TAP_MOVE_MAX) editDrag.moved = true;
-        var ix = Math.min(8, Math.max(0.25, dragStretch(editDrag.baseX, dx)));
-        var iy = Math.min(9, Math.max(0.25, dragStretch(editDrag.baseY, -dy)));
         var m = editDrag.m;
-        m.manualX = ix;
-        m.manualY = iy;
+        var id = editDrag.operator;
+        var state = operatorState(m, id);
+        if (id === 'stretch') {
+          m.manualX = Math.min(8, Math.max(0.25, dragStretch(editDrag.base.x, dx)));
+          m.manualY = Math.min(9, Math.max(0.25, dragStretch(editDrag.base.y, -dy)));
+        } else if (id === 'rotate') {
+          state.manual = Math.max(-360, Math.min(360, editDrag.base + dx));
+        } else if (id === 'skew') {
+          state.manual = { x: Math.max(-85, Math.min(85, editDrag.base.x + dx * 0.5)), y: Math.max(-85, Math.min(85, editDrag.base.y - dy * 0.5)) };
+        } else if (id === 'baselineShift') {
+          var logicalDelta = (params.vertical ? dx : -dy) / Math.max(1, params.fontSize);
+          state.manual = Math.max(-5, Math.min(5, editDrag.base + logicalDelta));
+        } else if (id === 'mirror') {
+          state.manual = { x: Math.max(-1, Math.min(1, editDrag.base.x - dx / 60)), y: Math.max(-1, Math.min(1, editDrag.base.y + dy / 60)) };
+        } else {
+          state.manual = { x: Math.max(-120, Math.min(120, editDrag.base.x + dx)), y: Math.max(-120, Math.min(120, editDrag.base.y + dy)) };
+        }
+        state.toggled = true;
+        state.current = 1;
         m.locked = true;
-        m.active = true;
         m.el.classList.add('locked');
-        m.el.style.setProperty('--ix', ix.toFixed(3));
-        m.el.style.setProperty('--iy', iy.toFixed(3));
+        applySingleOperatorVisual(m, id);
         if (selectedM === m) updateHud();
         if (e.cancelable) e.preventDefault();
       });
@@ -1919,12 +2356,13 @@ type deformer</textarea>
         if (!editDrag || e.pointerId !== editDrag.id) return;
         var m = editDrag.m;
         m.el.classList.remove('editing');
-        if (!editDrag.moved) {
+        if (!editDrag.changed) {
           // a tap, not a drag — check whether it completes a double-tap
           var now = Date.now();
           if (lastTap && lastTap.m === m && now - lastTap.time < TAP_TIME_MAX &&
               Math.abs(e.clientX - lastTap.x) < TAP_MOVE_MAX && Math.abs(e.clientY - lastTap.y) < TAP_MOVE_MAX) {
             resetLetter(m);
+            suppressDblClickUntil = now + 500;
             lastTap = null;
           } else {
             lastTap = { m: m, time: now, x: e.clientX, y: e.clientY };
@@ -1938,9 +2376,11 @@ type deformer</textarea>
       stage.addEventListener('pointercancel', endEditDrag);
 
       // Desktop mouse dblclick still works (and fires alongside the manual
-      // detection above, but resetLetter is idempotent so this is harmless).
+      // detection above). Suppress the native duplicate after a manual reset.
+      var suppressDblClickUntil = 0;
       stage.addEventListener('dblclick', function (e) {
         if (params.mode !== 'edit') return;
+        if (Date.now() < suppressDblClickUntil) return;
         var pt = stagePoint(e);
         var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
         if (!m) return;
@@ -1982,8 +2422,7 @@ type deformer</textarea>
         var pt = stagePoint(e);
         var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
         if (!m) return;
-        pushHistory();
-        gridDrag = { m: m, id: e.pointerId, moved: false, x0: e.clientX, y0: e.clientY };
+        gridDrag = { m: m, id: e.pointerId, moved: false, historyPushed: false, x0: e.clientX, y0: e.clientY };
         m.el.classList.add('gdragging');
         selectLetter(m);
         try { stage.setPointerCapture(e.pointerId); } catch (err) { }
@@ -2000,6 +2439,7 @@ type deformer</textarea>
         gridDrag.m.el.classList.remove('gdragging');
         if (gridDrag.moved) {
           var targetCell = cellIndexAt(stagePoint(e));
+          if (cellMetricCellOf(gridDrag.m) !== targetCell) pushHistory();
           swapGridCells(gridDrag.m, targetCell);
         }
         gridDrag = null;
@@ -2037,42 +2477,54 @@ type deformer</textarea>
         if (now - lastNudgePush > 600) pushHistory(); // one history entry per burst
         lastNudgePush = now;
         var el = selectedM.el;
-        var ix = parseFloat(el.style.getPropertyValue('--ix')) || 1;
-        var iy = parseFloat(el.style.getPropertyValue('--iy')) || 1;
-        ix = Math.min(8, Math.max(0.25, ix + dx));
-        iy = Math.min(9, Math.max(0.25, iy + dy));
-        selectedM.manualX = ix;
-        selectedM.manualY = iy;
+        var id = params.activeOperator;
+        var state = operatorState(selectedM, id);
+        var base = manualValueAtDragStart(selectedM, id);
+        if (id === 'stretch') {
+          selectedM.manualX = Math.min(8, Math.max(0.25, base.x + dx));
+          selectedM.manualY = Math.min(9, Math.max(0.25, base.y + dy));
+        } else if (id === 'rotate') state.manual = Math.max(-360, Math.min(360, base + dx * 20));
+        else if (id === 'skew') state.manual = { x: Math.max(-85, Math.min(85, base.x + dx * 20)), y: Math.max(-85, Math.min(85, base.y + dy * 20)) };
+        else if (id === 'baselineShift') state.manual = Math.max(-5, Math.min(5, base + (params.vertical ? dx : dy)));
+        else if (id === 'mirror') state.manual = { x: Math.max(-1, Math.min(1, base.x - dx)), y: Math.max(-1, Math.min(1, base.y - dy)) };
+        else state.manual = { x: Math.max(-120, Math.min(120, base.x + dx * 20)), y: Math.max(-120, Math.min(120, base.y - dy * 20)) };
+        state.toggled = true;
+        state.current = 1;
         selectedM.locked = true;
-        selectedM.active = true;
         el.classList.add('locked');
-        el.style.setProperty('--ix', ix.toFixed(3));
-        el.style.setProperty('--iy', iy.toFixed(3));
+        applySingleOperatorVisual(selectedM, id);
         updateHud();
       }
 
       function lockAll() {
         for (var i = 0; i < metrics.length; i++) {
           metrics[i].locked = true;
+          metrics[i].explicitLock = true;
           metrics[i].el.classList.add('locked');
         }
       }
       function unlockAll() {
         for (var i = 0; i < metrics.length; i++) {
           metrics[i].locked = false;
+          metrics[i].explicitLock = false;
           metrics[i].manualX = metrics[i].manualY = null;
+          for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[i], OPERATOR_IDS[oi]).manual = null;
           metrics[i].el.classList.remove('locked');
         }
-        schedule();
+        applyRandom();
       }
       function resetAll() {
         for (var i = 0; i < metrics.length; i++) {
           var m = metrics[i];
           m.locked = false;
-          m.toggled = false;
-          m.hovered = false;
+          m.explicitLock = false;
           m.manualX = m.manualY = null;
+          for (var oi = 0; oi < OPERATOR_IDS.length; oi++) {
+            var state = operatorState(m, OPERATOR_IDS[oi]);
+            state.toggled = false; state.hovered = false; state.current = 0; state.manual = null;
+          }
           m.el.classList.remove('locked');
+          applyOperatorVisual(m);
         }
         schedule();
       }
@@ -2087,8 +2539,8 @@ type deformer</textarea>
         punct: function (ch, cp) { return batchKeyFor(ch, cp) === 'punct'; }
       };
 
-      // stretch every (unlocked) letter of one class at once; if the whole
-      // class is already stretched, release it instead
+      // Apply the currently selected operator to every unlocked letter in one
+      // script class; if the class is already on, release it.
       function batchToggle(matcher) {
         var targets = [];
         for (var i = 0; i < metrics.length; i++) {
@@ -2102,16 +2554,111 @@ type deformer</textarea>
         pushHistory();
         var allOn = true;
         for (var j = 0; j < targets.length; j++) {
-          if (!targets[j].toggled) { allOn = false; break; }
+          if (!operatorState(targets[j], params.activeOperator).toggled) { allOn = false; break; }
         }
         for (var k = 0; k < targets.length; k++) {
-          targets[k].toggled = !allOn;
-          targets[k].hovered = false;
+          var targetState = operatorState(targets[k], params.activeOperator);
+          targetState.toggled = !allOn;
+          targetState.hovered = false;
         }
         schedule();
       }
 
       /* ---------------- per-letter state restore (undo / project load) ---------------- */
+      function cloneManualValue(value) {
+        if (value == null) return null;
+        if (typeof value === 'object') return { x: Number(value.x) || 0, y: Number(value.y) || 0 };
+        return Number(value) || 0;
+      }
+
+      function clampFinite(value, min, max, fallback) {
+        value = Number(value);
+        if (!isFinite(value)) value = fallback;
+        return Math.max(min, Math.min(max, value));
+      }
+
+      // Project/Share data is user-editable input. Enforce the same bounds as
+      // Edit gestures before a restored value can reach a CSS transform.
+      function normalizeOperatorManual(id, value) {
+        if (id === 'rotate') return clampFinite(value, -360, 360, 0);
+        if (id === 'baselineShift') return clampFinite(value, -5, 5, 0);
+        var pair = value && typeof value === 'object' ? value : {};
+        if (id === 'skew') return { x: clampFinite(pair.x, -85, 85, 0), y: clampFinite(pair.y, -85, 85, 0) };
+        if (id === 'mirror') return { x: clampFinite(pair.x, -1, 1, 1), y: clampFinite(pair.y, -1, 1, 1) };
+        if (id === 'misregistration') return { x: clampFinite(pair.x, -120, 120, 0), y: clampFinite(pair.y, -120, 120, 0) };
+        return null;
+      }
+
+      function sparseOperatorState(m) {
+        var result = {};
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          var id = OPERATOR_IDS[i];
+          if (id === 'stretch') continue;
+          var state = operatorState(m, id);
+          if (!state.toggled && state.current < 0.0005 && state.manual == null) continue;
+          var saved = { t: state.toggled ? 1 : 0, i: Math.round(state.current * 1000) / 1000 };
+          if (state.manual != null) saved.m = cloneManualValue(state.manual);
+          result[id] = saved;
+        }
+        return Object.keys(result).length ? result : null;
+      }
+
+      function restoreOperatorStates(m, raw) {
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          var clean = operatorState(m, OPERATOR_IDS[i]);
+          if (OPERATOR_IDS[i] !== 'stretch') { clean.toggled = false; clean.current = 0; clean.manual = null; }
+          clean.hovered = false;
+        }
+        if (!raw || typeof raw !== 'object') return;
+        for (var id in raw) {
+          if (!OPERATOR_DEFS[id] || id === 'stretch') continue;
+          var source = raw[id];
+          if (!source || typeof source !== 'object') continue;
+          var state = operatorState(m, id);
+          state.toggled = !!source.t;
+          state.current = Math.max(0, Math.min(1, Number(source.i) || 0));
+          if (source.m != null) state.manual = normalizeOperatorManual(id, source.m);
+        }
+      }
+
+      function encodeOperatorStates(m) {
+        var rows = [];
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          var id = OPERATOR_IDS[i];
+          if (id === 'stretch') continue;
+          var state = operatorState(m, id);
+          if (!state.toggled && state.current < 0.0005 && state.manual == null) continue;
+          var manual = '';
+          if (state.manual != null) {
+            manual = typeof state.manual === 'object'
+              ? Math.round((Number(state.manual.x) || 0) * 1000) + '@' + Math.round((Number(state.manual.y) || 0) * 1000)
+              : String(Math.round((Number(state.manual) || 0) * 1000));
+          }
+          rows.push(OPERATOR_DEFS[id].short + ':' + (state.toggled ? 1 : 0) + ':' + Math.round(state.current * 1000) + ':' + manual);
+        }
+        return rows.join('~');
+      }
+
+      function decodeOperatorStates(encoded) {
+        var result = {};
+        if (!encoded || typeof encoded !== 'string') return result;
+        var rows = encoded.split('~');
+        for (var i = 0; i < rows.length; i++) {
+          var fields = rows[i].split(':');
+          var id = OPERATOR_BY_SHORT[fields[0]];
+          if (!id || id === 'stretch') continue;
+          var saved = { t: +fields[1] ? 1 : 0, i: Math.max(0, Math.min(1, (+fields[2] || 0) / 1000)) };
+          if (fields[3]) {
+            if (fields[3].indexOf('@') !== -1) {
+              var pair = fields[3].split('@');
+              saved.m = { x: (+pair[0] || 0) / 1000, y: (+pair[1] || 0) / 1000 };
+            } else saved.m = (+fields[3] || 0) / 1000;
+          }
+          result[id] = saved;
+        }
+        return result;
+      }
+
       function applyLetterState(m, s) {
         if (!s || typeof s !== 'object') return;
         m.toggled = !!s.t;
@@ -2124,6 +2671,8 @@ type deformer</textarea>
         m.manualY = isFinite(manualY) && manualY > 0 ? Math.max(0.1, Math.min(9, manualY)) : null;
         var gridCell = Number(s.gc);
         m.gridCell = s.gc != null && s.gc !== '' && isFinite(gridCell) && gridCell >= 0 ? Math.floor(gridCell) : null;
+        restoreOperatorStates(m, s.o);
+        m.explicitLock = s.x != null ? !!s.x : (m.locked && !hasManualOverrides(m));
         m.el.classList.toggle('locked', m.locked);
         if (m.manualX || m.manualY) {
           m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
@@ -2136,6 +2685,7 @@ type deformer</textarea>
           m.el.style.removeProperty('--iy');
           m.active = false;
         }
+        applyOperatorVisual(m);
       }
 
       function restoreStates(states) {
@@ -2179,6 +2729,8 @@ type deformer</textarea>
         m.manualX = s.mx ? +s.mx : null;
         m.manualY = s.my ? +s.my : null;
         m.gridCell = (s.gc != null && s.gc !== '') ? +s.gc : null;
+        restoreOperatorStates(m, s.o);
+        m.explicitLock = s.x != null ? !!s.x : (m.locked && !hasManualOverrides(m));
         el.classList.toggle('locked', m.locked);
         // unlike applyLetterState, never recompute or clear --ix/--iy here —
         // the restored style attribute is the exact visual truth, including
@@ -2206,11 +2758,14 @@ type deformer</textarea>
       /* ---------------- undo / redo ---------------- */
       function letterState(m) {
         var s = { t: m.toggled ? 1 : 0, l: m.locked ? 1 : 0, i: Math.round(m.currentIntensity * 1000) / 1000 };
+        if (m.explicitLock) s.x = 1;
         if (m.manualX || m.manualY) {
           s.mx = Math.round((m.manualX || 1) * 1000) / 1000;
           s.my = Math.round((m.manualY || 1) * 1000) / 1000;
         }
         if (m.gridCell != null) s.gc = m.gridCell;
+        var ops = sparseOperatorState(m);
+        if (ops) s.o = ops;
         return s;
       }
 
@@ -2225,7 +2780,7 @@ type deformer</textarea>
             Math.round(m.currentIntensity * 1000) + ',' +
             (m.manualX ? Math.round(m.manualX * 1000) : '') + ',' +
             (m.manualY ? Math.round(m.manualY * 1000) : '') + ',' +
-            (m.gridCell != null ? m.gridCell : '');
+            (m.gridCell != null ? m.gridCell : '') + ',' + encodeOperatorStates(m) + ',' + (m.explicitLock ? 1 : '');
         }
         return params.seed + '|' + arr.join(';');
       }
@@ -2244,7 +2799,9 @@ type deformer</textarea>
         var seed = parseFloat(snap.slice(0, sep));
         if (seed !== params.seed) {
           params.seed = seed;
-          applyRandom();
+          // Undo may be restoring an unlocked state from a currently locked
+          // one, so regenerate the base layer before letter locks are applied.
+          applyRandom(true);
         }
         var rows = snap.slice(sep + 1).split(';');
         var states = [];
@@ -2255,7 +2812,9 @@ type deformer</textarea>
             t: +f[0], l: +f[1], i: (+f[2]) / 1000,
             mx: f[3] ? (+f[3]) / 1000 : 0,
             my: f[4] ? (+f[4]) / 1000 : 0,
-            gc: f[5] ? +f[5] : null
+            gc: f[5] ? +f[5] : null,
+            o: decodeOperatorStates(f[6] || ''),
+            x: f[7] ? 1 : 0
           });
         }
         restoreStates(states);
@@ -2274,6 +2833,20 @@ type deformer</textarea>
       }
 
       /* ---------------- export helpers ---------------- */
+      function cssNumber(style, name, fallback) {
+        var value = parseFloat(style.getPropertyValue(name));
+        return isFinite(value) ? value : fallback;
+      }
+
+      function hasVisibleOperatorDeform(m) {
+        if (m.manualX != null || m.manualY != null) return true;
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          var state = operatorState(m, OPERATOR_IDS[i]);
+          if (state.manual != null || state.current > 0.0005) return true;
+        }
+        return false;
+      }
+
       // Snapshot of every visible glyph: layout box + effective transform.
       function snapshotGlyphs() {
         var glyphs = [];
@@ -2284,15 +2857,22 @@ type deformer</textarea>
         for (var i = 0; i < metrics.length; i++) {
           var m = metrics[i], el = m.el;
           var cs = getComputedStyle(el);
-          var sx = parseFloat(cs.getPropertyValue('--sx')) || 1;
-          var sy = parseFloat(cs.getPropertyValue('--sy')) || 1;
-          var ix = parseFloat(cs.getPropertyValue('--ix')) || 1;
-          var iy = parseFloat(cs.getPropertyValue('--iy')) || 1;
-          var tx = (parseFloat(cs.getPropertyValue('--tx')) || 0) * params.fontSize; // em → px
-          var ty = (parseFloat(cs.getPropertyValue('--ty')) || 0) * params.fontSize;
+          var sx = cssNumber(cs, '--sx', 1);
+          var sy = cssNumber(cs, '--sy', 1);
+          var ix = cssNumber(cs, '--ix', 1);
+          var iy = cssNumber(cs, '--iy', 1);
+          var mirrorX = cssNumber(cs, '--op-mirror-x', 1);
+          var mirrorY = cssNumber(cs, '--op-mirror-y', 1);
+          var tx = (cssNumber(cs, '--tx', 0) + cssNumber(cs, '--op-baseline-x', 0)) * params.fontSize; // em → px
+          var ty = (cssNumber(cs, '--ty', 0) + cssNumber(cs, '--op-baseline-y', 0)) * params.fontSize;
           // deformed-only export: skip letters at their resting shape
-          if (params.deformedOnly && ix === 1 && iy === 1) continue;
-          var rot = parseFloat(cs.getPropertyValue('--rot')) || 0; // deg
+          if (params.deformedOnly && !hasVisibleOperatorDeform(m)) continue;
+          var rot = cssNumber(cs, '--rot', 0) + cssNumber(cs, '--op-rotate', 0); // deg
+          var skewX = cssNumber(cs, '--op-skew-x', 0);
+          var skewY = cssNumber(cs, '--op-skew-y', 0);
+          var misregState = operatorState(m, 'misregistration');
+          var deform = batchProfileForKey(m.batchKey);
+          var misreg = pairManual(misregState, deform.misregX * misregState.current, deform.misregY * misregState.current);
           var w = el.offsetWidth, h = el.offsetHeight;
           var x = 0, y = 0, o = el;
           while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
@@ -2334,8 +2914,9 @@ type deformer</textarea>
             bx: bx, by: by, bw: bw, bh: bh,
             grid: isGridGlyph,
             ox: x + w / 2, oy: y + h * 0.75,   // transform-origin 50% 75%
-            tx: tx, ty: ty, rot: rot,
-            scaleX: sx * ix, scaleY: sy * iy
+            tx: tx, ty: ty, rot: rot, skewX: skewX, skewY: skewY,
+            scaleX: sx * ix * mirrorX, scaleY: sy * iy * mirrorY,
+            misregX: misreg.x, misregY: misreg.y
           });
         }
         return glyphs;
@@ -2345,21 +2926,32 @@ type deformer</textarea>
         var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
-          // transformed corners: p' = O + t + R·S·(p − O)
+          // transformed corners: p' = O + t + R·K·S·(p − O)
           var rad = (g.rot || 0) * Math.PI / 180;
           var cosR = Math.cos(rad), sinR = Math.sin(rad);
+          var tanX = Math.tan((g.skewX || 0) * Math.PI / 180);
+          var tanY = Math.tan((g.skewY || 0) * Math.PI / 180);
+          var ma = cosR * g.scaleX - sinR * tanY * g.scaleX;
+          var mb = sinR * g.scaleX + cosR * tanY * g.scaleX;
+          var mc = cosR * tanX * g.scaleY - sinR * g.scaleY;
+          var md = sinR * tanX * g.scaleY + cosR * g.scaleY;
           var bx = g.bx != null ? g.bx : g.x;
           var by = g.by != null ? g.by : g.y;
           var bw = g.bw != null ? g.bw : g.w;
           var bh = g.bh != null ? g.bh : g.h;
           var xs = [bx, bx + bw], ys = [by, by + bh];
           for (var a = 0; a < 2; a++) for (var b = 0; b < 2; b++) {
-            var lx = g.scaleX * (xs[a] - g.ox);
-            var ly = g.scaleY * (ys[b] - g.oy);
-            var px = g.ox + g.tx + cosR * lx - sinR * ly;
-            var py = g.oy + g.ty + sinR * lx + cosR * ly;
-            if (px < minX) minX = px; if (px > maxX) maxX = px;
-            if (py < minY) minY = py; if (py > maxY) maxY = py;
+            var lx = xs[a] - g.ox;
+            var ly = ys[b] - g.oy;
+            var px = g.ox + g.tx + ma * lx + mc * ly;
+            var py = g.oy + g.ty + mb * lx + md * ly;
+            var offsets = [[0, 0]];
+            if (Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001) offsets.push([g.misregX, g.misregY], [-g.misregX * 0.65, -g.misregY * 0.65]);
+            for (var pass = 0; pass < offsets.length; pass++) {
+              var passX = px + offsets[pass][0], passY = py + offsets[pass][1];
+              if (passX < minX) minX = passX; if (passX > maxX) maxX = passX;
+              if (passY < minY) minY = passY; if (passY > maxY) maxY = passY;
+            }
           }
         }
         if (!glyphs.length) { minX = minY = 0; maxX = maxY = 100; }
@@ -2476,38 +3068,48 @@ type deformer</textarea>
         var font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
-          // artboard/viewport placement, then the glyph's own deform transform
-          ctx.setTransform(scale, 0, 0, scale, 0, 0);
-          ctx.translate(L.dx, L.dy);
-          ctx.scale(L.s, L.s);
-          ctx.translate(g.ox + g.tx, g.oy + g.ty);
-          ctx.rotate((g.rot || 0) * Math.PI / 180);
-          ctx.scale(g.scaleX, g.scaleY);
-          ctx.translate(-g.ox, -g.oy);
-          ctx.globalAlpha = useVisualOpacity ? g.opacity : 1;
-          ctx.font = font;
-          ctx.fillStyle = g.accent ? params.accent : params.ink;
-          if (params.vertical) {
-            // vertical flow: glyphs sit centred in their layout box;
-            // non-upright scripts are rotated 90° by text-orientation: mixed
-            var cx = g.x + g.w / 2;
-            var cy = g.y + g.h / 2;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            if (!g.upright) {
-              ctx.translate(cx, cy);
-              ctx.rotate(Math.PI / 2);
-              ctx.fillText(g.ch, 0, 0);
+          function drawPass(offsetX, offsetY, color, alpha, blend) {
+            // Page-space ink offset is placed before the glyph matrix. This is
+            // why Misregistration remains horizontal/vertical even after a
+            // glyph is rotated, skewed, mirrored, or stretched.
+            ctx.setTransform(scale, 0, 0, scale, 0, 0);
+            ctx.translate(L.dx, L.dy);
+            ctx.scale(L.s, L.s);
+            ctx.translate(offsetX || 0, offsetY || 0);
+            ctx.translate(g.ox + g.tx, g.oy + g.ty);
+            ctx.rotate((g.rot || 0) * Math.PI / 180);
+            ctx.transform(1, Math.tan((g.skewY || 0) * Math.PI / 180), Math.tan((g.skewX || 0) * Math.PI / 180), 1, 0, 0);
+            ctx.scale(g.scaleX, g.scaleY);
+            ctx.translate(-g.ox, -g.oy);
+            ctx.globalAlpha = (useVisualOpacity ? g.opacity : 1) * alpha;
+            ctx.globalCompositeOperation = blend ? 'multiply' : 'source-over';
+            ctx.font = font;
+            ctx.fillStyle = color;
+            if (params.vertical) {
+              var cx = g.x + g.w / 2;
+              var cy = g.y + g.h / 2;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              if (!g.upright) {
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.PI / 2);
+                ctx.fillText(g.ch, 0, 0);
+              } else {
+                ctx.fillText(g.ch, cx, cy);
+              }
             } else {
-              ctx.fillText(g.ch, cx, cy);
+              ctx.textAlign = g.grid ? 'center' : 'left';
+              ctx.textBaseline = 'alphabetic';
+              ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
             }
-          } else {
-            ctx.textAlign = g.grid ? 'center' : 'left';
-            ctx.textBaseline = 'alphabetic';
-            ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
           }
+          var hasMisreg = Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001;
+          if (hasMisreg) drawPass(g.misregX, g.misregY, params.misregColorA, 0.72, true);
+          drawPass(0, 0, g.accent ? params.accent : params.ink, 1, false);
+          if (hasMisreg) drawPass(-g.misregX * 0.65, -g.misregY * 0.65, params.misregColorB, 0.72, true);
         }
         ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
         ctx.setTransform(1, 0, 0, 1, 0, 0);
       }
 
@@ -2599,11 +3201,9 @@ type deformer</textarea>
         flushPendingTextRebuild();
         if (!params.deformedOnly) return false;
         for (var i = 0; i < metrics.length; i++) {
-          var st = metrics[i].el.style;
-          if ((parseFloat(st.getPropertyValue('--ix')) || 1) !== 1 ||
-              (parseFloat(st.getPropertyValue('--iy')) || 1) !== 1) return false;
+          if (hasVisibleOperatorDeform(metrics[i])) return false;
         }
-        alert('変形（拡大）された文字がありません。Deformed only をオフにするか、文字を変形してください。');
+        alert('変形された文字がありません。Deformed only をオフにするか、文字を変形してください。');
         return true;
       }
 
@@ -2682,6 +3282,7 @@ type deformer</textarea>
 
         var parts = [];
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
+        parts.push('<metadata>' + escXml(JSON.stringify({ app: 'type-deformer', version: 3, sourceText: textInput.value })) + '</metadata>');
         parts.push('<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond&amp;family=Space+Mono&amp;family=Zen+Old+Mincho&amp;family=Noto+Sans+JP&amp;family=Zen+Kaku+Gothic+New&amp;display=swap");</style>');
         if (!params.transparentBg) {
           parts.push('<rect width="100%" height="100%" fill="' + params.paper + '"/>');
@@ -2691,22 +3292,30 @@ type deformer</textarea>
 
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
-          var fill = g.accent ? ' fill="' + params.accent + '"' : '';
           var tr = 'translate(' + (g.ox + g.tx).toFixed(2) + ' ' + (g.oy + g.ty).toFixed(2) + ')'
             + (g.rot ? ' rotate(' + g.rot.toFixed(2) + ')' : '')
+            + ((g.skewX || g.skewY) ? ' matrix(1 ' + Math.tan((g.skewY || 0) * Math.PI / 180).toFixed(6) + ' ' + Math.tan((g.skewX || 0) * Math.PI / 180).toFixed(6) + ' 1 0 0)' : '')
             + ' scale(' + g.scaleX.toFixed(4) + ' ' + g.scaleY.toFixed(4) + ')'
             + ' translate(' + (-g.ox).toFixed(2) + ' ' + (-g.oy).toFixed(2) + ')';
-          if (params.vertical) {
-            var cx = g.x + g.w / 2;
-            var cy = g.y + g.h / 2;
-            tr += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (!g.upright ? ' rotate(90)' : '');
-            parts.push('<text x="0" y="0" text-anchor="middle" dominant-baseline="central"' + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
-          } else {
-            var x = g.grid ? g.x + g.w / 2 : g.x;
-            var y = g.y + baselineOffset(g, fm);
-            var anchor = g.grid ? ' text-anchor="middle"' : '';
-            parts.push('<text x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '"' + anchor + fill + ' transform="' + tr + '">' + escXml(g.ch) + '</text>');
+          function pushSvgPass(offsetX, offsetY, color, opacity, multiply) {
+            var passTransform = (offsetX || offsetY ? 'translate(' + offsetX.toFixed(2) + ' ' + offsetY.toFixed(2) + ') ' : '') + tr;
+            var attrs = ' fill="' + color + '"' + (opacity < 1 ? ' opacity="' + opacity + '"' : '') + (multiply ? ' style="mix-blend-mode:multiply"' : '');
+            if (params.vertical) {
+              var cx = g.x + g.w / 2;
+              var cy = g.y + g.h / 2;
+              passTransform += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (!g.upright ? ' rotate(90)' : '');
+              parts.push('<text x="0" y="0" text-anchor="middle" dominant-baseline="central"' + attrs + ' transform="' + passTransform + '">' + escXml(g.ch) + '</text>');
+            } else {
+              var textX = g.grid ? g.x + g.w / 2 : g.x;
+              var textY = g.y + baselineOffset(g, fm);
+              var anchor = g.grid ? ' text-anchor="middle"' : '';
+              parts.push('<text x="' + textX.toFixed(2) + '" y="' + textY.toFixed(2) + '"' + anchor + attrs + ' transform="' + passTransform + '">' + escXml(g.ch) + '</text>');
+            }
           }
+          var hasMisreg = Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001;
+          if (hasMisreg) pushSvgPass(g.misregX, g.misregY, params.misregColorA, 0.72, true);
+          pushSvgPass(0, 0, g.accent ? params.accent : params.ink, 1, false);
+          if (hasMisreg) pushSvgPass(-g.misregX * 0.65, -g.misregY * 0.65, params.misregColorB, 0.72, true);
         }
         parts.push('</g></g></svg>');
 
@@ -2719,6 +3328,10 @@ type deformer</textarea>
       var batchProfileSelect = document.getElementById('pBatchProfile');
       var batchProfileStatus = document.getElementById('batchProfileStatus');
       var btnBatchProfileReset = document.getElementById('btnBatchProfileReset');
+      var operatorSelect = document.getElementById('pOperator');
+      var operatorPanels = document.querySelectorAll('[data-operator-panel]');
+      var mirrorXInput = document.getElementById('pMirrorX');
+      var mirrorYInput = document.getElementById('pMirrorY');
 
       function refreshBatchProfileControls() {
         var source = batchProfileForKey(activeBatchProfile);
@@ -2728,12 +3341,28 @@ type deformer</textarea>
           control.input.value = source[control.key];
           control.val.textContent = control.fmt(source[control.key]);
         }
+        mirrorXInput.checked = !!source.mirrorX;
+        mirrorYInput.checked = !!source.mirrorY;
         var inherited = activeBatchProfile !== 'all' && !batchProfiles[activeBatchProfile];
         batchProfileStatus.textContent = activeBatchProfile === 'all'
           ? 'All：全文字の基準値'
           : BATCH_PROFILE_LABELS[activeBatchProfile] + '：' + (inherited ? 'Allを継承中（スライダーを動かすと個別設定）' : '個別設定');
         btnBatchProfileReset.disabled = activeBatchProfile === 'all' || inherited;
       }
+
+      function setActiveOperator(id) {
+        params.activeOperator = OPERATOR_DEFS[id] ? id : 'stretch';
+        operatorSelect.value = params.activeOperator;
+        for (var i = 0; i < operatorPanels.length; i++) {
+          operatorPanels[i].hidden = operatorPanels[i].dataset.operatorPanel !== params.activeOperator;
+        }
+        for (var m = 0; m < metrics.length; m++) {
+          for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[m], OPERATOR_IDS[oi]).hovered = false;
+        }
+        if (selectedM) updateHud();
+      }
+
+      operatorSelect.addEventListener('change', function () { setActiveOperator(operatorSelect.value); });
 
       function setActiveBatchProfile(key) {
         activeBatchProfile = key === 'all' || BATCH_PROFILE_KEYS.indexOf(key) !== -1 ? key : 'all';
@@ -2759,6 +3388,9 @@ type deformer</textarea>
       var f2 = function (v) { return v.toFixed(2); };
       var f1 = function (v) { return v.toFixed(1); };
       var f0 = function (v) { return String(Math.round(v)); };
+      var fDeg = function (v) { return Math.round(v) + '°'; };
+      var fEm = function (v) { return v.toFixed(2) + 'em'; };
+      var fPx = function (v) { return Math.round(v) + 'px'; };
 
       // rAF-throttled full recompute for slider drags (one pass per frame,
       // not one per input event)
@@ -2782,6 +3414,7 @@ type deformer</textarea>
           stretchQueued = false;
           for (var i = 0; i < metrics.length; i++) {
             var m = metrics[i];
+            if (m.locked) continue;
             if (m.manualX || m.manualY) continue; // manual values are absolute
             if (m.currentIntensity > 0.001) applyStretch(m);
           }
@@ -2795,6 +3428,12 @@ type deformer</textarea>
       bindRange('pGeo', 'vGeo', 'geoRatio', f2, queueApplyRandom);
       bindRange('pRandom', 'vRandom', 'randomness', f2, queueApplyRandom);
       bindRange('pRot', 'vRot', 'rotation', f1, queueApplyRandom);
+      bindRange('pRotateAngle', 'vRotateAngle', 'rotateAngle', fDeg, applyAllOperatorVisuals);
+      bindRange('pSkewX', 'vSkewX', 'skewX', fDeg, applyAllOperatorVisuals);
+      bindRange('pSkewY', 'vSkewY', 'skewY', fDeg, applyAllOperatorVisuals);
+      bindRange('pBaselineShift', 'vBaselineShift', 'baselineShift', fEm, applyAllOperatorVisuals);
+      bindRange('pMisregX', 'vMisregX', 'misregX', fPx, applyAllOperatorVisuals);
+      bindRange('pMisregY', 'vMisregY', 'misregY', fPx, applyAllOperatorVisuals);
       bindRange('pSize', 'vSize', 'fontSize', f0, applyStyle);
       bindRange('pLine', 'vLine', 'lineHeight', f2, applyStyle);
       bindRange('pTrack', 'vTrack', 'letterSpacing', f2, applyStyle);
@@ -2810,6 +3449,21 @@ type deformer</textarea>
         refreshBatchProfileControls();
         applyRandom();
         reapplyStretches();
+        applyAllOperatorVisuals();
+      });
+
+      function updateMirrorAxis(key, checked) {
+        editableBatchProfile()[key] = checked ? 1 : 0;
+        refreshBatchProfileControls();
+        applyAllOperatorVisuals();
+      }
+      mirrorXInput.addEventListener('change', function () { updateMirrorAxis('mirrorX', mirrorXInput.checked); });
+      mirrorYInput.addEventListener('change', function () { updateMirrorAxis('mirrorY', mirrorYInput.checked); });
+      document.getElementById('pMisregColorA').addEventListener('input', function (e) {
+        params.misregColorA = e.target.value; applyAllOperatorVisuals();
+      });
+      document.getElementById('pMisregColorB').addEventListener('input', function (e) {
+        params.misregColorB = e.target.value; applyAllOperatorVisuals();
       });
 
       /* grid */
@@ -2885,8 +3539,10 @@ type deformer</textarea>
       var btnVertical = document.getElementById('btnVertical');
       btnVertical.addEventListener('click', function () {
         params.vertical = !params.vertical;
+        markAutosaveDirty();
         btnVertical.setAttribute('aria-pressed', String(params.vertical));
         applyStyle();
+        applyAllOperatorVisuals();
         if (params.gridEnabled) layoutGrid();
       });
       document.getElementById('pTransparent').addEventListener('change', function (e) {
@@ -3014,6 +3670,7 @@ type deformer</textarea>
         stage.classList.toggle('vertical', params.vertical);
         stage.style.color = params.ink;
         stageFrame.style.background = params.paper;
+        applyAllOperatorVisuals();
         scheduleMeasure();
       }
 
@@ -3047,9 +3704,12 @@ type deformer</textarea>
       };
       function setMode(mode) {
         params.mode = mode;
+        markAutosaveDirty();
         // A hover latch from Flow must never survive a mode round-trip;
         // otherwise the first sweep after returning to Flow can be ignored.
-        for (var i = 0; i < metrics.length; i++) metrics[i].hovered = false;
+        for (var i = 0; i < metrics.length; i++) {
+          for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[i], OPERATOR_IDS[oi]).hovered = false;
+        }
         for (var k in modeButtons) modeButtons[k].setAttribute('aria-pressed', String(k === mode));
         stage.classList.toggle('lock-mode', mode === 'lock');
         stage.classList.toggle('edit-mode', mode === 'edit');
@@ -3121,6 +3781,8 @@ type deformer</textarea>
         document.getElementById('pInk').value = params.ink;
         document.getElementById('pPaper').value = params.paper;
         document.getElementById('pAccent').value = params.accent;
+        document.getElementById('pMisregColorA').value = params.misregColorA;
+        document.getElementById('pMisregColorB').value = params.misregColorB;
         document.getElementById('pAlign').value = params.align;
         document.getElementById('pTransparent').checked = params.transparentBg;
         document.getElementById('pDeformedOnly').checked = params.deformedOnly;
@@ -3140,6 +3802,7 @@ type deformer</textarea>
         gridLinesEl.style.display = params.gridLines ? '' : 'none';
         stage.classList.toggle('grid-layout', params.gridEnabled);
         setMode(params.mode);
+        setActiveOperator(params.activeOperator);
         batchProfileSelect.value = activeBatchProfile;
         refreshBatchProfileControls();
         updateExportInfo();
@@ -3149,7 +3812,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 2,
+          version: 3,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -3171,7 +3834,7 @@ type deformer</textarea>
           if (!silent) alert('プロジェクトファイルではないようです。');
           return false;
         }
-        if (data.version != null && data.version > 2) {
+        if (data.version != null && data.version > 3) {
           if (!silent) alert('このプロジェクトは新しいバージョンで保存されています。');
           return false;
         }
@@ -3267,11 +3930,8 @@ type deformer</textarea>
         if (panel) {
           panel.addEventListener('input', markAutosaveDirty, true);
           panel.addEventListener('change', markAutosaveDirty, true);
-          panel.addEventListener('click', markAutosaveDirty, true);
           panel.addEventListener('click', flushPendingTextRebuild, true);
         }
-        stage.addEventListener('pointerdown', markAutosaveDirty, { passive: true });
-        stage.addEventListener('pointermove', markAutosaveDirty, { passive: true });
         setInterval(saveAutosave, 8000);
         window.addEventListener('pagehide', saveAutosave);
         document.addEventListener('visibilitychange', function () {
@@ -3438,12 +4098,13 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 2, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), L: [] };
+        var d = { a: 'td', v: 3, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
-          if (s.t || s.l || s.i > 0.001 || s.mx || s.my || s.gc != null) {
-            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0, s.gc != null ? s.gc : -1]);
+          var encodedOps = encodeOperatorStates(metrics[i]);
+          if (s.t || s.l || s.i > 0.001 || s.mx || s.my || s.gc != null || encodedOps || s.x) {
+            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0, s.gc != null ? s.gc : -1, encodedOps, s.x ? 1 : 0]);
           }
         }
         return d;
@@ -3467,15 +4128,25 @@ type deformer</textarea>
           if (!Array.isArray(row)) continue;
           var rowIndex = Number(row[0]);
           if (!isFinite(rowIndex) || rowIndex < 0 || rowIndex > 200000 || Math.floor(rowIndex) !== rowIndex) continue;
-          letters[rowIndex] = {
+          var restoredLetter = {
             t: row[1], l: row[2], i: row[3] / 1000,
             mx: row[4] ? row[4] / 1000 : 0, my: row[5] ? row[5] / 1000 : 0,
-            gc: (row[6] != null && row[6] !== -1) ? row[6] : null
+            gc: (row[6] != null && row[6] !== -1) ? row[6] : null,
+            o: decodeOperatorStates(row[7] || '')
           };
+          if (row.length > 8) restoredLetter.x = row[8] ? 1 : 0;
+          else {
+            var legacyManualLock = !!(restoredLetter.mx || restoredLetter.my);
+            for (var legacyId in restoredLetter.o) {
+              if (restoredLetter.o[legacyId].m != null) { legacyManualLock = true; break; }
+            }
+            restoredLetter.x = restoredLetter.l && !legacyManualLock ? 1 : 0;
+          }
+          letters[rowIndex] = restoredLetter;
           if (rowIndex > maxIdx) maxIdx = rowIndex;
         }
         for (var j = 0; j <= maxIdx; j++) { if (!letters[j]) letters[j] = { t: 0, l: 0, i: 0 }; }
-        loadProject({ app: 'type-deformer', version: d.v || 1, text: d.text, params: d.params, batchProfiles: d.profiles, letters: letters });
+        return loadProject({ app: 'type-deformer', version: d.v || 1, text: d.text, params: d.params, batchProfiles: d.profiles, letters: letters });
       }
 
       function tryRestoreFromHash() {
@@ -3487,7 +4158,7 @@ type deformer</textarea>
         return Promise.resolve().then(function () {
           return decompressToString(payload.slice(0, dot), b64urlToBytes(payload.slice(dot + 1)));
         })
-          .then(function (json) { applyShareData(JSON.parse(json)); return true; })
+          .then(function (json) { return applyShareData(JSON.parse(json)); })
           .catch(function () { return false; });
       }
 
