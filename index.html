@@ -958,6 +958,7 @@ type deformer</textarea>
       <div class="row"><label for="pOperator">Operator</label>
         <select id="pOperator">
           <option value="stretch" selected>Stretch</option>
+          <option value="confuse">Confuse</option>
           <option value="rotate">Rotate</option>
           <option value="skew">Skew</option>
           <option value="baselineShift">Baseline Shift</option>
@@ -1006,6 +1007,11 @@ type deformer</textarea>
         <div class="row"><label for="pMisregX">Offset X</label><input type="range" id="pMisregX" min="-40" max="40" step="1" value="8"><span class="val" id="vMisregX">8px</span></div>
         <div class="row"><label for="pMisregY">Offset Y</label><input type="range" id="pMisregY" min="-40" max="40" step="1" value="-5"><span class="val" id="vMisregY">-5px</span></div>
         <div class="row"><label for="pMisregColorA">Pass A</label><input type="color" id="pMisregColorA" value="#c41f1f"><label for="pMisregColorB" style="margin-left:auto">Pass B</label><input type="color" id="pMisregColorB" value="#1767a6"></div>
+      </div>
+      <div class="operator-panel" data-operator-panel="confuse" hidden>
+        <div class="row"><label for="pConfuseDepth">Depth</label><input type="range" id="pConfuseDepth" min="0" max="1" step="0.01" value="1"><span class="val" id="vConfuseDepth">1.00</span></div>
+        <div class="row"><label for="pConfuseMixed">Mixed scripts</label><input type="checkbox" id="pConfuseMixed"></div>
+        <p class="note">文字を「似た別の文字」へ段階置換します。深くなるほど遠い候補（濁点・全角→旧字体・字形近似→別スクリプト・装飾）へ。TEXT欄の原文は変わらず、表示だけが化けます。Mixed scriptsで別スクリプト候補（ギリシャ・キリル・囲み文字・漢字⇄カタカナ）を解禁。</p>
       </div>
       <div class="context-lens">
         <div class="sub-head"><span>Lens Gesture</span><span class="r">なぞる</span></div>
@@ -1299,6 +1305,7 @@ type deformer</textarea>
       /** @typedef {{id:string, short:string, label:string, layer:string, layerOrder:number, order:number, strengthMode:string}} OperatorDefinition */
       /** @type {Object.<string, OperatorDefinition>} */
       var OPERATOR_DEFS = {
+        confuse: { id: 'confuse', short: 'c', label: 'Confuse', layer: 'codepoint', layerOrder: EVALUATION_LAYERS.codepoint, order: 5, strengthMode: STRENGTH_MODES.STEPPED },
         stretch: { id: 'stretch', short: 's', label: 'Stretch', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 10, strengthMode: STRENGTH_MODES.CONTINUOUS },
         rotate: { id: 'rotate', short: 'r', label: 'Rotate', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 20, strengthMode: STRENGTH_MODES.CONTINUOUS },
         skew: { id: 'skew', short: 'k', label: 'Skew', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 30, strengthMode: STRENGTH_MODES.CONTINUOUS },
@@ -1309,6 +1316,167 @@ type deformer</textarea>
       var OPERATOR_IDS = Object.keys(OPERATOR_DEFS).sort(function (a, b) {
         return OPERATOR_DEFS[a].layerOrder - OPERATOR_DEFS[b].layerOrder || OPERATOR_DEFS[a].order - OPERATOR_DEFS[b].order;
       });
+
+      /* ---------------- confuse operator: graded lookalike dictionary ----------------
+         Tier 1: form variants of the same character (fullwidth, voicing, small kana, 旧字体)
+         Tier 2: same-script lookalikes (hira⇄kata, similar kanji, styled Latin)
+         Tier 3: cross-script / decorative (Greek・Cyrillic, circled, kanji⇄katakana) — Mixed only
+         The source text is never modified; only the rendered glyph is swapped. */
+
+      // 新字体+旧字体 pairs, packed two chars per entry
+      var CONFUSE_KYUJITAI =
+        '亜亞悪惡圧壓囲圍医醫為爲壱壹隠隱栄榮営營衛衞駅驛円圓塩鹽応應桜櫻奥奧横橫温溫価價会會絵繪拡擴学學楽樂勧勸観觀帰歸気氣亀龜旧舊拠據挙擧区區駆驅径徑恵惠継繼鶏鷄芸藝剣劍権權険險圏圈顕顯験驗厳嚴広廣恒恆鉱鑛号號国國済濟斎齋剤劑惨慘賛贊残殘糸絲歯齒児兒辞辭実實写寫舎舍釈釋寿壽収收従從渋澁獣獸縦縱処處緒緖将將焼燒証證乗乘条條浄淨状狀畳疊譲讓触觸嘱囑真眞粋粹酔醉数數声聲静靜斉齊摂攝専專戦戰浅淺銭錢潜潛禅禪曽曾双雙壮壯争爭荘莊捜搜巣巢装裝総總蔵藏臓臟属屬続續対對体體帯帶滞滯台臺滝瀧択擇沢澤単單担擔胆膽団團断斷弾彈遅遲昼晝虫蟲鋳鑄庁廳聴聽鎮鎭転轉点點伝傳灯燈当當党黨盗盜稲稻闘鬪徳德独獨読讀弐貳悩惱脳腦廃廢拝拜売賣麦麥発發髪髮抜拔蛮蠻浜濱払拂仏佛変變辺邊宝寶豊豐没沒満滿万萬黙默訳譯薬藥予豫余餘与與誉譽様樣謡謠来來頼賴乱亂覧覽竜龍両兩塁壘涙淚励勵礼禮霊靈齢齡恋戀労勞楼樓録錄湾灣';
+
+      // visually confusable kanji, grouped (every member suggests the others)
+      var CONFUSE_SIMILAR_KANJI = [
+        '土士', '未末', '己已巳', '人入', '大太', '曰日', '王玉', '千干', '天夭',
+        '石右', '微徴', '遣遺', '密蜜', '崇祟', '荻萩', '板坂', '拍柏', '縁緑',
+        '積績', '講構', '清晴', '週周', '陳陣', '職織識', '復複', '幸辛', '若苦',
+        '爪瓜', '鳥烏', '兎免', '眠眼', '困因', '刀刃', '矢失', '句旬', '斤斥',
+        '木本', '水氷', '白百', '牛午', '休体', '侍待', '住往'
+      ];
+
+      // kanji that double as katakana shapes (cross-script)
+      var CONFUSE_KATA_KANJI = '口ロ二ニ力カ工エ夕タ卜ト八ハ千チ';
+
+      // dakuten / handakuten voicing ladder (both directions)
+      var CONFUSE_VOICE_PAIRS =
+        'かがきぎくぐけげこごさざしじすずせぜそぞただちぢつづてでとどはばひびふぶへべほぼ' +
+        'カガキギクグケゲコゴサザシジスズセゼソゾタダチヂツヅテデトドハバヒビフブヘベホボウヴ' +
+        'はぱひぴふぷへぺほぽハパヒピフプヘペホポ';
+
+      var CONFUSE_SMALL_KANA = {
+        'あ': 'ぁ', 'い': 'ぃ', 'う': 'ぅ', 'え': 'ぇ', 'お': 'ぉ', 'つ': 'っ', 'や': 'ゃ', 'ゆ': 'ゅ', 'よ': 'ょ', 'わ': 'ゎ',
+        'ア': 'ァ', 'イ': 'ィ', 'ウ': 'ゥ', 'エ': 'ェ', 'オ': 'ォ', 'ツ': 'ッ', 'ヤ': 'ャ', 'ユ': 'ュ', 'ヨ': 'ョ', 'ワ': 'ヮ', 'カ': 'ヵ', 'ケ': 'ヶ'
+      };
+
+      var CONFUSE_HALF_KATA = {
+        'ア': 'ｱ', 'イ': 'ｲ', 'ウ': 'ｳ', 'エ': 'ｴ', 'オ': 'ｵ', 'カ': 'ｶ', 'キ': 'ｷ', 'ク': 'ｸ', 'ケ': 'ｹ', 'コ': 'ｺ',
+        'サ': 'ｻ', 'シ': 'ｼ', 'ス': 'ｽ', 'セ': 'ｾ', 'ソ': 'ｿ', 'タ': 'ﾀ', 'チ': 'ﾁ', 'ツ': 'ﾂ', 'テ': 'ﾃ', 'ト': 'ﾄ',
+        'ナ': 'ﾅ', 'ニ': 'ﾆ', 'ヌ': 'ﾇ', 'ネ': 'ﾈ', 'ノ': 'ﾉ', 'ハ': 'ﾊ', 'ヒ': 'ﾋ', 'フ': 'ﾌ', 'ヘ': 'ﾍ', 'ホ': 'ﾎ',
+        'マ': 'ﾏ', 'ミ': 'ﾐ', 'ム': 'ﾑ', 'メ': 'ﾒ', 'モ': 'ﾓ', 'ヤ': 'ﾔ', 'ユ': 'ﾕ', 'ヨ': 'ﾖ',
+        'ラ': 'ﾗ', 'リ': 'ﾘ', 'ル': 'ﾙ', 'レ': 'ﾚ', 'ロ': 'ﾛ', 'ワ': 'ﾜ', 'ヲ': 'ｦ', 'ン': 'ﾝ', 'ー': 'ｰ'
+      };
+
+      var CONFUSE_GREEK = {
+        'a': 'α', 'e': 'ε', 'i': 'ι', 'k': 'κ', 'n': 'η', 'o': 'ο', 'p': 'ρ', 't': 'τ', 'u': 'υ', 'v': 'ν', 'w': 'ω', 'x': 'χ', 'y': 'γ',
+        'A': 'Α', 'B': 'Β', 'E': 'Ε', 'H': 'Η', 'I': 'Ι', 'K': 'Κ', 'M': 'Μ', 'N': 'Ν', 'O': 'Ο', 'P': 'Ρ', 'T': 'Τ', 'X': 'Χ', 'Y': 'Υ', 'Z': 'Ζ'
+      };
+      var CONFUSE_CYRILLIC = {
+        'a': 'а', 'c': 'с', 'e': 'е', 'o': 'о', 'p': 'р', 'x': 'х', 'y': 'у', 's': 'ѕ', 'i': 'і', 'j': 'ј',
+        'A': 'А', 'B': 'В', 'C': 'С', 'E': 'Е', 'H': 'Н', 'K': 'К', 'M': 'М', 'O': 'О', 'P': 'Р', 'T': 'Т', 'X': 'Х', 'S': 'Ѕ', 'I': 'І', 'J': 'Ј'
+      };
+
+      // mathematical alphanumerics: style base points + Letterlike Symbols holes
+      var CONFUSE_MATH_STYLES = [
+        { upper: 0x1D400, lower: 0x1D41A, holes: {} }, // bold
+        { upper: 0x1D504, lower: 0x1D51E, holes: { 'C': 'ℭ', 'H': 'ℌ', 'I': 'ℑ', 'R': 'ℜ', 'Z': 'ℨ' } }, // fraktur
+        { upper: 0x1D538, lower: 0x1D552, holes: { 'C': 'ℂ', 'H': 'ℍ', 'N': 'ℕ', 'P': 'ℙ', 'Q': 'ℚ', 'R': 'ℝ', 'Z': 'ℤ' } }, // double-struck
+        { upper: 0x1D49C, lower: 0x1D4B6, holes: { 'B': 'ℬ', 'E': 'ℰ', 'F': 'ℱ', 'H': 'ℋ', 'I': 'ℐ', 'L': 'ℒ', 'M': 'ℳ', 'R': 'ℛ', 'e': 'ℯ', 'g': 'ℊ', 'o': 'ℴ' } }, // script
+        { upper: 0x1D670, lower: 0x1D68A, holes: {} } // monospace
+      ];
+
+      var CONFUSE_PUNCT = {
+        '。': { t1: ['｡', '．'], t3: ['○', '◦'] },
+        '、': { t1: ['､', '，'], t3: ['‚'] },
+        '・': { t1: ['･'], t3: ['∙', '•'] },
+        'ー': { t2: ['−', '–'], t3: ['—', '一'] },
+        '「': { t1: ['｢'], t2: ['『'] },
+        '」': { t1: ['｣'], t2: ['』'] },
+        '！': { t1: ['!'], t3: ['ǃ'] },
+        '？': { t1: ['?'], t3: ['ʔ'] },
+        '!': { t1: ['！'], t3: ['ǃ'] },
+        '?': { t1: ['？'], t3: ['ʔ'] },
+        '.': { t1: ['．'], t3: ['·'] },
+        ',': { t1: ['，'], t3: ['‚'] }
+      };
+
+      var CONFUSE_SUPERSCRIPT_DIGITS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+
+      function confusePairLookup(packed, ch) {
+        var out = [];
+        for (var i = 0; i < packed.length; i += 2) {
+          if (packed[i] === ch) out.push(packed[i + 1]);
+          else if (packed[i + 1] === ch) out.push(packed[i]);
+        }
+        return out;
+      }
+
+      var confuseCache = Object.create(null);
+
+      function confuseCandidates(ch) {
+        var mixed = !!params.confuseMixed;
+        var cacheKey = (mixed ? '1' : '0') + ch;
+        var cached = confuseCache[cacheKey];
+        if (cached) return cached;
+
+        var t1 = [], t2 = [], t3 = [];
+        var cp = ch.codePointAt(0);
+
+        if (cp >= 0x3041 && cp <= 0x3096) { // hiragana
+          t1 = t1.concat(confusePairLookup(CONFUSE_VOICE_PAIRS, ch));
+          if (CONFUSE_SMALL_KANA[ch]) t1.push(CONFUSE_SMALL_KANA[ch]);
+          var kata = String.fromCodePoint(cp + 0x60);
+          t2.push(kata);
+          if (CONFUSE_HALF_KATA[kata]) t2.push(CONFUSE_HALF_KATA[kata]);
+        } else if (cp >= 0x30A1 && cp <= 0x30FA || ch === 'ー') { // katakana
+          t1 = t1.concat(confusePairLookup(CONFUSE_VOICE_PAIRS, ch));
+          if (CONFUSE_SMALL_KANA[ch]) t1.push(CONFUSE_SMALL_KANA[ch]);
+          if (CONFUSE_HALF_KATA[ch]) t2.push(CONFUSE_HALF_KATA[ch]);
+          if (cp >= 0x30A1 && cp <= 0x30F6) t2.push(String.fromCodePoint(cp - 0x60));
+          t3 = t3.concat(confusePairLookup(CONFUSE_KATA_KANJI, ch));
+        } else if (cp >= 0x4E00 && cp <= 0x9FFF) { // kanji
+          t1 = t1.concat(confusePairLookup(CONFUSE_KYUJITAI, ch));
+          for (var g = 0; g < CONFUSE_SIMILAR_KANJI.length; g++) {
+            var group = CONFUSE_SIMILAR_KANJI[g];
+            if (group.indexOf(ch) !== -1) {
+              for (var gi = 0; gi < group.length; gi++) {
+                if (group[gi] !== ch) t2.push(group[gi]);
+              }
+            }
+          }
+          t3 = t3.concat(confusePairLookup(CONFUSE_KATA_KANJI, ch));
+        } else if (cp >= 0x41 && cp <= 0x5A || cp >= 0x61 && cp <= 0x7A) { // latin
+          t1.push(String.fromCodePoint(cp + 0xFEE0)); // fullwidth
+          var isUpper = cp <= 0x5A;
+          var alphaIndex = isUpper ? cp - 0x41 : cp - 0x61;
+          for (var s = 0; s < CONFUSE_MATH_STYLES.length; s++) {
+            var styleDef = CONFUSE_MATH_STYLES[s];
+            t2.push(styleDef.holes[ch] || String.fromCodePoint((isUpper ? styleDef.upper : styleDef.lower) + alphaIndex));
+          }
+          if (CONFUSE_GREEK[ch]) t3.push(CONFUSE_GREEK[ch]);
+          if (CONFUSE_CYRILLIC[ch]) t3.push(CONFUSE_CYRILLIC[ch]);
+          t3.push(String.fromCodePoint((isUpper ? 0x24B6 : 0x24D0) + alphaIndex)); // circled
+        } else if (cp >= 0x30 && cp <= 0x39) { // digits
+          var d = cp - 0x30;
+          t1.push(String.fromCodePoint(cp + 0xFEE0));
+          t2.push(String.fromCodePoint(0x1D7CE + d)); // math bold
+          t2.push(String.fromCodePoint(0x1D7D8 + d)); // double-struck
+          t2.push(String.fromCodePoint(0x1D7F6 + d)); // monospace
+          t3.push(d === 0 ? '⓪' : String.fromCodePoint(0x2460 + d - 1)); // circled
+          t3.push(CONFUSE_SUPERSCRIPT_DIGITS[d]);
+        } else if (CONFUSE_PUNCT[ch]) {
+          var punct = CONFUSE_PUNCT[ch];
+          if (punct.t1) t1 = t1.concat(punct.t1);
+          if (punct.t2) t2 = t2.concat(punct.t2);
+          if (punct.t3) t3 = t3.concat(punct.t3);
+        }
+
+        var merged = t1.concat(t2, mixed ? t3 : []);
+        var seen = Object.create(null);
+        var out = [];
+        for (var c = 0; c < merged.length; c++) {
+          var candidate = merged[c];
+          if (candidate && candidate !== ch && !seen[candidate]) {
+            seen[candidate] = 1;
+            out.push(candidate);
+          }
+        }
+        confuseCache[cacheKey] = out;
+        return out;
+      }
+
+      function clearConfuseCache() { confuseCache = Object.create(null); }
       var OPERATOR_BY_SHORT = {};
       for (var operatorIndex = 0; operatorIndex < OPERATOR_IDS.length; operatorIndex++) {
         var operatorId = OPERATOR_IDS[operatorIndex];
@@ -1334,6 +1502,8 @@ type deformer</textarea>
         misregY: -5,
         misregColorA: '#c41f1f',
         misregColorB: '#1767a6',
+        confuseDepth: 1,
+        confuseMixed: false,
         seed: 1,
         fontFamily: '"Zen Old Mincho", "Hiragino Mincho ProN", serif',
         fontSize: 52,
@@ -1374,14 +1544,14 @@ type deformer</textarea>
       var BATCH_PARAM_KEYS = [
         'stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation',
         'rotateAngle', 'skewX', 'skewY', 'baselineShift', 'mirrorX', 'mirrorY',
-        'misregX', 'misregY'
+        'misregX', 'misregY', 'confuseDepth'
       ];
       var BATCH_PARAM_LIMITS = {
         stretchX: [0, 3], stretchY: [0, 3], radius: [15, 180], ease: [0.02, 0.3],
         geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45],
         rotateAngle: [-180, 180], skewX: [-70, 70], skewY: [-70, 70],
         baselineShift: [-3, 3], mirrorX: [0, 1], mirrorY: [0, 1],
-        misregX: [-40, 40], misregY: [-40, 40]
+        misregX: [-40, 40], misregY: [-40, 40], confuseDepth: [0, 1]
       };
       var batchProfiles = {};
       var activeBatchProfile = 'all';
@@ -1461,6 +1631,7 @@ type deformer</textarea>
         clampParam('mirrorY', 0, 1, true);
         clampParam('misregX', -40, 40, false);
         clampParam('misregY', -40, 40, false);
+        clampParam('confuseDepth', 0, 1, false);
         clampParam('seed', -1000000000, 1000000000, false);
         clampParam('fontSize', 18, 160, false);
         clampParam('lineHeight', 0.9, 2.2, false);
@@ -1482,7 +1653,7 @@ type deformer</textarea>
         chooseParam('mode', ['flow', 'lock', 'edit', 'grid']);
         chooseParam('activeOperator', OPERATOR_IDS);
 
-        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak'];
+        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed'];
         for (var i = 0; i < boolKeys.length; i++) {
           var boolValue = params[boolKeys[i]];
           params[boolKeys[i]] = boolValue === true || boolValue === 1;
@@ -1697,6 +1868,7 @@ type deformer</textarea>
             span.dataset.j = j;
             span.dataset.cp = tok.text.codePointAt(0);
             span.dataset.renderText = tok.text;
+            span.dataset.sourceText = tok.text;
             span.style.setProperty('--i', globalIndex++);
             span.textContent = tok.text;
             p.appendChild(span);
@@ -1726,7 +1898,8 @@ type deformer</textarea>
           if (!includeLocked && existingMetric && existingMetric.locked) continue;
           var j = parseInt(span.dataset.j, 10);
           var cp = parseInt(span.dataset.cp, 10);
-          var ch = span.textContent;
+          // classify by the source character, not the (possibly confused) display
+          var ch = span.dataset.sourceText || span.textContent;
           var info = charInfo(ch, cp);
           var isPunct = info.punct;
           var cls = info.cls;
@@ -1992,6 +2165,7 @@ type deformer</textarea>
           st.removeProperty('white-space');
           st.removeProperty('overflow');
           delete metrics[i].el.dataset.gridCell;
+          delete metrics[i].el.dataset.confuseHold; // hold re-applies on the next visual pass
         }
         stage.classList.remove('grid-layout');
         stage.style.removeProperty('--grid-origin-x');
@@ -2401,9 +2575,67 @@ type deformer</textarea>
         }
       }
 
+      // Codepoint layer: swap the rendered glyph for a graded lookalike.
+      // The source text (dataset.sourceText) is never modified — the swap is
+      // recomputed from operator state, so undo/carry/export all stay coherent.
+      function applyConfuseText(info, deform) {
+        var el = info.el;
+        var orig = el.dataset.sourceText || el.textContent;
+        var state = operatorState(info, 'confuse');
+        var strength = state.manual != null ? Number(state.manual) : deform.confuseDepth * state.current;
+        strength = Math.max(0, Math.min(1, isFinite(strength) ? strength : 0));
+
+        var display = orig;
+        if (strength > 0.001 && Array.from(orig).length === 1) {
+          var candidates = confuseCandidates(orig);
+          if (candidates.length) {
+            var j = parseInt(el.dataset.j, 10) || 0;
+            var cp = parseInt(el.dataset.cp, 10) || 0;
+            // per-letter threshold jitter: a lens sweep steps letters at
+            // different moments instead of flipping the whole line at once
+            var jitter = 0.7 + hash(j, cp, 91.117) * 0.6;
+            var level = Math.floor(strength * jitter * candidates.length + 0.000001);
+            if (strength >= 0.999 && level < 1) level = 1;
+            if (level > candidates.length) level = candidates.length;
+            if (level > 0) display = candidates[level - 1];
+          }
+        }
+
+        var confusing = display !== orig;
+        if (el.textContent !== display) {
+          // capture the un-confused advance width once, so substitution does
+          // not reflow the whole composition (Hold Advance)
+          if (confusing && !el.dataset.confuseHoldW && !params.gridEnabled && el.textContent === orig) {
+            var holdW = el.offsetWidth;
+            if (holdW) el.dataset.confuseHoldW = String(holdW);
+          }
+          el.textContent = display;
+          el.dataset.renderText = display;
+          metricsDirty = true;
+          scheduleMeasure();
+        }
+        if (params.gridEnabled) {
+          // the grid owns width/text-align — drop only the flag so the hold
+          // re-applies cleanly after the grid is turned off
+          if (el.dataset.confuseHold) delete el.dataset.confuseHold;
+        } else if (confusing && el.dataset.confuseHoldW) {
+          if (!el.dataset.confuseHold) {
+            el.style.width = el.dataset.confuseHoldW + 'px';
+            el.style.textAlign = 'center';
+            el.dataset.confuseHold = '1';
+          }
+        } else if (el.dataset.confuseHold) {
+          el.style.removeProperty('width');
+          el.style.removeProperty('text-align');
+          delete el.dataset.confuseHold;
+        }
+        if (!confusing && el.dataset.confuseHoldW) delete el.dataset.confuseHoldW;
+      }
+
       function applyOperatorVisual(info) {
         var el = info.el, style = el.style;
         var deform = batchProfileForKey(info.batchKey);
+        applyConfuseText(info, deform);
         var stretch = operatorState(info, 'stretch');
         if (info.manualX != null || info.manualY != null) {
           style.setProperty('--ix', (info.manualX == null ? 1 : info.manualX).toFixed(3));
@@ -2450,6 +2682,7 @@ type deformer</textarea>
       }
 
       var OPERATOR_STYLE_PROPS = {
+        confuse: ['width', 'text-align'],
         stretch: ['--ix', '--iy'],
         rotate: ['--op-rotate'],
         skew: ['--op-skew-x', '--op-skew-y'],
@@ -2470,10 +2703,24 @@ type deformer</textarea>
         }
         var savedMisreg = m.el.dataset.misregistration;
         var savedActive = m.active;
+        // the confuse channel lives in textContent, not style — freeze it too
+        var savedText = null, savedRender = null, savedHold = null, savedHoldW = null;
+        if (activeId !== 'confuse') {
+          savedText = m.el.textContent;
+          savedRender = m.el.dataset.renderText;
+          savedHold = m.el.dataset.confuseHold;
+          savedHoldW = m.el.dataset.confuseHoldW;
+        }
         applyOperatorVisual(m);
         for (var name in saved) {
           if (saved[name]) m.el.style.setProperty(name, saved[name]);
           else m.el.style.removeProperty(name);
+        }
+        if (activeId !== 'confuse') {
+          if (m.el.textContent !== savedText) m.el.textContent = savedText;
+          if (savedRender != null) m.el.dataset.renderText = savedRender; else delete m.el.dataset.renderText;
+          if (savedHold != null) m.el.dataset.confuseHold = savedHold; else delete m.el.dataset.confuseHold;
+          if (savedHoldW != null) m.el.dataset.confuseHoldW = savedHoldW; else delete m.el.dataset.confuseHoldW;
         }
         if (activeId !== 'misregistration') {
           if (savedMisreg != null) m.el.dataset.misregistration = savedMisreg;
@@ -2725,6 +2972,16 @@ type deformer</textarea>
         var v = document.createElement('span');
         v.className = 'v';
         if (params.activeOperator === 'stretch') v.textContent = 'Stretch  W ×' + ix.toFixed(2) + ' H ×' + iy.toFixed(2);
+        else if (params.activeOperator === 'confuse') {
+          var confuseHudState = operatorState(selectedM, 'confuse');
+          var confuseHudStrength = confuseHudState.manual != null
+            ? Number(confuseHudState.manual)
+            : batchProfileForKey(selectedM.batchKey).confuseDepth * confuseHudState.current;
+          var confuseSource = selectedM.el.dataset.sourceText || selectedM.el.textContent;
+          var confuseShown = selectedM.el.textContent;
+          v.textContent = 'Confuse  ' + Math.round(Math.max(0, Math.min(1, confuseHudStrength)) * 100) + '%'
+            + (confuseShown !== confuseSource ? '  ' + confuseSource + ' \u2192 ' + confuseShown : '');
+        }
         else if (params.activeOperator === 'rotate') v.textContent = 'Rotate  ' + (parseFloat(st.getPropertyValue('--op-rotate')) || 0).toFixed(1) + '°';
         else if (params.activeOperator === 'skew') v.textContent = 'Skew  X ' + (parseFloat(st.getPropertyValue('--op-skew-x')) || 0).toFixed(1) + '° Y ' + (parseFloat(st.getPropertyValue('--op-skew-y')) || 0).toFixed(1) + '°';
         else if (params.activeOperator === 'baselineShift') {
@@ -2797,6 +3054,10 @@ type deformer</textarea>
 
       function manualValueAtDragStart(m, id) {
         var state = operatorState(m, id), st = m.el.style;
+        if (id === 'confuse') {
+          var confuseBase = state.manual != null ? Number(state.manual) : batchProfileForKey(m.batchKey).confuseDepth * state.current;
+          return Math.max(0, Math.min(1, isFinite(confuseBase) ? confuseBase : 0));
+        }
         if (id === 'stretch') return { x: parseFloat(st.getPropertyValue('--ix')) || 1, y: parseFloat(st.getPropertyValue('--iy')) || 1 };
         if (id === 'rotate') return parseFloat(st.getPropertyValue('--op-rotate')) || 0;
         if (id === 'skew') return { x: parseFloat(st.getPropertyValue('--op-skew-x')) || 0, y: parseFloat(st.getPropertyValue('--op-skew-y')) || 0 };
@@ -2858,6 +3119,8 @@ type deformer</textarea>
         if (id === 'stretch') {
           m.manualX = Math.min(8, Math.max(0.25, dragStretch(editDrag.base.x, dx)));
           m.manualY = Math.min(9, Math.max(0.25, dragStretch(editDrag.base.y, -dy)));
+        } else if (id === 'confuse') {
+          state.manual = Math.max(0, Math.min(1, editDrag.base + dx / 220));
         } else if (id === 'rotate') {
           state.manual = Math.max(-360, Math.min(360, editDrag.base + dx));
         } else if (id === 'skew') {
@@ -3120,6 +3383,7 @@ type deformer</textarea>
       // Project/Share data is user-editable input. Enforce the same bounds as
       // Edit gestures before a restored value can reach a CSS transform.
       function normalizeOperatorManual(id, value) {
+        if (id === 'confuse') return clampFinite(value, 0, 1, 0);
         if (id === 'rotate') return clampFinite(value, -360, 360, 0);
         if (id === 'baselineShift') return clampFinite(value, -5, 5, 0);
         var pair = value && typeof value === 'object' ? value : {};
@@ -3249,7 +3513,8 @@ type deformer</textarea>
           var el = m.el;
           var data = {};
           for (var k in el.dataset) data[k] = el.dataset[k];
-          return { text: el.textContent, style: el.getAttribute('style') || '', data: data, s: letterState(m) };
+          // match on the source character — the display may be confused
+          return { text: el.dataset.sourceText || el.textContent, style: el.getAttribute('style') || '', data: data, s: letterState(m) };
         });
       }
 
@@ -3277,6 +3542,9 @@ type deformer</textarea>
         // the restored style attribute is the exact visual truth, including
         // lock-frozen stretches that exist only as inline styles
         m.active = !!(el.style.getPropertyValue('--ix') || el.style.getPropertyValue('--iy'));
+        // the confused display is derived state (textContent), not markup —
+        // the fresh span shows the source char, so recompute the swap
+        applyConfuseText(m, batchProfileForKey(el.dataset.batch || ''));
       }
 
       function rebuildPreservingState(text) {
@@ -4140,6 +4408,7 @@ type deformer</textarea>
       bindRange('pBaselineShift', 'vBaselineShift', 'baselineShift', fEm, applyAllOperatorVisuals);
       bindRange('pMisregX', 'vMisregX', 'misregX', fPx, applyAllOperatorVisuals);
       bindRange('pMisregY', 'vMisregY', 'misregY', fPx, applyAllOperatorVisuals);
+      bindRange('pConfuseDepth', 'vConfuseDepth', 'confuseDepth', f2, applyAllOperatorVisuals);
       bindRange('pSize', 'vSize', 'fontSize', f0, applyStyle);
       bindRange('pLine', 'vLine', 'lineHeight', f2, applyStyle);
       bindRange('pTrack', 'vTrack', 'letterSpacing', f2, applyStyle);
@@ -4171,6 +4440,11 @@ type deformer</textarea>
       document.getElementById('pMisregColorB').addEventListener('input', function (e) {
         params.misregColorB = e.target.value; applyAllOperatorVisuals();
       });
+      document.getElementById('pConfuseMixed').addEventListener('change', function (e) {
+        params.confuseMixed = e.target.checked;
+        clearConfuseCache();
+        applyAllOperatorVisuals();
+      });
 
       /* grid */
       function relayoutGrid() { if (params.gridEnabled) layoutGrid(); }
@@ -4184,7 +4458,7 @@ type deformer</textarea>
         params.gridEnabled = e.target.checked;
         controlPanel.classList.toggle('grid-enabled', params.gridEnabled);
         if (params.gridEnabled) layoutGrid();
-        else clearGridStyles();
+        else { clearGridStyles(); applyAllOperatorVisuals(); }
       });
       document.getElementById('pGridAutoRows').addEventListener('change', function (e) {
         params.gridAutoRows = e.target.checked;
@@ -4487,6 +4761,7 @@ type deformer</textarea>
         document.getElementById('pAlign').value = params.align;
         document.getElementById('pTransparent').checked = params.transparentBg;
         document.getElementById('pDeformedOnly').checked = params.deformedOnly;
+        document.getElementById('pConfuseMixed').checked = !!params.confuseMixed;
         abSelect.value = params.artboard;
         abCustomRow.style.display = params.artboard === 'custom' ? '' : 'none';
         abW.value = params.abW;
