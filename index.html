@@ -58,6 +58,14 @@
     .topbar .jp { font-family: var(--jp); color: var(--dim); letter-spacing: 0.3em; margin-left: 1em; text-transform: none; }
     .topbar .hint { margin-left: auto; color: var(--dim); }
     .topbar .hint b { color: var(--red); font-weight: 400; }
+    .top-context {
+      margin-left: auto;
+      color: var(--ink);
+      letter-spacing: 0.08em;
+      text-transform: none;
+      white-space: nowrap;
+    }
+    .topbar .top-context + .hint { margin-left: 0; }
 
     /* layout */
     .app {
@@ -77,6 +85,100 @@
       font-size: 0.62rem;
       letter-spacing: 0.1em;
     }
+
+    .panel-context {
+      position: sticky;
+      top: -1rem;
+      z-index: 20;
+      margin: -1rem -1rem 0;
+      padding: 0.72rem 1rem;
+      border-bottom: 1px solid var(--ink);
+      background: var(--paper);
+      color: var(--red);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: none;
+    }
+
+    .panel-section { border-bottom: 1px solid var(--ink); }
+    .section-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1em;
+      margin: 0;
+      padding: 0.9rem 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      color: var(--ink);
+      font-size: 0.68rem;
+      text-align: left;
+    }
+    .section-toggle:hover,
+    .section-toggle:active {
+      background: transparent;
+      color: var(--red);
+      transform: none;
+      box-shadow: none;
+    }
+    .section-toggle .section-jp { margin-left: auto; color: var(--dim); font-family: var(--jp); text-transform: none; }
+    .section-toggle .section-mark { color: var(--red); font-size: 1rem; line-height: 1; }
+    .panel-section:not(.is-open) .section-body { display: none; }
+    .section-body { padding: 0 0 1rem; }
+
+    .sub-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 1rem 0 0.65rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--red);
+      font-size: 0.56rem;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+    }
+    .sub-head:first-child { margin-top: 0; }
+    .sub-head .r { color: var(--dim); }
+
+    .application-buttons,
+    .target-buttons { display: grid; gap: 0; }
+    .application-buttons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .target-buttons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .application-buttons button,
+    .target-buttons button { box-shadow: none; margin-right: -1px; }
+    .target-buttons button[aria-current="true"] { border-color: var(--red); color: var(--red); position: relative; z-index: 1; }
+
+    .context-lens { display: none; }
+    .panel[data-mode="flow"] .context-lens { display: block; }
+    .panel:not([data-mode="edit"]) #btnXray { display: none; }
+    .grid-options { display: none; }
+    .panel.grid-enabled .grid-options { display: block; }
+
+    details.help-details { margin: 0.7em 0; color: var(--dim); }
+    details.help-details summary {
+      cursor: pointer;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    details.help-details[open] summary { color: var(--red); }
+    details.help-details .note { margin-top: 0.6em; }
+
+    .danger-zone {
+      margin-top: 1rem;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--line);
+    }
+
+    .mobile-topbar,
+    .mobile-dock,
+    .mobile-sheet-nav,
+    .mobile-step { display: none; }
 
     .sec-head {
       display: flex;
@@ -188,6 +290,89 @@
     button[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
 
     .btns { display: flex; flex-wrap: wrap; gap: 0.5em; margin: 0.7em 0; }
+
+    .effect-status {
+      margin: 0.85em 0 0.7em;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .effect-status-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 2.6em;
+      color: var(--dim);
+      font-size: 0.56rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .effect-status-summary .count { color: var(--red); }
+    .effect-status-empty {
+      margin: 0;
+      padding: 0 0 0.65em;
+      color: var(--dim);
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .effect-status-list { margin: 0 -1px -1px; }
+    .effect-status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      margin-top: -1px;
+    }
+    .effect-status-select,
+    .effect-status-reset {
+      min-height: 31px;
+      border-color: var(--line);
+      box-shadow: none;
+      background: transparent;
+      transform: none;
+    }
+    .effect-status-select {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.65em;
+      text-align: left;
+    }
+    .effect-status-select::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      background: var(--red);
+    }
+    .effect-status-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .effect-status-glyphs {
+      color: var(--dim);
+      font-size: 0.88em;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    .effect-status-row.is-selected .effect-status-select {
+      background: var(--red);
+      color: #fff;
+      border-color: var(--red);
+      position: relative;
+      z-index: 1;
+    }
+    .effect-status-row.is-selected .effect-status-select::before { background: #fff; }
+    .effect-status-reset {
+      margin-left: -1px;
+      color: var(--red);
+      font-size: 0.54rem;
+    }
+    .effect-status-select:hover,
+    .effect-status-reset:hover {
+      transform: none;
+      box-shadow: none;
+    }
 
     .note { color: var(--dim); line-height: 1.7; letter-spacing: 0.06em; margin: 0.6em 0 0; }
 
@@ -555,16 +740,168 @@
     }
 
     @media (max-width: 760px) {
-      .topbar .hint { display: none; }
-      .app {
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(0, 52svh) minmax(0, 1fr);
+      body { display: block; height: 100svh; }
+      .topbar { display: none; }
+      .app { display: block; height: 100svh; }
+      .stage-wrap {
+        position: fixed;
+        inset: calc(49px + env(safe-area-inset-top)) 0 calc(102px + env(safe-area-inset-bottom)) 0;
+        border: 0;
       }
-      .stage-wrap { grid-row: 1; border-bottom: 1px solid var(--ink); }
+      .stage-frame { resize: none; min-width: 0; min-height: 0; }
+      .canvas-size-badge { top: 8px; right: 8px; font-size: 0.5rem; }
+      .canvas-size-badge button { display: none; }
+
+      .mobile-topbar {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 850;
+        height: calc(49px + env(safe-area-inset-top));
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        align-items: end;
+        gap: 0;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+        border-bottom: 1px solid var(--ink);
+        background: var(--paper);
+        font-family: var(--mono);
+      }
+      .mobile-topbar button {
+        height: 48px;
+        border: 0;
+        border-right: 1px solid var(--line);
+        box-shadow: none;
+        background: transparent;
+        padding: 0 0.75rem;
+      }
+      .mobile-topbar button:last-child { border-right: 0; }
+      .mobile-context {
+        min-width: 0;
+        align-self: stretch;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0 0.45rem;
+        color: var(--ink);
+        font-size: 0.58rem;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .mobile-dock {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 860;
+        height: calc(102px + env(safe-area-inset-bottom));
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(2, 51px);
+        padding-bottom: env(safe-area-inset-bottom);
+        border-top: 1px solid var(--ink);
+        background: var(--paper);
+      }
+      .mobile-dock button {
+        margin: 0 -1px -1px 0;
+        border-color: var(--line);
+        box-shadow: none;
+        background: transparent;
+        font-size: 0.62rem;
+      }
+      .mobile-dock button[aria-pressed="true"] { color: var(--red); background: transparent; border-top-color: var(--red); }
+
       .panel {
-        grid-row: 2;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: calc(102px + env(safe-area-inset-bottom));
+        z-index: 840;
+        width: auto;
+        height: min(58svh, 520px);
+        box-sizing: border-box;
+        overflow-y: auto;
+        border: 1px solid var(--ink);
+        border-left: 0;
         border-right: 0;
-        padding-bottom: calc(3rem + env(safe-area-inset-bottom));
+        background: var(--card);
+        padding: 52px calc(1rem + env(safe-area-inset-right)) 1.5rem calc(1rem + env(safe-area-inset-left));
+        transform: translateY(calc(100% + 2px));
+        transition: transform 0.22s cubic-bezier(.2,.8,.2,1), height 0.2s ease;
+      }
+      .panel.mobile-open { transform: translateY(0); }
+      .panel.mobile-text-focus {
+        height: calc(100svh - 49px - 102px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      }
+      .panel-context { display: none; }
+      .mobile-sheet-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 30;
+        height: 51px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr) auto;
+        border-bottom: 1px solid var(--ink);
+        background: var(--paper);
+      }
+      .mobile-sheet-nav::before {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        width: 34px;
+        height: 3px;
+        background: var(--ink);
+        transform: translateX(-50%);
+      }
+      .mobile-sheet-nav button {
+        height: 51px;
+        padding-top: 0.75rem;
+        border: 0;
+        border-right: 1px solid var(--line);
+        box-shadow: none;
+        background: transparent;
+        font-size: 0.55rem;
+      }
+      .mobile-sheet-nav button[aria-pressed="true"] { color: var(--red); background: transparent; }
+      .section-toggle { display: none; }
+      .panel-section { display: none; border: 0; }
+      .panel-section.mobile-active { display: block; }
+      .panel-section .section-body { display: block !important; padding-bottom: 0; }
+      .sub-head { margin-top: 1.2rem; }
+      .sub-head:first-child { margin-top: 0; }
+      .application-buttons button,
+      .target-buttons button { min-height: 44px; }
+      .effect-status-select,
+      .effect-status-reset { min-height: 44px; }
+      .panel .row { min-height: 42px; flex-wrap: wrap; }
+      .panel .row:has(input[type="range"]) > label:first-child { flex: 0 0 100%; }
+      .panel .mobile-step {
+        display: inline-flex;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border-color: var(--line);
+        box-shadow: none;
+        font-size: 0.9rem;
+      }
+      .panel input[type="range"] { min-width: 52px; }
+      .panel textarea { min-height: 9em; }
+      .panel.mobile-text-focus textarea { min-height: 45svh; }
+      #modeHelp { display: none; }
+      details.help-details { margin: 1em 0; }
+
+      #editHud {
+        bottom: calc(112px + env(safe-area-inset-bottom));
+        max-width: calc(100vw - 28px);
+        box-sizing: border-box;
       }
     }
 
@@ -586,16 +923,38 @@
 <body>
   <header class="topbar">
     <span class="brand">TYPE DEFORMER<span class="jp">文字変形機</span></span>
-    <span class="hint"><b>L</b> lock — <b>E</b> edit — <b>G</b> grid — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
+    <span class="top-context" id="topContextStatus">Stretch × Lens × All</span>
+    <span class="hint"><b>L</b> freeze — <b>E</b> edit — <b>G</b> arrange — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
+  </header>
+
+  <header class="mobile-topbar" aria-label="Mobile toolbar">
+    <button type="button" id="btnMobileUndo">Undo</button>
+    <span class="mobile-context" id="mobileContextStatus">Stretch × Lens × All</span>
+    <button type="button" id="btnMobilePreview">Preview</button>
+    <button type="button" id="btnMobileMenu" aria-label="Open controls">Menu</button>
   </header>
 
   <div class="app">
-    <aside class="panel">
-      <div class="sec-head"><span>Text</span><span class="r">入力</span></div>
+    <aside class="panel" data-mode="flow" aria-label="Controls">
+      <nav class="mobile-sheet-nav" aria-label="Control sections">
+        <button type="button" data-mobile-section="create" aria-pressed="true">Create</button>
+        <button type="button" data-mobile-section="compose" aria-pressed="false">Compose</button>
+        <button type="button" data-mobile-section="output" aria-pressed="false">Output</button>
+        <button type="button" data-mobile-section="file" aria-pressed="false">File</button>
+        <button type="button" id="btnMobileSheetClose" aria-label="Close controls">Close</button>
+      </nav>
+      <div class="panel-context" id="panelContextStatus">Stretch × Lens × All</div>
+
+      <section class="panel-section is-open mobile-active" data-panel-section="create">
+        <button type="button" class="section-toggle" aria-expanded="true" aria-controls="sectionCreate">
+          <span>Create</span><span class="section-jp">制作</span><span class="section-mark">−</span>
+        </button>
+        <div class="section-body" id="sectionCreate">
+      <div class="sub-head"><span>Text</span><span class="r">入力</span></div>
       <textarea id="textInput" spellcheck="false">テクスト。デザイン。グラフィック。
 type deformer</textarea>
 
-      <div class="sec-head"><span>Deform</span><span class="r">変形</span></div>
+      <div class="sub-head"><span>Operator</span><span class="r">変形</span></div>
       <div class="row"><label for="pOperator">Operator</label>
         <select id="pOperator">
           <option value="stretch" selected>Stretch</option>
@@ -606,7 +965,9 @@ type deformer</textarea>
           <option value="misregistration">Misregistration</option>
         </select>
       </div>
-      <div class="row"><label for="pBatchProfile">Parameter target</label>
+      <div id="applicationSlot"></div>
+      <div class="sub-head"><span>Target</span><span class="r">対象</span></div>
+      <div class="row"><label for="pBatchProfile">Parameters</label>
         <select id="pBatchProfile">
           <option value="all" selected>All 全文字</option>
           <option value="kanji">漢字</option>
@@ -619,13 +980,12 @@ type deformer</textarea>
         <button id="btnBatchProfileReset" type="button">Reset to All</button>
       </div>
       <p class="note" id="batchProfileStatus">All：全文字の基準値</p>
-      <div class="row"><label for="pRadius">Radius</label><input type="range" id="pRadius" min="15" max="180" step="1" value="45"><span class="val" id="vRadius">45</span></div>
-      <div class="row"><label for="pReturn">Ease</label><input type="range" id="pReturn" min="0.02" max="0.3" step="0.01" value="0.08"><span class="val" id="vReturn">0.08</span></div>
+      <div id="targetBatchSlot"></div>
       <div class="operator-panel" data-operator-panel="stretch">
         <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
         <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
         <div class="row"><label for="pGeo">Geo ratio</label><input type="range" id="pGeo" min="0" max="1" step="0.02" value="0.32"><span class="val" id="vGeo">0.32</span></div>
-        <div class="row"><label for="pRandom">Randomness</label><input type="range" id="pRandom" min="0" max="2" step="0.05" value="1"><span class="val" id="vRandom">1.00</span></div>
+        <div class="row"><label for="pRandom">Randomness</label><input type="range" id="pRandom" min="0" max="2" step="0.05" value="0"><span class="val" id="vRandom">0.00</span></div>
         <div class="row"><label for="pRot">Random rotation</label><input type="range" id="pRot" min="0" max="45" step="0.5" value="0"><span class="val" id="vRot">0.0</span></div>
       </div>
       <div class="operator-panel" data-operator-panel="rotate" hidden>
@@ -647,6 +1007,11 @@ type deformer</textarea>
         <div class="row"><label for="pMisregY">Offset Y</label><input type="range" id="pMisregY" min="-40" max="40" step="1" value="-5"><span class="val" id="vMisregY">-5px</span></div>
         <div class="row"><label for="pMisregColorA">Pass A</label><input type="color" id="pMisregColorA" value="#c41f1f"><label for="pMisregColorB" style="margin-left:auto">Pass B</label><input type="color" id="pMisregColorB" value="#1767a6"></div>
       </div>
+      <div class="context-lens">
+        <div class="sub-head"><span>Lens Gesture</span><span class="r">なぞる</span></div>
+        <div class="row"><label for="pRadius">Radius</label><input type="range" id="pRadius" min="15" max="180" step="1" value="45"><span class="val" id="vRadius">45</span></div>
+        <div class="row"><label for="pReturn">Ease</label><input type="range" id="pReturn" min="0.02" max="0.3" step="0.01" value="0.08"><span class="val" id="vReturn">0.08</span></div>
+      </div>
       <div class="btns">
         <button id="btnShuffle">Shuffle 乱数</button>
       </div>
@@ -658,23 +1023,32 @@ type deformer</textarea>
         <button id="btnDelPreset">Del</button>
       </div>
 
-      <div class="sec-head"><span>Mode</span><span class="r">操作</span></div>
-      <div class="btns">
-        <button id="btnModeFlow" aria-pressed="true">Flow なぞる</button>
-        <button id="btnModeLock" aria-pressed="false">Lock 固定</button>
-        <button id="btnModeEdit" aria-pressed="false">Edit 手動</button>
-        <button id="btnModeGrid" aria-pressed="false">Grid 格子</button>
-        <button id="btnXray" aria-pressed="false">X-ray 透視</button>
+      <div id="applicationControlBlock">
+      <div class="sub-head"><span>Application</span><span class="r">操作</span></div>
+      <div class="application-buttons">
+        <button id="btnModeFlow" aria-pressed="true">Lens</button>
+        <button id="btnModeEdit" aria-pressed="false">Edit</button>
+        <button id="btnModeGrid" aria-pressed="false">Arrange</button>
       </div>
       <div class="btns">
+        <button id="btnModeLock" aria-pressed="false">Freeze pick</button>
+        <button id="btnXray" aria-pressed="false">X-ray</button>
         <button id="btnLockAll">Lock all</button>
         <button id="btnUnlockAll">Unlock all</button>
-        <button id="btnReset">Reset</button>
+        <button id="btnReset" disabled>Reset all effects</button>
       </div>
-      <p class="note" id="modeHelp">FLOW: 選択中のOperatorをなぞって適用／解除。LOCK: クリックで全Operatorを固定／解除。EDIT: 選択中のOperatorの文字別目標値を直接編集。⇧ドラッグで微調整、ダブルクリック／⌫で選択中Operatorだけ初期化します。</p>
+      <div class="effect-status" id="effectStatus">
+        <div class="effect-status-summary"><span>Active effects</span><span class="count" id="effectStatusTotal" aria-live="polite">0 / 6</span></div>
+        <p class="effect-status-empty" id="effectStatusEmpty">No deform effects applied</p>
+        <div class="effect-status-list" id="effectStatusList"></div>
+      </div>
+      <details class="help-details"><summary>Application help</summary><p class="note" id="modeHelp">LENS: 選択中のOperatorをなぞって適用／解除。FREEZE PICK: クリックで全Operatorを固定／解除。EDIT: 選択中Operatorの文字別目標値を直接編集。⇧ドラッグで微調整、ダブルクリック／⌫で選択中Operatorだけ初期化します。ACTIVE EFFECTSでは作用中のOperatorと文字数を確認し、種類ごとにResetできます。</p></details>
+      </div>
 
-      <div class="sec-head"><span>Grid</span><span class="r">格子</span></div>
+      <div id="gridControlBlock">
+      <div class="sub-head"><span>Grid</span><span class="r">格子</span></div>
       <div class="row"><label for="pGridEnabled">Enable grid</label><input type="checkbox" id="pGridEnabled"></div>
+      <div class="grid-options">
       <div class="row"><label for="pGridCols">Columns</label><input type="range" id="pGridCols" min="1" max="60" step="1" value="12"><span class="val" id="vGridCols">12</span></div>
       <div class="row"><label for="pGridAutoRows">Auto rows</label><input type="checkbox" id="pGridAutoRows" checked></div>
       <div class="row" id="gridRowsRow" style="display:none"><label for="pGridRows">Rows</label><input type="range" id="pGridRows" min="1" max="60" step="1" value="12"><span class="val" id="vGridRows">12</span></div>
@@ -686,10 +1060,13 @@ type deformer</textarea>
         <button id="btnGridReset">Reset arrangement</button>
       </div>
       <p class="note" id="gridStatus"></p>
-      <p class="note">GRIDをONにすると文字が原稿用紙のような格子に自動で流し込まれます。GRIDモードで文字をドラッグすると別のマスへ入れ替え。選択中は矢印キーでマスを移動、⌫でマスの固定を解除（文字自体は消えません）。</p>
+      <details class="help-details"><summary>Grid help</summary><p class="note">GRIDをONにすると文字が格子へ自動で流し込まれます。Arrangeで文字をドラッグすると別のマスへ入れ替え。選択中は矢印キーで移動、⌫で固定を解除します。</p></details>
+      </div>
+      </div>
 
-      <div class="sec-head"><span>Batch</span><span class="r">一括</span></div>
-      <div class="btns">
+      <div id="targetBatchBlock">
+      <div class="sub-head"><span>Type Batch</span><span class="r">一括適用</span></div>
+      <div class="target-buttons">
         <button data-batch="kanji">漢字</button>
         <button data-batch="hira">ひらがな</button>
         <button data-batch="kata">カタカナ</button>
@@ -697,9 +1074,17 @@ type deformer</textarea>
         <button data-batch="digit">123</button>
         <button data-batch="punct">約物</button>
       </div>
-      <p class="note">クリックでその文字種の全文字へ選択中Operatorを一括適用し、Parameter targetも同じ文字種へ切り替えます。すでに全部適用済みなら一括解除。固定中の文字は対象外です。</p>
+      <details class="help-details"><summary>Batch help</summary><p class="note">文字種を押すと選択中Operatorを一括適用し、Parameter targetも同じ文字種へ切り替えます。全部適用済みなら一括解除。固定中の文字は対象外です。</p></details>
+      </div>
+        </div>
+      </section>
 
-      <div class="sec-head"><span>Style</span><span class="r">体裁</span></div>
+      <section class="panel-section" data-panel-section="compose">
+        <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionCompose">
+          <span>Compose</span><span class="section-jp">組版</span><span class="section-mark">＋</span>
+        </button>
+        <div class="section-body" id="sectionCompose">
+      <div class="sub-head"><span>Typography</span><span class="r">体裁</span></div>
       <div class="row"><label for="pFont">Font</label>
         <select id="pFont">
           <option value='"Zen Old Mincho", "Hiragino Mincho ProN", serif' selected>Zen Old Mincho</option>
@@ -729,8 +1114,16 @@ type deformer</textarea>
       </div>
       <div class="row"><label for="pInk">Ink</label><input type="color" id="pInk" value="#17140f"><label for="pPaper" style="margin-left:auto">Paper</label><input type="color" id="pPaper" value="#f4f3ef"></div>
       <div class="row"><label for="pAccent">Accent</label><input type="color" id="pAccent" value="#c41f1f"><input type="range" id="pAccentRatio" min="0" max="1" step="0.02" value="0"><span class="val" id="vAccentRatio">0.00</span></div>
+      <div id="composeGridSlot"></div>
+        </div>
+      </section>
 
-      <div class="sec-head"><span>Artboard</span><span class="r">画板</span></div>
+      <section class="panel-section" data-panel-section="output">
+        <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionOutput">
+          <span>Output</span><span class="section-jp">書出</span><span class="section-mark">＋</span>
+        </button>
+        <div class="section-body" id="sectionOutput">
+      <div class="sub-head"><span>Artboard</span><span class="r">画板</span></div>
       <div class="row"><label for="pArtboard">Size</label>
         <select id="pArtboard">
           <option value="auto" selected>Auto（コンテンツなり）</option>
@@ -759,9 +1152,9 @@ type deformer</textarea>
         <label for="pFit">Fit</label><input type="checkbox" id="pFit" checked>
         <label for="pMargin" style="margin-left:auto">Margin</label><input type="range" id="pMargin" min="0" max="25" step="1" value="6" style="flex:0 1 6em"><span class="val" id="vMargin">6</span>
       </div>
-      <p class="note">Auto以外では指定サイズの画板に書き出します。Fit ONで余白（Margin %）内に収まるよう拡縮、OFFで原寸配置。</p>
+      <details class="help-details"><summary>Artboard help</summary><p class="note">Auto以外では指定サイズの画板に書き出します。Fit ONで余白内に収まるよう拡縮、OFFで原寸配置。</p></details>
 
-      <div class="sec-head"><span>Export</span><span class="r">書出</span></div>
+      <div class="sub-head"><span>Export</span><span class="r">書出</span></div>
       <div class="row"><label for="pScale">PNG scale</label>
         <select id="pScale">
           <option value="1">1x</option>
@@ -780,17 +1173,26 @@ type deformer</textarea>
         <button id="btnCopy">Copy PNG</button>
         <button id="btnPreview">Preview 校正</button>
       </div>
-      <p class="note">Canvas shotは現在見えているキャンバス範囲を、枠サイズ・スクロール位置・紙色・表示中のGrid線ごとPNG化します（選択枠や操作HUDは除外）。SVGはtext要素+transformで出力します。Illustrator等で開く場合は同じフォントのインストールが必要です。縦書き時の約物（。「」等）は書き出しで位置が変わることがあります。</p>
+      <details class="help-details"><summary>Export help</summary><p class="note">Canvas shotは現在見えている範囲を枠サイズ・スクロール位置・紙色・Grid線ごとPNG化します。SVGはtext要素＋transformです。Illustrator等では同じフォントが必要です。</p></details>
+        </div>
+      </section>
 
-      <div class="sec-head"><span>Project</span><span class="r">保存</span></div>
+      <section class="panel-section" data-panel-section="file">
+        <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionFile">
+          <span>File</span><span class="section-jp">保存</span><span class="section-mark">＋</span>
+        </button>
+        <div class="section-body" id="sectionFile">
+      <div class="sub-head"><span>Project</span><span class="r">保存</span></div>
       <div class="btns">
         <button id="btnSaveProj">Save .json</button>
         <button id="btnLoadProj">Load .json</button>
         <button class="primary" id="btnShare">Share URL</button>
-        <button id="btnNew">New 新規</button>
         <input type="file" id="projFile" accept=".json,application/json" hidden>
       </div>
-      <p class="note">数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。Share URLは作品全体をURLに埋め込み、リンクを開くだけで同じ状態を再現できます。</p>
+      <div class="danger-zone"><button id="btnNew">New 新規</button></div>
+      <details class="help-details"><summary>Project help</summary><p class="note">数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。Share URLは作品全体をURLへ埋め込みます。</p></details>
+        </div>
+      </section>
     </aside>
 
     <div class="stage-wrap" id="stageWrap">
@@ -803,6 +1205,15 @@ type deformer</textarea>
       </div>
     </div>
   </div>
+
+  <nav class="mobile-dock" aria-label="Mobile tools">
+    <button type="button" data-mobile-mode="flow" aria-pressed="true">Lens</button>
+    <button type="button" data-mobile-mode="edit" aria-pressed="false">Edit</button>
+    <button type="button" data-mobile-mode="grid" aria-pressed="false">Arrange</button>
+    <button type="button" id="btnMobileOperator">Operator</button>
+    <button type="button" id="btnMobileTarget">Target</button>
+    <button type="button" id="btnMobileMore">More</button>
+  </nav>
 
   <div id="previewOverlay" hidden>
     <figure>
@@ -911,7 +1322,7 @@ type deformer</textarea>
         radius: 45,
         ease: 0.08,
         geoRatio: 0.32,
-        randomness: 1,
+        randomness: 0,
         rotation: 0,
         rotateAngle: 60,
         skewX: 32,
@@ -1381,6 +1792,7 @@ type deformer</textarea>
         applyAllOperatorVisuals();
         metricsDirty = true;
         scheduleVisualOverscan();
+        scheduleEffectStatusUpdate();
         schedule();
       }
 
@@ -1866,6 +2278,7 @@ type deformer</textarea>
             if (!selectedState.hovered) {
               selectedState.toggled = !selectedState.toggled;
               selectedState.hovered = true;
+              scheduleEffectStatusUpdate();
             }
           } else {
             selectedState.hovered = false;
@@ -1878,7 +2291,11 @@ type deformer</textarea>
             var target = opState.toggled ? 1 : 0;
             var diff = target - opState.current;
             if (Math.abs(diff) < 0.0015) {
-              if (opState.current !== target) { opState.current = target; visualChanged = true; }
+              if (opState.current !== target) {
+                opState.current = target;
+                visualChanged = true;
+                scheduleEffectStatusUpdate();
+              }
             } else {
               opState.current += diff * deform.ease;
               visualChanged = true;
@@ -2063,6 +2480,115 @@ type deformer</textarea>
           else delete m.el.dataset.misregistration;
         } else applyMisregistrationVisual(m, batchProfileForKey(m.batchKey));
         if (activeId !== 'stretch') m.active = savedActive;
+      }
+
+      /* ---------------- active effect inventory ---------------- */
+      var effectStatusUpdateRaf = null;
+      var effectStatusSignature = '';
+
+      function operatorAffectsMetric(m, id) {
+        var state = operatorState(m, id);
+        if (id === 'stretch' && (m.manualX != null || m.manualY != null)) return true;
+        return state.manual != null || state.toggled || state.current > 0.0005;
+      }
+
+      function operatorAffectedCount(id) {
+        var count = 0;
+        for (var i = 0; i < metrics.length; i++) {
+          if (operatorAffectsMetric(metrics[i], id)) count++;
+        }
+        return count;
+      }
+
+      function updateEffectStatus() {
+        effectStatusUpdateRaf = null;
+        var list = document.getElementById('effectStatusList');
+        var empty = document.getElementById('effectStatusEmpty');
+        var total = document.getElementById('effectStatusTotal');
+        if (!list || !empty || !total) return;
+
+        var active = [];
+        for (var i = 0; i < OPERATOR_IDS.length; i++) {
+          var id = OPERATOR_IDS[i];
+          var count = operatorAffectedCount(id);
+          if (count) active.push({ id: id, count: count });
+        }
+        var signature = params.activeOperator + '|' + active.map(function (item) {
+          return item.id + ':' + item.count;
+        }).join(',');
+        if (signature === effectStatusSignature) return;
+        effectStatusSignature = signature;
+
+        list.textContent = '';
+        empty.hidden = active.length > 0;
+        total.textContent = active.length + ' / ' + OPERATOR_IDS.length;
+        document.getElementById('btnReset').disabled = active.length === 0;
+
+        for (var a = 0; a < active.length; a++) {
+          var item = active[a];
+          var row = document.createElement('div');
+          row.className = 'effect-status-row' + (item.id === params.activeOperator ? ' is-selected' : '');
+
+          var select = document.createElement('button');
+          select.type = 'button';
+          select.className = 'effect-status-select';
+          select.dataset.effectSelect = item.id;
+          select.setAttribute('aria-pressed', String(item.id === params.activeOperator));
+          select.setAttribute('aria-label', 'Select ' + OPERATOR_DEFS[item.id].label + ', applied to ' + item.count + ' glyphs');
+          var name = document.createElement('span');
+          name.className = 'effect-status-name';
+          name.textContent = OPERATOR_DEFS[item.id].label;
+          var glyphs = document.createElement('span');
+          glyphs.className = 'effect-status-glyphs';
+          glyphs.textContent = item.count + (item.count === 1 ? ' glyph' : ' glyphs');
+          select.appendChild(name);
+          select.appendChild(glyphs);
+          select.addEventListener('click', function () { setActiveOperator(this.dataset.effectSelect); });
+
+          var reset = document.createElement('button');
+          reset.type = 'button';
+          reset.className = 'effect-status-reset';
+          reset.dataset.effectReset = item.id;
+          reset.textContent = 'Reset';
+          reset.setAttribute('aria-label', 'Reset ' + OPERATOR_DEFS[item.id].label + ' on all glyphs');
+          reset.addEventListener('click', function () { resetOperatorEverywhere(this.dataset.effectReset); });
+
+          row.appendChild(select);
+          row.appendChild(reset);
+          list.appendChild(row);
+        }
+      }
+
+      function scheduleEffectStatusUpdate() {
+        if (effectStatusUpdateRaf !== null) return;
+        effectStatusUpdateRaf = requestAnimationFrame(updateEffectStatus);
+      }
+
+      function resetOperatorEverywhere(id) {
+        if (!OPERATOR_DEFS[id]) return false;
+        var changed = false;
+        for (var i = 0; i < metrics.length; i++) {
+          if (operatorAffectsMetric(metrics[i], id)) { changed = true; break; }
+        }
+        if (!changed) return false;
+
+        pushHistory();
+        for (var j = 0; j < metrics.length; j++) {
+          var m = metrics[j];
+          var state = operatorState(m, id);
+          state.toggled = false;
+          state.hovered = false;
+          state.current = 0;
+          state.manual = null;
+          if (id === 'stretch') m.manualX = m.manualY = null;
+          m.locked = m.explicitLock || hasManualOverrides(m);
+          m.el.classList.toggle('locked', m.locked);
+          applySingleOperatorVisual(m, id);
+        }
+        if (selectedM) updateHud();
+        scheduleEffectStatusUpdate();
+        schedule();
+        return true;
       }
 
       function updatePointerFromEvent(e) {
@@ -2265,6 +2791,7 @@ type deformer</textarea>
         m.locked = m.explicitLock || hasManualOverrides(m);
         m.el.classList.toggle('locked', m.locked);
         applySingleOperatorVisual(m, params.activeOperator);
+        scheduleEffectStatusUpdate();
         schedule();
       }
 
@@ -2348,6 +2875,7 @@ type deformer</textarea>
         m.locked = true;
         m.el.classList.add('locked');
         applySingleOperatorVisual(m, id);
+        scheduleEffectStatusUpdate();
         if (selectedM === m) updateHud();
         if (e.cancelable) e.preventDefault();
       });
@@ -2493,6 +3021,7 @@ type deformer</textarea>
         selectedM.locked = true;
         el.classList.add('locked');
         applySingleOperatorVisual(selectedM, id);
+        scheduleEffectStatusUpdate();
         updateHud();
       }
 
@@ -2513,20 +3042,30 @@ type deformer</textarea>
         }
         applyRandom();
       }
-      function resetAll() {
+      function resetAllEffects() {
+        var changed = false;
+        for (var check = 0; check < metrics.length && !changed; check++) {
+          for (var checkOp = 0; checkOp < OPERATOR_IDS.length; checkOp++) {
+            if (operatorAffectsMetric(metrics[check], OPERATOR_IDS[checkOp])) { changed = true; break; }
+          }
+        }
+        if (!changed) return false;
+        pushHistory();
         for (var i = 0; i < metrics.length; i++) {
           var m = metrics[i];
-          m.locked = false;
-          m.explicitLock = false;
           m.manualX = m.manualY = null;
           for (var oi = 0; oi < OPERATOR_IDS.length; oi++) {
             var state = operatorState(m, OPERATOR_IDS[oi]);
             state.toggled = false; state.hovered = false; state.current = 0; state.manual = null;
           }
-          m.el.classList.remove('locked');
+          m.locked = m.explicitLock;
+          m.el.classList.toggle('locked', m.locked);
           applyOperatorVisual(m);
         }
+        if (selectedM) updateHud();
+        scheduleEffectStatusUpdate();
         schedule();
+        return true;
       }
 
       /* ---------------- batch toggle by character class ---------------- */
@@ -2561,6 +3100,7 @@ type deformer</textarea>
           targetState.toggled = !allOn;
           targetState.hovered = false;
         }
+        scheduleEffectStatusUpdate();
         schedule();
       }
 
@@ -2693,6 +3233,7 @@ type deformer</textarea>
         var n = Math.min(states.length, metrics.length);
         for (var i = 0; i < n; i++) applyLetterState(metrics[i], states[i]);
         if (params.gridEnabled) layoutGrid();
+        scheduleEffectStatusUpdate();
         scheduleMeasure();
       }
 
@@ -2752,6 +3293,7 @@ type deformer</textarea>
         for (var k = 0; k < s; k++) carryLetter(nw[nw.length - 1 - k], old[old.length - 1 - k]);
         syncMetricsSeeds(); // metrics were built from pre-carry dataset values
         if (params.gridEnabled) layoutGrid();
+        scheduleEffectStatusUpdate();
         scheduleMeasure();
       }
 
@@ -3332,6 +3874,167 @@ type deformer</textarea>
       var operatorPanels = document.querySelectorAll('[data-operator-panel]');
       var mirrorXInput = document.getElementById('pMirrorX');
       var mirrorYInput = document.getElementById('pMirrorY');
+      var controlPanel = document.querySelector('.panel');
+
+      /* ---------------- progressive desktop / mobile control UI ---------------- */
+      var PANEL_UI_KEY = 'typeDeformer.panelUi.v1';
+      var MODE_UI_LABELS = { flow: 'Lens', edit: 'Edit', grid: 'Arrange', lock: 'Freeze' };
+      var TARGET_UI_LABELS = { all: 'All', kanji: '漢字', hira: 'ひらがな', kata: 'カタカナ', latin: 'ABC', digit: '123', punct: '約物' };
+      var mobileActiveSection = 'create';
+
+      function contextStatusText() {
+        var op = OPERATOR_DEFS[params.activeOperator] ? OPERATOR_DEFS[params.activeOperator].label : 'Stretch';
+        return op + ' × ' + (MODE_UI_LABELS[params.mode] || 'Lens') + ' × ' + (TARGET_UI_LABELS[activeBatchProfile] || 'All');
+      }
+
+      function updateContextUI() {
+        var text = contextStatusText();
+        var ids = ['topContextStatus', 'panelContextStatus', 'mobileContextStatus'];
+        for (var i = 0; i < ids.length; i++) {
+          var node = document.getElementById(ids[i]);
+          if (node) node.textContent = text;
+        }
+        if (controlPanel) controlPanel.dataset.mode = params.mode;
+        Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode]'), function (button) {
+          button.setAttribute('aria-pressed', String(button.dataset.mobileMode === params.mode));
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('button[data-batch]'), function (button) {
+          button.setAttribute('aria-current', String(button.dataset.batch === activeBatchProfile));
+        });
+      }
+
+      function storePanelSections() {
+        var state = {};
+        Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
+          state[section.dataset.panelSection] = section.classList.contains('is-open');
+        });
+        try { localStorage.setItem(PANEL_UI_KEY, JSON.stringify(state)); } catch (e) { }
+      }
+
+      function setPanelSectionOpen(section, open, persist) {
+        if (!section) return;
+        section.classList.toggle('is-open', open);
+        var toggle = section.querySelector('.section-toggle');
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', String(open));
+          var mark = toggle.querySelector('.section-mark');
+          if (mark) mark.textContent = open ? '−' : '＋';
+        }
+        if (persist !== false) storePanelSections();
+      }
+
+      function openDesktopSection(key) {
+        var section = document.querySelector('.panel-section[data-panel-section="' + key + '"]');
+        Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (other) {
+          if (other !== section) setPanelSectionOpen(other, false, false);
+        });
+        setPanelSectionOpen(section, true);
+        if (controlPanel) controlPanel.scrollTop = 0;
+      }
+
+      function setMobileSection(key) {
+        mobileActiveSection = key || 'create';
+        Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
+          section.classList.toggle('mobile-active', section.dataset.panelSection === mobileActiveSection);
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
+          button.setAttribute('aria-pressed', String(button.dataset.mobileSection === mobileActiveSection));
+        });
+        if (controlPanel) controlPanel.scrollTop = 0;
+      }
+
+      function openMobileSheet(sectionKey, anchorId) {
+        if (!controlPanel) return;
+        setMobileSection(sectionKey || mobileActiveSection);
+        controlPanel.classList.add('mobile-open');
+        if (anchorId) requestAnimationFrame(function () {
+          var anchor = document.getElementById(anchorId);
+          if (anchor) anchor.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
+      }
+
+      function closeMobileSheet() {
+        if (controlPanel) controlPanel.classList.remove('mobile-open', 'mobile-text-focus');
+      }
+
+      function initProgressiveUI() {
+        var gridSlot = document.getElementById('composeGridSlot');
+        var gridBlock = document.getElementById('gridControlBlock');
+        if (gridSlot && gridBlock) gridSlot.appendChild(gridBlock);
+        var applicationSlot = document.getElementById('applicationSlot');
+        var applicationBlock = document.getElementById('applicationControlBlock');
+        if (applicationSlot && applicationBlock) applicationSlot.appendChild(applicationBlock);
+        var targetBatchSlot = document.getElementById('targetBatchSlot');
+        var targetBatchBlock = document.getElementById('targetBatchBlock');
+        if (targetBatchSlot && targetBatchBlock) targetBatchSlot.appendChild(targetBatchBlock);
+
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem(PANEL_UI_KEY)); } catch (e) { }
+        var restoredOpen = false;
+        Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
+          var key = section.dataset.panelSection;
+          var requestedOpen = saved && typeof saved[key] === 'boolean' ? saved[key] : key === 'create';
+          var shouldOpen = requestedOpen && !restoredOpen;
+          if (shouldOpen) restoredOpen = true;
+          setPanelSectionOpen(section, shouldOpen, false);
+          var toggle = section.querySelector('.section-toggle');
+          if (toggle) toggle.addEventListener('click', function () {
+            if (section.classList.contains('is-open')) setPanelSectionOpen(section, false);
+            else openDesktopSection(section.dataset.panelSection);
+          });
+        });
+        if (!restoredOpen) openDesktopSection('create');
+
+        Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
+          button.addEventListener('click', function () { setMobileSection(button.dataset.mobileSection); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode]'), function (button) {
+          button.addEventListener('click', function () {
+            var map = { flow: 'btnModeFlow', edit: 'btnModeEdit', grid: 'btnModeGrid' };
+            var source = document.getElementById(map[button.dataset.mobileMode]);
+            if (source) source.click();
+            closeMobileSheet();
+          });
+        });
+
+        document.getElementById('btnMobileOperator').addEventListener('click', function () { openMobileSheet('create', 'pOperator'); });
+        document.getElementById('btnMobileTarget').addEventListener('click', function () { openMobileSheet('create', 'pBatchProfile'); });
+        document.getElementById('btnMobileMore').addEventListener('click', function () { openMobileSheet(mobileActiveSection); });
+        document.getElementById('btnMobileMenu').addEventListener('click', function () { openMobileSheet(mobileActiveSection); });
+        document.getElementById('btnMobileSheetClose').addEventListener('click', closeMobileSheet);
+        document.getElementById('btnMobileUndo').addEventListener('click', undo);
+        document.getElementById('btnMobilePreview').addEventListener('click', function () { document.getElementById('btnPreview').click(); });
+
+        var textArea = document.getElementById('textInput');
+        textArea.addEventListener('focus', function () { if (matchMedia('(max-width: 760px)').matches) controlPanel.classList.add('mobile-text-focus'); });
+        textArea.addEventListener('blur', function () { controlPanel.classList.remove('mobile-text-focus'); });
+
+        Array.prototype.forEach.call(controlPanel.querySelectorAll('input[type="range"]'), function (input) {
+          var minus = document.createElement('button');
+          var plus = document.createElement('button');
+          minus.type = plus.type = 'button';
+          minus.className = plus.className = 'mobile-step';
+          minus.textContent = '−'; plus.textContent = '＋';
+          minus.setAttribute('aria-label', 'Decrease ' + input.id);
+          plus.setAttribute('aria-label', 'Increase ' + input.id);
+          input.parentNode.insertBefore(minus, input);
+          input.parentNode.insertBefore(plus, input.nextSibling);
+          function step(direction) {
+            var amount = Number(input.step) || 1;
+            var next = Math.max(Number(input.min), Math.min(Number(input.max), Number(input.value) + amount * direction));
+            input.value = String(Math.round(next / amount) * amount);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          minus.addEventListener('click', function () { step(-1); });
+          plus.addEventListener('click', function () { step(1); });
+        });
+
+        setMobileSection('create');
+        updateContextUI();
+      }
+
+      initProgressiveUI();
 
       function refreshBatchProfileControls() {
         var source = batchProfileForKey(activeBatchProfile);
@@ -3360,6 +4063,8 @@ type deformer</textarea>
           for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[m], OPERATOR_IDS[oi]).hovered = false;
         }
         if (selectedM) updateHud();
+        updateContextUI();
+        scheduleEffectStatusUpdate();
       }
 
       operatorSelect.addEventListener('change', function () { setActiveOperator(operatorSelect.value); });
@@ -3368,6 +4073,7 @@ type deformer</textarea>
         activeBatchProfile = key === 'all' || BATCH_PROFILE_KEYS.indexOf(key) !== -1 ? key : 'all';
         batchProfileSelect.value = activeBatchProfile;
         refreshBatchProfileControls();
+        updateContextUI();
       }
 
       function bindRange(id, valId, key, fmt, onChange) {
@@ -3476,11 +4182,9 @@ type deformer</textarea>
       var gridRowsRow = document.getElementById('gridRowsRow');
       document.getElementById('pGridEnabled').addEventListener('change', function (e) {
         params.gridEnabled = e.target.checked;
+        controlPanel.classList.toggle('grid-enabled', params.gridEnabled);
         if (params.gridEnabled) layoutGrid();
-        else {
-          clearGridStyles();
-          if (params.mode === 'grid') setMode('flow');
-        }
+        else clearGridStyles();
       });
       document.getElementById('pGridAutoRows').addEventListener('change', function (e) {
         params.gridAutoRows = e.target.checked;
@@ -3705,6 +4409,7 @@ type deformer</textarea>
       function setMode(mode) {
         params.mode = mode;
         markAutosaveDirty();
+        controlPanel.dataset.mode = mode;
         // A hover latch from Flow must never survive a mode round-trip;
         // otherwise the first sweep after returning to Flow can be ignored.
         for (var i = 0; i < metrics.length; i++) {
@@ -3714,12 +4419,8 @@ type deformer</textarea>
         stage.classList.toggle('lock-mode', mode === 'lock');
         stage.classList.toggle('edit-mode', mode === 'edit');
         stage.classList.toggle('grid-mode', mode === 'grid');
-        if (mode === 'grid' && !params.gridEnabled) {
-          params.gridEnabled = true;
-          document.getElementById('pGridEnabled').checked = true;
-          layoutGrid();
-        }
         clearEditSelection();
+        updateContextUI();
       }
       modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
       modeButtons.lock.addEventListener('click', function () { setMode('lock'); });
@@ -3739,7 +4440,7 @@ type deformer</textarea>
       });
       document.getElementById('btnLockAll').addEventListener('click', function () { pushHistory(); lockAll(); });
       document.getElementById('btnUnlockAll').addEventListener('click', function () { pushHistory(); unlockAll(); });
-      document.getElementById('btnReset').addEventListener('click', function () { pushHistory(); resetAll(); });
+      document.getElementById('btnReset').addEventListener('click', resetAllEffects);
 
       document.getElementById('btnPng').addEventListener('click', function () {
         if (document.fonts && document.fonts.ready) {
@@ -3795,6 +4496,7 @@ type deformer</textarea>
         document.getElementById('pScale').value = String(params.exportScale);
         btnVertical.setAttribute('aria-pressed', String(params.vertical));
         document.getElementById('pGridEnabled').checked = params.gridEnabled;
+        controlPanel.classList.toggle('grid-enabled', params.gridEnabled);
         document.getElementById('pGridAutoRows').checked = params.gridAutoRows;
         document.getElementById('pGridLines').checked = params.gridLines;
         document.getElementById('pGridLineBreak').checked = params.gridLineBreak;
