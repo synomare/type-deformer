@@ -382,6 +382,67 @@
       padding-left: 0.65em;
       margin: 0.65em 0;
     }
+    .confuse-dictionary-status {
+      margin: 0.45em 0 0;
+      color: var(--dim);
+      font-size: 0.54rem;
+      line-height: 1.55;
+      letter-spacing: 0.05em;
+    }
+    .confuse-dictionary-status.is-fallback { color: var(--red); }
+    .confuse-explorer {
+      margin-top: 0.75em;
+      padding-top: 0.65em;
+      border-top: 1px solid var(--line);
+    }
+    .confuse-explorer summary {
+      cursor: pointer;
+      color: var(--dim);
+      font-size: 0.56rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .confuse-explorer[open] summary { color: var(--red); }
+    .confuse-probe { width: 5.5em; flex: 0 0 5.5em !important; text-align: center; }
+    .confuse-candidates {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-height: 12em;
+      overflow-y: auto;
+      margin: 0.55em 0;
+      padding: 0.45em;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .confuse-candidate {
+      position: relative;
+      min-width: 2em;
+      padding: 0.28em 0.42em 0.2em;
+      border: 1px solid var(--line);
+      background: var(--card);
+      font-family: var(--jp);
+      font-size: 0.9rem;
+      line-height: 1.2;
+      text-align: center;
+    }
+    .confuse-candidate::after {
+      content: attr(data-tier);
+      display: block;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 0.42rem;
+      letter-spacing: 0;
+    }
+    .confuse-candidate[data-mixed="1"] { border-color: var(--red); }
+    .confuse-candidate-empty { color: var(--dim); font-size: 0.54rem; }
+    textarea.confuse-custom {
+      min-height: 5.8em;
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      line-height: 1.55;
+      letter-spacing: 0.03em;
+    }
 
     /* stage */
     .stage-wrap {
@@ -1010,8 +1071,23 @@ type deformer</textarea>
       </div>
       <div class="operator-panel" data-operator-panel="confuse" hidden>
         <div class="row"><label for="pConfuseDepth">Depth</label><input type="range" id="pConfuseDepth" min="0" max="1" step="0.01" value="1"><span class="val" id="vConfuseDepth">1.00</span></div>
+        <div class="row"><label for="pConfuseDictionary">Dictionary</label><select id="pConfuseDictionary"><option value="core">Core</option><option value="unicode" selected>Unicode Visual</option><option value="deep">Deep Han</option><option value="hanmax">Han Max</option></select></div>
         <div class="row"><label for="pConfuseMixed">Mixed scripts</label><input type="checkbox" id="pConfuseMixed"></div>
-        <p class="note">文字を「似た別の文字」へ段階置換します。深くなるほど遠い候補（濁点・全角→旧字体・字形近似→別スクリプト・装飾）へ。TEXT欄の原文は変わらず、表示だけが化けます。Mixed scriptsで別スクリプト候補（ギリシャ・キリル・囲み文字・漢字⇄カタカナ）を解禁。</p>
+        <div class="row"><label for="pConfuseGlyphGuard">Glyph guard</label><input type="checkbox" id="pConfuseGlyphGuard" checked></div>
+        <p class="confuse-dictionary-status" id="confuseDictionaryStatus" aria-live="polite"></p>
+        <p class="confuse-dictionary-status" id="confuseCompositionStatus" aria-live="polite">Mixed-script display: 0</p>
+        <details class="confuse-explorer">
+          <summary>Dictionary explorer / custom</summary>
+          <div class="row"><label for="pConfuseProbe">Probe</label><input class="confuse-probe" type="text" id="pConfuseProbe" value="學" maxlength="8"><span class="val" id="vConfuseProbe">0</span></div>
+          <div class="confuse-candidates" id="confuseCandidateList" aria-live="polite"></div>
+          <p class="note" id="confuseProbeSources"></p>
+          <label for="pConfuseCustom">Custom dictionary</label>
+          <textarea class="confuse-custom" id="pConfuseCustom" maxlength="20000" spellcheck="false" placeholder="信 = 訫 伸\n口 = ロ 囗\n# 1行1文字。候補は空白区切り"></textarea>
+          <div class="btns"><button type="button" id="btnConfuseCustomApply">Apply custom</button><button type="button" id="btnConfuseCustomClear">Clear</button></div>
+          <div class="btns"><button type="button" id="btnCopySourceText">Copy source</button><button type="button" id="btnCopyDerivedText">Copy display</button></div>
+          <p class="note">書式: <b>原字 = 候補 候補…</b>。#以降はコメント。その文字ではCustom候補が公式辞書より優先され、作品データ／共有URLにも保存されます。</p>
+        </details>
+        <p class="note">Depthは形態距離を操作します。T1＝字形変種、T2＝近似字、T3＝遠縁／意味異体。Han MaxはUnicode漢字圏全体を部首＋残画数で探索し、日本語候補を優先しながら同部首の近接画数・総画数まで広げます。孤立した珍字には近傍総画数をフォールバックします。Glyph guardは現在のフォントで□×になる候補と見た目が変わらないIVSを除外します。TEXT欄の原文は常に保持。</p>
       </div>
       <div class="context-lens">
         <div class="sub-head"><span>Lens Gesture</span><span class="r">なぞる</span></div>
@@ -1044,7 +1120,7 @@ type deformer</textarea>
         <button id="btnReset" disabled>Reset all effects</button>
       </div>
       <div class="effect-status" id="effectStatus">
-        <div class="effect-status-summary"><span>Active effects</span><span class="count" id="effectStatusTotal" aria-live="polite">0 / 6</span></div>
+        <div class="effect-status-summary"><span>Active effects</span><span class="count" id="effectStatusTotal" aria-live="polite">0 / 7</span></div>
         <p class="effect-status-empty" id="effectStatusEmpty">No deform effects applied</p>
         <div class="effect-status-list" id="effectStatusList"></div>
       </div>
@@ -1230,6 +1306,7 @@ type deformer</textarea>
 
   <div id="editHud" hidden></div>
 
+  <script src="confuse-dictionary.js"></script>
   <script>
     (function () {
       'use strict';
@@ -1402,42 +1479,291 @@ type deformer</textarea>
         return out;
       }
 
+      // Full data lives beside the HTML so the hand-edited single-file workflow
+      // still has a useful Core fallback. The generated file is deterministic;
+      // rebuild it with tools/build-confuse-dictionary.mjs when Unicode updates.
+      var CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
       var confuseCache = Object.create(null);
+      var confuseCacheRevision = 0;
+      var confuseCustomRaw = null;
+      var confuseCustomMap = Object.create(null);
+      var confuseCustomStats = { entries: 0, candidates: 0, errors: 0 };
+      var confuseGlyphRasterCache = Object.create(null);
+      var confuseMissingRasterCache = Object.create(null);
+      var confuseGlyphCanvas = document.createElement('canvas');
+      confuseGlyphCanvas.width = confuseGlyphCanvas.height = 72;
+      var confuseGlyphContext = confuseGlyphCanvas.getContext('2d', { willReadFrequently: true });
 
-      function confuseCandidates(ch) {
-        var mixed = !!params.confuseMixed;
-        var cacheKey = (mixed ? '1' : '0') + ch;
+      function confuseScript(value) {
+        if (!value) return 'common';
+        var normalized = value;
+        try { normalized = value.normalize('NFKC'); } catch (e) { /* older browser */ }
+        var chars = Array.from(normalized);
+        for (var i = 0; i < chars.length; i++) {
+          var character = chars[i];
+          var cp = chars[i].codePointAt(0);
+          if (/\p{Script=Latin}/u.test(character)) return 'latin';
+          if (/\p{Decimal_Number}/u.test(character)) return cp >= 0x30 && cp <= 0x39 ? 'digit' : 'other-number';
+          if (/\p{Script=Hiragana}|\p{Script=Katakana}/u.test(character)) return 'kana';
+          if (/\p{Script=Han}/u.test(character)) return 'han';
+          if (/\p{Script=Greek}/u.test(character)) return 'greek';
+          if (/\p{Script=Cyrillic}/u.test(character)) return 'cyrillic';
+          // Unknown letters must not silently pass as Common: that would leak
+          // Cherokee, Armenian, historic alphabets, etc. while Mixed is off.
+          if (/\p{Alphabetic}/u.test(character)) return 'other';
+        }
+        return 'common';
+      }
+
+      function confuseFontKey() {
+        return params.fontWeight + '|' + params.fontFamily;
+      }
+
+      function confuseHasVariationSelector(value) {
+        var chars = Array.from(value || '');
+        for (var i = 0; i < chars.length; i++) {
+          var cp = chars[i].codePointAt(0);
+          if (cp >= 0xFE00 && cp <= 0xFE0F || cp >= 0xE0100 && cp <= 0xE01EF) return true;
+        }
+        return false;
+      }
+
+      // Rasterize through the exact font stack used on the stage. A normalized
+      // 24×24 alpha map lets us identify .notdef/tofu and rank Han shapes while
+      // remaining independent of advance width and canvas export scale.
+      function confuseGlyphRaster(value) {
+        if (!confuseGlyphContext || !value) return null;
+        var cacheKey = confuseFontKey() + '|' + value;
+        if (Object.prototype.hasOwnProperty.call(confuseGlyphRasterCache, cacheKey)) return confuseGlyphRasterCache[cacheKey];
+        var ctx = confuseGlyphContext;
+        var size = confuseGlyphCanvas.width;
+        ctx.clearRect(0, 0, size, size);
+        ctx.save();
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        var fontSize = 54;
+        ctx.font = params.fontWeight + ' ' + fontSize + 'px ' + params.fontFamily;
+        var measured = ctx.measureText(value).width;
+        if (measured > size - 8) {
+          fontSize = Math.max(18, fontSize * (size - 8) / measured);
+          ctx.font = params.fontWeight + ' ' + fontSize + 'px ' + params.fontFamily;
+        }
+        ctx.fillText(value, size / 2, size / 2 + 1);
+        ctx.restore();
+        var image;
+        try { image = ctx.getImageData(0, 0, size, size).data; }
+        catch (e) { confuseGlyphRasterCache[cacheKey] = null; return null; }
+        var minX = size, minY = size, maxX = -1, maxY = -1;
+        for (var y = 0; y < size; y++) {
+          for (var x = 0; x < size; x++) {
+            if (image[(y * size + x) * 4 + 3] > 12) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+        if (maxX < minX || maxY < minY) { confuseGlyphRasterCache[cacheKey] = null; return null; }
+        var normalizedSize = 24;
+        var pixels = new Uint8Array(normalizedSize * normalizedSize);
+        var sourceW = maxX - minX + 1;
+        var sourceH = maxY - minY + 1;
+        var ink = 0;
+        for (var ny = 0; ny < normalizedSize; ny++) {
+          var sy0 = minY + Math.floor(ny * sourceH / normalizedSize);
+          var sy1 = minY + Math.max(1, Math.ceil((ny + 1) * sourceH / normalizedSize));
+          for (var nx = 0; nx < normalizedSize; nx++) {
+            var sx0 = minX + Math.floor(nx * sourceW / normalizedSize);
+            var sx1 = minX + Math.max(1, Math.ceil((nx + 1) * sourceW / normalizedSize));
+            var alpha = 0;
+            for (var sy = sy0; sy < sy1 && sy <= maxY; sy++) {
+              for (var sx = sx0; sx < sx1 && sx <= maxX; sx++) alpha = Math.max(alpha, image[(sy * size + sx) * 4 + 3]);
+            }
+            pixels[ny * normalizedSize + nx] = alpha;
+            ink += alpha;
+          }
+        }
+        var raster = { pixels: pixels, ink: ink / (255 * pixels.length), width: sourceW, height: sourceH };
+        confuseGlyphRasterCache[cacheKey] = raster;
+        return raster;
+      }
+
+      function confuseRasterDistance(left, right) {
+        if (!left || !right || left.pixels.length !== right.pixels.length) return 1;
+        var total = 0;
+        for (var i = 0; i < left.pixels.length; i++) total += Math.abs(left.pixels[i] - right.pixels[i]);
+        return total / (255 * left.pixels.length);
+      }
+
+      function confuseMissingRasters() {
+        var key = confuseFontKey();
+        if (confuseMissingRasterCache[key]) return confuseMissingRasterCache[key];
+        // Multiple unassigned/private-use points cover browsers whose .notdef
+        // glyph contains a hexadecimal label as well as the common □× box.
+        var probes = ['\u0378', '\u0380', '\uE000', String.fromCodePoint(0xF0000), String.fromCodePoint(0x10FFFF)];
+        var rasters = [];
+        for (var i = 0; i < probes.length; i++) {
+          var raster = confuseGlyphRaster(probes[i]);
+          if (raster) rasters.push(raster);
+        }
+        confuseMissingRasterCache[key] = rasters;
+        return rasters;
+      }
+
+      function confuseGlyphQuality(sourceChar, candidate) {
+        var candidateRaster = confuseGlyphRaster(candidate);
+        if (!candidateRaster || candidateRaster.ink < 0.008) return { supported: false, similarity: 0, reason: 'blank' };
+        var missing = confuseMissingRasters();
+        for (var i = 0; i < missing.length; i++) {
+          if (confuseRasterDistance(candidateRaster, missing[i]) < 0.028) return { supported: false, similarity: 0, reason: 'missing' };
+        }
+        var sourceRaster = confuseGlyphRaster(sourceChar);
+        var distance = confuseRasterDistance(sourceRaster, candidateRaster);
+        // A selector ignored by the current font is safe textually but produces
+        // no deformation; hide it together with visually identical Han aliases.
+        if (confuseScript(sourceChar) === 'han' && distance < 0.009) {
+          return { supported: false, similarity: 1, reason: confuseHasVariationSelector(candidate) ? 'unsupported-variation' : 'no-op' };
+        }
+        return { supported: true, similarity: Math.max(0, 1 - distance), reason: '' };
+      }
+
+      function parseConfuseCustom() {
+        var raw = typeof params.confuseCustom === 'string' ? params.confuseCustom : '';
+        if (raw === confuseCustomRaw) return confuseCustomMap;
+        confuseCustomRaw = raw;
+        confuseCustomMap = Object.create(null);
+        confuseCustomStats = { entries: 0, candidates: 0, errors: 0 };
+        var lines = raw.split(/\r?\n/);
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].replace(/#.*$/, '').trim();
+          if (!line) continue;
+          var match = line.match(/^(.+?)\s*(?:=|→|->|\t)\s*(.+)$/);
+          if (!match) { confuseCustomStats.errors++; continue; }
+          var source = match[1].trim();
+          if (Array.from(source).length !== 1) { confuseCustomStats.errors++; continue; }
+          var parts = match[2].trim().split(/[\s,、]+/);
+          var bucket = confuseCustomMap[source] || (confuseCustomMap[source] = []);
+          for (var p = 0; p < parts.length; p++) {
+            var candidate = parts[p];
+            if (!candidate || candidate === source || Array.from(candidate).length > 16 || /[\u0000-\u001f\u007f]/.test(candidate)) continue;
+            if (bucket.indexOf(candidate) === -1) { bucket.push(candidate); confuseCustomStats.candidates++; }
+          }
+          if (bucket.length) confuseCustomStats.entries++;
+          else delete confuseCustomMap[source];
+        }
+        return confuseCustomMap;
+      }
+
+      function addConfuseRecord(records, seen, sourceChar, candidate, tier, sourceName) {
+        if (!candidate || candidate === sourceChar || seen[candidate] || Array.from(candidate).length > 16) return;
+        if (/[\u0000-\u001f\u007f]/.test(candidate)) return;
+        var sourceScript = confuseScript(sourceChar);
+        var candidateScript = confuseScript(candidate);
+        var mixed = sourceScript !== candidateScript && sourceScript !== 'common' && candidateScript !== 'common';
+        if (mixed && !params.confuseMixed) return;
+        seen[candidate] = 1;
+        records.push({ text: candidate, tier: tier, source: sourceName, mixed: mixed });
+      }
+
+      function addConfuseList(records, seen, sourceChar, candidates, tier, sourceName, limit) {
+        if (!Array.isArray(candidates)) return;
+        var max = Math.min(candidates.length, limit || candidates.length);
+        for (var i = 0; i < max; i++) addConfuseRecord(records, seen, sourceChar, candidates[i], tier, sourceName);
+      }
+
+      function addConfuseSampledList(records, seen, sourceChar, candidates, tier, sourceName, limit) {
+        if (!Array.isArray(candidates) || !candidates.length) return;
+        var max = Math.min(candidates.length, limit || candidates.length);
+        if (max === candidates.length || max <= 1) {
+          addConfuseList(records, seen, sourceChar, candidates, tier, sourceName, max);
+          return;
+        }
+        // Large Unihan groups are codepoint-sorted. Even sampling keeps BMP,
+        // Extension A and supplementary Han represented instead of silently
+        // cutting every group at the first N codepoints.
+        for (var i = 0; i < max; i++) {
+          var sampleIndex = Math.round(i * (candidates.length - 1) / (max - 1));
+          addConfuseRecord(records, seen, sourceChar, candidates[sampleIndex], tier, sourceName);
+        }
+      }
+
+      function finalizeConfuseRecords(sourceChar, records) {
+        var guarded = [];
+        var filtered = 0;
+        var reasons = Object.create(null);
+        var isHan = confuseScript(sourceChar) === 'han';
+        for (var i = 0; i < records.length; i++) {
+          var record = records[i];
+          if (record.source === 'Custom') {
+            // Custom entries keep their authorial order, but Glyph Guard still
+            // owns the final safety decision. Otherwise one unsupported custom
+            // glyph can reintroduce the exact .notdef/tofu box the guard exists
+            // to prevent.
+            if (params.confuseGlyphGuard) {
+              var customQuality = confuseGlyphQuality(sourceChar, record.text);
+              if (!customQuality.supported) {
+                filtered++;
+                reasons[customQuality.reason || 'missing'] = (reasons[customQuality.reason || 'missing'] || 0) + 1;
+                continue;
+              }
+            }
+            record.similarity = null;
+            guarded.push(record);
+            continue;
+          }
+          var quality = (params.confuseGlyphGuard || isHan) ? confuseGlyphQuality(sourceChar, record.text) : { supported: true, similarity: null, reason: '' };
+          record.similarity = quality.similarity;
+          if (params.confuseGlyphGuard && !quality.supported) {
+            filtered++;
+            reasons[quality.reason || 'missing'] = (reasons[quality.reason || 'missing'] || 0) + 1;
+          } else guarded.push(record);
+        }
+        guarded.sort(function (a, b) {
+          var tierDifference = a.tier - b.tier;
+          if (tierDifference) return tierDifference;
+          if (isHan && typeof a.similarity === 'number' && typeof b.similarity === 'number') return b.similarity - a.similarity;
+          return 0;
+        });
+        guarded.filteredCount = filtered;
+        guarded.unfilteredCount = records.length;
+        guarded.filteredReasons = reasons;
+        return guarded;
+      }
+
+      /** @returns {Array.<{text:string,tier:number,source:string,mixed:boolean}>} */
+      function confuseCandidateRecords(ch) {
+        var profile = params.confuseDictionary || 'unicode';
+        var cacheKey = confuseCacheRevision + '|' + profile + '|' + (params.confuseMixed ? '1' : '0') + '|' + (params.confuseGlyphGuard ? '1' : '0') + '|' + confuseFontKey() + '|' + ch;
         var cached = confuseCache[cacheKey];
         if (cached) return cached;
 
         var t1 = [], t2 = [], t3 = [];
         var cp = ch.codePointAt(0);
-
-        if (cp >= 0x3041 && cp <= 0x3096) { // hiragana
+        if (cp >= 0x3041 && cp <= 0x3096) {
           t1 = t1.concat(confusePairLookup(CONFUSE_VOICE_PAIRS, ch));
           if (CONFUSE_SMALL_KANA[ch]) t1.push(CONFUSE_SMALL_KANA[ch]);
           var kata = String.fromCodePoint(cp + 0x60);
           t2.push(kata);
           if (CONFUSE_HALF_KATA[kata]) t2.push(CONFUSE_HALF_KATA[kata]);
-        } else if (cp >= 0x30A1 && cp <= 0x30FA || ch === 'ー') { // katakana
+        } else if (cp >= 0x30A1 && cp <= 0x30FA || ch === 'ー') {
           t1 = t1.concat(confusePairLookup(CONFUSE_VOICE_PAIRS, ch));
           if (CONFUSE_SMALL_KANA[ch]) t1.push(CONFUSE_SMALL_KANA[ch]);
           if (CONFUSE_HALF_KATA[ch]) t2.push(CONFUSE_HALF_KATA[ch]);
           if (cp >= 0x30A1 && cp <= 0x30F6) t2.push(String.fromCodePoint(cp - 0x60));
           t3 = t3.concat(confusePairLookup(CONFUSE_KATA_KANJI, ch));
-        } else if (cp >= 0x4E00 && cp <= 0x9FFF) { // kanji
+        } else if (confuseScript(ch) === 'han') {
           t1 = t1.concat(confusePairLookup(CONFUSE_KYUJITAI, ch));
           for (var g = 0; g < CONFUSE_SIMILAR_KANJI.length; g++) {
             var group = CONFUSE_SIMILAR_KANJI[g];
             if (group.indexOf(ch) !== -1) {
-              for (var gi = 0; gi < group.length; gi++) {
-                if (group[gi] !== ch) t2.push(group[gi]);
-              }
+              for (var gi = 0; gi < group.length; gi++) if (group[gi] !== ch) t2.push(group[gi]);
             }
           }
           t3 = t3.concat(confusePairLookup(CONFUSE_KATA_KANJI, ch));
-        } else if (cp >= 0x41 && cp <= 0x5A || cp >= 0x61 && cp <= 0x7A) { // latin
-          t1.push(String.fromCodePoint(cp + 0xFEE0)); // fullwidth
+        } else if (cp >= 0x41 && cp <= 0x5A || cp >= 0x61 && cp <= 0x7A) {
+          t1.push(String.fromCodePoint(cp + 0xFEE0));
           var isUpper = cp <= 0x5A;
           var alphaIndex = isUpper ? cp - 0x41 : cp - 0x61;
           for (var s = 0; s < CONFUSE_MATH_STYLES.length; s++) {
@@ -1446,15 +1772,12 @@ type deformer</textarea>
           }
           if (CONFUSE_GREEK[ch]) t3.push(CONFUSE_GREEK[ch]);
           if (CONFUSE_CYRILLIC[ch]) t3.push(CONFUSE_CYRILLIC[ch]);
-          t3.push(String.fromCodePoint((isUpper ? 0x24B6 : 0x24D0) + alphaIndex)); // circled
-        } else if (cp >= 0x30 && cp <= 0x39) { // digits
+          t3.push(String.fromCodePoint((isUpper ? 0x24B6 : 0x24D0) + alphaIndex));
+        } else if (cp >= 0x30 && cp <= 0x39) {
           var d = cp - 0x30;
           t1.push(String.fromCodePoint(cp + 0xFEE0));
-          t2.push(String.fromCodePoint(0x1D7CE + d)); // math bold
-          t2.push(String.fromCodePoint(0x1D7D8 + d)); // double-struck
-          t2.push(String.fromCodePoint(0x1D7F6 + d)); // monospace
-          t3.push(d === 0 ? '⓪' : String.fromCodePoint(0x2460 + d - 1)); // circled
-          t3.push(CONFUSE_SUPERSCRIPT_DIGITS[d]);
+          t2.push(String.fromCodePoint(0x1D7CE + d), String.fromCodePoint(0x1D7D8 + d), String.fromCodePoint(0x1D7F6 + d));
+          t3.push(d === 0 ? '⓪' : String.fromCodePoint(0x2460 + d - 1), CONFUSE_SUPERSCRIPT_DIGITS[d]);
         } else if (CONFUSE_PUNCT[ch]) {
           var punct = CONFUSE_PUNCT[ch];
           if (punct.t1) t1 = t1.concat(punct.t1);
@@ -1462,21 +1785,233 @@ type deformer</textarea>
           if (punct.t3) t3 = t3.concat(punct.t3);
         }
 
-        var merged = t1.concat(t2, mixed ? t3 : []);
+        var records = [];
         var seen = Object.create(null);
-        var out = [];
-        for (var c = 0; c < merged.length; c++) {
-          var candidate = merged[c];
-          if (candidate && candidate !== ch && !seen[candidate]) {
-            seen[candidate] = 1;
-            out.push(candidate);
+        var custom = parseConfuseCustom()[ch];
+        if (custom) addConfuseList(records, seen, ch, custom, 1, 'Custom', 64);
+        addConfuseList(records, seen, ch, t1, 1, 'Core · exact', 32);
+        addConfuseList(records, seen, ch, t2, 2, 'Core · curated', 32);
+        if (params.confuseMixed) addConfuseList(records, seen, ch, t3, 3, 'Core · mixed', 32);
+
+        if (profile !== 'core' && CONFUSE_DATA) {
+          var ivsJa = CONFUSE_DATA.ivsJapanese && CONFUSE_DATA.ivsJapanese[ch];
+          if (ivsJa) {
+            var japaneseSequences = [];
+            for (var ij = 0; ij < ivsJa.length; ij++) japaneseSequences.push(ch + ivsJa[ij]);
+            addConfuseList(records, seen, ch, japaneseSequences, 1, 'IVD · Japanese', 24);
+          }
+          addConfuseList(records, seen, ch, CONFUSE_DATA.hanVisual && CONFUSE_DATA.hanVisual[ch], 1, 'Unihan · visual', 32);
+          addConfuseList(records, seen, ch, CONFUSE_DATA.hanCompatibility && CONFUSE_DATA.hanCompatibility[ch], 1, 'UCD · compatibility', 24);
+          addConfuseList(records, seen, ch, CONFUSE_DATA.hanEquivalent && CONFUSE_DATA.hanEquivalent[ch], 1, 'UCD · equivalent ideograph', 24);
+          var standardized = CONFUSE_DATA.hanStandardized && CONFUSE_DATA.hanStandardized[ch];
+          if (standardized) {
+            var standardizedSequences = [];
+            for (var sv = 0; sv < standardized.length; sv++) standardizedSequences.push(ch + standardized[sv]);
+            addConfuseList(records, seen, ch, standardizedSequences, 1, 'UCD · standardized VS', 16);
+          }
+          addConfuseList(records, seen, ch, CONFUSE_DATA.hanVariant && CONFUSE_DATA.hanVariant[ch], 2, 'Unihan · variant', 48);
+          addConfuseList(records, seen, ch, CONFUSE_DATA.skeleton && CONFUSE_DATA.skeleton[ch], 2, 'UTS #39 · skeleton', 64);
+
+          if (profile === 'deep' || profile === 'hanmax') {
+            addConfuseList(records, seen, ch, CONFUSE_DATA.hanSemantic && CONFUSE_DATA.hanSemantic[ch], 3, 'Unihan · semantic', 48);
+            var ivsOther = CONFUSE_DATA.ivsOther && CONFUSE_DATA.ivsOther[ch];
+            if (ivsOther) {
+              var otherSequences = [];
+              for (var io = 0; io < ivsOther.length; io++) otherSequences.push(ch + ivsOther[io]);
+              addConfuseList(records, seen, ch, otherSequences, 1, 'IVD · other', 24);
+            }
+          }
+          if (profile === 'hanmax') {
+            var rsKeys = CONFUSE_DATA.hanRadicalStroke && CONFUSE_DATA.hanRadicalStroke[ch];
+            var japaneseStructural = [];
+            var universalStructural = [];
+            var neighboringStructural = [];
+            var japaneseSameStroke = [];
+            var universalSameStroke = [];
+            var japaneseNearbyTotal = [];
+            var universalNearbyTotal = [];
+            if (rsKeys && CONFUSE_DATA.hanRadicalStrokeGroups) {
+              for (var rk = 0; rk < rsKeys.length; rk++) {
+                var japaneseMembers = CONFUSE_DATA.hanJapaneseRadicalStrokeGroups && CONFUSE_DATA.hanJapaneseRadicalStrokeGroups[rsKeys[rk]] || [];
+                for (var jm = 0; jm < japaneseMembers.length; jm++) if (japaneseMembers[jm] !== ch) japaneseStructural.push(japaneseMembers[jm]);
+                var groupMembers = CONFUSE_DATA.hanRadicalStrokeGroups[rsKeys[rk]] || [];
+                for (var rm = 0; rm < groupMembers.length; rm++) if (groupMembers[rm] !== ch) universalStructural.push(groupMembers[rm]);
+
+                // kRSUnicode is radical.residual-strokes. Moving one residual
+                // stroke in either direction creates a controlled morphological
+                // neighborhood without collapsing into arbitrary same-stroke字.
+                var keyMatch = rsKeys[rk].match(/^(\d{1,3}'?)\.(\d{1,2})$/);
+                if (keyMatch) {
+                  var residual = parseInt(keyMatch[2], 10);
+                  for (var delta = -1; delta <= 1; delta += 2) {
+                    var adjacent = residual + delta;
+                    if (adjacent < 0) continue;
+                    var neighboringMembers = CONFUSE_DATA.hanRadicalStrokeGroups[keyMatch[1] + '.' + adjacent] || [];
+                    for (var nm = 0; nm < neighboringMembers.length; nm++) if (neighboringMembers[nm] !== ch) neighboringStructural.push(neighboringMembers[nm]);
+                  }
+                }
+              }
+            }
+            var totalStrokeKeys = CONFUSE_DATA.hanTotalStroke && CONFUSE_DATA.hanTotalStroke[ch];
+            if (totalStrokeKeys && CONFUSE_DATA.hanTotalStrokeGroups) {
+              for (var tk = 0; tk < totalStrokeKeys.length; tk++) {
+                var japaneseStrokeMembers = CONFUSE_DATA.hanJapaneseTotalStrokeGroups && CONFUSE_DATA.hanJapaneseTotalStrokeGroups[totalStrokeKeys[tk]] || [];
+                for (var js = 0; js < japaneseStrokeMembers.length; js++) if (japaneseStrokeMembers[js] !== ch) japaneseSameStroke.push(japaneseStrokeMembers[js]);
+                var universalStrokeMembers = CONFUSE_DATA.hanTotalStrokeGroups[totalStrokeKeys[tk]] || [];
+                for (var us = 0; us < universalStrokeMembers.length; us++) if (universalStrokeMembers[us] !== ch) universalSameStroke.push(universalStrokeMembers[us]);
+              }
+              // Exceptionally complex or isolated ideographs can have a total
+              // stroke group made only of unsupported rare glyphs. Walk toward
+              // the closest populated Japanese group only for sparse sources;
+              // this gives Glyph Guard a drawable escape route without flooding
+              // ordinary characters with arbitrary same-density candidates.
+              if (universalStructural.length + neighboringStructural.length + universalSameStroke.length < 32) {
+                for (var ts = 0; ts < totalStrokeKeys.length; ts++) {
+                  var sourceTotal = parseInt(totalStrokeKeys[ts], 10);
+                  for (var totalDelta = 1; totalDelta <= 32; totalDelta++) {
+                    var nearbyKeys = [String(sourceTotal - totalDelta), String(sourceTotal + totalDelta)];
+                    for (var nk = 0; nk < nearbyKeys.length; nk++) {
+                      if (Number(nearbyKeys[nk]) < 1) continue;
+                      var nearbyJapanese = CONFUSE_DATA.hanJapaneseTotalStrokeGroups && CONFUSE_DATA.hanJapaneseTotalStrokeGroups[nearbyKeys[nk]] || [];
+                      var nearbyUniversal = CONFUSE_DATA.hanTotalStrokeGroups[nearbyKeys[nk]] || [];
+                      for (var nj = 0; nj < nearbyJapanese.length; nj++) if (nearbyJapanese[nj] !== ch) japaneseNearbyTotal.push(nearbyJapanese[nj]);
+                      for (var nu = 0; nu < nearbyUniversal.length; nu++) if (nearbyUniversal[nu] !== ch) universalNearbyTotal.push(nearbyUniversal[nu]);
+                    }
+                    if (japaneseNearbyTotal.length) break;
+                  }
+                }
+              }
+            }
+            addConfuseList(records, seen, ch, japaneseStructural, 2, 'Unihan · Japanese RS', 64);
+            addConfuseSampledList(records, seen, ch, universalStructural, 2, 'Unihan · universal RS', 256);
+            addConfuseSampledList(records, seen, ch, neighboringStructural, 3, 'Unihan · near strokes', 192);
+            addConfuseSampledList(records, seen, ch, japaneseSameStroke, 3, 'Unihan · Japanese total strokes', 96);
+            addConfuseSampledList(records, seen, ch, universalSameStroke, 3, 'Unihan · universal total strokes', 128);
+            addConfuseSampledList(records, seen, ch, japaneseNearbyTotal, 3, 'Unihan · near total strokes', 96);
+            addConfuseSampledList(records, seen, ch, universalNearbyTotal, 3, 'Unihan · near total strokes', 96);
           }
         }
-        confuseCache[cacheKey] = out;
-        return out;
+
+        records = finalizeConfuseRecords(ch, records);
+        confuseCache[cacheKey] = records;
+        return records;
       }
 
-      function clearConfuseCache() { confuseCache = Object.create(null); }
+      function confuseCandidates(ch) {
+        return confuseCandidateRecords(ch).map(function (record) { return record.text; });
+      }
+
+      function selectConfuseCandidate(records, strength, letterIndex, codepoint) {
+        if (!records.length || strength <= 0.001) return null;
+        var jitter = 0.82 + hash(letterIndex, codepoint, 91.117) * 0.36;
+        var effective = Math.max(0, Math.min(1, strength * jitter));
+        // A project dictionary is an authorial override, not merely another
+        // noisy source. If present, keep the transformation inside that list.
+        var custom = [];
+        for (var ci = 0; ci < records.length; ci++) if (records[ci].source === 'Custom') custom.push(records[ci]);
+        if (custom.length) {
+          var customIndex = Math.min(custom.length - 1, Math.floor(effective * custom.length));
+          if (strength >= 0.999) customIndex = custom.length - 1;
+          return custom[customIndex].text;
+        }
+        var targetTier = effective < 0.34 ? 1 : (effective < 0.74 ? 2 : 3);
+        var tier = [];
+        for (var i = 0; i < records.length; i++) if (records[i].tier === targetTier) tier.push(records[i]);
+        if (!tier.length) {
+          for (var distance = 1; distance <= 2 && !tier.length; distance++) {
+            for (var r = 0; r < records.length; r++) if (records[r].tier === targetTier - distance) tier.push(records[r]);
+            if (!tier.length) for (var f = 0; f < records.length; f++) if (records[f].tier === targetTier + distance) tier.push(records[f]);
+          }
+        }
+        if (!tier.length) return null;
+        var zoneStart = targetTier === 1 ? 0 : (targetTier === 2 ? 0.34 : 0.74);
+        var zoneEnd = targetTier === 1 ? 0.34 : (targetTier === 2 ? 0.74 : 1);
+        var progress = Math.max(0, Math.min(1, (effective - zoneStart) / (zoneEnd - zoneStart)));
+        var index = Math.min(tier.length - 1, Math.floor(progress * tier.length));
+        if (strength >= 0.999) index = tier.length - 1;
+        return tier[index].text;
+      }
+
+      function clearConfuseCache() {
+        confuseCache = Object.create(null);
+        confuseCacheRevision++;
+        confuseCustomRaw = null;
+      }
+
+      function clearConfuseFontCache() {
+        confuseGlyphRasterCache = Object.create(null);
+        confuseMissingRasterCache = Object.create(null);
+        clearConfuseCache();
+      }
+
+      function refreshConfuseFontCandidates() {
+        clearConfuseFontCache();
+        // Font coverage may change after a webfont finishes loading or when the
+        // user chooses another family. Re-evaluate Confuse on every glyph,
+        // including locked glyphs, while preserving all other frozen channels.
+        for (var i = 0; i < metrics.length; i++) {
+          var savedDerived = metrics[i].el.dataset.savedDerived;
+          applySingleOperatorVisual(metrics[i], 'confuse');
+          if (savedDerived) restoreSavedDerivedText(metrics[i], savedDerived);
+        }
+        updateConfuseDictionaryUI();
+      }
+
+      function updateConfuseDictionaryUI() {
+        var status = document.getElementById('confuseDictionaryStatus');
+        if (!status) return;
+        parseConfuseCustom();
+        var profile = params.confuseDictionary || 'unicode';
+        if (profile === 'core') {
+          status.textContent = 'Core embedded · Custom ' + confuseCustomStats.entries + ' entries';
+          status.classList.remove('is-fallback');
+        } else if (CONFUSE_DATA && CONFUSE_DATA.meta) {
+          var meta = CONFUSE_DATA.meta;
+          status.textContent = 'Unicode ' + meta.unicode + ' · Unihan variants ' + Number(meta.hanVariantKeys || 0).toLocaleString() + ' · Han universe ' + Number(meta.hanUniverseKeys || meta.radicalStrokeKeys || 0).toLocaleString() + ' · equivalent ' + Number(meta.hanEquivalentMappings || 0).toLocaleString() + ' · IVD ' + meta.ivd + ' · Glyph guard ' + (params.confuseGlyphGuard ? 'ON' : 'OFF') + ' · Custom ' + confuseCustomStats.entries;
+          status.classList.remove('is-fallback');
+        } else {
+          status.textContent = 'External dictionary unavailable — Core fallback active. Keep confuse-dictionary.js beside this HTML.';
+          status.classList.add('is-fallback');
+        }
+        if (confuseCustomStats.errors) status.textContent += ' · ' + confuseCustomStats.errors + ' invalid line(s)';
+        updateConfuseExplorer();
+      }
+
+      function updateConfuseExplorer() {
+        var input = document.getElementById('pConfuseProbe');
+        var list = document.getElementById('confuseCandidateList');
+        var count = document.getElementById('vConfuseProbe');
+        var sourceLine = document.getElementById('confuseProbeSources');
+        if (!input || !list || !count || !sourceLine) return;
+        var graphemes = toGraphemes(input.value.trim());
+        var sourceChar = graphemes.length ? graphemes[0] : '';
+        var records = sourceChar ? confuseCandidateRecords(sourceChar) : [];
+        count.textContent = records.filteredCount ? records.length + '/' + records.unfilteredCount : String(records.length);
+        while (list.firstChild) list.removeChild(list.firstChild);
+        if (!records.length) {
+          var empty = document.createElement('span');
+          empty.className = 'confuse-candidate-empty';
+          empty.textContent = sourceChar ? (records.filteredCount ? 'No drawable candidate in current font' : 'No candidate in current profile') : 'Enter one character';
+          list.appendChild(empty);
+          sourceLine.textContent = records.filteredCount ? 'Glyph guard removed ' + records.filteredCount + ' missing or no-op glyphs' : '';
+          return;
+        }
+        var sourceCounts = Object.create(null);
+        var shown = Math.min(records.length, 80);
+        for (var i = 0; i < shown; i++) {
+          var record = records[i];
+          sourceCounts[record.source] = (sourceCounts[record.source] || 0) + 1;
+          var chip = document.createElement('span');
+          chip.className = 'confuse-candidate';
+          chip.dataset.tier = 'T' + record.tier + (typeof record.similarity === 'number' && confuseScript(sourceChar) === 'han' ? ' · ' + Math.round(record.similarity * 100) : '');
+          chip.dataset.mixed = record.mixed ? '1' : '0';
+          chip.textContent = record.text;
+          chip.title = record.source + (record.mixed ? ' · mixed script' : '') + (typeof record.similarity === 'number' && confuseScript(sourceChar) === 'han' ? ' · shape ' + Math.round(record.similarity * 100) + '%' : '');
+          list.appendChild(chip);
+        }
+        var filteredText = records.filteredCount ? ' / Glyph guard −' + records.filteredCount : '';
+        sourceLine.textContent = Object.keys(sourceCounts).map(function (name) { return name + ' ' + sourceCounts[name]; }).join(' / ') + (records.length > shown ? ' / +' + (records.length - shown) + ' more' : '') + filteredText;
+      }
       var OPERATOR_BY_SHORT = {};
       for (var operatorIndex = 0; operatorIndex < OPERATOR_IDS.length; operatorIndex++) {
         var operatorId = OPERATOR_IDS[operatorIndex];
@@ -1504,6 +2039,9 @@ type deformer</textarea>
         misregColorB: '#1767a6',
         confuseDepth: 1,
         confuseMixed: false,
+        confuseGlyphGuard: true,
+        confuseDictionary: 'unicode',
+        confuseCustom: '',
         seed: 1,
         fontFamily: '"Zen Old Mincho", "Hiragino Mincho ProN", serif',
         fontSize: 52,
@@ -1652,8 +2190,9 @@ type deformer</textarea>
         chooseParam('artboard', ['auto', 'custom', '1080x1080', '1080x1350', '1080x1920', '1920x1080', '2480x3508', '3508x2480']);
         chooseParam('mode', ['flow', 'lock', 'edit', 'grid']);
         chooseParam('activeOperator', OPERATOR_IDS);
+        chooseParam('confuseDictionary', ['core', 'unicode', 'deep', 'hanmax']);
 
-        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed'];
+        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed', 'confuseGlyphGuard'];
         for (var i = 0; i < boolKeys.length; i++) {
           var boolValue = params[boolKeys[i]];
           params[boolKeys[i]] = boolValue === true || boolValue === 1;
@@ -1670,6 +2209,9 @@ type deformer</textarea>
         } else {
           params.fontFamily = params.fontFamily.slice(0, 500).replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
         }
+        if (typeof params.confuseCustom !== 'string') params.confuseCustom = '';
+        params.confuseCustom = params.confuseCustom.slice(0, 20000).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+        clearConfuseCache();
       }
 
       /* ---------------- grapheme splitting (ported) ---------------- */
@@ -2580,6 +3122,9 @@ type deformer</textarea>
       // recomputed from operator state, so undo/carry/export all stay coherent.
       function applyConfuseText(info, deform) {
         var el = info.el;
+        // Any live evaluation supersedes a restored v4 display snapshot. Font
+        // refresh captures and reapplies that snapshot explicitly when needed.
+        delete el.dataset.savedDerived;
         var orig = el.dataset.sourceText || el.textContent;
         var state = operatorState(info, 'confuse');
         var strength = state.manual != null ? Number(state.manual) : deform.confuseDepth * state.current;
@@ -2587,17 +3132,12 @@ type deformer</textarea>
 
         var display = orig;
         if (strength > 0.001 && Array.from(orig).length === 1) {
-          var candidates = confuseCandidates(orig);
+          var candidates = confuseCandidateRecords(orig);
           if (candidates.length) {
             var j = parseInt(el.dataset.j, 10) || 0;
             var cp = parseInt(el.dataset.cp, 10) || 0;
-            // per-letter threshold jitter: a lens sweep steps letters at
-            // different moments instead of flipping the whole line at once
-            var jitter = 0.7 + hash(j, cp, 91.117) * 0.6;
-            var level = Math.floor(strength * jitter * candidates.length + 0.000001);
-            if (strength >= 0.999 && level < 1) level = 1;
-            if (level > candidates.length) level = candidates.length;
-            if (level > 0) display = candidates[level - 1];
+            var selectedCandidate = selectConfuseCandidate(candidates, strength, j, cp);
+            if (selectedCandidate) display = selectedCandidate;
           }
         }
 
@@ -2679,6 +3219,7 @@ type deformer</textarea>
           if (!includeLocked && metrics[i].locked) continue;
           applyOperatorVisual(metrics[i]);
         }
+        scheduleEffectStatusUpdate();
       }
 
       var OPERATOR_STYLE_PROPS = {
@@ -2760,15 +3301,30 @@ type deformer</textarea>
           var count = operatorAffectedCount(id);
           if (count) active.push({ id: id, count: count });
         }
+        var mixedPairs = [];
+        var mixedCount = 0;
+        for (var mi = 0; mi < metrics.length; mi++) {
+          var source = metrics[mi].el.dataset.sourceText || metrics[mi].el.textContent;
+          var derived = metrics[mi].el.textContent;
+          var sourceScript = confuseScript(source);
+          var derivedScript = confuseScript(derived);
+          if (source !== derived && sourceScript !== derivedScript && sourceScript !== 'common' && derivedScript !== 'common') {
+            mixedCount++;
+            if (mixedPairs.length < 8) mixedPairs.push(source + '\u2192' + derived);
+          }
+        }
         var signature = params.activeOperator + '|' + active.map(function (item) {
           return item.id + ':' + item.count;
-        }).join(',');
+        }).join(',') + '|mixed:' + mixedCount + ':' + mixedPairs.join(',');
         if (signature === effectStatusSignature) return;
         effectStatusSignature = signature;
 
         list.textContent = '';
         empty.hidden = active.length > 0;
         total.textContent = active.length + ' / ' + OPERATOR_IDS.length;
+        var mixedStatus = document.getElementById('confuseCompositionStatus');
+        if (mixedStatus) mixedStatus.textContent = 'Mixed-script display: ' + mixedCount
+          + (mixedPairs.length ? ' \u00b7 ' + mixedPairs.join(' / ') + (mixedCount > mixedPairs.length ? ' / \u2026' : '') : '');
         document.getElementById('btnReset').disabled = active.length === 0;
 
         for (var a = 0; a < active.length; a++) {
@@ -3274,7 +3830,8 @@ type deformer</textarea>
         if (id === 'stretch') {
           selectedM.manualX = Math.min(8, Math.max(0.25, base.x + dx));
           selectedM.manualY = Math.min(9, Math.max(0.25, base.y + dy));
-        } else if (id === 'rotate') state.manual = Math.max(-360, Math.min(360, base + dx * 20));
+        } else if (id === 'confuse') state.manual = Math.max(0, Math.min(1, base + dx + dy));
+        else if (id === 'rotate') state.manual = Math.max(-360, Math.min(360, base + dx * 20));
         else if (id === 'skew') state.manual = { x: Math.max(-85, Math.min(85, base.x + dx * 20)), y: Math.max(-85, Math.min(85, base.y + dy * 20)) };
         else if (id === 'baselineShift') state.manual = Math.max(-5, Math.min(5, base + (params.vertical ? dx : dy)));
         else if (id === 'mirror') state.manual = { x: Math.max(-1, Math.min(1, base.x - dx)), y: Math.max(-1, Math.min(1, base.y - dy)) };
@@ -3348,7 +3905,10 @@ type deformer</textarea>
         for (var i = 0; i < metrics.length; i++) {
           var m = metrics[i];
           if (m.locked) continue;
-          var ch = m.el.textContent;
+          // Codepoint operators may change the rendered script. Batch identity
+          // must remain attached to the immutable source character so the same
+          // button can always release what it applied.
+          var ch = m.el.dataset.sourceText || m.el.textContent;
           var cp = parseInt(m.el.dataset.cp, 10) || ch.codePointAt(0);
           if (matcher(ch, cp)) targets.push(m);
         }
@@ -3490,6 +4050,36 @@ type deformer</textarea>
           m.active = false;
         }
         applyOperatorVisual(m);
+        restoreSavedDerivedText(m, s.d);
+      }
+
+      // Version 4 projects preserve both immutable source and the exact derived
+      // display. Reuse the saved display when it remains safe in the current
+      // font; otherwise keep the freshly evaluated, Glyph-Guarded candidate.
+      function restoreSavedDerivedText(m, saved) {
+        if (typeof saved !== 'string' || !saved || Array.from(saved).length > 16 || /[\u0000-\u001f\u007f]/.test(saved)) return;
+        if (!operatorAffectsMetric(m, 'confuse')) return;
+        var el = m.el;
+        var source = el.dataset.sourceText || el.textContent;
+        if (saved === source) return;
+        var sourceScript = confuseScript(source);
+        var savedScript = confuseScript(saved);
+        var mixed = sourceScript !== savedScript && sourceScript !== 'common' && savedScript !== 'common';
+        if (mixed && !params.confuseMixed) return;
+        if (params.confuseGlyphGuard && !confuseGlyphQuality(source, saved).supported) return;
+        if (!params.gridEnabled && !el.dataset.confuseHoldW && el.textContent === source) {
+          var holdW = el.offsetWidth;
+          if (holdW) el.dataset.confuseHoldW = String(holdW);
+        }
+        el.textContent = saved;
+        el.dataset.renderText = saved;
+        el.dataset.savedDerived = saved;
+        if (!params.gridEnabled && el.dataset.confuseHoldW) {
+          el.style.width = el.dataset.confuseHoldW + 'px';
+          el.style.textAlign = 'center';
+          el.dataset.confuseHold = '1';
+        }
+        metricsDirty = true;
       }
 
       function restoreStates(states) {
@@ -3545,6 +4135,7 @@ type deformer</textarea>
         // the confused display is derived state (textContent), not markup —
         // the fresh span shows the source char, so recompute the swap
         applyConfuseText(m, batchProfileForKey(el.dataset.batch || ''));
+        restoreSavedDerivedText(m, s.d);
       }
 
       function rebuildPreservingState(text) {
@@ -3576,6 +4167,9 @@ type deformer</textarea>
         if (m.gridCell != null) s.gc = m.gridCell;
         var ops = sparseOperatorState(m);
         if (ops) s.o = ops;
+        var sourceText = m.el.dataset.sourceText || m.el.textContent;
+        var renderText = m.el.dataset.renderText || m.el.textContent;
+        if (renderText !== sourceText) s.d = renderText;
         return s;
       }
 
@@ -3628,6 +4222,7 @@ type deformer</textarea>
           });
         }
         restoreStates(states);
+        markAutosaveDirty();
       }
 
       function undo() {
@@ -4092,7 +4687,7 @@ type deformer</textarea>
 
         var parts = [];
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
-        parts.push('<metadata>' + escXml(JSON.stringify({ app: 'type-deformer', version: 3, sourceText: textInput.value })) + '</metadata>');
+        parts.push('<metadata>' + escXml(JSON.stringify({ app: 'type-deformer', version: 4, sourceText: textInput.value })) + '</metadata>');
         parts.push('<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond&amp;family=Space+Mono&amp;family=Zen+Old+Mincho&amp;family=Noto+Sans+JP&amp;family=Zen+Kaku+Gothic+New&amp;display=swap");</style>');
         if (!params.transparentBg) {
           parts.push('<rect width="100%" height="100%" fill="' + params.paper + '"/>');
@@ -4421,6 +5016,7 @@ type deformer</textarea>
       btnBatchProfileReset.addEventListener('click', function () {
         if (activeBatchProfile === 'all' || !batchProfiles[activeBatchProfile]) return;
         delete batchProfiles[activeBatchProfile];
+        markAutosaveDirty();
         refreshBatchProfileControls();
         applyRandom();
         reapplyStretches();
@@ -4440,10 +5036,92 @@ type deformer</textarea>
       document.getElementById('pMisregColorB').addEventListener('input', function (e) {
         params.misregColorB = e.target.value; applyAllOperatorVisuals();
       });
+      document.getElementById('pConfuseDictionary').addEventListener('change', function (e) {
+        params.confuseDictionary = e.target.value;
+        clearConfuseCache();
+        applyAllOperatorVisuals();
+        updateConfuseDictionaryUI();
+      });
       document.getElementById('pConfuseMixed').addEventListener('change', function (e) {
         params.confuseMixed = e.target.checked;
         clearConfuseCache();
         applyAllOperatorVisuals();
+        updateConfuseDictionaryUI();
+      });
+      document.getElementById('pConfuseGlyphGuard').addEventListener('change', function (e) {
+        params.confuseGlyphGuard = e.target.checked;
+        clearConfuseCache();
+        applyAllOperatorVisuals();
+        updateConfuseDictionaryUI();
+      });
+      document.getElementById('pConfuseProbe').addEventListener('input', updateConfuseExplorer);
+      document.getElementById('btnConfuseCustomApply').addEventListener('click', function () {
+        params.confuseCustom = document.getElementById('pConfuseCustom').value.slice(0, 20000).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+        markAutosaveDirty();
+        clearConfuseCache();
+        applyAllOperatorVisuals();
+        updateConfuseDictionaryUI();
+      });
+      document.getElementById('btnConfuseCustomClear').addEventListener('click', function () {
+        params.confuseCustom = '';
+        document.getElementById('pConfuseCustom').value = '';
+        markAutosaveDirty();
+        clearConfuseCache();
+        applyAllOperatorVisuals();
+        updateConfuseDictionaryUI();
+      });
+
+      function displayedCompositionText() {
+        var paragraphs = stage.querySelectorAll('p');
+        var lines = [];
+        for (var i = 0; i < paragraphs.length; i++) lines.push(paragraphs[i].textContent.replace(/\u00a0/g, ' '));
+        return lines.join('\n');
+      }
+
+      function copyPlainTextValue(value, button) {
+        var originalLabel = button.textContent;
+        var done = function (ok) {
+          button.textContent = ok ? 'Copied!' : 'Copy failed';
+          setTimeout(function () { button.textContent = originalLabel; }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(value).then(function () { done(true); }, function () {
+            prompt('このテキストをコピーしてください', value);
+            done(false);
+          });
+        } else {
+          prompt('このテキストをコピーしてください', value);
+          done(false);
+        }
+      }
+
+      var btnCopySourceText = document.getElementById('btnCopySourceText');
+      var btnCopyDerivedText = document.getElementById('btnCopyDerivedText');
+      btnCopySourceText.addEventListener('click', function () { copyPlainTextValue(textInput.value, btnCopySourceText); });
+      btnCopyDerivedText.addEventListener('click', function () { copyPlainTextValue(displayedCompositionText(), btnCopyDerivedText); });
+
+      // Ordinary copy from the artwork always yields immutable source text.
+      // The explicit Copy display action above is the only path that exports
+      // derived Confuse characters as plain text.
+      document.addEventListener('copy', function (e) {
+        var selection = window.getSelection && window.getSelection();
+        if (!selection || !selection.rangeCount || !e.clipboardData) return;
+        var range = selection.getRangeAt(0);
+        try { if (!range.intersectsNode(stage)) return; }
+        catch (unsupportedRange) { return; }
+        var container = document.createElement('div');
+        container.appendChild(range.cloneContents());
+        var copiedGlyphs = container.querySelectorAll('.c');
+        for (var i = 0; i < copiedGlyphs.length; i++) {
+          if (copiedGlyphs[i].dataset.sourceText) copiedGlyphs[i].textContent = copiedGlyphs[i].dataset.sourceText;
+        }
+        var paragraphs = container.querySelectorAll('p');
+        var lines = [];
+        if (paragraphs.length) {
+          for (var p = 0; p < paragraphs.length; p++) lines.push(paragraphs[p].textContent.replace(/\u00a0/g, ' '));
+        } else lines.push(container.textContent.replace(/\u00a0/g, ' '));
+        e.preventDefault();
+        e.clipboardData.setData('text/plain', lines.join('\n'));
       });
 
       /* grid */
@@ -4485,6 +5163,7 @@ type deformer</textarea>
         fontCustom.value = '';
         params.fontFamily = e.target.value;
         applyStyle();
+        refreshConfuseFontCandidates();
       });
       fontCustom.addEventListener('change', function () {
         var v = fontCustom.value.trim().replace(/"/g, '');
@@ -4496,10 +5175,12 @@ type deformer</textarea>
           params.fontFamily = fontSelect.value;
         }
         applyStyle();
+        refreshConfuseFontCandidates();
       });
       document.getElementById('pWeight').addEventListener('change', function (e) {
         params.fontWeight = parseInt(e.target.value, 10) || 400;
         applyStyle();
+        refreshConfuseFontCandidates();
       });
       document.getElementById('pAccent').addEventListener('input', function (e) {
         params.accent = e.target.value;
@@ -4762,6 +5443,11 @@ type deformer</textarea>
         document.getElementById('pTransparent').checked = params.transparentBg;
         document.getElementById('pDeformedOnly').checked = params.deformedOnly;
         document.getElementById('pConfuseMixed').checked = !!params.confuseMixed;
+        document.getElementById('pConfuseGlyphGuard').checked = !!params.confuseGlyphGuard;
+        document.getElementById('pConfuseDictionary').value = params.confuseDictionary;
+        document.getElementById('pConfuseCustom').value = params.confuseCustom;
+        clearConfuseCache();
+        updateConfuseDictionaryUI();
         abSelect.value = params.artboard;
         abCustomRow.style.display = params.artboard === 'custom' ? '' : 'none';
         abW.value = params.abW;
@@ -4789,7 +5475,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 3,
+          version: 4,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -4811,7 +5497,7 @@ type deformer</textarea>
           if (!silent) alert('プロジェクトファイルではないようです。');
           return false;
         }
-        if (data.version != null && data.version > 3) {
+        if (data.version != null && data.version > 4) {
           if (!silent) alert('このプロジェクトは新しいバージョンで保存されています。');
           return false;
         }
@@ -5075,13 +5761,13 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 3, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), L: [] };
+        var d = { a: 'td', v: 4, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
           var encodedOps = encodeOperatorStates(metrics[i]);
-          if (s.t || s.l || s.i > 0.001 || s.mx || s.my || s.gc != null || encodedOps || s.x) {
-            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0, s.gc != null ? s.gc : -1, encodedOps, s.x ? 1 : 0]);
+          if (s.t || s.l || s.i > 0.001 || s.mx || s.my || s.gc != null || encodedOps || s.x || s.d) {
+            d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0, s.gc != null ? s.gc : -1, encodedOps, s.x ? 1 : 0, s.d || '']);
           }
         }
         return d;
@@ -5119,6 +5805,7 @@ type deformer</textarea>
             }
             restoredLetter.x = restoredLetter.l && !legacyManualLock ? 1 : 0;
           }
+          if (row.length > 9 && typeof row[9] === 'string') restoredLetter.d = row[9];
           letters[rowIndex] = restoredLetter;
           if (rowIndex > maxIdx) maxIdx = rowIndex;
         }
@@ -5179,15 +5866,19 @@ type deformer</textarea>
       // no scroll listener: positions are stage-relative, and the pointer
       // math reads the stage rect once per animation frame
       if (document.fonts) {
-        if (document.fonts.ready) document.fonts.ready.then(scheduleMeasure).catch(function () { });
+        if (document.fonts.ready) document.fonts.ready.then(function () {
+          refreshConfuseFontCandidates();
+          scheduleMeasure();
+        }).catch(function () { });
         if (document.fonts.addEventListener) {
-          document.fonts.addEventListener('loadingdone', scheduleMeasure);
+          document.fonts.addEventListener('loadingdone', function () { refreshConfuseFontCandidates(); scheduleMeasure(); });
           document.fonts.addEventListener('loadingerror', scheduleMeasure);
         }
       }
 
       applyStyle();
       createSpans(textInput.value);
+      updateConfuseDictionaryUI();
       updateExportInfo();
       populatePresets();
       // restore order: shared URL wins, then the autosave; autosaving only
