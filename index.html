@@ -2193,7 +2193,7 @@ type deformer</textarea>
       </div>
       <div class="canvas-view-controls" role="group" aria-label="Canvas view">
         <button type="button" id="btnViewZoomOut" aria-label="Zoom out canvas">−</button>
-        <button type="button" id="btnViewReset" aria-label="Fit canvas view">100%</button>
+        <button type="button" id="btnViewReset" aria-label="Reset canvas view to 100%">100%</button>
         <button type="button" id="btnViewZoomIn" aria-label="Zoom in canvas">＋</button>
         <button type="button" id="btnViewMode" aria-label="Pan and zoom canvas" aria-pressed="false">VIEW</button>
       </div>
@@ -2263,7 +2263,7 @@ type deformer</textarea>
       function updateCanvasViewUI() {
         var percent = Math.round(canvasView.scale * 100) + '%';
         btnViewReset.textContent = percent;
-        btnViewReset.setAttribute('aria-label', 'Fit canvas view, current zoom ' + percent);
+        btnViewReset.setAttribute('aria-label', 'Reset canvas view to 100%, current zoom ' + percent);
         btnViewMode.setAttribute('aria-pressed', String(canvasView.active));
         if (btnMobileView) btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
         stageWrap.classList.toggle('view-pan-active', canvasView.active);
@@ -2629,6 +2629,9 @@ type deformer</textarea>
       var compositionState = cloneCompositionDefaults();
       var compositionInspector = 'field';
       var compositionScene = { glyphs: [], bands: [], width: 0, height: 0, limited: false };
+      var compositionSpatialIndex = {
+        scene: null, cellSize: 96, buckets: Object.create(null), maxReach: 96
+      };
       var compositionDrawRaf = null;
       var compositionPlayRaf = null;
       var compositionLastTime = 0;
@@ -4475,7 +4478,7 @@ type deformer</textarea>
         var px = (pointer.x - stageRect.left) / canvasView.scale;
         var py = (pointer.y - stageRect.top) / canvasView.scale;
         var flow = params.mode === 'flow' && pointer.active;
-        var compositionDistances = compositionState.enabled ? compositionDistancesBySource(px, py) : null;
+        var compositionDistances = flow && compositionState.enabled ? compositionDistancesBySource(px, py) : null;
 
         var keepAnimating = pointer.active || pointer.strength > 0.002;
 
@@ -7722,6 +7725,7 @@ type deformer</textarea>
         ctx.scale(L.s, L.s);
         for (var i = 0; i < bands.length; i++) {
           var band = bands[i];
+          if ((band.opacity == null ? 1 : band.opacity) <= 0.001) continue;
           ctx.save();
           ctx.globalAlpha = band.opacity == null ? 1 : band.opacity;
           ctx.globalCompositeOperation = band.blend || 'source-over';
@@ -8202,9 +8206,12 @@ type deformer</textarea>
           canvas.addEventListener('webglcontextlost', function (event) {
             event.preventDefault();
             state.lost = true;
+            scheduleCompositionDraw();
           });
           canvas.addEventListener('webglcontextrestored', function () {
             state.lost = false; state.program = null; state.texture = null;
+            state.available = true;
+            scheduleCompositionDraw();
           });
           state.canvas = canvas;
           state.gl = gl;
@@ -8386,18 +8393,84 @@ type deformer</textarea>
         return scene;
       }
 
+      var compositionStatusSignature = '';
+
       function updateCompositionStatus() {
         var status = document.getElementById('compositionStatus');
         var remove = document.getElementById('btnCompositionRemove');
-        if (remove) remove.disabled = !compositionState.enabled;
+        if (remove && remove.disabled === compositionState.enabled) remove.disabled = !compositionState.enabled;
         if (!status) return;
-        status.classList.toggle('is-active', compositionState.enabled);
-        if (!compositionState.enabled) status.textContent = 'No composition applied. Selecting a tab does not change the artwork.';
-        else status.textContent = 'Active: ' + COMPOSITION_DEFS[compositionState.type].label
+        var nextText = !compositionState.enabled
+          ? 'No composition applied. Selecting a tab does not change the artwork.'
+          : 'Active: ' + COMPOSITION_DEFS[compositionState.type].label
           + (compositionState.type === 'cascade' ? ' / ' + cascadeSystemLabel() : '')
           + ' · ' + compositionScene.glyphs.length + ' instances'
           + (compositionScene.limited ? ' · preview limit reached' : '') + ' · Source-linked';
+        var nextSignature = String(compositionState.enabled) + '|' + nextText;
+        if (nextSignature === compositionStatusSignature) return;
+        compositionStatusSignature = nextSignature;
+        status.classList.toggle('is-active', compositionState.enabled);
+        status.textContent = nextText;
         if (typeof updateVideoExportAvailability === 'function') updateVideoExportAvailability();
+      }
+
+      function compositionPreviewDpr(width, height, quality) {
+        var dprCap = quality === 'performance' ? 1 : (quality === 'high' ? 2 : 1.5);
+        var deviceDpr = Math.max(1, window.devicePixelRatio || 1);
+        var compact = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+        var maxPixels = compact ? 8000000 : (quality === 'high' ? 24000000 : 16000000);
+        var memoryDpr = Math.sqrt(maxPixels / Math.max(1, width * height));
+        return Math.max(0.5, Math.min(dprCap, deviceDpr, memoryDpr));
+      }
+
+      function rebuildCompositionSpatialIndex() {
+        var index = {
+          scene: compositionScene, cellSize: 96,
+          buckets: Object.create(null), maxReach: 96
+        };
+        for (var i = 0; i < compositionScene.glyphs.length; i++) {
+          var glyph = compositionScene.glyphs[i];
+          var cx = glyph.ox + (glyph.tx || 0);
+          var cy = glyph.oy + (glyph.ty || 0);
+          var reach = Math.max(
+            8,
+            Math.abs(glyph.w * glyph.scaleX) * 0.65,
+            Math.abs(glyph.h * glyph.scaleY) * 0.65
+          );
+          index.maxReach = Math.max(index.maxReach, reach);
+          var key = Math.floor(cx / index.cellSize) + ',' + Math.floor(cy / index.cellSize);
+          if (!index.buckets[key]) index.buckets[key] = [];
+          index.buckets[key].push(i);
+        }
+        compositionSpatialIndex = index;
+      }
+
+      function compositionSpatialCandidates(x, y, radius) {
+        if (compositionSpatialIndex.scene !== compositionScene) rebuildCompositionSpatialIndex();
+        var cellSize = compositionSpatialIndex.cellSize;
+        var cellRadius = Math.max(1, Math.ceil(radius / cellSize));
+        if (cellRadius > 16) {
+          var all = new Array(compositionScene.glyphs.length);
+          for (var allIndex = 0; allIndex < all.length; allIndex++) all[allIndex] = allIndex;
+          return all;
+        }
+        var centerX = Math.floor(x / cellSize), centerY = Math.floor(y / cellSize);
+        var result = [];
+        for (var gy = centerY - cellRadius; gy <= centerY + cellRadius; gy++) {
+          for (var gx = centerX - cellRadius; gx <= centerX + cellRadius; gx++) {
+            var bucket = compositionSpatialIndex.buckets[gx + ',' + gy];
+            if (bucket) Array.prototype.push.apply(result, bucket);
+          }
+        }
+        return result;
+      }
+
+      function maxCompositionLensRadius() {
+        var radius = Number(params.radius) || 0;
+        Object.keys(batchProfiles).forEach(function (key) {
+          radius = Math.max(radius, Number(batchProfiles[key] && batchProfiles[key].radius) || 0);
+        });
+        return Math.max(8, radius * 1.4);
       }
 
       function renderCompositionPreview() {
@@ -8416,8 +8489,7 @@ type deformer</textarea>
         var logical = compositionLogicalDimensions(width, height);
         compositionPreviewLayout = fitCompositionViewport(logical.width, logical.height, width, height);
         var quality = compositionEffectiveQuality();
-        var dprCap = quality === 'performance' ? 1 : (quality === 'high' ? 2 : 1.5);
-        var dpr = Math.min(dprCap, Math.max(1, window.devicePixelRatio || 1));
+        var dpr = compositionPreviewDpr(width, height, quality);
         var pixelW = Math.max(1, Math.round(width * dpr));
         var pixelH = Math.max(1, Math.round(height * dpr));
         if (compositionCanvas.width !== pixelW) compositionCanvas.width = pixelW;
@@ -8428,6 +8500,7 @@ type deformer</textarea>
           logical.height,
           'preview'
         );
+        rebuildCompositionSpatialIndex();
         compositionCtx.setTransform(1, 0, 0, 1, 0, 0);
         compositionCtx.clearRect(0, 0, pixelW, pixelH);
         drawSceneBands(compositionCtx, compositionScene.bands, dpr, compositionPreviewLayout);
@@ -8448,8 +8521,9 @@ type deformer</textarea>
         px = logicalPoint.x;
         py = logicalPoint.y;
         var best = null, bestD = Infinity;
-        for (var i = compositionScene.glyphs.length - 1; i >= 0; i--) {
-          var g = compositionScene.glyphs[i];
+        var candidates = compositionSpatialCandidates(px, py, compositionSpatialIndex.maxReach * 1.5);
+        for (var i = candidates.length - 1; i >= 0; i--) {
+          var g = compositionScene.glyphs[candidates[i]];
           var cx = g.ox + g.tx, cy = g.oy + g.ty;
           var reachX = Math.max(8, Math.abs(g.w * g.scaleX) * 0.65);
           var reachY = Math.max(8, Math.abs(g.h * g.scaleY) * 0.65);
@@ -8464,11 +8538,16 @@ type deformer</textarea>
         var logicalPoint = previewPointToComposition(px, py);
         px = logicalPoint.x;
         py = logicalPoint.y;
+        var previewScale = Math.max(0.0001, compositionPreviewLayout.s);
+        var logicalRadius = maxCompositionLensRadius() / previewScale;
+        var candidates = compositionSpatialCandidates(px, py, logicalRadius);
         var result = [];
-        for (var i = 0; i < compositionScene.glyphs.length; i++) {
-          var g = compositionScene.glyphs[i];
+        for (var i = 0; i < candidates.length; i++) {
+          var g = compositionScene.glyphs[candidates[i]];
           var dx = px - (g.ox + g.tx), dy = py - (g.oy + g.ty);
-          var d = dx * dx + dy * dy;
+          // Return preview-space distance so a 125px lens stays 125px
+          // regardless of the fixed Logical viewport or canvas fit scale.
+          var d = (dx * dx + dy * dy) * previewScale * previewScale;
           if (result[g.sourceIndex] == null || d < result[g.sourceIndex]) result[g.sourceIndex] = d;
         }
         return result;
@@ -8557,7 +8636,12 @@ type deformer</textarea>
         if (isIOS) {
           var file = (typeof File !== 'undefined') ? new File([blob], filename, { type: blob.type }) : null;
           if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-            navigator.share({ files: [file] }).catch(function () { openBlobTab(blob); });
+            navigator.share({ files: [file] }).catch(function (error) {
+              // Cancelling the native iOS share sheet is intentional; opening
+              // a blob tab afterwards feels like a second, unwanted export.
+              if (error && error.name === 'AbortError') return;
+              openBlobTab(blob);
+            });
             return;
           }
           openBlobTab(blob);
@@ -8616,6 +8700,8 @@ type deformer</textarea>
         var font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
+          var visibleOpacity = (useVisualOpacity || g.composition) ? (g.opacity == null ? 1 : g.opacity) : 1;
+          if (visibleOpacity <= 0.001) continue;
           function drawPass(offsetX, offsetY, color, alpha, blend) {
             // Page-space ink offset is placed before the glyph matrix. This is
             // why Misregistration remains horizontal/vertical even after a
@@ -10105,6 +10191,7 @@ type deformer</textarea>
         if (!playing && compositionPlayRaf !== null) {
           cancelAnimationFrame(compositionPlayRaf);
           compositionPlayRaf = null;
+          scheduleAutosave();
         }
         if (button) {
           button.setAttribute('aria-pressed', String(playing));
@@ -10409,6 +10496,15 @@ type deformer</textarea>
         pFluxBaseline: ['fluxRows', 'baseline'], pFluxSpeedMode: ['fluxRows', 'laneSpeed'],
         pFluxIntegerTravel: ['fluxRows', 'integerTravel'], pFluxColorMode: ['fluxRows', 'colorMode'],
         pFluxMirror: ['fluxRows', 'mirror'], pFluxFlip: ['fluxRows', 'flip'],
+        pCascadeSystem: ['cascade', 'system'], pCascadeShape: ['cascade', 'shape'],
+        pCascadeColorMode: ['cascade', 'colorMode'], pCascadeSignalMode: ['cascade', 'signalMode'],
+        pCascadeSdfMode: ['cascade', 'sdfMode'], pCascadeRule: ['cascade', 'rule'],
+        pCascadeSeed: ['cascade', 'seed'], pCascadeBlend: ['cascade', 'blend'],
+        pCascadeGlyphMode: ['cascade', 'glyphMode'], pCascadeMirror: ['cascade', 'mirror'],
+        pCascadeBands: ['cascade', 'bands'], pCascadeBackdropEnabled: ['cascade', 'backdropEnabled'],
+        pCascadeBackdrop: ['cascade', 'backdrop'], pCascadeFieldA: ['cascade', 'fieldA'],
+        pCascadeFieldB: ['cascade', 'fieldB'], pCascadeFieldC: ['cascade', 'fieldC'],
+        pCascadeEdge: ['cascade', 'edge'], pCascadeGlyph: ['cascade', 'glyph'],
         pCascadeAutomatonMode: ['cascade', 'automatonMode'], pCascadeLifeRule: ['cascade', 'lifeRule'],
         pCascadePingPong: ['cascade', 'pingPong'], pCascadePointerInject: ['cascade', 'pointerInject'],
         pContourSource: ['contourAtlas', 'source'], pContourRendering: ['contourAtlas', 'rendering'],
@@ -10417,22 +10513,55 @@ type deformer</textarea>
         pFeedbackMirror: ['feedbackChamber', 'mirror'], pFeedbackWarp: ['feedbackChamber', 'warp'],
         pFeedbackPointerCenter: ['feedbackChamber', 'pointerCenter'], pFeedbackLoopLock: ['feedbackChamber', 'loopLock']
       };
+
+      var lastCompositionBuildGroup = null;
+      Array.prototype.forEach.call(document.querySelectorAll('.composition-build-group'), function (group) {
+        group.addEventListener('toggle', function () {
+          if (group.open) lastCompositionBuildGroup = group;
+        });
+        group.addEventListener('pointerdown', function () { lastCompositionBuildGroup = group; });
+        group.addEventListener('focusin', function () { lastCompositionBuildGroup = group; });
+      });
+
+      function compositionResetPath(controlId) {
+        for (var i = 0; i < COMPOSITION_RANGE_CONTROLS.length; i++) {
+          var spec = COMPOSITION_RANGE_CONTROLS[i];
+          if (spec[0] === controlId) return [spec[2], spec[3]];
+        }
+        return GROUP_DIRECT_PATHS[controlId] || null;
+      }
+
       document.getElementById('btnCompositionResetGroup').addEventListener('click', function () {
         var panel = document.querySelector('[data-composition-panel="' + compositionInspector + '"]');
         if (!panel) return;
         var openGroups = panel.querySelectorAll('.composition-build-group[open]');
-        var group = openGroups.length ? openGroups[openGroups.length - 1] : panel.querySelector('.composition-build-group');
-        if (!group) return;
+        var group = lastCompositionBuildGroup && panel.contains(lastCompositionBuildGroup) && lastCompositionBuildGroup.open
+          ? lastCompositionBuildGroup
+          : (openGroups.length ? openGroups[openGroups.length - 1] : panel.querySelector('.composition-build-group'));
+        var controls = Array.prototype.slice.call((group || panel).querySelectorAll('input[id], select[id]'));
+        if (!group) {
+          // Cascade predates the collapsible Build groups. Treat its visible
+          // system panel plus common display controls as the current group.
+          controls = controls.filter(function (control) {
+            var systemPanel = control.closest && control.closest('.cascade-system-panel');
+            var conditionalRow = control.closest && control.closest('[data-cascade-for]');
+            var closedDetails = control.closest && control.closest('details:not([open])');
+            return !(systemPanel && systemPanel.hidden)
+              && !(conditionalRow && conditionalRow.hidden)
+              && !closedDetails;
+          });
+        }
+        var resettable = controls.map(function (control) {
+          return { control: control, path: compositionResetPath(control.id) };
+        }).filter(function (entry) { return !!entry.path; });
+        if (!resettable.length) return;
         pushHistory();
-        Array.prototype.forEach.call(group.querySelectorAll('input[id], select[id]'), function (control) {
-          for (var i = 0; i < COMPOSITION_RANGE_CONTROLS.length; i++) {
-            var spec = COMPOSITION_RANGE_CONTROLS[i];
-            if (spec[0] !== control.id) continue;
-            setCompositionValue(spec[2], spec[3], compositionValueFromDefaults(spec[2], spec[3]));
-            return;
-          }
-          var direct = GROUP_DIRECT_PATHS[control.id];
-          if (direct) setCompositionValue(direct[0], direct[1], compositionValueFromDefaults(direct[0], direct[1]));
+        resettable.forEach(function (entry) {
+          setCompositionValue(
+            entry.path[0],
+            entry.path[1],
+            compositionValueFromDefaults(entry.path[0], entry.path[1])
+          );
         });
         markAutosaveDirty();
         syncCompositionUI();
@@ -10932,6 +11061,8 @@ type deformer</textarea>
       var AUTOSAVE_BACKUP_KEY = 'typeDeformer.autosave.backup.v1';
       var autosaveDirty = true;
       var autosaveSuspended = false;
+      var autosaveIdleHandle = null;
+      var autosaveIdleKind = '';
 
       function markAutosaveDirty() {
         autosaveDirty = true;
@@ -10956,6 +11087,38 @@ type deformer</textarea>
         } catch (e) { /* storage full or unavailable — silently skip */ }
       }
 
+      function cancelScheduledAutosave() {
+        if (autosaveIdleHandle === null) return;
+        if (autosaveIdleKind === 'idle' && window.cancelIdleCallback) window.cancelIdleCallback(autosaveIdleHandle);
+        else clearTimeout(autosaveIdleHandle);
+        autosaveIdleHandle = null;
+        autosaveIdleKind = '';
+      }
+
+      function scheduleAutosave() {
+        if (autosaveSuspended || !autosaveDirty || autosaveIdleHandle !== null) return;
+        function runAutosave() {
+          autosaveIdleHandle = null;
+          autosaveIdleKind = '';
+          // Avoid serializing a large project in the middle of typing or
+          // real-time playback. Pause schedules an idle save; pagehide flushes.
+          if (compositionPlayRaf !== null) return;
+          if (rebuildTimer !== null && document.activeElement === textInput) {
+            autosaveIdleKind = 'timer';
+            autosaveIdleHandle = setTimeout(runAutosave, 750);
+            return;
+          }
+          saveAutosave();
+        }
+        if (window.requestIdleCallback) {
+          autosaveIdleKind = 'idle';
+          autosaveIdleHandle = window.requestIdleCallback(runAutosave, { timeout: 2400 });
+        } else {
+          autosaveIdleKind = 'timer';
+          autosaveIdleHandle = setTimeout(runAutosave, 450);
+        }
+      }
+
       function tryRestoreAutosave() {
         var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];
         for (var i = 0; i < keys.length; i++) {
@@ -10975,10 +11138,16 @@ type deformer</textarea>
           panel.addEventListener('change', markAutosaveDirty, true);
           panel.addEventListener('click', flushPendingTextRebuild, true);
         }
-        setInterval(saveAutosave, 8000);
-        window.addEventListener('pagehide', saveAutosave);
+        setInterval(scheduleAutosave, 8000);
+        window.addEventListener('pagehide', function () {
+          cancelScheduledAutosave();
+          saveAutosave();
+        });
         document.addEventListener('visibilitychange', function () {
-          if (document.hidden) saveAutosave();
+          if (document.hidden) {
+            cancelScheduledAutosave();
+            saveAutosave();
+          }
         });
       }
 
