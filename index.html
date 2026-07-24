@@ -790,6 +790,7 @@
       overflow: auto;
       background: #e7e4db;
     }
+    .stage-wrap.has-view-camera { overflow: hidden; }
 
     /* resizable canvas frame — drag the bottom-right corner to change
        the preview canvas size; native resize starts from the current
@@ -805,6 +806,8 @@
       overflow: auto;
       resize: both;
       background: var(--paper);
+      transform-origin: 0 0;
+      will-change: transform;
     }
     .stage-frame.composition-active { overflow: hidden; }
     #compositionCanvas {
@@ -867,6 +870,49 @@
       cursor: pointer;
     }
     .canvas-size-badge button:hover { background: var(--ink); color: var(--paper); }
+
+    .canvas-view-controls {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 24;
+      display: grid;
+      grid-template-columns: repeat(4, auto);
+      border: 1px solid var(--ink);
+      background: color-mix(in srgb, var(--paper) 92%, transparent);
+      box-shadow: 0 1px 0 rgba(23, 20, 15, 0.08);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .canvas-view-controls button {
+      min-width: 42px;
+      height: 34px;
+      margin: 0;
+      padding: 0 0.55rem;
+      border: 0;
+      border-right: 1px solid var(--line);
+      background: transparent;
+      box-shadow: none;
+      font-family: var(--mono);
+      font-size: 0.56rem;
+      letter-spacing: 0.08em;
+    }
+    .canvas-view-controls button:last-child { border-right: 0; }
+    .canvas-view-controls button:hover,
+    .canvas-view-controls button[aria-pressed="true"] {
+      color: var(--red);
+      background: var(--card);
+    }
+    .canvas-view-controls #btnViewReset { min-width: 58px; }
+    .stage-wrap.view-pan-active .stage,
+    .stage-wrap.view-pan-active .stage-frame {
+      cursor: grab !important;
+      touch-action: none !important;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .stage-wrap.view-pan-dragging .stage,
+    .stage-wrap.view-pan-dragging .stage-frame { cursor: grabbing !important; }
 
     .stage {
       position: relative;
@@ -1170,6 +1216,17 @@
       .stage-frame { resize: none; min-width: 0; min-height: 0; }
       .canvas-size-badge { top: 8px; right: 8px; font-size: 0.5rem; }
       .canvas-size-badge button { display: none; }
+      .canvas-view-controls {
+        left: calc(8px + env(safe-area-inset-left));
+        bottom: 8px;
+      }
+      .canvas-view-controls button {
+        min-width: 44px;
+        height: 44px;
+        padding: 0 0.65rem;
+        font-size: 0.58rem;
+      }
+      .canvas-view-controls #btnViewMode { display: none; }
 
       .mobile-topbar {
         position: fixed;
@@ -1217,7 +1274,7 @@
         height: calc(102px + env(safe-area-inset-bottom));
         box-sizing: border-box;
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         grid-template-rows: repeat(2, 51px);
         padding-bottom: env(safe-area-inset-bottom);
         border-top: 1px solid var(--ink);
@@ -1231,6 +1288,7 @@
         font-size: 0.62rem;
       }
       .mobile-dock button[aria-pressed="true"] { color: var(--red); background: transparent; border-top-color: var(--red); }
+      .mobile-dock #btnMobileMore { grid-column: span 2; }
 
       .panel {
         position: fixed;
@@ -1392,7 +1450,7 @@
   <header class="topbar">
     <span class="brand">TYPE DEFORMER<span class="jp">文字変形機</span></span>
     <span class="top-context" id="topContextStatus">Stretch × Lens × All</span>
-    <span class="hint"><b>L</b> freeze — <b>E</b> edit — <b>G</b> arrange — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
+    <span class="hint"><b>V</b> view — <b>L</b> freeze — <b>E</b> edit — <b>G</b> arrange — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
   </header>
 
   <header class="mobile-topbar" aria-label="Mobile toolbar">
@@ -2133,6 +2191,12 @@ type deformer</textarea>
         <span id="canvasSizeText"></span>
         <button type="button" id="btnCanvasReset" title="キャンバスサイズをリセット">reset</button>
       </div>
+      <div class="canvas-view-controls" role="group" aria-label="Canvas view">
+        <button type="button" id="btnViewZoomOut" aria-label="Zoom out canvas">−</button>
+        <button type="button" id="btnViewReset" aria-label="Fit canvas view">100%</button>
+        <button type="button" id="btnViewZoomIn" aria-label="Zoom in canvas">＋</button>
+        <button type="button" id="btnViewMode" aria-label="Pan and zoom canvas" aria-pressed="false">VIEW</button>
+      </div>
     </div>
   </div>
 
@@ -2140,6 +2204,7 @@ type deformer</textarea>
     <button type="button" data-mobile-mode="flow" aria-pressed="true">Lens</button>
     <button type="button" data-mobile-mode="edit" aria-pressed="false">Edit</button>
     <button type="button" data-mobile-mode="grid" aria-pressed="false">Arrange</button>
+    <button type="button" id="btnMobileView" aria-pressed="false">View</button>
     <button type="button" id="btnMobileOperator">Operator</button>
     <button type="button" id="btnMobileTarget">Target</button>
     <button type="button" id="btnMobileMore">More</button>
@@ -2169,6 +2234,213 @@ type deformer</textarea>
       var compositionCanvas = document.getElementById('compositionCanvas');
       var compositionCtx = compositionCanvas.getContext('2d');
 
+      /* ---------------- canvas view camera ----------------
+         View state is intentionally device-local and ephemeral: it changes
+         only how the artwork is inspected, never project/export geometry. */
+      var canvasView = { scale: 1, x: 0, y: 0, active: false };
+      var canvasViewPointers = new Map();
+      var canvasViewDrag = null;
+      var canvasViewPinch = null;
+      var canvasViewLastTap = null;
+      var CANVAS_VIEW_MIN = 0.35;
+      var CANVAS_VIEW_MAX = 6;
+      var btnViewMode = document.getElementById('btnViewMode');
+      var btnMobileView = document.getElementById('btnMobileView');
+      var btnViewReset = document.getElementById('btnViewReset');
+
+      stageWrap.classList.add('has-view-camera');
+
+      function clampCanvasView() {
+        var wrapW = Math.max(1, stageWrap.clientWidth);
+        var wrapH = Math.max(1, stageWrap.clientHeight);
+        var frameW = Math.max(1, stageFrame.offsetWidth) * canvasView.scale;
+        var frameH = Math.max(1, stageFrame.offsetHeight) * canvasView.scale;
+        var visible = 56;
+        canvasView.x = Math.max(visible - frameW, Math.min(wrapW - visible, canvasView.x));
+        canvasView.y = Math.max(visible - frameH, Math.min(wrapH - visible, canvasView.y));
+      }
+
+      function updateCanvasViewUI() {
+        var percent = Math.round(canvasView.scale * 100) + '%';
+        btnViewReset.textContent = percent;
+        btnViewReset.setAttribute('aria-label', 'Fit canvas view, current zoom ' + percent);
+        btnViewMode.setAttribute('aria-pressed', String(canvasView.active));
+        if (btnMobileView) btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
+        stageWrap.classList.toggle('view-pan-active', canvasView.active);
+      }
+
+      function applyCanvasView() {
+        clampCanvasView();
+        stageFrame.style.transform =
+          'translate3d(' + canvasView.x.toFixed(2) + 'px,' + canvasView.y.toFixed(2) + 'px,0) scale(' +
+          canvasView.scale.toFixed(4) + ')';
+        updateCanvasViewUI();
+      }
+
+      function setCanvasViewActive(active) {
+        canvasView.active = !!active;
+        canvasViewPointers.clear();
+        canvasViewDrag = null;
+        canvasViewPinch = null;
+        stageWrap.classList.remove('view-pan-dragging');
+        pointer.active = false;
+        if (typeof schedule === 'function') schedule();
+        updateCanvasViewUI();
+        if (typeof updateContextUI === 'function') updateContextUI();
+      }
+
+      function resetCanvasView() {
+        canvasView.scale = 1;
+        canvasView.x = 0;
+        canvasView.y = 0;
+        applyCanvasView();
+      }
+
+      function zoomCanvasViewAt(nextScale, clientX, clientY) {
+        nextScale = Math.max(CANVAS_VIEW_MIN, Math.min(CANVAS_VIEW_MAX, nextScale));
+        if (Math.abs(nextScale - canvasView.scale) < 0.0001) return;
+        var wrapRect = stageWrap.getBoundingClientRect();
+        var sx = clientX - wrapRect.left;
+        var sy = clientY - wrapRect.top;
+        var contentX = (sx - canvasView.x) / canvasView.scale;
+        var contentY = (sy - canvasView.y) / canvasView.scale;
+        canvasView.x = sx - contentX * nextScale;
+        canvasView.y = sy - contentY * nextScale;
+        canvasView.scale = nextScale;
+        applyCanvasView();
+      }
+
+      function zoomCanvasViewBy(factor) {
+        var rect = stageWrap.getBoundingClientRect();
+        zoomCanvasViewAt(
+          canvasView.scale * factor,
+          rect.left + rect.width * 0.5,
+          rect.top + rect.height * 0.5
+        );
+      }
+
+      function canvasViewPointPair() {
+        var points = Array.from(canvasViewPointers.values());
+        return points.length >= 2 ? [points[0], points[1]] : null;
+      }
+
+      function beginCanvasViewPinch() {
+        var pair = canvasViewPointPair();
+        if (!pair) { canvasViewPinch = null; return; }
+        var midX = (pair[0].x + pair[1].x) * 0.5;
+        var midY = (pair[0].y + pair[1].y) * 0.5;
+        canvasViewPinch = {
+          distance: Math.max(1, Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y)),
+          scale: canvasView.scale,
+          x: canvasView.x,
+          y: canvasView.y,
+          midX: midX,
+          midY: midY
+        };
+      }
+
+      function restartCanvasViewDrag() {
+        var first = canvasViewPointers.values().next().value;
+        canvasViewDrag = first ? {
+          id: first.id, x0: first.x, y0: first.y,
+          viewX: canvasView.x, viewY: canvasView.y, moved: false
+        } : null;
+      }
+
+      stageWrap.addEventListener('pointerdown', function (e) {
+        if (!canvasView.active || e.target.closest('.canvas-view-controls')) return;
+        canvasViewPointers.set(e.pointerId, { id: e.pointerId, x: e.clientX, y: e.clientY });
+        if (canvasViewPointers.size === 1) restartCanvasViewDrag();
+        else beginCanvasViewPinch();
+        stageWrap.classList.add('view-pan-dragging');
+        try { stageWrap.setPointerCapture(e.pointerId); } catch (err) { }
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
+      }, true);
+
+      stageWrap.addEventListener('pointermove', function (e) {
+        if (!canvasView.active || !canvasViewPointers.has(e.pointerId)) return;
+        canvasViewPointers.set(e.pointerId, { id: e.pointerId, x: e.clientX, y: e.clientY });
+        if (canvasViewPointers.size >= 2) {
+          var pair = canvasViewPointPair();
+          if (!canvasViewPinch) beginCanvasViewPinch();
+          var distance = Math.max(1, Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y));
+          var midX = (pair[0].x + pair[1].x) * 0.5;
+          var midY = (pair[0].y + pair[1].y) * 0.5;
+          var wrapRect = stageWrap.getBoundingClientRect();
+          var nextScale = Math.max(
+            CANVAS_VIEW_MIN,
+            Math.min(CANVAS_VIEW_MAX, canvasViewPinch.scale * distance / canvasViewPinch.distance)
+          );
+          var contentX = (canvasViewPinch.midX - wrapRect.left - canvasViewPinch.x) / canvasViewPinch.scale;
+          var contentY = (canvasViewPinch.midY - wrapRect.top - canvasViewPinch.y) / canvasViewPinch.scale;
+          canvasView.scale = nextScale;
+          canvasView.x = midX - wrapRect.left - contentX * nextScale;
+          canvasView.y = midY - wrapRect.top - contentY * nextScale;
+          applyCanvasView();
+        } else if (canvasViewDrag && canvasViewDrag.id === e.pointerId) {
+          var dx = e.clientX - canvasViewDrag.x0;
+          var dy = e.clientY - canvasViewDrag.y0;
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) canvasViewDrag.moved = true;
+          canvasView.x = canvasViewDrag.viewX + dx;
+          canvasView.y = canvasViewDrag.viewY + dy;
+          applyCanvasView();
+        }
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
+      }, true);
+
+      function endCanvasViewPointer(e) {
+        if (!canvasViewPointers.has(e.pointerId)) return;
+        var wasTap = canvasViewPointers.size === 1 && canvasViewDrag && !canvasViewDrag.moved;
+        canvasViewPointers.delete(e.pointerId);
+        try { stageWrap.releasePointerCapture(e.pointerId); } catch (err) { }
+        if (canvasViewPointers.size >= 2) beginCanvasViewPinch();
+        else {
+          canvasViewPinch = null;
+          restartCanvasViewDrag();
+        }
+        if (!canvasViewPointers.size) stageWrap.classList.remove('view-pan-dragging');
+        if (wasTap && e.pointerType === 'touch') {
+          var now = Date.now();
+          if (canvasViewLastTap && now - canvasViewLastTap.time < 360 &&
+              Math.hypot(e.clientX - canvasViewLastTap.x, e.clientY - canvasViewLastTap.y) < 22) {
+            resetCanvasView();
+            canvasViewLastTap = null;
+          } else {
+            canvasViewLastTap = { time: now, x: e.clientX, y: e.clientY };
+          }
+        }
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
+      }
+      stageWrap.addEventListener('pointerup', endCanvasViewPointer, true);
+      stageWrap.addEventListener('pointercancel', endCanvasViewPointer, true);
+
+      stageWrap.addEventListener('wheel', function (e) {
+        if (!canvasView.active && !e.ctrlKey && !e.metaKey) return;
+        if (!canvasView.active) setCanvasViewActive(true);
+        zoomCanvasViewAt(canvasView.scale * Math.exp(-e.deltaY * 0.002), e.clientX, e.clientY);
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+
+      stageWrap.addEventListener('dblclick', function (e) {
+        if (!canvasView.active || e.target.closest('.canvas-view-controls')) return;
+        resetCanvasView();
+        e.preventDefault();
+      }, true);
+
+      document.getElementById('btnViewZoomOut').addEventListener('click', function () { zoomCanvasViewBy(1 / 1.25); });
+      document.getElementById('btnViewZoomIn').addEventListener('click', function () { zoomCanvasViewBy(1.25); });
+      btnViewReset.addEventListener('click', resetCanvasView);
+      btnViewMode.addEventListener('click', function () { setCanvasViewActive(!canvasView.active); });
+      if (btnMobileView) btnMobileView.addEventListener('click', function () {
+        setCanvasViewActive(!canvasView.active);
+        closeMobileSheet();
+      });
+      window.addEventListener('resize', function () { applyCanvasView(); });
+      applyCanvasView();
+
       /* ---------------- resizable canvas frame ---------------- */
       (function () {
         var badgeText = document.getElementById('canvasSizeText');
@@ -2176,8 +2448,10 @@ type deformer</textarea>
         var SIZE_KEY = 'typeDeformer.frameSize.v1';
 
         function updateBadge() {
-          var r = stageFrame.getBoundingClientRect();
-          badgeText.innerHTML = '<b>' + Math.round(r.width) + '</b> × <b>' + Math.round(r.height) + '</b>';
+          // The badge describes artwork viewport geometry, not the temporary
+          // camera transform applied for inspection.
+          badgeText.innerHTML = '<b>' + Math.round(stageFrame.offsetWidth) + '</b> × <b>' +
+            Math.round(stageFrame.offsetHeight) + '</b>';
         }
         function saveSize() {
           try {
@@ -4198,8 +4472,8 @@ type deformer</textarea>
 
         var radiusMultiplier = pointer.type === 'touch' ? 1.33 : 1;
         var stageRect = stage.getBoundingClientRect();
-        var px = pointer.x - stageRect.left;
-        var py = pointer.y - stageRect.top;
+        var px = (pointer.x - stageRect.left) / canvasView.scale;
+        var py = (pointer.y - stageRect.top) / canvasView.scale;
         var flow = params.mode === 'flow' && pointer.active;
         var compositionDistances = compositionState.enabled ? compositionDistancesBySource(px, py) : null;
 
@@ -4776,7 +5050,10 @@ type deformer</textarea>
 
       function stagePoint(e) {
         var rect = stage.getBoundingClientRect();
-        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        return {
+          x: (e.clientX - rect.left) / canvasView.scale,
+          y: (e.clientY - rect.top) / canvasView.scale
+        };
       }
 
       stage.addEventListener('click', function (e) {
@@ -4988,8 +5265,8 @@ type deformer</textarea>
       stage.addEventListener('pointermove', function (e) {
         if (!editDrag || e.pointerId !== editDrag.id) return;
         var fine = e.shiftKey ? 0.25 : 1; // shift = fine adjustment
-        var dx = (e.clientX - editDrag.x0) * fine;
-        var dy = (e.clientY - editDrag.y0) * fine;
+        var dx = (e.clientX - editDrag.x0) / canvasView.scale * fine;
+        var dy = (e.clientY - editDrag.y0) / canvasView.scale * fine;
         if (Math.abs(dx) <= 0.01 && Math.abs(dy) <= 0.01) return;
         editDrag.changed = true;
         if (!editDrag.historyPushed && (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01)) {
@@ -5801,8 +6078,8 @@ type deformer</textarea>
       var compositionBusPointer = { x: 0.5, y: 0.5, previousX: 0.5, previousY: 0.5, time: 0 };
       function createCompositionInputBus(tokens, width, height, clock) {
         var rect = stageFrame.getBoundingClientRect();
-        var localX = pointer.x - rect.left;
-        var localY = pointer.y - rect.top;
+        var localX = (pointer.x - rect.left) / canvasView.scale;
+        var localY = (pointer.y - rect.top) / canvasView.scale;
         var logicalPoint = previewPointToComposition(localX, localY);
         var px = Math.max(0, Math.min(1, logicalPoint.x / Math.max(1, width)));
         var py = Math.max(0, Math.min(1, logicalPoint.y / Math.max(1, height)));
@@ -9166,6 +9443,7 @@ type deformer</textarea>
       var mobileActiveSection = 'create';
 
       function contextStatusText() {
+        if (canvasView.active) return 'VIEW × PAN / ZOOM';
         var op = OPERATOR_DEFS[params.activeOperator] ? OPERATOR_DEFS[params.activeOperator].label : 'Stretch';
         return op + ' × ' + (MODE_UI_LABELS[params.mode] || 'Lens') + ' × ' + (TARGET_UI_LABELS[activeBatchProfile] || 'All');
       }
@@ -9179,8 +9457,9 @@ type deformer</textarea>
         }
         if (controlPanel) controlPanel.dataset.mode = params.mode;
         Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode]'), function (button) {
-          button.setAttribute('aria-pressed', String(button.dataset.mobileMode === params.mode));
+          button.setAttribute('aria-pressed', String(!canvasView.active && button.dataset.mobileMode === params.mode));
         });
+        if (btnMobileView) btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
         Array.prototype.forEach.call(document.querySelectorAll('button[data-batch]'), function (button) {
           button.setAttribute('aria-current', String(button.dataset.batch === activeBatchProfile));
         });
@@ -9275,6 +9554,7 @@ type deformer</textarea>
           button.addEventListener('click', function () {
             var map = { flow: 'btnModeFlow', edit: 'btnModeEdit', grid: 'btnModeGrid' };
             var source = document.getElementById(map[button.dataset.mobileMode]);
+            if (canvasView.active) setCanvasViewActive(false);
             if (source) source.click();
             closeMobileSheet();
           });
@@ -10360,6 +10640,10 @@ type deformer</textarea>
           previewOverlay.hidden = true;
           return;
         }
+        if (e.key === 'Escape' && canvasView.active) {
+          setCanvasViewActive(false);
+          return;
+        }
         var tag = (e.target.tagName || '').toLowerCase();
         var inField = tag === 'input' || tag === 'textarea' || tag === 'select';
         if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
@@ -10394,6 +10678,7 @@ type deformer</textarea>
         if (e.key === 'l' || e.key === 'L') setMode(params.mode === 'lock' ? 'flow' : 'lock');
         else if (e.key === 'e' || e.key === 'E') setMode(params.mode === 'edit' ? 'flow' : 'edit');
         else if (e.key === 'g' || e.key === 'G') setMode(params.mode === 'grid' ? 'flow' : 'grid');
+        else if (e.key === 'v' || e.key === 'V') setCanvasViewActive(!canvasView.active);
         else if (e.key === 'x' || e.key === 'X') document.getElementById('btnXray').click();
         else if (e.key === 's' || e.key === 'S') document.getElementById('btnShuffle').click();
         else if (e.key === 'p' || e.key === 'P') openPreview();
@@ -10444,6 +10729,7 @@ type deformer</textarea>
       };
       function setMode(mode) {
         if (mode === 'grid' && compositionState.enabled && params.mode !== 'grid') return;
+        if (canvasView.active) setCanvasViewActive(false);
         params.mode = mode;
         markAutosaveDirty();
         controlPanel.dataset.mode = mode;
