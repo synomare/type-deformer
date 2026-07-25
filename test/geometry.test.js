@@ -122,17 +122,10 @@ describe('exportLayout', () => {
     expect(result).toEqual({ w: 100, h: 50, s: 1, dx: -5, dy: -10 });
   });
 
-  // SUSPECTED BUG (reported, not fixed — see final report): geometry.js
-  // computes the anchor fractions as
-  //   var ax = { l: 0, c: 0.5, r: 1 }[layout.anchor.charAt(1)] || 0.5;
-  //   var ay = { t: 0, c: 0.5, b: 1 }[layout.anchor.charAt(0)] || 0.5;
-  // Because `0 || 0.5` evaluates to 0.5 in JavaScript, any anchor whose
-  // top/left component legitimately maps to 0 (i.e. anything containing
-  // 't' or 'l', such as 'tl', 'tc', 'cl') silently collapses that axis to
-  // 0.5 (center) instead of 0. Only 'c' and 'r'/'b' (which map to 0.5/1,
-  // both truthy) behave as documented. The two tests below assert the
-  // semantically correct behaviour (a top/left anchor hugs the top/left
-  // margin) and are expected to FAIL against the current implementation.
+  // A left/top anchor (ax=0 / ay=0) must hug the left/top margin exactly,
+  // not fall back to center. (Earlier in this exercise this branch used
+  // `... || 0.5`, which folds a legitimate 0 fraction to 0.5 because 0 is
+  // falsy in JS; that has since been fixed to a null-check instead.)
   it('fixed artboard: margin, anchor and fit-to-scale', () => {
     const bounds = { x: 0, y: 0, w: 100, h: 50 };
     const layout = { artboard: 'fixed', abW: 1000, abH: 1000, marginPct: 10, anchor: 'tl', fit: true };
