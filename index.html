@@ -730,6 +730,7 @@
       letter-spacing: 0.05em;
     }
     .confuse-dictionary-status.is-fallback { color: var(--red); }
+    .autosave-status { color: var(--red); }
     .confuse-explorer {
       margin-top: 0.75em;
       padding-top: 0.65em;
@@ -2285,6 +2286,7 @@ type deformer</textarea>
         <button class="primary" id="btnShare">Share URL</button>
         <input type="file" id="projFile" accept=".json,application/json" hidden>
       </div>
+      <p class="note autosave-status" id="autosaveStatus" role="status" hidden></p>
       <div class="danger-zone"><button id="btnNew">New 新規</button></div>
       <details class="help-details"><summary>Project help</summary><p class="note">数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。Share URLは作品全体をURLへ埋め込みます。</p></details>
         </div>
@@ -2335,7 +2337,11 @@ type deformer</textarea>
 
   <div id="editHud" hidden></div>
 
-  <script src="confuse-dictionary.js"></script>
+  <!-- confuse-dictionary.js is fetched at runtime, not here: see
+       loadConfuseDictionary(). It is ~1.4 MB gzipped against ~140 KB for this
+       page, so loading it synchronously delayed first paint by its entire
+       download even though the embedded Core tables can carry the UI until it
+       lands. -->
   <script>
     (function () {
       'use strict';
@@ -2871,6 +2877,46 @@ type deformer</textarea>
       // still has a useful Core fallback. The generated file is deterministic;
       // rebuild it with tools/build-confuse-dictionary.mjs when Unicode updates.
       var CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
+      var confuseDictionaryLoad = null;
+      var confuseDictionaryFailed = false;
+
+      // Fetched after boot rather than blocking it. Every profile degrades to
+      // the embedded Core tables while the request is in flight, and the
+      // existing font-refresh path re-evaluates every glyph once it lands —
+      // exactly the same recovery a webfont finishing late already triggers.
+      function loadConfuseDictionary() {
+        if (CONFUSE_DATA) return Promise.resolve(CONFUSE_DATA);
+        if (confuseDictionaryLoad) return confuseDictionaryLoad;
+        confuseDictionaryLoad = new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          script.src = 'confuse-dictionary.js';
+          script.async = true;
+          script.onload = function () {
+            CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
+            if (CONFUSE_DATA) resolve(CONFUSE_DATA);
+            else reject(new Error('confuse-dictionary.js defined no dictionary'));
+          };
+          script.onerror = function () { reject(new Error('confuse-dictionary.js could not be loaded')); };
+          document.head.appendChild(script);
+        }).then(function (data) {
+          confuseDictionaryFailed = false;
+          // Candidates resolved against Core alone are now stale.
+          refreshConfuseFontCandidates();
+          return data;
+        }, function (error) {
+          confuseDictionaryFailed = true;
+          confuseDictionaryLoad = null;   // let a later profile change retry
+          updateConfuseDictionaryUI();
+          throw error;
+        });
+        return confuseDictionaryLoad;
+      }
+
+      // Core is fully embedded; every other profile needs the generated file.
+      function ensureConfuseDictionary() {
+        if ((params.confuseDictionary || 'unicode') === 'core') return;
+        loadConfuseDictionary().catch(function () { /* reported on the status line */ });
+      }
       var confuseCache = Object.create(null);
       var confuseCacheRevision = 0;
       var confuseCustomRaw = null;
@@ -2882,8 +2928,24 @@ type deformer</textarea>
       confuseGlyphCanvas.width = confuseGlyphCanvas.height = 72;
       var confuseGlyphContext = confuseGlyphCanvas.getContext('2d', { willReadFrequently: true });
 
+      // Script detection is asked the same question thousands of times per
+      // frame: twice per candidate while building the dictionary, and twice
+      // per glyph in updateEffectStatus. NFKC plus seven Unicode property
+      // probes is far too expensive to repeat when the answer depends only on
+      // the string. Same bounded-cache shape as charInfoCache.
+      var confuseScriptCache = new Map();
+
       function confuseScript(value) {
         if (!value) return 'common';
+        var cached = confuseScriptCache.get(value);
+        if (cached !== undefined) return cached;
+        var result = computeConfuseScript(value);
+        if (confuseScriptCache.size > 20000) confuseScriptCache.clear();
+        confuseScriptCache.set(value, result);
+        return result;
+      }
+
+      function computeConfuseScript(value) {
         var normalized = value;
         try { normalized = value.normalize('NFKC'); } catch (e) { /* older browser */ }
         var chars = Array.from(normalized);
@@ -3357,8 +3419,11 @@ type deformer</textarea>
           var meta = CONFUSE_DATA.meta;
           status.textContent = 'Unicode ' + meta.unicode + ' · Unihan variants ' + Number(meta.hanVariantKeys || 0).toLocaleString() + ' · Han universe ' + Number(meta.hanUniverseKeys || meta.radicalStrokeKeys || 0).toLocaleString() + ' · equivalent ' + Number(meta.hanEquivalentMappings || 0).toLocaleString() + ' · IVD ' + meta.ivd + ' · Glyph guard ' + (params.confuseGlyphGuard ? 'ON' : 'OFF') + ' · Custom ' + confuseCustomStats.entries;
           status.classList.remove('is-fallback');
-        } else {
+        } else if (confuseDictionaryFailed) {
           status.textContent = 'External dictionary unavailable — Core fallback active. Keep confuse-dictionary.js beside this HTML.';
+          status.classList.add('is-fallback');
+        } else {
+          status.textContent = 'Loading Unicode dictionary… Core fallback active.';
           status.classList.add('is-fallback');
         }
         if (confuseCustomStats.errors) status.textContent += ' · ' + confuseCustomStats.errors + ' invalid line(s)';
@@ -3431,6 +3496,7 @@ type deformer</textarea>
         confuseDictionary: 'unicode',
         confuseCustom: '',
         seed: 1,
+        hashIndex: 'global',   // 'line' reproduces pre-v7 per-line seeding
         fontFamily: '"Zen Old Mincho", "Hiragino Mincho ProN", serif',
         fontSize: 52,
         lineHeight: 1.1,
@@ -3536,6 +3602,33 @@ type deformer</textarea>
       var PARAM_DEFAULTS = {};
       for (var defaultKey in params) PARAM_DEFAULTS[defaultKey] = params[defaultKey];
 
+      // A family name may stay unquoted only when it is a plain ASCII CSS
+      // identifier sequence. Everything else — including bare CJK names — is
+      // quoted, which is always valid and avoids guessing at ident rules.
+      var UNQUOTED_FONT_NAME = /^[A-Za-z_][A-Za-z0-9_-]*(?: [A-Za-z_][A-Za-z0-9_-]*)*$/;
+
+      // A font stack from a project or share link reaches CSS — where an
+      // unparseable value is simply dropped — but also ctx.font, where an
+      // unparseable value silently leaves the *previous* font in place. That
+      // would have Glyph Guard rating Confuse candidates against the wrong
+      // typeface and the PNG exporter drawing in it. Sanitise per family and
+      // quote anything that would not parse bare, so the stack always parses.
+      // Valid input is preserved verbatim, which keeps the <option> values in
+      // the font preset list matching after a project load.
+      function normalizeFontStack(value) {
+        var parts = String(value == null ? '' : value).split(',');
+        var out = [];
+        for (var i = 0; i < parts.length && out.length < 12; i++) {
+          var raw = parts[i].trim();
+          if (!raw) continue;
+          var quoted = raw.length > 1 && /^(".*"|'.*')$/.test(raw);
+          var name = safeFontFamily(quoted ? raw.slice(1, -1) : raw);
+          if (!name) continue;
+          out.push(!quoted && UNQUOTED_FONT_NAME.test(name) ? name : '"' + name + '"');
+        }
+        return out.join(', ');
+      }
+
       function clampParam(key, min, max, integer) {
         var value = Number(params[key]);
         if (!isFinite(value)) value = PARAM_DEFAULTS[key];
@@ -3591,6 +3684,7 @@ type deformer</textarea>
         chooseParam('mode', ['flow', 'lock', 'edit', 'grid']);
         chooseParam('activeOperator', OPERATOR_IDS);
         chooseParam('confuseDictionary', ['core', 'unicode', 'deep', 'hanmax']);
+        chooseParam('hashIndex', ['line', 'global']);
 
         var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed', 'confuseGlyphGuard'];
         for (var i = 0; i < boolKeys.length; i++) {
@@ -3607,7 +3701,7 @@ type deformer</textarea>
         if (typeof params.fontFamily !== 'string' || !params.fontFamily.trim()) {
           params.fontFamily = PARAM_DEFAULTS.fontFamily;
         } else {
-          params.fontFamily = params.fontFamily.slice(0, 500).replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+          params.fontFamily = normalizeFontStack(params.fontFamily.slice(0, 500)) || PARAM_DEFAULTS.fontFamily;
         }
         if (typeof params.confuseCustom !== 'string') params.confuseCustom = '';
         params.confuseCustom = params.confuseCustom.slice(0, 20000).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
@@ -3969,6 +4063,13 @@ type deformer</textarea>
 
       function quant(x, step) { return Math.round(x / step) * step; }
 
+      // The index every per-glyph random is seeded from. See createSpans for
+      // why it is stored separately from the per-line token index.
+      function glyphHashIndex(el) {
+        var index = parseInt(el.dataset.h, 10);
+        return isFinite(index) ? index : (parseInt(el.dataset.j, 10) || 0);
+      }
+
       function hash(j, cp, k) {
         return (Math.abs(Math.sin((j + 1) * (cp + 1) * (k + params.seed * 13.37))) * 43758.5453) % 1;
       }
@@ -4049,6 +4150,14 @@ type deformer</textarea>
             var span = document.createElement('span');
             span.className = 'c' + (charInfo(tok.text, tok.text.codePointAt(0)).punct ? ' punct' : '');
             span.dataset.j = j;
+            // Randomness is seeded from this index. Before v7 it was the
+            // per-line token position, so the same character at the same
+            // column of two lines came out an exact copy — same scale,
+            // offset, rotation, and even the same Confuse candidate. New
+            // documents seed from the document-wide position instead;
+            // projects saved before v7 keep the old seeding so their
+            // appearance is reproduced exactly.
+            span.dataset.h = params.hashIndex === 'line' ? j : globalIndex;
             span.dataset.cp = tok.text.codePointAt(0);
             span.dataset.renderText = tok.text;
             span.dataset.sourceText = tok.text;
@@ -4079,7 +4188,7 @@ type deformer</textarea>
           // Global/per-letter Lock freezes the entire rendered channel stack,
           // including the seeded base transform and accent assignment.
           if (!includeLocked && existingMetric && existingMetric.locked) continue;
-          var j = parseInt(span.dataset.j, 10);
+          var j = glyphHashIndex(span);
           var cp = parseInt(span.dataset.cp, 10);
           // classify by the source character, not the (possibly confused) display
           var ch = span.dataset.sourceText || span.textContent;
@@ -4449,10 +4558,14 @@ type deformer</textarea>
         // Dry-run the flow before touching the DOM. Pinned cells occasionally
         // consume a slot needed after a source line-break; grow only when that
         // actually happens, so a simple swap never creates a blank extra row.
+        // Unusable pins are reported, not cleared in place: a run that fails is
+        // retried with more rows, and clearing during the failed attempt would
+        // destroy pins that the larger retry can still honour.
         function assignCells(rowCount) {
           var order = buildCellOrder(cols, rowCount, params.vertical);
           var claimed = new Array(cols * rowCount);
           var placed = new Array(metrics.length);
+          var dropped = [];
           for (var pi = 0; pi < metrics.length; pi++) {
             var gc = metrics[pi].gridCell;
             if (gc == null) continue;
@@ -4460,8 +4573,8 @@ type deformer</textarea>
               claimed[gc] = true;
               placed[pi] = gc;
             } else {
-              // Repair stale/out-of-range or duplicate pins from old projects.
-              metrics[pi].gridCell = null;
+              // Stale/out-of-range or duplicate pin from an old project.
+              dropped.push(pi);
             }
           }
 
@@ -4482,14 +4595,26 @@ type deformer</textarea>
             }
             start = lineEnds[li2];
           }
-          return placed;
+          return { placed: placed, dropped: dropped };
         }
 
-        var placements = assignCells(rows);
-        while (!placements) {
+        // The guard bounds a corrupt project: gridCell survives load clamped
+        // only to "finite and non-negative", so a wild value must not be able
+        // to spin this loop.
+        var attempt = assignCells(rows);
+        for (var grow = 0; !attempt && grow < 4096; grow++) {
           rows++;
-          placements = assignCells(rows);
+          attempt = assignCells(rows);
         }
+        if (!attempt) {
+          for (var wipe = 0; wipe < metrics.length; wipe++) metrics[wipe].gridCell = null;
+          rows = Math.max(1, metrics.length + lineEnds.length);
+          attempt = assignCells(rows);
+        }
+        for (var drop = 0; drop < attempt.dropped.length; drop++) {
+          metrics[attempt.dropped[drop]].gridCell = null;
+        }
+        var placements = attempt.placed;
         var rowsExtended = !params.gridAutoRows && rows > params.gridRows;
         var colsExtended = cols > requestedCols;
         var pinnedCount = 0;
@@ -4613,6 +4738,10 @@ type deformer</textarea>
         var compositionDistances = flow && compositionState.enabled ? compositionDistancesBySource(px, py) : null;
 
         var keepAnimating = pointer.active || pointer.strength > 0.002;
+        // Advance every operator first and collect what changed, so the visual
+        // pass can batch its one layout read instead of interleaving a read
+        // and a write per glyph.
+        var dirty = null;
 
         for (var i = 0; i < metrics.length; i++) {
           var info = metrics[i];
@@ -4664,9 +4793,10 @@ type deformer</textarea>
               keepAnimating = true;
             }
           }
-          if (visualChanged) applyOperatorVisual(info);
+          if (visualChanged) (dirty || (dirty = [])).push(info);
         }
 
+        if (dirty) applyOperatorVisualBatch(dirty);
         if (keepAnimating) schedule();
       }
 
@@ -4763,6 +4893,45 @@ type deformer</textarea>
         }
       }
 
+      // Which glyph Confuse would render right now. Pure with respect to the
+      // DOM — it reads operator state and dataset attributes but never
+      // measures — so the hold-width pre-pass can ask the same question
+      // without triggering a layout.
+      function confuseDisplayFor(info, deform) {
+        var el = info.el;
+        var orig = el.dataset.sourceText || el.textContent;
+        var state = operatorState(info, 'confuse');
+        var strength = state.manual != null ? Number(state.manual) : deform.confuseDepth * state.current;
+        strength = Math.max(0, Math.min(1, isFinite(strength) ? strength : 0));
+        if (strength <= 0.001 || Array.from(orig).length !== 1) return orig;
+        var candidates = confuseCandidateRecords(orig);
+        if (!candidates.length) return orig;
+        return selectConfuseCandidate(candidates, strength, glyphHashIndex(el), parseInt(el.dataset.cp, 10) || 0) || orig;
+      }
+
+      // Capturing the pre-substitution advance width is a layout read, and the
+      // visual pass that follows writes styles on every glyph. Interleaving
+      // the two costs one forced reflow per glyph, so every read the coming
+      // write pass will need is batched into a single layout here.
+      function primeConfuseHoldWidths(targets) {
+        if (params.gridEnabled) return;
+        var pending = null;
+        for (var i = 0; i < targets.length; i++) {
+          var m = targets[i], el = m.el;
+          if (el.dataset.confuseHoldW) continue;
+          var orig = el.dataset.sourceText || el.textContent;
+          if (el.textContent !== orig) continue;
+          if (confuseDisplayFor(m, batchProfileForKey(m.batchKey)) === orig) continue;
+          (pending || (pending = [])).push(el);
+        }
+        if (!pending) return;
+        var widths = new Array(pending.length);
+        for (var r = 0; r < pending.length; r++) widths[r] = pending[r].offsetWidth;
+        for (var w = 0; w < pending.length; w++) {
+          if (widths[w]) pending[w].dataset.confuseHoldW = String(widths[w]);
+        }
+      }
+
       // Codepoint layer: swap the rendered glyph for a graded lookalike.
       // The source text (dataset.sourceText) is never modified — the swap is
       // recomputed from operator state, so undo/carry/export all stay coherent.
@@ -4772,21 +4941,7 @@ type deformer</textarea>
         // refresh captures and reapplies that snapshot explicitly when needed.
         delete el.dataset.savedDerived;
         var orig = el.dataset.sourceText || el.textContent;
-        var state = operatorState(info, 'confuse');
-        var strength = state.manual != null ? Number(state.manual) : deform.confuseDepth * state.current;
-        strength = Math.max(0, Math.min(1, isFinite(strength) ? strength : 0));
-
-        var display = orig;
-        if (strength > 0.001 && Array.from(orig).length === 1) {
-          var candidates = confuseCandidateRecords(orig);
-          if (candidates.length) {
-            var j = parseInt(el.dataset.j, 10) || 0;
-            var cp = parseInt(el.dataset.cp, 10) || 0;
-            var selectedCandidate = selectConfuseCandidate(candidates, strength, j, cp);
-            if (selectedCandidate) display = selectedCandidate;
-          }
-        }
-
+        var display = confuseDisplayFor(info, deform);
         var confusing = display !== orig;
         if (el.textContent !== display) {
           // capture the un-confused advance width once, so substitution does
@@ -4819,6 +4974,15 @@ type deformer</textarea>
       }
 
       function applyOperatorVisual(info) {
+        applyOperatorVisualStyles(info);
+        invalidateCompositionSource();
+        scheduleVisualOverscan();
+        scheduleCompositionDraw();
+      }
+
+      // The style-writing half, without the whole-artwork invalidations. Batch
+      // callers run these once for the whole pass instead of per glyph.
+      function applyOperatorVisualStyles(info) {
         var el = info.el, style = el.style;
         var deform = batchProfileForKey(info.batchKey);
         applyConfuseText(info, deform);
@@ -4857,16 +5021,30 @@ type deformer</textarea>
         style.setProperty('--op-mirror-y', Math.max(-1, Math.min(1, mirrorValue.y)).toFixed(4));
 
         applyMisregistrationVisual(info, deform);
-        invalidateCompositionSource();
-        scheduleVisualOverscan();
-        scheduleCompositionDraw();
       }
 
       function applyAllOperatorVisuals(includeLocked) {
+        var targets = [];
         for (var i = 0; i < metrics.length; i++) {
           if (!includeLocked && metrics[i].locked) continue;
-          applyOperatorVisual(metrics[i]);
+          targets.push(metrics[i]);
         }
+        applyOperatorVisualBatch(targets);
+      }
+
+      // Single entry point for "apply the visual pass to this set of glyphs":
+      // one batched layout read up front, then writes only, then the three
+      // whole-artwork invalidations once instead of once per glyph.
+      function applyOperatorVisualBatch(targets) {
+        if (targets.length) {
+          primeConfuseHoldWidths(targets);
+          for (var i = 0; i < targets.length; i++) applyOperatorVisualStyles(targets[i]);
+          invalidateCompositionSource();
+          scheduleVisualOverscan();
+          scheduleCompositionDraw();
+        }
+        // Kept outside the guard: with no letters the inventory still has to
+        // reflect composition state and the Reset button's enabled state.
         scheduleEffectStatusUpdate();
       }
 
@@ -5621,8 +5799,8 @@ type deformer</textarea>
           }
           m.locked = m.explicitLock;
           m.el.classList.toggle('locked', m.locked);
-          applyOperatorVisual(m);
         }
+        applyOperatorVisualBatch(metrics);
         compositionState = cloneCompositionDefaults();
         compositionInspector = 'field';
         setCompositionPlaying(false);
@@ -9200,34 +9378,6 @@ type deformer</textarea>
           || targetDurationMs <= 0 || recordedDurationMs <= 0) return Promise.resolve(blob);
         return blob.arrayBuffer().then(function (buffer) {
           var bytes = new Uint8Array(buffer);
-          var elementIndex = -1;
-          for (var i = 0; i < bytes.length - 8; i++) {
-            if (bytes[i] === 0x2a && bytes[i + 1] === 0xd7 && bytes[i + 2] === 0xb1) {
-              elementIndex = i + 3;
-              break;
-            }
-          }
-          if (elementIndex < 0) return blob;
-          var firstSizeByte = bytes[elementIndex];
-          var mask = 0x80;
-          var sizeLength = 1;
-          while (sizeLength <= 8 && !(firstSizeByte & mask)) {
-            mask >>= 1;
-            sizeLength++;
-          }
-          if (sizeLength > 8) return blob;
-          var valueLength = firstSizeByte & (mask - 1);
-          for (var sizeIndex = 1; sizeIndex < sizeLength; sizeIndex++) {
-            valueLength = valueLength * 256 + bytes[elementIndex + sizeIndex];
-          }
-          if (valueLength < 1 || valueLength > 6) return blob;
-          var valueStart = elementIndex + sizeLength;
-          var originalScale = 0;
-          for (var valueIndex = 0; valueIndex < valueLength; valueIndex++) {
-            originalScale = originalScale * 256 + bytes[valueStart + valueIndex];
-          }
-          if (!originalScale) return blob;
-          var maxValue = Math.pow(256, valueLength) - 1;
           function readVint(offset, keepMarker) {
             if (offset >= bytes.length) return null;
             var first = bytes[offset];
@@ -9247,6 +9397,38 @@ type deformer</textarea>
             for (var index = 0; index < length; index++) value = value * 256 + bytes[start + index];
             return value;
           }
+          // Walk the EBML tree to reach TimecodeScale instead of scanning the
+          // file for its 2A D7 B1 id bytes: that byte triple occurs constantly
+          // inside compressed frame payloads, and rewriting a match there
+          // corrupts the video rather than retiming it.
+          function findChild(start, end, wantedId) {
+            var position = start;
+            while (position < end) {
+              var id = readVint(position, true);
+              if (!id) return null;
+              var size = readVint(position + id.length, false);
+              if (!size) return null;
+              var dataStart = position + id.length + size.length;
+              var dataEnd = size.unknown ? end : Math.min(end, dataStart + size.value);
+              if (dataEnd < dataStart) return null;
+              if (id.value === wantedId) return { dataStart: dataStart, dataEnd: dataEnd };
+              if (dataEnd === position) return null;   // zero-width element: no progress
+              position = dataEnd;
+            }
+            return null;
+          }
+          var segment = findChild(0, bytes.length, 0x18538067);
+          if (!segment) return blob;
+          var info = findChild(segment.dataStart, segment.dataEnd, 0x1549A966);
+          if (!info) return blob;
+          var timecodeScale = findChild(info.dataStart, info.dataEnd, 0x2AD7B1);
+          if (!timecodeScale) return blob;
+          var valueStart = timecodeScale.dataStart;
+          var valueLength = timecodeScale.dataEnd - timecodeScale.dataStart;
+          if (valueLength < 1 || valueLength > 6) return blob;
+          var originalScale = readUnsigned(valueStart, valueLength);
+          if (!originalScale) return blob;
+          var maxValue = Math.pow(256, valueLength) - 1;
           function scanClusterChildren(start, end, clusterTimecode) {
             var maxTick = clusterTimecode || 0;
             var position = start;
@@ -9277,15 +9459,20 @@ type deformer</textarea>
             }
             return maxTick;
           }
+          // Clusters stay a byte scan — MediaRecorder emits unknown-size
+          // clusters, which a strict walk cannot bound — but confined to the
+          // Segment. A false positive here only skews the computed duration;
+          // it can never write outside the TimecodeScale field above.
           var maxTimecodeTick = 0;
-          for (var clusterIndex = 0; clusterIndex < bytes.length - 8; clusterIndex++) {
+          var clusterLimit = Math.min(bytes.length, segment.dataEnd) - 8;
+          for (var clusterIndex = segment.dataStart; clusterIndex < clusterLimit; clusterIndex++) {
             if (bytes[clusterIndex] !== 0x1f || bytes[clusterIndex + 1] !== 0x43
               || bytes[clusterIndex + 2] !== 0xb6 || bytes[clusterIndex + 3] !== 0x75) continue;
             var clusterSize = readVint(clusterIndex + 4, false);
             if (!clusterSize) continue;
             var clusterStart = clusterIndex + 4 + clusterSize.length;
             var clusterEnd = clusterSize.unknown
-              ? bytes.length : Math.min(bytes.length, clusterStart + clusterSize.value);
+              ? segment.dataEnd : Math.min(segment.dataEnd, clusterStart + clusterSize.value);
             maxTimecodeTick = Math.max(maxTimecodeTick, scanClusterChildren(clusterStart, clusterEnd, 0));
             if (!clusterSize.unknown) clusterIndex = clusterEnd - 1;
           }
@@ -9613,19 +9800,19 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 6,
+          version: 7,
           sourceText: textInput.value,
           composition: compositionState.enabled ? persistentCompositionState() : null
         })) + '</metadata>');
         parts.push('<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond&amp;family=Space+Mono&amp;family=Zen+Old+Mincho&amp;family=Noto+Sans+JP&amp;family=Zen+Kaku+Gothic+New&amp;display=swap");</style>');
         if (!params.transparentBg) {
-          parts.push('<rect width="100%" height="100%" fill="' + params.paper + '"/>');
+          parts.push('<rect width="100%" height="100%" fill="' + escXmlAttr(params.paper) + '"/>');
         }
         parts.push('<g transform="translate(' + L.dx.toFixed(2) + ' ' + L.dy.toFixed(2) + ') scale(' + L.s.toFixed(5) + ')">');
         for (var bandIndex = 0; bandIndex < scene.bands.length; bandIndex++) {
           parts.push(svgSceneBand(scene.bands[bandIndex]));
         }
-        parts.push('<g font-family="' + escXmlAttr(params.fontFamily) + '" font-size="' + params.fontSize + '" font-weight="' + params.fontWeight + '" fill="' + params.ink + '">');
+        parts.push('<g font-family="' + escXmlAttr(params.fontFamily) + '" font-size="' + params.fontSize + '" font-weight="' + params.fontWeight + '" fill="' + escXmlAttr(params.ink) + '">');
 
         for (var i = 0; i < glyphs.length; i++) {
           var g = glyphs[i];
@@ -9637,7 +9824,7 @@ type deformer</textarea>
           function pushSvgPass(offsetX, offsetY, color, opacity, blend) {
             var passTransform = (offsetX || offsetY ? 'translate(' + offsetX.toFixed(2) + ' ' + offsetY.toFixed(2) + ') ' : '') + tr;
             var blendMode = typeof blend === 'string' ? blend : (blend ? 'multiply' : '');
-            var attrs = ' fill="' + color + '"' + (opacity < 1 ? ' opacity="' + opacity + '"' : '')
+            var attrs = ' fill="' + escXmlAttr(color) + '"' + (opacity < 1 ? ' opacity="' + opacity + '"' : '')
               + (blendMode ? ' style="mix-blend-mode:' + escXmlAttr(blendMode) + '"' : '');
             if (params.vertical) {
               var cx = g.x + g.w / 2;
@@ -9983,6 +10170,7 @@ type deformer</textarea>
         clearConfuseCache();
         applyAllOperatorVisuals();
         updateConfuseDictionaryUI();
+        ensureConfuseDictionary();
       });
       document.getElementById('pConfuseMixed').addEventListener('change', function (e) {
         params.confuseMixed = e.target.checked;
@@ -11374,7 +11562,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 6,
+          version: 7,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -11397,7 +11585,7 @@ type deformer</textarea>
           if (!silent) alert('プロジェクトファイルではないようです。');
           return false;
         }
-        if (data.version != null && data.version > 6) {
+        if (data.version != null && data.version > 7) {
           if (!silent) alert('このプロジェクトは新しいバージョンで保存されています。');
           return false;
         }
@@ -11410,6 +11598,12 @@ type deformer</textarea>
         for (var defaultParam in params) params[defaultParam] = PARAM_DEFAULTS[defaultParam];
         for (var k in params) {
           if (Object.prototype.hasOwnProperty.call(data.params, k)) params[k] = data.params[k];
+        }
+        // Randomness seeding changed in v7. A project written before then has
+        // no hashIndex field and was authored against per-line seeding, so it
+        // has to keep it or every glyph in the artwork shifts.
+        if (!Object.prototype.hasOwnProperty.call(data.params, 'hashIndex')) {
+          params.hashIndex = Number(data.version) >= 7 ? 'global' : 'line';
         }
         normalizeParams();
         batchProfiles = normalizeBatchProfiles(data.batchProfiles);
@@ -11426,6 +11620,7 @@ type deformer</textarea>
         // restore per-letter state synchronously — no layout needed, and
         // rAF never fires while the tab is hidden
         restoreStates(Array.isArray(data.letters) ? data.letters : []);
+        ensureConfuseDictionary();
         markAutosaveDirty();
         return true;
       }
@@ -11463,23 +11658,58 @@ type deformer</textarea>
         autosaveDirty = true;
       }
 
+      // A silent failure here is the one bug in this file that can lose work:
+      // a large project plus its backup copy overruns the ~5 MB localStorage
+      // quota, autosave stops, and nothing on screen says so. Report it.
+      function setAutosaveStatus(message) {
+        var el = document.getElementById('autosaveStatus');
+        if (!el) return;
+        el.textContent = message || '';
+        el.hidden = !message;
+      }
+
       function saveAutosave() {
         if (autosaveSuspended || !autosaveDirty) return;
+        var next;
         try {
-          var next = JSON.stringify(projectData());
-          var previous = localStorage.getItem(AUTOSAVE_KEY);
-          if (previous === next) {
-            autosaveDirty = false;
-            return;
-          }
-          if (previous) {
-            try {
-              if (isProjectData(JSON.parse(previous))) localStorage.setItem(AUTOSAVE_BACKUP_KEY, previous);
-            } catch (invalidPrevious) { /* keep the last known backup */ }
-          }
+          next = JSON.stringify(projectData());
+        } catch (serializeError) {
+          setAutosaveStatus('自動保存に失敗しました（作品データを書き出せません）。Save .json で手動保存してください。');
+          return;
+        }
+        var previous = null;
+        try { previous = localStorage.getItem(AUTOSAVE_KEY); }
+        catch (readError) {
+          setAutosaveStatus('自動保存を利用できません（ブラウザのストレージにアクセスできません）。Save .json で手動保存してください。');
+          return;
+        }
+        if (previous === next) {
+          autosaveDirty = false;
+          setAutosaveStatus('');
+          return;
+        }
+        // The backup is a convenience; losing it must not block the main save.
+        if (previous) {
+          try {
+            if (isProjectData(JSON.parse(previous))) localStorage.setItem(AUTOSAVE_BACKUP_KEY, previous);
+          } catch (invalidPrevious) { /* keep the last known backup */ }
+        }
+        try {
           localStorage.setItem(AUTOSAVE_KEY, next);
           autosaveDirty = false;
-        } catch (e) { /* storage full or unavailable — silently skip */ }
+          setAutosaveStatus('');
+        } catch (writeError) {
+          // Reclaim the backup slot and retry once: one saved state beats none.
+          try {
+            localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
+            localStorage.setItem(AUTOSAVE_KEY, next);
+            autosaveDirty = false;
+            setAutosaveStatus('自動保存の空き容量が不足したため、復旧用のバックアップを破棄しました。Save .json での保存を推奨します。');
+            return;
+          } catch (retryError) { /* fall through to the failure notice */ }
+          setAutosaveStatus('自動保存に失敗しました（ブラウザの保存容量が不足しています。約'
+            + Math.round(next.length / 1024) + 'KB）。Save .json で手動保存してください。');
+        }
       }
 
       function cancelScheduledAutosave() {
@@ -11711,7 +11941,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 6, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), L: [] };
+        var d = { a: 'td', v: 7, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
@@ -11837,6 +12067,9 @@ type deformer</textarea>
       tryRestoreFromHash().then(function (fromHash) {
         if (!fromHash) tryRestoreAutosave();
         startAutosave();
+        // Started only now so the restored project's profile decides whether
+        // the dictionary is needed at all.
+        ensureConfuseDictionary();
       });
       setTimeout(scheduleMeasure, 400);
     })();
