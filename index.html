@@ -783,6 +783,54 @@
       line-height: 1.55;
       letter-spacing: 0.03em;
     }
+    .typography-control-block {
+      margin-top: 0.9rem;
+      padding-top: 0.15rem;
+      border-top: 1px dashed var(--line);
+    }
+    .font-import-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.35rem;
+      margin: 0.4rem 0 0.55rem;
+    }
+    .font-import-actions button {
+      min-width: 0;
+      margin: 0;
+      box-shadow: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .font-import-actions button:not([hidden]):last-of-type:nth-child(3) {
+      grid-column: 1 / -1;
+    }
+    .font-advanced {
+      margin: 0 0 0.65rem;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .font-advanced > summary {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 0.52rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+    .font-advanced .row { padding-bottom: 0.55rem; }
+    .font-status {
+      min-height: 1.5em;
+      margin: -0.1rem 0 0.65rem;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 0.52rem;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .font-status.is-loaded { color: var(--red); }
 
     /* stage */
     .stage-wrap {
@@ -806,6 +854,15 @@
       overflow: auto;
       resize: both;
       background: var(--paper);
+    }
+    /* The frame is the fixed paper/background. Camera transforms belong to
+       this inner artwork plane so zooming never reveals a second "window". */
+    .stage-artwork {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      min-height: 100%;
       transform-origin: 0 0;
       will-change: transform;
     }
@@ -904,6 +961,34 @@
       background: var(--card);
     }
     .canvas-view-controls #btnViewReset { min-width: 58px; }
+    .canvas-view-hint {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      z-index: 23;
+      max-width: calc(100% - 190px);
+      box-sizing: border-box;
+      padding: 0.42rem 0.65rem;
+      border: 1px solid var(--red);
+      background: color-mix(in srgb, var(--paper) 94%, transparent);
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: 0.52rem;
+      line-height: 1.35;
+      letter-spacing: 0.08em;
+      text-align: center;
+      opacity: 0;
+      transform: translate(-50%, -8px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      pointer-events: none;
+    }
+    .stage-wrap.view-pan-active .canvas-view-hint {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+    .stage-wrap.view-pan-active .stage-frame {
+      box-shadow: inset 0 0 0 1px var(--red);
+    }
     .stage-wrap.view-pan-active .stage,
     .stage-wrap.view-pan-active .stage-frame {
       cursor: grab !important;
@@ -1227,6 +1312,11 @@
         font-size: 0.58rem;
       }
       .canvas-view-controls #btnViewMode { display: none; }
+      .canvas-view-hint {
+        top: 9px;
+        max-width: calc(100% - 118px);
+        font-size: 0.48rem;
+      }
 
       .mobile-topbar {
         position: fixed;
@@ -1288,7 +1378,7 @@
         font-size: 0.62rem;
       }
       .mobile-dock button[aria-pressed="true"] { color: var(--red); background: transparent; border-top-color: var(--red); }
-      .mobile-dock #btnMobileMore { grid-column: span 2; }
+      .mobile-dock #btnMobileType { grid-column: span 2; }
 
       .panel {
         position: fixed;
@@ -1479,6 +1569,55 @@
       <div class="sub-head"><span>Text</span><span class="r">入力</span></div>
       <textarea id="textInput" spellcheck="false">テクスト。デザイン。グラフィック。
 type deformer</textarea>
+
+      <div class="typography-control-block" id="typographyControls">
+        <div class="sub-head"><span>Typography</span><span class="r">体裁</span></div>
+        <div class="row"><label for="pFont">Font</label>
+          <select id="pFont">
+            <option value='"Zen Old Mincho", "Hiragino Mincho ProN", serif' selected>Zen Old Mincho</option>
+            <option value='"Noto Sans JP", "Hiragino Sans", sans-serif'>Noto Sans JP</option>
+            <option value='"Zen Kaku Gothic New", "Hiragino Sans", sans-serif'>Zen Kaku Gothic New</option>
+            <option value='"EB Garamond", "Times New Roman", serif'>EB Garamond</option>
+            <option value='"Space Mono", Menlo, monospace'>Space Mono</option>
+          </select>
+        </div>
+        <div class="row"><label for="pImportedFont">Library</label><select id="pImportedFont" disabled><option value="">Importしたフォントを選択…</option></select></div>
+        <div class="btns font-import-actions">
+          <button type="button" id="btnFontFile">Import files</button>
+          <button type="button" id="btnFontFolder">Import folder</button>
+          <button type="button" id="btnSystemFonts" hidden>Installed fonts</button>
+        </div>
+        <input type="file" id="pFontFile" accept=".otf,.ttf,.woff,.woff2,.ttc,.otc,font/otf,font/ttf,font/woff,font/woff2,application/font-woff" multiple hidden>
+        <input type="file" id="pFontFolder" accept=".otf,.ttf,.woff,.woff2,.ttc,.otc" webkitdirectory multiple hidden>
+        <p class="font-status" id="fontStatus" aria-live="polite">フォントファイル／フォルダは端末内だけで読み込み、サーバーには送信しません。</p>
+        <details class="font-advanced">
+          <summary>Advanced · installed font name</summary>
+          <div class="row"><label for="pFontCustom">Local name</label><input type="text" id="pFontCustom" list="fontLocalSuggestions" placeholder="例: A1明朝 / ヒラギノ角ゴ" spellcheck="false"><button type="button" id="btnFontCustomClear" title="ローカルフォント名を解除">Clear</button></div>
+        </details>
+        <datalist id="fontLocalSuggestions">
+          <option value="Hiragino Sans"></option><option value="Hiragino Mincho ProN"></option><option value="Yu Gothic"></option><option value="Yu Mincho"></option><option value="A1明朝"></option><option value="A1ゴシック"></option>
+        </datalist>
+        <div class="row"><label for="pWeight">Weight</label>
+          <select id="pWeight">
+            <option value="400" selected>Regular 400</option>
+            <option value="700">Bold 700</option>
+          </select>
+        </div>
+        <div class="row"><label for="pSize">Size</label><input type="range" id="pSize" min="18" max="160" step="1" value="52"><span class="val" id="vSize">52</span></div>
+        <div class="row"><label for="pLine">Leading</label><input type="range" id="pLine" min="0.9" max="2.2" step="0.02" value="1.1"><span class="val" id="vLine">1.10</span></div>
+        <div class="row"><label for="pTrack">Tracking</label><input type="range" id="pTrack" min="-0.1" max="0.5" step="0.01" value="-0.03"><span class="val" id="vTrack">-0.03</span></div>
+        <div class="row"><label for="pAlign">Align</label>
+          <select id="pAlign">
+            <option value="left" selected>Left 左揃え</option>
+            <option value="center">Center 中央</option>
+            <option value="right">Right 右揃え</option>
+          </select>
+          <button id="btnVertical" aria-pressed="false">縦書き</button>
+        </div>
+        <div class="row"><label for="pInk">Ink</label><input type="color" id="pInk" value="#17140f"><label for="pPaper" style="margin-left:auto">Paper</label><input type="color" id="pPaper" value="#f4f3ef"></div>
+        <div class="row"><label for="pAccent">Accent</label><input type="color" id="pAccent" value="#c41f1f"><input type="range" id="pAccentRatio" min="0" max="1" step="0.02" value="0"><span class="val" id="vAccentRatio">0.00</span></div>
+        <p class="note">Importした書体はこのタブ内で有効になり、PNG・映像・Canvas描画へ反映されます。Projectを別端末で開く場合は同じフォルダを再Importしてください。</p>
+      </div>
 
       <div class="sub-head"><span>Operator</span><span class="r">変形</span></div>
       <div class="row"><label for="pOperator">Operator</label>
@@ -2022,36 +2161,6 @@ type deformer</textarea>
       </div>
       <p class="composition-status" id="compositionStatus" aria-live="polite">No composition applied. Selecting a tab does not change the artwork.</p>
 
-      <div class="sub-head"><span>Typography</span><span class="r">体裁</span></div>
-      <div class="row"><label for="pFont">Font</label>
-        <select id="pFont">
-          <option value='"Zen Old Mincho", "Hiragino Mincho ProN", serif' selected>Zen Old Mincho</option>
-          <option value='"Noto Sans JP", "Hiragino Sans", sans-serif'>Noto Sans JP</option>
-          <option value='"Zen Kaku Gothic New", "Hiragino Sans", sans-serif'>Zen Kaku Gothic New</option>
-          <option value='"EB Garamond", "Times New Roman", serif'>EB Garamond</option>
-          <option value='"Space Mono", Menlo, monospace'>Space Mono</option>
-        </select>
-      </div>
-      <div class="row"><label for="pFontCustom">Custom</label><input type="text" id="pFontCustom" placeholder="ローカルフォント名（例: A1明朝）" spellcheck="false"></div>
-      <div class="row"><label for="pWeight">Weight</label>
-        <select id="pWeight">
-          <option value="400" selected>Regular 400</option>
-          <option value="700">Bold 700</option>
-        </select>
-      </div>
-      <div class="row"><label for="pSize">Size</label><input type="range" id="pSize" min="18" max="160" step="1" value="52"><span class="val" id="vSize">52</span></div>
-      <div class="row"><label for="pLine">Leading</label><input type="range" id="pLine" min="0.9" max="2.2" step="0.02" value="1.1"><span class="val" id="vLine">1.10</span></div>
-      <div class="row"><label for="pTrack">Tracking</label><input type="range" id="pTrack" min="-0.1" max="0.5" step="0.01" value="-0.03"><span class="val" id="vTrack">-0.03</span></div>
-      <div class="row"><label for="pAlign">Align</label>
-        <select id="pAlign">
-          <option value="left" selected>Left 左揃え</option>
-          <option value="center">Center 中央</option>
-          <option value="right">Right 右揃え</option>
-        </select>
-        <button id="btnVertical" aria-pressed="false">縦書き</button>
-      </div>
-      <div class="row"><label for="pInk">Ink</label><input type="color" id="pInk" value="#17140f"><label for="pPaper" style="margin-left:auto">Paper</label><input type="color" id="pPaper" value="#f4f3ef"></div>
-      <div class="row"><label for="pAccent">Accent</label><input type="color" id="pAccent" value="#c41f1f"><input type="range" id="pAccentRatio" min="0" max="1" step="0.02" value="0"><span class="val" id="vAccentRatio">0.00</span></div>
       <div id="composeGridSlot"></div>
         </div>
       </section>
@@ -2184,18 +2293,21 @@ type deformer</textarea>
 
     <div class="stage-wrap" id="stageWrap">
       <div class="stage-frame" id="stageFrame">
-        <canvas id="compositionCanvas" aria-hidden="true"></canvas>
-        <div class="stage" id="stage" aria-label="変形キャンバス"></div>
+        <div class="stage-artwork" id="stageArtwork">
+          <canvas id="compositionCanvas" aria-hidden="true"></canvas>
+          <div class="stage" id="stage" aria-label="変形キャンバス"></div>
+        </div>
       </div>
       <div class="canvas-size-badge" id="canvasSizeBadge">
         <span id="canvasSizeText"></span>
         <button type="button" id="btnCanvasReset" title="キャンバスサイズをリセット">reset</button>
       </div>
+      <div class="canvas-view-hint" id="canvasViewHint" role="status" aria-live="polite" aria-hidden="true">VIEW MODE · DRAG TO PAN · WHEEL / PINCH TO ZOOM · DOUBLE TAP TO RESET</div>
       <div class="canvas-view-controls" role="group" aria-label="Canvas view">
-        <button type="button" id="btnViewZoomOut" aria-label="Zoom out canvas">−</button>
-        <button type="button" id="btnViewReset" aria-label="Reset canvas view to 100%">100%</button>
-        <button type="button" id="btnViewZoomIn" aria-label="Zoom in canvas">＋</button>
-        <button type="button" id="btnViewMode" aria-label="Pan and zoom canvas" aria-pressed="false">VIEW</button>
+        <button type="button" id="btnViewZoomOut" aria-label="Zoom out canvas" title="描画を縮小">−</button>
+        <button type="button" id="btnViewReset" aria-label="Reset canvas view to 100%" title="倍率と位置をリセット">100%</button>
+        <button type="button" id="btnViewZoomIn" aria-label="Zoom in canvas" title="描画を拡大">＋</button>
+        <button type="button" id="btnViewMode" aria-label="Enter canvas view mode" aria-pressed="false" title="ドラッグ／ピンチ操作を有効化（V）">VIEW</button>
       </div>
     </div>
   </div>
@@ -2207,7 +2319,7 @@ type deformer</textarea>
     <button type="button" id="btnMobileView" aria-pressed="false">View</button>
     <button type="button" id="btnMobileOperator">Operator</button>
     <button type="button" id="btnMobileTarget">Target</button>
-    <button type="button" id="btnMobileMore">More</button>
+    <button type="button" id="btnMobileType">Type</button>
   </nav>
 
   <div id="previewOverlay" hidden>
@@ -2231,6 +2343,7 @@ type deformer</textarea>
       var stage = document.getElementById('stage');
       var stageWrap = document.getElementById('stageWrap');
       var stageFrame = document.getElementById('stageFrame');
+      var stageArtwork = document.getElementById('stageArtwork');
       var compositionCanvas = document.getElementById('compositionCanvas');
       var compositionCtx = compositionCanvas.getContext('2d');
 
@@ -2247,14 +2360,15 @@ type deformer</textarea>
       var btnViewMode = document.getElementById('btnViewMode');
       var btnMobileView = document.getElementById('btnMobileView');
       var btnViewReset = document.getElementById('btnViewReset');
+      var canvasViewHint = document.getElementById('canvasViewHint');
 
       stageWrap.classList.add('has-view-camera');
 
       function clampCanvasView() {
-        var wrapW = Math.max(1, stageWrap.clientWidth);
-        var wrapH = Math.max(1, stageWrap.clientHeight);
-        var frameW = Math.max(1, stageFrame.offsetWidth) * canvasView.scale;
-        var frameH = Math.max(1, stageFrame.offsetHeight) * canvasView.scale;
+        var wrapW = Math.max(1, stageFrame.clientWidth);
+        var wrapH = Math.max(1, stageFrame.clientHeight);
+        var frameW = Math.max(1, stageArtwork.offsetWidth) * canvasView.scale;
+        var frameH = Math.max(1, stageArtwork.offsetHeight) * canvasView.scale;
         var visible = 56;
         canvasView.x = Math.max(visible - frameW, Math.min(wrapW - visible, canvasView.x));
         canvasView.y = Math.max(visible - frameH, Math.min(wrapH - visible, canvasView.y));
@@ -2265,13 +2379,27 @@ type deformer</textarea>
         btnViewReset.textContent = percent;
         btnViewReset.setAttribute('aria-label', 'Reset canvas view to 100%, current zoom ' + percent);
         btnViewMode.setAttribute('aria-pressed', String(canvasView.active));
-        if (btnMobileView) btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
+        btnViewMode.textContent = canvasView.active ? 'DONE' : 'VIEW';
+        btnViewMode.setAttribute('aria-label', canvasView.active ? 'Exit canvas view mode' : 'Enter canvas view mode');
+        btnViewMode.title = canvasView.active ? 'View操作を終了（V）' : 'ドラッグ／ピンチ操作を有効化（V）';
+        if (btnMobileView) {
+          btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
+          btnMobileView.textContent = canvasView.active ? 'Done' : 'View';
+          btnMobileView.setAttribute('aria-label', canvasView.active ? 'Exit canvas view mode' : 'Enter canvas view mode');
+          btnMobileView.title = canvasView.active ? 'View操作を終了' : 'ドラッグ／ピンチ操作を有効化';
+        }
+        if (canvasViewHint) {
+          canvasViewHint.textContent = window.matchMedia && window.matchMedia('(max-width: 760px)').matches
+            ? 'VIEW MODE · DRAG TO PAN · PINCH TO ZOOM · DOUBLE TAP TO RESET'
+            : 'VIEW MODE · DRAG TO PAN · WHEEL TO ZOOM · DOUBLE CLICK TO RESET';
+          canvasViewHint.setAttribute('aria-hidden', String(!canvasView.active));
+        }
         stageWrap.classList.toggle('view-pan-active', canvasView.active);
       }
 
       function applyCanvasView() {
         clampCanvasView();
-        stageFrame.style.transform =
+        stageArtwork.style.transform =
           'translate3d(' + canvasView.x.toFixed(2) + 'px,' + canvasView.y.toFixed(2) + 'px,0) scale(' +
           canvasView.scale.toFixed(4) + ')';
         updateCanvasViewUI();
@@ -2299,9 +2427,9 @@ type deformer</textarea>
       function zoomCanvasViewAt(nextScale, clientX, clientY) {
         nextScale = Math.max(CANVAS_VIEW_MIN, Math.min(CANVAS_VIEW_MAX, nextScale));
         if (Math.abs(nextScale - canvasView.scale) < 0.0001) return;
-        var wrapRect = stageWrap.getBoundingClientRect();
-        var sx = clientX - wrapRect.left;
-        var sy = clientY - wrapRect.top;
+        var wrapRect = stageFrame.getBoundingClientRect();
+        var sx = clientX - wrapRect.left + stageFrame.scrollLeft;
+        var sy = clientY - wrapRect.top + stageFrame.scrollTop;
         var contentX = (sx - canvasView.x) / canvasView.scale;
         var contentY = (sy - canvasView.y) / canvasView.scale;
         canvasView.x = sx - contentX * nextScale;
@@ -2311,11 +2439,11 @@ type deformer</textarea>
       }
 
       function zoomCanvasViewBy(factor) {
-        var rect = stageWrap.getBoundingClientRect();
+        var rect = stageFrame.getBoundingClientRect();
         zoomCanvasViewAt(
           canvasView.scale * factor,
-          rect.left + rect.width * 0.5,
-          rect.top + rect.height * 0.5
+          rect.left + stageFrame.clientWidth * 0.5,
+          rect.top + stageFrame.clientHeight * 0.5
         );
       }
 
@@ -2367,16 +2495,20 @@ type deformer</textarea>
           var distance = Math.max(1, Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y));
           var midX = (pair[0].x + pair[1].x) * 0.5;
           var midY = (pair[0].y + pair[1].y) * 0.5;
-          var wrapRect = stageWrap.getBoundingClientRect();
+          var wrapRect = stageFrame.getBoundingClientRect();
           var nextScale = Math.max(
             CANVAS_VIEW_MIN,
             Math.min(CANVAS_VIEW_MAX, canvasViewPinch.scale * distance / canvasViewPinch.distance)
           );
-          var contentX = (canvasViewPinch.midX - wrapRect.left - canvasViewPinch.x) / canvasViewPinch.scale;
-          var contentY = (canvasViewPinch.midY - wrapRect.top - canvasViewPinch.y) / canvasViewPinch.scale;
+          var contentX = (
+            canvasViewPinch.midX - wrapRect.left + stageFrame.scrollLeft - canvasViewPinch.x
+          ) / canvasViewPinch.scale;
+          var contentY = (
+            canvasViewPinch.midY - wrapRect.top + stageFrame.scrollTop - canvasViewPinch.y
+          ) / canvasViewPinch.scale;
           canvasView.scale = nextScale;
-          canvasView.x = midX - wrapRect.left - contentX * nextScale;
-          canvasView.y = midY - wrapRect.top - contentY * nextScale;
+          canvasView.x = midX - wrapRect.left + stageFrame.scrollLeft - contentX * nextScale;
+          canvasView.y = midY - wrapRect.top + stageFrame.scrollTop - contentY * nextScale;
           applyCanvasView();
         } else if (canvasViewDrag && canvasViewDrag.id === e.pointerId) {
           var dx = e.clientX - canvasViewDrag.x0;
@@ -5799,7 +5931,8 @@ type deformer</textarea>
             (m.manualY ? Math.round(m.manualY * 1000) : '') + ',' +
             (m.gridCell != null ? m.gridCell : '') + ',' + encodeOperatorStates(m) + ',' + (m.explicitLock ? 1 : '');
         }
-        return params.seed + '|' + arr.join(';') + '|C=' + encodeURIComponent(JSON.stringify(cloneCompositionState()));
+        var fontSnapshot = encodeURIComponent(params.fontFamily) + ',' + Number(params.fontWeight || 400);
+        return params.seed + '|' + arr.join(';') + '|F=' + fontSnapshot + '|C=' + encodeURIComponent(JSON.stringify(cloneCompositionState()));
       }
 
       function pushHistory() {
@@ -5827,6 +5960,12 @@ type deformer</textarea>
           encodedComposition = body.slice(compositionMarker + 3);
           body = body.slice(0, compositionMarker);
         }
+        var fontMarker = body.lastIndexOf('|F=');
+        var encodedFont = '';
+        if (fontMarker !== -1) {
+          encodedFont = body.slice(fontMarker + 3);
+          body = body.slice(0, fontMarker);
+        }
         var rows = body.split(';');
         var states = [];
         for (var i = 0; i < rows.length; i++) {
@@ -5848,6 +5987,19 @@ type deformer</textarea>
           compositionInspector = compositionState.type;
           setCompositionPlaying(false);
           syncCompositionUI();
+        }
+        if (encodedFont) {
+          var fontSeparator = encodedFont.lastIndexOf(',');
+          if (fontSeparator !== -1) {
+            try { params.fontFamily = decodeURIComponent(encodedFont.slice(0, fontSeparator)); }
+            catch (fontUndoError) { /* retain the current family */ }
+            params.fontWeight = parseInt(encodedFont.slice(fontSeparator + 1), 10) || 400;
+            syncUI();
+            applyStyle();
+            refreshConfuseFontCandidates();
+            applyAllOperatorVisuals();
+            scheduleCompositionDraw();
+          }
         }
         markAutosaveDirty();
       }
@@ -6080,7 +6232,7 @@ type deformer</textarea>
 
       var compositionBusPointer = { x: 0.5, y: 0.5, previousX: 0.5, previousY: 0.5, time: 0 };
       function createCompositionInputBus(tokens, width, height, clock) {
-        var rect = stageFrame.getBoundingClientRect();
+        var rect = stageArtwork.getBoundingClientRect();
         var localX = (pointer.x - rect.left) / canvasView.scale;
         var localY = (pointer.y - rect.top) / canvasView.scale;
         var logicalPoint = previewPointToComposition(localX, localY);
@@ -9648,7 +9800,7 @@ type deformer</textarea>
 
         document.getElementById('btnMobileOperator').addEventListener('click', function () { openMobileSheet('create', 'pOperator'); });
         document.getElementById('btnMobileTarget').addEventListener('click', function () { openMobileSheet('create', 'pBatchProfile'); });
-        document.getElementById('btnMobileMore').addEventListener('click', function () { openMobileSheet(mobileActiveSection); });
+        document.getElementById('btnMobileType').addEventListener('click', function () { openMobileSheet('create', 'typographyControls'); });
         document.getElementById('btnMobileMenu').addEventListener('click', function () { openMobileSheet(mobileActiveSection); });
         document.getElementById('btnMobileSheetClose').addEventListener('click', closeMobileSheet);
         document.getElementById('btnMobileUndo').addEventListener('click', undo);
@@ -10622,28 +10774,270 @@ type deformer</textarea>
 
       var fontSelect = document.getElementById('pFont');
       var fontCustom = document.getElementById('pFontCustom');
-      fontSelect.addEventListener('change', function (e) {
+      var fontFileInput = document.getElementById('pFontFile');
+      var fontFolderInput = document.getElementById('pFontFolder');
+      var importedFontSelect = document.getElementById('pImportedFont');
+      var btnFontFile = document.getElementById('btnFontFile');
+      var btnFontFolder = document.getElementById('btnFontFolder');
+      var btnSystemFonts = document.getElementById('btnSystemFonts');
+      var btnFontCustomClear = document.getElementById('btnFontCustomClear');
+      var fontStatus = document.getElementById('fontStatus');
+      var runtimeFontFaces = [];
+      var runtimeFontLabels = Object.create(null);
+      var runtimeFontSources = Object.create(null);
+      var fontCustomTimer = null;
+      var fontCustomHistoryOpen = false;
+
+      function setFontStatus(message, loaded) {
+        fontStatus.textContent = message;
+        fontStatus.classList.toggle('is-loaded', !!loaded);
+      }
+
+      function primaryFontName() {
+        return (params.fontFamily.split(',')[0] || '').replace(/"/g, '').trim();
+      }
+
+      function syncFontStatus() {
+        var primary = primaryFontName();
+        if (runtimeFontLabels[primary]) {
+          importedFontSelect.value = primary;
+          setFontStatus('Active: ' + runtimeFontLabels[primary] + ' · ' + (runtimeFontSources[primary] === 'system' ? '端末のインストール済みフォント' : 'ブラウザ内ライブラリ'), true);
+          return;
+        }
+        importedFontSelect.value = '';
+        if (fontSelect.selectedIndex >= 0) {
+          setFontStatus('Preset: ' + fontSelect.options[fontSelect.selectedIndex].textContent, false);
+        } else if (/^Type Deformer /.test(primary)) {
+          setFontStatus('Font file missing: 同じファイル／フォルダを再読込すると復元できます。', false);
+        } else if (primary) {
+          setFontStatus('Local font name: ' + primary + ' · 端末に書体がない場合はフォールバック', false);
+        } else {
+          setFontStatus('フォントはこの端末のブラウザ内だけで読み込み、サーバーには送信しません。', false);
+        }
+      }
+
+      function fontLibraryHash(value) {
+        var hash = 2166136261;
+        for (var i = 0; i < value.length; i++) {
+          hash ^= value.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return (hash >>> 0).toString(36);
+      }
+
+      function safeFontFamily(value) {
+        return String(value || '').replace(/["\\\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+      }
+
+      function registerRuntimeFont(family, label, source) {
+        runtimeFontLabels[family] = label;
+        runtimeFontSources[family] = source;
+        var exists = false;
+        for (var i = 1; i < importedFontSelect.options.length; i++) {
+          if (importedFontSelect.options[i].value === family) {
+            importedFontSelect.options[i].textContent = label;
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) {
+          var option = document.createElement('option');
+          option.value = family;
+          option.textContent = label;
+          importedFontSelect.appendChild(option);
+        }
+        importedFontSelect.disabled = false;
+      }
+
+      function sortRuntimeFontOptions() {
+        var current = importedFontSelect.value;
+        var options = Array.prototype.slice.call(importedFontSelect.options, 1);
+        options.sort(function (a, b) { return a.textContent.localeCompare(b.textContent, 'ja'); });
+        options.forEach(function (option) { importedFontSelect.appendChild(option); });
+        importedFontSelect.value = current;
+      }
+
+      function setImportedFont(family) {
+        if (!family || !runtimeFontLabels[family]) return;
+        pushHistory();
+        clearTimeout(fontCustomTimer);
+        params.fontFamily = '"' + safeFontFamily(family) + '", ' + PARAM_DEFAULTS.fontFamily;
+        fontSelect.selectedIndex = -1;
         fontCustom.value = '';
-        params.fontFamily = e.target.value;
+        applyFontChange();
+      }
+
+      function importFontCollection(fileList, sourceLabel, input) {
+        var allFiles = Array.prototype.slice.call(fileList || []);
+        var valid = allFiles.filter(function (file) { return /\.(otf|ttf|woff2?|ttc|otc)$/i.test(file.name); });
+        var maxFiles = 256;
+        var maxFileBytes = 50 * 1024 * 1024;
+        var maxTotalBytes = 250 * 1024 * 1024;
+        var totalBytes = valid.reduce(function (sum, file) { return sum + file.size; }, 0);
+        if (!valid.length) {
+          setFontStatus('Import failed: OTF / TTF / WOFF / WOFF2 / TTC / OTCが見つかりませんでした。', false);
+          input.value = '';
+          return;
+        }
+        if (valid.length > maxFiles || totalBytes > maxTotalBytes || valid.some(function (file) { return file.size > maxFileBytes; })) {
+          setFontStatus('Import failed: 最大256書体・合計250MB・1ファイル50MBまでです。', false);
+          input.value = '';
+          return;
+        }
+        if (typeof FontFace === 'undefined' || !document.fonts) {
+          setFontStatus('Import failed: このブラウザはフォントファイル読込に対応していません。', false);
+          input.value = '';
+          return;
+        }
+        setFontStatus(sourceLabel + 'を読込中… 0 / ' + valid.length, false);
+        var loaded = 0;
+        var failed = 0;
+        var chain = Promise.resolve();
+        valid.forEach(function (file, index) {
+          chain = chain.then(function () {
+            var sourcePath = file.webkitRelativePath || file.name;
+            var fileBase = file.name.replace(/\.[^.]+$/, '').replace(/[^0-9A-Za-z\u00A0-\uFFFF _-]+/g, ' ').trim().slice(0, 72) || 'User Font';
+            var family = 'Type Deformer ' + fileBase + ' ' + fontLibraryHash(sourcePath + '|' + file.size + '|' + Number(file.lastModified || 0));
+            if (runtimeFontLabels[family]) {
+              loaded++;
+              setFontStatus(sourceLabel + 'を読込中… ' + (index + 1) + ' / ' + valid.length, false);
+              return;
+            }
+            return file.arrayBuffer().then(function (buffer) {
+              var face = new FontFace(family, buffer);
+              return face.load();
+            }).then(function (face) {
+              document.fonts.add(face);
+              runtimeFontFaces.push(face);
+              registerRuntimeFont(family, file.name, 'file');
+              loaded++;
+            }).catch(function () {
+              failed++;
+            }).then(function () {
+              setFontStatus(sourceLabel + 'を読込中… ' + (index + 1) + ' / ' + valid.length, false);
+            });
+          });
+        });
+        chain.then(function () {
+          input.value = '';
+          sortRuntimeFontOptions();
+          syncFontStatus();
+          var current = primaryFontName();
+          var resultText = loaded + '書体を追加' + (failed ? '・' + failed + '件をスキップ' : '');
+          if (runtimeFontLabels[current]) {
+            applyStyle();
+            refreshConfuseFontCandidates();
+            scheduleCompositionDraw();
+            setFontStatus(resultText + ' · Active: ' + runtimeFontLabels[current], true);
+          } else {
+            setFontStatus(resultText + '。Libraryから選ぶと適用されます。', loaded > 0);
+          }
+        });
+      }
+
+      function applyFontChange() {
         applyStyle();
         refreshConfuseFontCandidates();
-      });
-      fontCustom.addEventListener('change', function () {
-        var v = fontCustom.value.trim().replace(/"/g, '');
-        if (v) {
-          params.fontFamily = '"' + v + '", ' + (fontSelect.value || 'sans-serif');
+        markAutosaveDirty();
+        scheduleCompositionDraw();
+        syncFontStatus();
+      }
+
+      function applyCustomFontName() {
+        var value = fontCustom.value.trim().replace(/["']/g, '');
+        if (value) {
+          var fallback = fontSelect.selectedIndex >= 0 ? fontSelect.value : PARAM_DEFAULTS.fontFamily;
+          params.fontFamily = '"' + value.slice(0, 180) + '", ' + fallback;
           fontSelect.selectedIndex = -1;
         } else {
           if (fontSelect.selectedIndex < 0) fontSelect.selectedIndex = 0;
           params.fontFamily = fontSelect.value;
         }
-        applyStyle();
-        refreshConfuseFontCandidates();
+        importedFontSelect.value = '';
+        applyFontChange();
+      }
+
+      fontSelect.addEventListener('change', function (e) {
+        pushHistory();
+        clearTimeout(fontCustomTimer);
+        fontCustom.value = '';
+        params.fontFamily = e.target.value;
+        importedFontSelect.value = '';
+        applyFontChange();
+      });
+
+      importedFontSelect.addEventListener('change', function () {
+        setImportedFont(importedFontSelect.value);
+      });
+
+      fontCustom.addEventListener('focus', function () { fontCustomHistoryOpen = false; });
+      fontCustom.addEventListener('input', function () {
+        if (!fontCustomHistoryOpen) {
+          pushHistory();
+          fontCustomHistoryOpen = true;
+        }
+        clearTimeout(fontCustomTimer);
+        fontCustomTimer = setTimeout(applyCustomFontName, 180);
+      });
+      fontCustom.addEventListener('change', function () {
+        clearTimeout(fontCustomTimer);
+        applyCustomFontName();
+        fontCustomHistoryOpen = false;
+      });
+
+      btnFontCustomClear.addEventListener('click', function () {
+        if (!fontCustom.value && fontSelect.selectedIndex >= 0) return;
+        pushHistory();
+        clearTimeout(fontCustomTimer);
+        fontCustom.value = '';
+        fontSelect.selectedIndex = 0;
+        params.fontFamily = fontSelect.value;
+        importedFontSelect.value = '';
+        applyFontChange();
+      });
+
+      btnFontFile.addEventListener('click', function () {
+        fontFileInput.click();
+      });
+      fontFileInput.addEventListener('change', function () {
+        importFontCollection(fontFileInput.files, 'Font files', fontFileInput);
+      });
+      btnFontFolder.addEventListener('click', function () {
+        fontFolderInput.click();
+      });
+      fontFolderInput.addEventListener('change', function () {
+        importFontCollection(fontFolderInput.files, 'Font folder', fontFolderInput);
+      });
+
+      if (typeof window.queryLocalFonts === 'function') btnSystemFonts.hidden = false;
+      btnSystemFonts.addEventListener('click', function () {
+        if (typeof window.queryLocalFonts !== 'function') {
+          setFontStatus('このブラウザではインストール済みフォントの一覧取得を利用できません。', false);
+          return;
+        }
+        setFontStatus('端末のフォント一覧への許可を待っています…', false);
+        window.queryLocalFonts().then(function (fonts) {
+          var families = Object.create(null);
+          fonts.forEach(function (font) {
+            var family = safeFontFamily(font.family);
+            if (family) families[family] = true;
+          });
+          var names = Object.keys(families).sort(function (a, b) { return a.localeCompare(b); });
+          names.forEach(function (family) {
+            registerRuntimeFont(family, family + ' · Installed', 'system');
+          });
+          sortRuntimeFontOptions();
+          syncFontStatus();
+          var activeName = primaryFontName();
+          setFontStatus(names.length + '書体を参照可能にしました。' + (runtimeFontLabels[activeName] ? 'Active: ' + runtimeFontLabels[activeName] : 'Libraryから選ぶと適用されます。'), names.length > 0);
+        }).catch(function () {
+          setFontStatus('端末フォントの参照が許可されませんでした。Import folderは引き続き使えます。', false);
+        });
       });
       document.getElementById('pWeight').addEventListener('change', function (e) {
+        pushHistory();
         params.fontWeight = parseInt(e.target.value, 10) || 400;
-        applyStyle();
-        refreshConfuseFontCandidates();
+        applyFontChange();
       });
       document.getElementById('pAccent').addEventListener('input', function (e) {
         params.accent = e.target.value;
@@ -10930,6 +11324,7 @@ type deformer</textarea>
           fontSelect.selectedIndex = -1;
           fontCustom.value = (params.fontFamily.split(',')[0] || '').replace(/"/g, '').trim();
         }
+        syncFontStatus();
         document.getElementById('pWeight').value = String(params.fontWeight);
         document.getElementById('pInk').value = params.ink;
         document.getElementById('pPaper').value = params.paper;
