@@ -1,0 +1,9305 @@
+import { toGraphemes, fallbackGraphemes } from './src/core/graphemes.js';
+import { confusePairLookup, confuseScript, confuseHasVariationSelector } from './src/core/script.js';
+import { uni, classify, isPunctCluster, charInfo, batchKeyFor } from './src/core/classify.js';
+import { quant, buildCellOrder, lerpHex, baselineOffset, fitCompositionViewport, contentBounds, exportLayout } from './src/core/geometry.js';
+import { bytesToB64url, b64urlToBytes, escXml, escXmlAttr } from './src/core/codec.js';
+import { fontLibraryHash, safeFontFamily, normalizeFontStack } from './src/core/fonts.js';
+import { STRENGTH_MODES, EVALUATION_LAYERS, OPERATOR_DEFS, OPERATOR_IDS, OPERATOR_BY_SHORT, clampFinite, cloneManualValue, normalizeOperatorManual, encodeOperatorStates, decodeOperatorStates } from './src/core/operators.js';
+
+var stage = document.getElementById('stage');
+var stageWrap = document.getElementById('stageWrap');
+var stageFrame = document.getElementById('stageFrame');
+var stageArtwork = document.getElementById('stageArtwork');
+var compositionCanvas = document.getElementById('compositionCanvas');
+var compositionCtx = compositionCanvas.getContext('2d');
+
+/* ---------------- canvas view camera ----------------
+   View state is intentionally device-local and ephemeral: it changes
+   only how the artwork is inspected, never project/export geometry. */
+var canvasView = { scale: 1, x: 0, y: 0, active: false };
+var canvasViewPointers = new Map();
+var canvasViewDrag = null;
+var canvasViewPinch = null;
+var canvasViewLastTap = null;
+var CANVAS_VIEW_MIN = 0.35;
+var CANVAS_VIEW_MAX = 6;
+var btnViewMode = document.getElementById('btnViewMode');
+var btnMobileView = document.getElementById('btnMobileView');
+var btnViewReset = document.getElementById('btnViewReset');
+var canvasViewHint = document.getElementById('canvasViewHint');
+
+stageWrap.classList.add('has-view-camera');
+
+function clampCanvasView() {
+  var wrapW = Math.max(1, stageFrame.clientWidth);
+  var wrapH = Math.max(1, stageFrame.clientHeight);
+  var frameW = Math.max(1, stageArtwork.offsetWidth) * canvasView.scale;
+  var frameH = Math.max(1, stageArtwork.offsetHeight) * canvasView.scale;
+  var visible = 56;
+  canvasView.x = Math.max(visible - frameW, Math.min(wrapW - visible, canvasView.x));
+  canvasView.y = Math.max(visible - frameH, Math.min(wrapH - visible, canvasView.y));
+}
+
+function updateCanvasViewUI() {
+  var percent = Math.round(canvasView.scale * 100) + '%';
+  btnViewReset.textContent = percent;
+  btnViewReset.setAttribute('aria-label', 'Reset canvas view to 100%, current zoom ' + percent);
+  btnViewMode.setAttribute('aria-pressed', String(canvasView.active));
+  btnViewMode.textContent = canvasView.active ? 'DONE' : 'VIEW';
+  btnViewMode.setAttribute('aria-label', canvasView.active ? 'Exit canvas view mode' : 'Enter canvas view mode');
+  btnViewMode.title = canvasView.active ? 'View操作を終了（V）' : 'ドラッグ／ピンチ操作を有効化（V）';
+  if (btnMobileView) {
+    btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
+    btnMobileView.textContent = canvasView.active ? 'Done' : 'View';
+    btnMobileView.setAttribute('aria-label', canvasView.active ? 'Exit canvas view mode' : 'Enter canvas view mode');
+    btnMobileView.title = canvasView.active ? 'View操作を終了' : 'ドラッグ／ピンチ操作を有効化';
+  }
+  if (canvasViewHint) {
+    canvasViewHint.textContent = window.matchMedia && window.matchMedia('(max-width: 760px)').matches
+      ? 'VIEW MODE · DRAG TO PAN · PINCH TO ZOOM · DOUBLE TAP TO RESET'
+      : 'VIEW MODE · DRAG TO PAN · WHEEL TO ZOOM · DOUBLE CLICK TO RESET';
+    canvasViewHint.setAttribute('aria-hidden', String(!canvasView.active));
+  }
+  stageWrap.classList.toggle('view-pan-active', canvasView.active);
+}
+
+function applyCanvasView() {
+  clampCanvasView();
+  stageArtwork.style.transform =
+    'translate3d(' + canvasView.x.toFixed(2) + 'px,' + canvasView.y.toFixed(2) + 'px,0) scale(' +
+    canvasView.scale.toFixed(4) + ')';
+  updateCanvasViewUI();
+}
+
+function setCanvasViewActive(active) {
+  canvasView.active = !!active;
+  canvasViewPointers.clear();
+  canvasViewDrag = null;
+  canvasViewPinch = null;
+  stageWrap.classList.remove('view-pan-dragging');
+  pointer.active = false;
+  if (typeof schedule === 'function') schedule();
+  updateCanvasViewUI();
+  if (typeof updateContextUI === 'function') updateContextUI();
+}
+
+function resetCanvasView() {
+  canvasView.scale = 1;
+  canvasView.x = 0;
+  canvasView.y = 0;
+  applyCanvasView();
+}
+
+function zoomCanvasViewAt(nextScale, clientX, clientY) {
+  nextScale = Math.max(CANVAS_VIEW_MIN, Math.min(CANVAS_VIEW_MAX, nextScale));
+  if (Math.abs(nextScale - canvasView.scale) < 0.0001) return;
+  var wrapRect = stageFrame.getBoundingClientRect();
+  var sx = clientX - wrapRect.left + stageFrame.scrollLeft;
+  var sy = clientY - wrapRect.top + stageFrame.scrollTop;
+  var contentX = (sx - canvasView.x) / canvasView.scale;
+  var contentY = (sy - canvasView.y) / canvasView.scale;
+  canvasView.x = sx - contentX * nextScale;
+  canvasView.y = sy - contentY * nextScale;
+  canvasView.scale = nextScale;
+  applyCanvasView();
+}
+
+function zoomCanvasViewBy(factor) {
+  var rect = stageFrame.getBoundingClientRect();
+  zoomCanvasViewAt(
+    canvasView.scale * factor,
+    rect.left + stageFrame.clientWidth * 0.5,
+    rect.top + stageFrame.clientHeight * 0.5
+  );
+}
+
+function canvasViewPointPair() {
+  var points = Array.from(canvasViewPointers.values());
+  return points.length >= 2 ? [points[0], points[1]] : null;
+}
+
+function beginCanvasViewPinch() {
+  var pair = canvasViewPointPair();
+  if (!pair) { canvasViewPinch = null; return; }
+  var midX = (pair[0].x + pair[1].x) * 0.5;
+  var midY = (pair[0].y + pair[1].y) * 0.5;
+  canvasViewPinch = {
+    distance: Math.max(1, Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y)),
+    scale: canvasView.scale,
+    x: canvasView.x,
+    y: canvasView.y,
+    midX: midX,
+    midY: midY
+  };
+}
+
+function restartCanvasViewDrag() {
+  var first = canvasViewPointers.values().next().value;
+  canvasViewDrag = first ? {
+    id: first.id, x0: first.x, y0: first.y,
+    viewX: canvasView.x, viewY: canvasView.y, moved: false
+  } : null;
+}
+
+stageWrap.addEventListener('pointerdown', function (e) {
+  if (!canvasView.active || e.target.closest('.canvas-view-controls')) return;
+  canvasViewPointers.set(e.pointerId, { id: e.pointerId, x: e.clientX, y: e.clientY });
+  if (canvasViewPointers.size === 1) restartCanvasViewDrag();
+  else beginCanvasViewPinch();
+  stageWrap.classList.add('view-pan-dragging');
+  try { stageWrap.setPointerCapture(e.pointerId); } catch (err) { }
+  e.stopPropagation();
+  if (e.cancelable) e.preventDefault();
+}, true);
+
+stageWrap.addEventListener('pointermove', function (e) {
+  if (!canvasView.active || !canvasViewPointers.has(e.pointerId)) return;
+  canvasViewPointers.set(e.pointerId, { id: e.pointerId, x: e.clientX, y: e.clientY });
+  if (canvasViewPointers.size >= 2) {
+    var pair = canvasViewPointPair();
+    if (!canvasViewPinch) beginCanvasViewPinch();
+    var distance = Math.max(1, Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y));
+    var midX = (pair[0].x + pair[1].x) * 0.5;
+    var midY = (pair[0].y + pair[1].y) * 0.5;
+    var wrapRect = stageFrame.getBoundingClientRect();
+    var nextScale = Math.max(
+      CANVAS_VIEW_MIN,
+      Math.min(CANVAS_VIEW_MAX, canvasViewPinch.scale * distance / canvasViewPinch.distance)
+    );
+    var contentX = (
+      canvasViewPinch.midX - wrapRect.left + stageFrame.scrollLeft - canvasViewPinch.x
+    ) / canvasViewPinch.scale;
+    var contentY = (
+      canvasViewPinch.midY - wrapRect.top + stageFrame.scrollTop - canvasViewPinch.y
+    ) / canvasViewPinch.scale;
+    canvasView.scale = nextScale;
+    canvasView.x = midX - wrapRect.left + stageFrame.scrollLeft - contentX * nextScale;
+    canvasView.y = midY - wrapRect.top + stageFrame.scrollTop - contentY * nextScale;
+    applyCanvasView();
+  } else if (canvasViewDrag && canvasViewDrag.id === e.pointerId) {
+    var dx = e.clientX - canvasViewDrag.x0;
+    var dy = e.clientY - canvasViewDrag.y0;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) canvasViewDrag.moved = true;
+    canvasView.x = canvasViewDrag.viewX + dx;
+    canvasView.y = canvasViewDrag.viewY + dy;
+    applyCanvasView();
+  }
+  e.stopPropagation();
+  if (e.cancelable) e.preventDefault();
+}, true);
+
+function endCanvasViewPointer(e) {
+  if (!canvasViewPointers.has(e.pointerId)) return;
+  var wasTap = canvasViewPointers.size === 1 && canvasViewDrag && !canvasViewDrag.moved;
+  canvasViewPointers.delete(e.pointerId);
+  try { stageWrap.releasePointerCapture(e.pointerId); } catch (err) { }
+  if (canvasViewPointers.size >= 2) beginCanvasViewPinch();
+  else {
+    canvasViewPinch = null;
+    restartCanvasViewDrag();
+  }
+  if (!canvasViewPointers.size) stageWrap.classList.remove('view-pan-dragging');
+  if (wasTap && e.pointerType === 'touch') {
+    var now = Date.now();
+    if (canvasViewLastTap && now - canvasViewLastTap.time < 360 &&
+        Math.hypot(e.clientX - canvasViewLastTap.x, e.clientY - canvasViewLastTap.y) < 22) {
+      resetCanvasView();
+      canvasViewLastTap = null;
+    } else {
+      canvasViewLastTap = { time: now, x: e.clientX, y: e.clientY };
+    }
+  }
+  e.stopPropagation();
+  if (e.cancelable) e.preventDefault();
+}
+stageWrap.addEventListener('pointerup', endCanvasViewPointer, true);
+stageWrap.addEventListener('pointercancel', endCanvasViewPointer, true);
+
+stageWrap.addEventListener('wheel', function (e) {
+  if (!canvasView.active && !e.ctrlKey && !e.metaKey) return;
+  if (!canvasView.active) setCanvasViewActive(true);
+  zoomCanvasViewAt(canvasView.scale * Math.exp(-e.deltaY * 0.002), e.clientX, e.clientY);
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+
+stageWrap.addEventListener('dblclick', function (e) {
+  if (!canvasView.active || e.target.closest('.canvas-view-controls')) return;
+  resetCanvasView();
+  e.preventDefault();
+}, true);
+
+document.getElementById('btnViewZoomOut').addEventListener('click', function () { zoomCanvasViewBy(1 / 1.25); });
+document.getElementById('btnViewZoomIn').addEventListener('click', function () { zoomCanvasViewBy(1.25); });
+btnViewReset.addEventListener('click', resetCanvasView);
+btnViewMode.addEventListener('click', function () { setCanvasViewActive(!canvasView.active); });
+if (btnMobileView) btnMobileView.addEventListener('click', function () {
+  setCanvasViewActive(!canvasView.active);
+  closeMobileSheet();
+});
+window.addEventListener('resize', function () { applyCanvasView(); });
+applyCanvasView();
+
+/* ---------------- resizable canvas frame ---------------- */
+(function () {
+  var badgeText = document.getElementById('canvasSizeText');
+  var btnReset = document.getElementById('btnCanvasReset');
+  var SIZE_KEY = 'typeDeformer.frameSize.v1';
+
+  function updateBadge() {
+    // The badge describes artwork viewport geometry, not the temporary
+    // camera transform applied for inspection.
+    badgeText.innerHTML = '<b>' + Math.round(stageFrame.offsetWidth) + '</b> × <b>' +
+      Math.round(stageFrame.offsetHeight) + '</b>';
+  }
+  function saveSize() {
+    try {
+      if (stageFrame.style.width && stageFrame.style.height) {
+        localStorage.setItem(SIZE_KEY, JSON.stringify({
+          w: stageFrame.style.width, h: stageFrame.style.height
+        }));
+      } else {
+        localStorage.removeItem(SIZE_KEY);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  try {
+    var saved = JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
+    if (saved && saved.w && saved.h) {
+      stageFrame.style.width = saved.w;
+      stageFrame.style.height = saved.h;
+    }
+  } catch (e) { /* ignore */ }
+
+  function notifyFrameResize() {
+    updateBadge();
+    window.dispatchEvent(new Event('type-deformer-frame-resize'));
+  }
+  if (window.ResizeObserver) {
+    new ResizeObserver(notifyFrameResize).observe(stageFrame);
+  } else {
+    window.addEventListener('resize', notifyFrameResize);
+  }
+  stageFrame.addEventListener('mouseup', function () { saveSize(); notifyFrameResize(); });
+  stageFrame.addEventListener('touchend', function () { saveSize(); notifyFrameResize(); });
+  btnReset.addEventListener('click', function () {
+    stageFrame.style.width = '';
+    stageFrame.style.height = '';
+    saveSize();
+    notifyFrameResize();
+  });
+  updateBadge();
+})();
+
+
+/* ---------------- composition layer: repeat × field × phase ---------------- */
+// Composition does not duplicate source text state. Every generated
+// instance retains a sourceIndex and receives the currently evaluated
+// codepoint/glyph/box operators from that source glyph.
+var COMPOSITION_DEFS = {
+  field: { id: 'field', label: 'Field' },
+  fluxRows: { id: 'fluxRows', label: 'Flux Rows' },
+  cascade: { id: 'cascade', label: 'Cascade' },
+  contourAtlas: { id: 'contourAtlas', label: 'Contour Atlas' },
+  feedbackChamber: { id: 'feedbackChamber', label: 'Feedback Chamber' }
+};
+// The registry is populated after the generator functions have been
+// declared. Keeping the public name here lets UI, export and plug-in code
+// discover the v6 engine contract without depending on declaration order.
+var COMPOSITION_ENGINES = {};
+var COMPOSITION_DEFAULTS = {
+  schemaVersion: 6,
+  enabled: false,
+  type: 'field',
+  phase: 0,
+  speed: 0.18,
+  direction: 1,
+  axis: 'inherit',
+  seed: 1,
+  loopLock: true,
+  quality: 'auto',
+  logicalViewport: { width: 1080, height: 1080, legacyResponsive: false },
+  macros: {
+    intensity: 0.65, density: 0.6, instability: 0.35,
+    depth: 0.45, legibility: 0.85
+  },
+  fxRack: {
+    echo: { enabled: false, amount: 0.45, count: 3, phase: 0.08, decay: 0.62, scale: 0.025, rotation: 3 },
+    feedback: { enabled: false, amount: 0.35, zoom: 0.025, rotation: 2, warp: 0.15 },
+    signalMask: { enabled: false, amount: 0.5, mode: 'text', feather: 0.08 },
+    chromaticSplit: { enabled: false, amount: 0.45, distance: 6, angle: 0, blend: 'screen' },
+    rasterMaterial: { enabled: false, amount: 0.35, pixelate: 0, posterize: 0, scanline: 0.25, noise: 0.15 }
+  },
+  color2: '#1767a6',
+  color3: '#d0a000',
+  field: {
+    cols: 21, rows: 21, waveX: 3.1, waveY: 3.1,
+    ampX: 0, ampY: 0.7, scaleX: 0.35, scaleY: 0.8,
+    rotation: 0, depth: 0.18,
+    topology: 'cartesian', fieldType: 'wave', sources: 1,
+    pointerMode: 'none', pointerForce: 0.8, orientation: 'fixed',
+    domainWarp: 0, perspective: 0, depthFalloff: 0.35,
+    variation: 0.2, variationMode: 'unicode',
+    network: 0, echoOrbit: 0, colorMode: 'ink'
+  },
+  fluxRows: {
+    rows: 11, curve: 1.25, tracking: 0.22, lineGap: 0.12,
+    scroll: 2, amount: 0.18, mirror: true, flip: false,
+    baseline: 'straight', laneSpeed: 'uniform', phaseOffset: 0.12,
+    amplitude: 0.45, density: 1, integerTravel: true, counterflow: 0,
+    compression: 0, slit: 0, accordion: 0, tangent: 0,
+    perspective: 0, colorMode: 'ink',
+    weave: 0, trail: 0, scanEcho: 0, pointerBranch: 0
+  },
+  cascade: {
+    rows: 14, tracking: 0.18, lineSpace: 0.2,
+    waveLength: 0.13, amplitude: 1.25, slope: 1,
+    mirror: false, bands: true,
+    system: 'automaton', shape: 'rounded', colorMode: 'state',
+    rule: 110, customRule: 110, seed: 'unicode', cells: 42,
+    circuitDensity: 0.7, pulse: 0.55,
+    signalMode: 'slices', signalLayers: 4, signalFeedback: 0.58, quantize: 12,
+    sdfMode: 'interference', frequency: 9, warp: 0.65, threshold: 0.5,
+    contours: 4, sdfFeedback: 0.68,
+    automatonMode: '1d', lifeRule: 'B3/S23', generationCount: 24,
+    generationBlend: 0.5, pingPong: true,
+    circuitBranches: 3, circuitRouters: 8, circuitPackets: 16,
+    packetTrail: 0.4, circuitHeatmap: 0, addressNodes: 0.65, pointerInject: true,
+    signalSources: 2, signalSync: 0.5, glyphWarp: 0,
+    diffraction: 0, chromatic: 0,
+    backgroundAmount: 1, textAmount: 1,
+    gap: 0.08, round: 0.18, opacity: 1, stroke: 0, scanline: 0.12,
+    blend: 'source-over', glyphMode: 'contrast',
+    backdropEnabled: true, backdropOpacity: 1,
+    backdrop: '#f4f3ef', fieldA: '#17140f', fieldB: '#c41f1f',
+    fieldC: '#1767a6', edge: '#d0a000', glyph: '#f4f3ef'
+  },
+  contourAtlas: {
+    source: 'glyphDistance', rendering: 'hybrid',
+    levels: 12, resolution: 72, spacing: 0.1, lineWidth: 1.2,
+    dash: 0, density: 0.62, charge: 0.6, interference: 0.4,
+    pointerRelief: 0.55, glyphs: true, filled: false,
+    tangent: 1, threshold: 0.5, fillOpacity: 0.12, textHeight: 0.65,
+    colorMode: 'ink', preset: 'topographic'
+  },
+  feedbackChamber: {
+    transform: 'zoom', warp: 'wave', mirror: 'none',
+    zoom: 0.035, rotation: 2.5, driftX: 0, driftY: 0,
+    shear: 0, warpAmount: 0.35, decay: 0.72,
+    injection: 0.78, threshold: 0.15, persistence: 0.7,
+    echoes: 9, kaleidoscope: 6, pointerCenter: true,
+    loopLock: true, preset: 'recursiveType'
+  }
+};
+
+function cloneCompositionDefaults() {
+  return JSON.parse(JSON.stringify(COMPOSITION_DEFAULTS));
+}
+
+var compositionState = cloneCompositionDefaults();
+var compositionInspector = 'field';
+var compositionScene = { glyphs: [], bands: [], width: 0, height: 0, limited: false };
+var compositionSpatialIndex = {
+  scene: null, cellSize: 96, buckets: Object.create(null), maxReach: 96
+};
+var compositionDrawRaf = null;
+var compositionPlayRaf = null;
+var compositionLastTime = 0;
+var compositionPreviewLayout = { dx: 0, dy: 0, s: 1, w: 1, h: 1 };
+// Auto quality starts at the full/default topology. It may step down
+// immediately after a genuinely slow frame, but only promotes to High
+// after a sustained run of fast frames.
+var compositionFrameAverage = 0;
+var compositionAutoTier = 'normal';
+var compositionAutoFastFrames = 0;
+var compositionQualityOverride = null;
+var compositionSourceRevision = 1;
+
+function invalidateCompositionSource() {
+  compositionSourceRevision++;
+  snapshotGlyphs.cache = null;
+}
+
+/* ---------------- confuse operator: graded lookalike dictionary ----------------
+   Tier 1: form variants of the same character (fullwidth, voicing, small kana, 旧字体)
+   Tier 2: same-script lookalikes (hira⇄kata, similar kanji, styled Latin)
+   Tier 3: cross-script / decorative (Greek・Cyrillic, circled, kanji⇄katakana) — Mixed only
+   The source text is never modified; only the rendered glyph is swapped. */
+
+// 新字体+旧字体 pairs, packed two chars per entry
+var CONFUSE_KYUJITAI =
+  '亜亞悪惡圧壓囲圍医醫為爲壱壹隠隱栄榮営營衛衞駅驛円圓塩鹽応應桜櫻奥奧横橫温溫価價会會絵繪拡擴学學楽樂勧勸観觀帰歸気氣亀龜旧舊拠據挙擧区區駆驅径徑恵惠継繼鶏鷄芸藝剣劍権權険險圏圈顕顯験驗厳嚴広廣恒恆鉱鑛号號国國済濟斎齋剤劑惨慘賛贊残殘糸絲歯齒児兒辞辭実實写寫舎舍釈釋寿壽収收従從渋澁獣獸縦縱処處緒緖将將焼燒証證乗乘条條浄淨状狀畳疊譲讓触觸嘱囑真眞粋粹酔醉数數声聲静靜斉齊摂攝専專戦戰浅淺銭錢潜潛禅禪曽曾双雙壮壯争爭荘莊捜搜巣巢装裝総總蔵藏臓臟属屬続續対對体體帯帶滞滯台臺滝瀧択擇沢澤単單担擔胆膽団團断斷弾彈遅遲昼晝虫蟲鋳鑄庁廳聴聽鎮鎭転轉点點伝傳灯燈当當党黨盗盜稲稻闘鬪徳德独獨読讀弐貳悩惱脳腦廃廢拝拜売賣麦麥発發髪髮抜拔蛮蠻浜濱払拂仏佛変變辺邊宝寶豊豐没沒満滿万萬黙默訳譯薬藥予豫余餘与與誉譽様樣謡謠来來頼賴乱亂覧覽竜龍両兩塁壘涙淚励勵礼禮霊靈齢齡恋戀労勞楼樓録錄湾灣';
+
+// visually confusable kanji, grouped (every member suggests the others)
+var CONFUSE_SIMILAR_KANJI = [
+  '土士', '未末', '己已巳', '人入', '大太', '曰日', '王玉', '千干', '天夭',
+  '石右', '微徴', '遣遺', '密蜜', '崇祟', '荻萩', '板坂', '拍柏', '縁緑',
+  '積績', '講構', '清晴', '週周', '陳陣', '職織識', '復複', '幸辛', '若苦',
+  '爪瓜', '鳥烏', '兎免', '眠眼', '困因', '刀刃', '矢失', '句旬', '斤斥',
+  '木本', '水氷', '白百', '牛午', '休体', '侍待', '住往'
+];
+
+// kanji that double as katakana shapes (cross-script)
+var CONFUSE_KATA_KANJI = '口ロ二ニ力カ工エ夕タ卜ト八ハ千チ';
+
+// dakuten / handakuten voicing ladder (both directions)
+var CONFUSE_VOICE_PAIRS =
+  'かがきぎくぐけげこごさざしじすずせぜそぞただちぢつづてでとどはばひびふぶへべほぼ' +
+  'カガキギクグケゲコゴサザシジスズセゼソゾタダチヂツヅテデトドハバヒビフブヘベホボウヴ' +
+  'はぱひぴふぷへぺほぽハパヒピフプヘペホポ';
+
+var CONFUSE_SMALL_KANA = {
+  'あ': 'ぁ', 'い': 'ぃ', 'う': 'ぅ', 'え': 'ぇ', 'お': 'ぉ', 'つ': 'っ', 'や': 'ゃ', 'ゆ': 'ゅ', 'よ': 'ょ', 'わ': 'ゎ',
+  'ア': 'ァ', 'イ': 'ィ', 'ウ': 'ゥ', 'エ': 'ェ', 'オ': 'ォ', 'ツ': 'ッ', 'ヤ': 'ャ', 'ユ': 'ュ', 'ヨ': 'ョ', 'ワ': 'ヮ', 'カ': 'ヵ', 'ケ': 'ヶ'
+};
+
+var CONFUSE_HALF_KATA = {
+  'ア': 'ｱ', 'イ': 'ｲ', 'ウ': 'ｳ', 'エ': 'ｴ', 'オ': 'ｵ', 'カ': 'ｶ', 'キ': 'ｷ', 'ク': 'ｸ', 'ケ': 'ｹ', 'コ': 'ｺ',
+  'サ': 'ｻ', 'シ': 'ｼ', 'ス': 'ｽ', 'セ': 'ｾ', 'ソ': 'ｿ', 'タ': 'ﾀ', 'チ': 'ﾁ', 'ツ': 'ﾂ', 'テ': 'ﾃ', 'ト': 'ﾄ',
+  'ナ': 'ﾅ', 'ニ': 'ﾆ', 'ヌ': 'ﾇ', 'ネ': 'ﾈ', 'ノ': 'ﾉ', 'ハ': 'ﾊ', 'ヒ': 'ﾋ', 'フ': 'ﾌ', 'ヘ': 'ﾍ', 'ホ': 'ﾎ',
+  'マ': 'ﾏ', 'ミ': 'ﾐ', 'ム': 'ﾑ', 'メ': 'ﾒ', 'モ': 'ﾓ', 'ヤ': 'ﾔ', 'ユ': 'ﾕ', 'ヨ': 'ﾖ',
+  'ラ': 'ﾗ', 'リ': 'ﾘ', 'ル': 'ﾙ', 'レ': 'ﾚ', 'ロ': 'ﾛ', 'ワ': 'ﾜ', 'ヲ': 'ｦ', 'ン': 'ﾝ', 'ー': 'ｰ'
+};
+
+var CONFUSE_GREEK = {
+  'a': 'α', 'e': 'ε', 'i': 'ι', 'k': 'κ', 'n': 'η', 'o': 'ο', 'p': 'ρ', 't': 'τ', 'u': 'υ', 'v': 'ν', 'w': 'ω', 'x': 'χ', 'y': 'γ',
+  'A': 'Α', 'B': 'Β', 'E': 'Ε', 'H': 'Η', 'I': 'Ι', 'K': 'Κ', 'M': 'Μ', 'N': 'Ν', 'O': 'Ο', 'P': 'Ρ', 'T': 'Τ', 'X': 'Χ', 'Y': 'Υ', 'Z': 'Ζ'
+};
+var CONFUSE_CYRILLIC = {
+  'a': 'а', 'c': 'с', 'e': 'е', 'o': 'о', 'p': 'р', 'x': 'х', 'y': 'у', 's': 'ѕ', 'i': 'і', 'j': 'ј',
+  'A': 'А', 'B': 'В', 'C': 'С', 'E': 'Е', 'H': 'Н', 'K': 'К', 'M': 'М', 'O': 'О', 'P': 'Р', 'T': 'Т', 'X': 'Х', 'S': 'Ѕ', 'I': 'І', 'J': 'Ј'
+};
+
+// mathematical alphanumerics: style base points + Letterlike Symbols holes
+var CONFUSE_MATH_STYLES = [
+  { upper: 0x1D400, lower: 0x1D41A, holes: {} }, // bold
+  { upper: 0x1D504, lower: 0x1D51E, holes: { 'C': 'ℭ', 'H': 'ℌ', 'I': 'ℑ', 'R': 'ℜ', 'Z': 'ℨ' } }, // fraktur
+  { upper: 0x1D538, lower: 0x1D552, holes: { 'C': 'ℂ', 'H': 'ℍ', 'N': 'ℕ', 'P': 'ℙ', 'Q': 'ℚ', 'R': 'ℝ', 'Z': 'ℤ' } }, // double-struck
+  { upper: 0x1D49C, lower: 0x1D4B6, holes: { 'B': 'ℬ', 'E': 'ℰ', 'F': 'ℱ', 'H': 'ℋ', 'I': 'ℐ', 'L': 'ℒ', 'M': 'ℳ', 'R': 'ℛ', 'e': 'ℯ', 'g': 'ℊ', 'o': 'ℴ' } }, // script
+  { upper: 0x1D670, lower: 0x1D68A, holes: {} } // monospace
+];
+
+var CONFUSE_PUNCT = {
+  '。': { t1: ['｡', '．'], t3: ['○', '◦'] },
+  '、': { t1: ['､', '，'], t3: ['‚'] },
+  '・': { t1: ['･'], t3: ['∙', '•'] },
+  'ー': { t2: ['−', '–'], t3: ['—', '一'] },
+  '「': { t1: ['｢'], t2: ['『'] },
+  '」': { t1: ['｣'], t2: ['』'] },
+  '！': { t1: ['!'], t3: ['ǃ'] },
+  '？': { t1: ['?'], t3: ['ʔ'] },
+  '!': { t1: ['！'], t3: ['ǃ'] },
+  '?': { t1: ['？'], t3: ['ʔ'] },
+  '.': { t1: ['．'], t3: ['·'] },
+  ',': { t1: ['，'], t3: ['‚'] }
+};
+
+var CONFUSE_SUPERSCRIPT_DIGITS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+
+
+// Full data lives beside the HTML so the hand-edited single-file workflow
+// still has a useful Core fallback. The generated file is deterministic;
+// rebuild it with tools/build-confuse-dictionary.mjs when Unicode updates.
+var CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
+var confuseDictionaryLoad = null;
+var confuseDictionaryFailed = false;
+
+// Fetched after boot rather than blocking it. Every profile degrades to
+// the embedded Core tables while the request is in flight, and the
+// existing font-refresh path re-evaluates every glyph once it lands —
+// exactly the same recovery a webfont finishing late already triggers.
+function loadConfuseDictionary() {
+  if (CONFUSE_DATA) return Promise.resolve(CONFUSE_DATA);
+  if (confuseDictionaryLoad) return confuseDictionaryLoad;
+  confuseDictionaryLoad = new Promise(function (resolve, reject) {
+    var script = document.createElement('script');
+    script.src = 'confuse-dictionary.js';
+    script.async = true;
+    script.onload = function () {
+      CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
+      if (CONFUSE_DATA) resolve(CONFUSE_DATA);
+      else reject(new Error('confuse-dictionary.js defined no dictionary'));
+    };
+    script.onerror = function () { reject(new Error('confuse-dictionary.js could not be loaded')); };
+    document.head.appendChild(script);
+  }).then(function (data) {
+    confuseDictionaryFailed = false;
+    // Candidates resolved against Core alone are now stale.
+    refreshConfuseFontCandidates();
+    return data;
+  }, function (error) {
+    confuseDictionaryFailed = true;
+    confuseDictionaryLoad = null;   // let a later profile change retry
+    updateConfuseDictionaryUI();
+    throw error;
+  });
+  return confuseDictionaryLoad;
+}
+
+// Core is fully embedded; every other profile needs the generated file.
+function ensureConfuseDictionary() {
+  if ((params.confuseDictionary || 'unicode') === 'core') return;
+  loadConfuseDictionary().catch(function () { /* reported on the status line */ });
+}
+var confuseCache = Object.create(null);
+var confuseCacheRevision = 0;
+var confuseCustomRaw = null;
+var confuseCustomMap = Object.create(null);
+var confuseCustomStats = { entries: 0, candidates: 0, errors: 0 };
+var confuseGlyphRasterCache = Object.create(null);
+var confuseMissingRasterCache = Object.create(null);
+var confuseGlyphCanvas = document.createElement('canvas');
+confuseGlyphCanvas.width = confuseGlyphCanvas.height = 72;
+var confuseGlyphContext = confuseGlyphCanvas.getContext('2d', { willReadFrequently: true });
+
+
+function confuseFontKey() {
+  return params.fontWeight + '|' + params.fontFamily;
+}
+
+
+// Rasterize through the exact font stack used on the stage. A normalized
+// 24×24 alpha map lets us identify .notdef/tofu and rank Han shapes while
+// remaining independent of advance width and canvas export scale.
+function confuseGlyphRaster(value) {
+  if (!confuseGlyphContext || !value) return null;
+  var cacheKey = confuseFontKey() + '|' + value;
+  if (Object.prototype.hasOwnProperty.call(confuseGlyphRasterCache, cacheKey)) return confuseGlyphRasterCache[cacheKey];
+  var ctx = confuseGlyphContext;
+  var size = confuseGlyphCanvas.width;
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var fontSize = 54;
+  ctx.font = params.fontWeight + ' ' + fontSize + 'px ' + params.fontFamily;
+  var measured = ctx.measureText(value).width;
+  if (measured > size - 8) {
+    fontSize = Math.max(18, fontSize * (size - 8) / measured);
+    ctx.font = params.fontWeight + ' ' + fontSize + 'px ' + params.fontFamily;
+  }
+  ctx.fillText(value, size / 2, size / 2 + 1);
+  ctx.restore();
+  var image;
+  try { image = ctx.getImageData(0, 0, size, size).data; }
+  catch (e) { confuseGlyphRasterCache[cacheKey] = null; return null; }
+  var minX = size, minY = size, maxX = -1, maxY = -1;
+  for (var y = 0; y < size; y++) {
+    for (var x = 0; x < size; x++) {
+      if (image[(y * size + x) * 4 + 3] > 12) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX || maxY < minY) { confuseGlyphRasterCache[cacheKey] = null; return null; }
+  var normalizedSize = 24;
+  var pixels = new Uint8Array(normalizedSize * normalizedSize);
+  var sourceW = maxX - minX + 1;
+  var sourceH = maxY - minY + 1;
+  var ink = 0;
+  for (var ny = 0; ny < normalizedSize; ny++) {
+    var sy0 = minY + Math.floor(ny * sourceH / normalizedSize);
+    var sy1 = minY + Math.max(1, Math.ceil((ny + 1) * sourceH / normalizedSize));
+    for (var nx = 0; nx < normalizedSize; nx++) {
+      var sx0 = minX + Math.floor(nx * sourceW / normalizedSize);
+      var sx1 = minX + Math.max(1, Math.ceil((nx + 1) * sourceW / normalizedSize));
+      var alpha = 0;
+      for (var sy = sy0; sy < sy1 && sy <= maxY; sy++) {
+        for (var sx = sx0; sx < sx1 && sx <= maxX; sx++) alpha = Math.max(alpha, image[(sy * size + sx) * 4 + 3]);
+      }
+      pixels[ny * normalizedSize + nx] = alpha;
+      ink += alpha;
+    }
+  }
+  var raster = { pixels: pixels, ink: ink / (255 * pixels.length), width: sourceW, height: sourceH };
+  confuseGlyphRasterCache[cacheKey] = raster;
+  return raster;
+}
+
+function confuseRasterDistance(left, right) {
+  if (!left || !right || left.pixels.length !== right.pixels.length) return 1;
+  var total = 0;
+  for (var i = 0; i < left.pixels.length; i++) total += Math.abs(left.pixels[i] - right.pixels[i]);
+  return total / (255 * left.pixels.length);
+}
+
+function confuseMissingRasters() {
+  var key = confuseFontKey();
+  if (confuseMissingRasterCache[key]) return confuseMissingRasterCache[key];
+  // Multiple unassigned/private-use points cover browsers whose .notdef
+  // glyph contains a hexadecimal label as well as the common □× box.
+  var probes = ['\u0378', '\u0380', '\uE000', String.fromCodePoint(0xF0000), String.fromCodePoint(0x10FFFF)];
+  var rasters = [];
+  for (var i = 0; i < probes.length; i++) {
+    var raster = confuseGlyphRaster(probes[i]);
+    if (raster) rasters.push(raster);
+  }
+  confuseMissingRasterCache[key] = rasters;
+  return rasters;
+}
+
+function confuseGlyphQuality(sourceChar, candidate) {
+  var candidateRaster = confuseGlyphRaster(candidate);
+  if (!candidateRaster || candidateRaster.ink < 0.008) return { supported: false, similarity: 0, reason: 'blank' };
+  var missing = confuseMissingRasters();
+  for (var i = 0; i < missing.length; i++) {
+    if (confuseRasterDistance(candidateRaster, missing[i]) < 0.028) return { supported: false, similarity: 0, reason: 'missing' };
+  }
+  var sourceRaster = confuseGlyphRaster(sourceChar);
+  var distance = confuseRasterDistance(sourceRaster, candidateRaster);
+  // A selector ignored by the current font is safe textually but produces
+  // no deformation; hide it together with visually identical Han aliases.
+  if (confuseScript(sourceChar) === 'han' && distance < 0.009) {
+    return { supported: false, similarity: 1, reason: confuseHasVariationSelector(candidate) ? 'unsupported-variation' : 'no-op' };
+  }
+  return { supported: true, similarity: Math.max(0, 1 - distance), reason: '' };
+}
+
+function parseConfuseCustom() {
+  var raw = typeof params.confuseCustom === 'string' ? params.confuseCustom : '';
+  if (raw === confuseCustomRaw) return confuseCustomMap;
+  confuseCustomRaw = raw;
+  confuseCustomMap = Object.create(null);
+  confuseCustomStats = { entries: 0, candidates: 0, errors: 0 };
+  var lines = raw.split(/\r?\n/);
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].replace(/#.*$/, '').trim();
+    if (!line) continue;
+    var match = line.match(/^(.+?)\s*(?:=|→|->|\t)\s*(.+)$/);
+    if (!match) { confuseCustomStats.errors++; continue; }
+    var source = match[1].trim();
+    if (Array.from(source).length !== 1) { confuseCustomStats.errors++; continue; }
+    var parts = match[2].trim().split(/[\s,、]+/);
+    var bucket = confuseCustomMap[source] || (confuseCustomMap[source] = []);
+    for (var p = 0; p < parts.length; p++) {
+      var candidate = parts[p];
+      if (!candidate || candidate === source || Array.from(candidate).length > 16 || /[\u0000-\u001f\u007f]/.test(candidate)) continue;
+      if (bucket.indexOf(candidate) === -1) { bucket.push(candidate); confuseCustomStats.candidates++; }
+    }
+    if (bucket.length) confuseCustomStats.entries++;
+    else delete confuseCustomMap[source];
+  }
+  return confuseCustomMap;
+}
+
+function addConfuseRecord(records, seen, sourceChar, candidate, tier, sourceName) {
+  if (!candidate || candidate === sourceChar || seen[candidate] || Array.from(candidate).length > 16) return;
+  if (/[\u0000-\u001f\u007f]/.test(candidate)) return;
+  var sourceScript = confuseScript(sourceChar);
+  var candidateScript = confuseScript(candidate);
+  var mixed = sourceScript !== candidateScript && sourceScript !== 'common' && candidateScript !== 'common';
+  if (mixed && !params.confuseMixed) return;
+  seen[candidate] = 1;
+  records.push({ text: candidate, tier: tier, source: sourceName, mixed: mixed });
+}
+
+function addConfuseList(records, seen, sourceChar, candidates, tier, sourceName, limit) {
+  if (!Array.isArray(candidates)) return;
+  var max = Math.min(candidates.length, limit || candidates.length);
+  for (var i = 0; i < max; i++) addConfuseRecord(records, seen, sourceChar, candidates[i], tier, sourceName);
+}
+
+function addConfuseSampledList(records, seen, sourceChar, candidates, tier, sourceName, limit) {
+  if (!Array.isArray(candidates) || !candidates.length) return;
+  var max = Math.min(candidates.length, limit || candidates.length);
+  if (max === candidates.length || max <= 1) {
+    addConfuseList(records, seen, sourceChar, candidates, tier, sourceName, max);
+    return;
+  }
+  // Large Unihan groups are codepoint-sorted. Even sampling keeps BMP,
+  // Extension A and supplementary Han represented instead of silently
+  // cutting every group at the first N codepoints.
+  for (var i = 0; i < max; i++) {
+    var sampleIndex = Math.round(i * (candidates.length - 1) / (max - 1));
+    addConfuseRecord(records, seen, sourceChar, candidates[sampleIndex], tier, sourceName);
+  }
+}
+
+function finalizeConfuseRecords(sourceChar, records) {
+  var guarded = [];
+  var filtered = 0;
+  var reasons = Object.create(null);
+  var isHan = confuseScript(sourceChar) === 'han';
+  for (var i = 0; i < records.length; i++) {
+    var record = records[i];
+    if (record.source === 'Custom') {
+      // Custom entries keep their authorial order, but Glyph Guard still
+      // owns the final safety decision. Otherwise one unsupported custom
+      // glyph can reintroduce the exact .notdef/tofu box the guard exists
+      // to prevent.
+      if (params.confuseGlyphGuard) {
+        var customQuality = confuseGlyphQuality(sourceChar, record.text);
+        if (!customQuality.supported) {
+          filtered++;
+          reasons[customQuality.reason || 'missing'] = (reasons[customQuality.reason || 'missing'] || 0) + 1;
+          continue;
+        }
+      }
+      record.similarity = null;
+      guarded.push(record);
+      continue;
+    }
+    var quality = (params.confuseGlyphGuard || isHan) ? confuseGlyphQuality(sourceChar, record.text) : { supported: true, similarity: null, reason: '' };
+    record.similarity = quality.similarity;
+    if (params.confuseGlyphGuard && !quality.supported) {
+      filtered++;
+      reasons[quality.reason || 'missing'] = (reasons[quality.reason || 'missing'] || 0) + 1;
+    } else guarded.push(record);
+  }
+  guarded.sort(function (a, b) {
+    var tierDifference = a.tier - b.tier;
+    if (tierDifference) return tierDifference;
+    if (isHan && typeof a.similarity === 'number' && typeof b.similarity === 'number') return b.similarity - a.similarity;
+    return 0;
+  });
+  guarded.filteredCount = filtered;
+  guarded.unfilteredCount = records.length;
+  guarded.filteredReasons = reasons;
+  return guarded;
+}
+
+/** @returns {Array.<{text:string,tier:number,source:string,mixed:boolean}>} */
+function confuseCandidateRecords(ch) {
+  var profile = params.confuseDictionary || 'unicode';
+  var cacheKey = confuseCacheRevision + '|' + profile + '|' + (params.confuseMixed ? '1' : '0') + '|' + (params.confuseGlyphGuard ? '1' : '0') + '|' + confuseFontKey() + '|' + ch;
+  var cached = confuseCache[cacheKey];
+  if (cached) return cached;
+
+  var t1 = [], t2 = [], t3 = [];
+  var cp = ch.codePointAt(0);
+  if (cp >= 0x3041 && cp <= 0x3096) {
+    t1 = t1.concat(confusePairLookup(CONFUSE_VOICE_PAIRS, ch));
+    if (CONFUSE_SMALL_KANA[ch]) t1.push(CONFUSE_SMALL_KANA[ch]);
+    var kata = String.fromCodePoint(cp + 0x60);
+    t2.push(kata);
+    if (CONFUSE_HALF_KATA[kata]) t2.push(CONFUSE_HALF_KATA[kata]);
+  } else if (cp >= 0x30A1 && cp <= 0x30FA || ch === 'ー') {
+    t1 = t1.concat(confusePairLookup(CONFUSE_VOICE_PAIRS, ch));
+    if (CONFUSE_SMALL_KANA[ch]) t1.push(CONFUSE_SMALL_KANA[ch]);
+    if (CONFUSE_HALF_KATA[ch]) t2.push(CONFUSE_HALF_KATA[ch]);
+    if (cp >= 0x30A1 && cp <= 0x30F6) t2.push(String.fromCodePoint(cp - 0x60));
+    t3 = t3.concat(confusePairLookup(CONFUSE_KATA_KANJI, ch));
+  } else if (confuseScript(ch) === 'han') {
+    t1 = t1.concat(confusePairLookup(CONFUSE_KYUJITAI, ch));
+    for (var g = 0; g < CONFUSE_SIMILAR_KANJI.length; g++) {
+      var group = CONFUSE_SIMILAR_KANJI[g];
+      if (group.indexOf(ch) !== -1) {
+        for (var gi = 0; gi < group.length; gi++) if (group[gi] !== ch) t2.push(group[gi]);
+      }
+    }
+    t3 = t3.concat(confusePairLookup(CONFUSE_KATA_KANJI, ch));
+  } else if (cp >= 0x41 && cp <= 0x5A || cp >= 0x61 && cp <= 0x7A) {
+    t1.push(String.fromCodePoint(cp + 0xFEE0));
+    var isUpper = cp <= 0x5A;
+    var alphaIndex = isUpper ? cp - 0x41 : cp - 0x61;
+    for (var s = 0; s < CONFUSE_MATH_STYLES.length; s++) {
+      var styleDef = CONFUSE_MATH_STYLES[s];
+      t2.push(styleDef.holes[ch] || String.fromCodePoint((isUpper ? styleDef.upper : styleDef.lower) + alphaIndex));
+    }
+    if (CONFUSE_GREEK[ch]) t3.push(CONFUSE_GREEK[ch]);
+    if (CONFUSE_CYRILLIC[ch]) t3.push(CONFUSE_CYRILLIC[ch]);
+    t3.push(String.fromCodePoint((isUpper ? 0x24B6 : 0x24D0) + alphaIndex));
+  } else if (cp >= 0x30 && cp <= 0x39) {
+    var d = cp - 0x30;
+    t1.push(String.fromCodePoint(cp + 0xFEE0));
+    t2.push(String.fromCodePoint(0x1D7CE + d), String.fromCodePoint(0x1D7D8 + d), String.fromCodePoint(0x1D7F6 + d));
+    t3.push(d === 0 ? '⓪' : String.fromCodePoint(0x2460 + d - 1), CONFUSE_SUPERSCRIPT_DIGITS[d]);
+  } else if (CONFUSE_PUNCT[ch]) {
+    var punct = CONFUSE_PUNCT[ch];
+    if (punct.t1) t1 = t1.concat(punct.t1);
+    if (punct.t2) t2 = t2.concat(punct.t2);
+    if (punct.t3) t3 = t3.concat(punct.t3);
+  }
+
+  var records = [];
+  var seen = Object.create(null);
+  var custom = parseConfuseCustom()[ch];
+  if (custom) addConfuseList(records, seen, ch, custom, 1, 'Custom', 64);
+  addConfuseList(records, seen, ch, t1, 1, 'Core · exact', 32);
+  addConfuseList(records, seen, ch, t2, 2, 'Core · curated', 32);
+  if (params.confuseMixed) addConfuseList(records, seen, ch, t3, 3, 'Core · mixed', 32);
+
+  if (profile !== 'core' && CONFUSE_DATA) {
+    var ivsJa = CONFUSE_DATA.ivsJapanese && CONFUSE_DATA.ivsJapanese[ch];
+    if (ivsJa) {
+      var japaneseSequences = [];
+      for (var ij = 0; ij < ivsJa.length; ij++) japaneseSequences.push(ch + ivsJa[ij]);
+      addConfuseList(records, seen, ch, japaneseSequences, 1, 'IVD · Japanese', 24);
+    }
+    addConfuseList(records, seen, ch, CONFUSE_DATA.hanVisual && CONFUSE_DATA.hanVisual[ch], 1, 'Unihan · visual', 32);
+    addConfuseList(records, seen, ch, CONFUSE_DATA.hanCompatibility && CONFUSE_DATA.hanCompatibility[ch], 1, 'UCD · compatibility', 24);
+    addConfuseList(records, seen, ch, CONFUSE_DATA.hanEquivalent && CONFUSE_DATA.hanEquivalent[ch], 1, 'UCD · equivalent ideograph', 24);
+    var standardized = CONFUSE_DATA.hanStandardized && CONFUSE_DATA.hanStandardized[ch];
+    if (standardized) {
+      var standardizedSequences = [];
+      for (var sv = 0; sv < standardized.length; sv++) standardizedSequences.push(ch + standardized[sv]);
+      addConfuseList(records, seen, ch, standardizedSequences, 1, 'UCD · standardized VS', 16);
+    }
+    addConfuseList(records, seen, ch, CONFUSE_DATA.hanVariant && CONFUSE_DATA.hanVariant[ch], 2, 'Unihan · variant', 48);
+    addConfuseList(records, seen, ch, CONFUSE_DATA.skeleton && CONFUSE_DATA.skeleton[ch], 2, 'UTS #39 · skeleton', 64);
+
+    if (profile === 'deep' || profile === 'hanmax') {
+      addConfuseList(records, seen, ch, CONFUSE_DATA.hanSemantic && CONFUSE_DATA.hanSemantic[ch], 3, 'Unihan · semantic', 48);
+      var ivsOther = CONFUSE_DATA.ivsOther && CONFUSE_DATA.ivsOther[ch];
+      if (ivsOther) {
+        var otherSequences = [];
+        for (var io = 0; io < ivsOther.length; io++) otherSequences.push(ch + ivsOther[io]);
+        addConfuseList(records, seen, ch, otherSequences, 1, 'IVD · other', 24);
+      }
+    }
+    if (profile === 'hanmax') {
+      var rsKeys = CONFUSE_DATA.hanRadicalStroke && CONFUSE_DATA.hanRadicalStroke[ch];
+      var japaneseStructural = [];
+      var universalStructural = [];
+      var neighboringStructural = [];
+      var japaneseSameStroke = [];
+      var universalSameStroke = [];
+      var japaneseNearbyTotal = [];
+      var universalNearbyTotal = [];
+      if (rsKeys && CONFUSE_DATA.hanRadicalStrokeGroups) {
+        for (var rk = 0; rk < rsKeys.length; rk++) {
+          var japaneseMembers = CONFUSE_DATA.hanJapaneseRadicalStrokeGroups && CONFUSE_DATA.hanJapaneseRadicalStrokeGroups[rsKeys[rk]] || [];
+          for (var jm = 0; jm < japaneseMembers.length; jm++) if (japaneseMembers[jm] !== ch) japaneseStructural.push(japaneseMembers[jm]);
+          var groupMembers = CONFUSE_DATA.hanRadicalStrokeGroups[rsKeys[rk]] || [];
+          for (var rm = 0; rm < groupMembers.length; rm++) if (groupMembers[rm] !== ch) universalStructural.push(groupMembers[rm]);
+
+          // kRSUnicode is radical.residual-strokes. Moving one residual
+          // stroke in either direction creates a controlled morphological
+          // neighborhood without collapsing into arbitrary same-stroke字.
+          var keyMatch = rsKeys[rk].match(/^(\d{1,3}'?)\.(\d{1,2})$/);
+          if (keyMatch) {
+            var residual = parseInt(keyMatch[2], 10);
+            for (var delta = -1; delta <= 1; delta += 2) {
+              var adjacent = residual + delta;
+              if (adjacent < 0) continue;
+              var neighboringMembers = CONFUSE_DATA.hanRadicalStrokeGroups[keyMatch[1] + '.' + adjacent] || [];
+              for (var nm = 0; nm < neighboringMembers.length; nm++) if (neighboringMembers[nm] !== ch) neighboringStructural.push(neighboringMembers[nm]);
+            }
+          }
+        }
+      }
+      var totalStrokeKeys = CONFUSE_DATA.hanTotalStroke && CONFUSE_DATA.hanTotalStroke[ch];
+      if (totalStrokeKeys && CONFUSE_DATA.hanTotalStrokeGroups) {
+        for (var tk = 0; tk < totalStrokeKeys.length; tk++) {
+          var japaneseStrokeMembers = CONFUSE_DATA.hanJapaneseTotalStrokeGroups && CONFUSE_DATA.hanJapaneseTotalStrokeGroups[totalStrokeKeys[tk]] || [];
+          for (var js = 0; js < japaneseStrokeMembers.length; js++) if (japaneseStrokeMembers[js] !== ch) japaneseSameStroke.push(japaneseStrokeMembers[js]);
+          var universalStrokeMembers = CONFUSE_DATA.hanTotalStrokeGroups[totalStrokeKeys[tk]] || [];
+          for (var us = 0; us < universalStrokeMembers.length; us++) if (universalStrokeMembers[us] !== ch) universalSameStroke.push(universalStrokeMembers[us]);
+        }
+        // Exceptionally complex or isolated ideographs can have a total
+        // stroke group made only of unsupported rare glyphs. Walk toward
+        // the closest populated Japanese group only for sparse sources;
+        // this gives Glyph Guard a drawable escape route without flooding
+        // ordinary characters with arbitrary same-density candidates.
+        if (universalStructural.length + neighboringStructural.length + universalSameStroke.length < 32) {
+          for (var ts = 0; ts < totalStrokeKeys.length; ts++) {
+            var sourceTotal = parseInt(totalStrokeKeys[ts], 10);
+            for (var totalDelta = 1; totalDelta <= 32; totalDelta++) {
+              var nearbyKeys = [String(sourceTotal - totalDelta), String(sourceTotal + totalDelta)];
+              for (var nk = 0; nk < nearbyKeys.length; nk++) {
+                if (Number(nearbyKeys[nk]) < 1) continue;
+                var nearbyJapanese = CONFUSE_DATA.hanJapaneseTotalStrokeGroups && CONFUSE_DATA.hanJapaneseTotalStrokeGroups[nearbyKeys[nk]] || [];
+                var nearbyUniversal = CONFUSE_DATA.hanTotalStrokeGroups[nearbyKeys[nk]] || [];
+                for (var nj = 0; nj < nearbyJapanese.length; nj++) if (nearbyJapanese[nj] !== ch) japaneseNearbyTotal.push(nearbyJapanese[nj]);
+                for (var nu = 0; nu < nearbyUniversal.length; nu++) if (nearbyUniversal[nu] !== ch) universalNearbyTotal.push(nearbyUniversal[nu]);
+              }
+              if (japaneseNearbyTotal.length) break;
+            }
+          }
+        }
+      }
+      addConfuseList(records, seen, ch, japaneseStructural, 2, 'Unihan · Japanese RS', 64);
+      addConfuseSampledList(records, seen, ch, universalStructural, 2, 'Unihan · universal RS', 256);
+      addConfuseSampledList(records, seen, ch, neighboringStructural, 3, 'Unihan · near strokes', 192);
+      addConfuseSampledList(records, seen, ch, japaneseSameStroke, 3, 'Unihan · Japanese total strokes', 96);
+      addConfuseSampledList(records, seen, ch, universalSameStroke, 3, 'Unihan · universal total strokes', 128);
+      addConfuseSampledList(records, seen, ch, japaneseNearbyTotal, 3, 'Unihan · near total strokes', 96);
+      addConfuseSampledList(records, seen, ch, universalNearbyTotal, 3, 'Unihan · near total strokes', 96);
+    }
+  }
+
+  records = finalizeConfuseRecords(ch, records);
+  confuseCache[cacheKey] = records;
+  return records;
+}
+
+function confuseCandidates(ch) {
+  return confuseCandidateRecords(ch).map(function (record) { return record.text; });
+}
+
+function selectConfuseCandidate(records, strength, letterIndex, codepoint) {
+  if (!records.length || strength <= 0.001) return null;
+  var jitter = 0.82 + hash(letterIndex, codepoint, 91.117) * 0.36;
+  var effective = Math.max(0, Math.min(1, strength * jitter));
+  // A project dictionary is an authorial override, not merely another
+  // noisy source. If present, keep the transformation inside that list.
+  var custom = [];
+  for (var ci = 0; ci < records.length; ci++) if (records[ci].source === 'Custom') custom.push(records[ci]);
+  if (custom.length) {
+    var customIndex = Math.min(custom.length - 1, Math.floor(effective * custom.length));
+    if (strength >= 0.999) customIndex = custom.length - 1;
+    return custom[customIndex].text;
+  }
+  var targetTier = effective < 0.34 ? 1 : (effective < 0.74 ? 2 : 3);
+  var tier = [];
+  for (var i = 0; i < records.length; i++) if (records[i].tier === targetTier) tier.push(records[i]);
+  if (!tier.length) {
+    for (var distance = 1; distance <= 2 && !tier.length; distance++) {
+      for (var r = 0; r < records.length; r++) if (records[r].tier === targetTier - distance) tier.push(records[r]);
+      if (!tier.length) for (var f = 0; f < records.length; f++) if (records[f].tier === targetTier + distance) tier.push(records[f]);
+    }
+  }
+  if (!tier.length) return null;
+  var zoneStart = targetTier === 1 ? 0 : (targetTier === 2 ? 0.34 : 0.74);
+  var zoneEnd = targetTier === 1 ? 0.34 : (targetTier === 2 ? 0.74 : 1);
+  var progress = Math.max(0, Math.min(1, (effective - zoneStart) / (zoneEnd - zoneStart)));
+  var index = Math.min(tier.length - 1, Math.floor(progress * tier.length));
+  if (strength >= 0.999) index = tier.length - 1;
+  return tier[index].text;
+}
+
+function clearConfuseCache() {
+  confuseCache = Object.create(null);
+  confuseCacheRevision++;
+  confuseCustomRaw = null;
+}
+
+function clearConfuseFontCache() {
+  confuseGlyphRasterCache = Object.create(null);
+  confuseMissingRasterCache = Object.create(null);
+  clearConfuseCache();
+}
+
+function refreshConfuseFontCandidates() {
+  clearConfuseFontCache();
+  // Font coverage may change after a webfont finishes loading or when the
+  // user chooses another family. Re-evaluate Confuse on every glyph,
+  // including locked glyphs, while preserving all other frozen channels.
+  for (var i = 0; i < metrics.length; i++) {
+    var savedDerived = metrics[i].el.dataset.savedDerived;
+    applySingleOperatorVisual(metrics[i], 'confuse');
+    if (savedDerived) restoreSavedDerivedText(metrics[i], savedDerived);
+  }
+  updateConfuseDictionaryUI();
+}
+
+function updateConfuseDictionaryUI() {
+  var status = document.getElementById('confuseDictionaryStatus');
+  if (!status) return;
+  parseConfuseCustom();
+  var profile = params.confuseDictionary || 'unicode';
+  if (profile === 'core') {
+    status.textContent = 'Core embedded · Custom ' + confuseCustomStats.entries + ' entries';
+    status.classList.remove('is-fallback');
+  } else if (CONFUSE_DATA && CONFUSE_DATA.meta) {
+    var meta = CONFUSE_DATA.meta;
+    status.textContent = 'Unicode ' + meta.unicode + ' · Unihan variants ' + Number(meta.hanVariantKeys || 0).toLocaleString() + ' · Han universe ' + Number(meta.hanUniverseKeys || meta.radicalStrokeKeys || 0).toLocaleString() + ' · equivalent ' + Number(meta.hanEquivalentMappings || 0).toLocaleString() + ' · IVD ' + meta.ivd + ' · Glyph guard ' + (params.confuseGlyphGuard ? 'ON' : 'OFF') + ' · Custom ' + confuseCustomStats.entries;
+    status.classList.remove('is-fallback');
+  } else if (confuseDictionaryFailed) {
+    status.textContent = 'External dictionary unavailable — Core fallback active. Keep confuse-dictionary.js beside this HTML.';
+    status.classList.add('is-fallback');
+  } else {
+    status.textContent = 'Loading Unicode dictionary… Core fallback active.';
+    status.classList.add('is-fallback');
+  }
+  if (confuseCustomStats.errors) status.textContent += ' · ' + confuseCustomStats.errors + ' invalid line(s)';
+  updateConfuseExplorer();
+}
+
+function updateConfuseExplorer() {
+  var input = document.getElementById('pConfuseProbe');
+  var list = document.getElementById('confuseCandidateList');
+  var count = document.getElementById('vConfuseProbe');
+  var sourceLine = document.getElementById('confuseProbeSources');
+  if (!input || !list || !count || !sourceLine) return;
+  var graphemes = toGraphemes(input.value.trim());
+  var sourceChar = graphemes.length ? graphemes[0] : '';
+  var records = sourceChar ? confuseCandidateRecords(sourceChar) : [];
+  count.textContent = records.filteredCount ? records.length + '/' + records.unfilteredCount : String(records.length);
+  while (list.firstChild) list.removeChild(list.firstChild);
+  if (!records.length) {
+    var empty = document.createElement('span');
+    empty.className = 'confuse-candidate-empty';
+    empty.textContent = sourceChar ? (records.filteredCount ? 'No drawable candidate in current font' : 'No candidate in current profile') : 'Enter one character';
+    list.appendChild(empty);
+    sourceLine.textContent = records.filteredCount ? 'Glyph guard removed ' + records.filteredCount + ' missing or no-op glyphs' : '';
+    return;
+  }
+  var sourceCounts = Object.create(null);
+  var shown = Math.min(records.length, 80);
+  for (var i = 0; i < shown; i++) {
+    var record = records[i];
+    sourceCounts[record.source] = (sourceCounts[record.source] || 0) + 1;
+    var chip = document.createElement('span');
+    chip.className = 'confuse-candidate';
+    chip.dataset.tier = 'T' + record.tier + (typeof record.similarity === 'number' && confuseScript(sourceChar) === 'han' ? ' · ' + Math.round(record.similarity * 100) : '');
+    chip.dataset.mixed = record.mixed ? '1' : '0';
+    chip.textContent = record.text;
+    chip.title = record.source + (record.mixed ? ' · mixed script' : '') + (typeof record.similarity === 'number' && confuseScript(sourceChar) === 'han' ? ' · shape ' + Math.round(record.similarity * 100) + '%' : '');
+    list.appendChild(chip);
+  }
+  var filteredText = records.filteredCount ? ' / Glyph guard −' + records.filteredCount : '';
+  sourceLine.textContent = Object.keys(sourceCounts).map(function (name) { return name + ' ' + sourceCounts[name]; }).join(' / ') + (records.length > shown ? ' / +' + (records.length - shown) + ' more' : '') + filteredText;
+}
+
+
+var params = {
+  activeOperator: 'stretch',
+  stretchX: 1,
+  stretchY: 1,
+  radius: 45,
+  ease: 0.08,
+  geoRatio: 0.32,
+  randomness: 0,
+  rotation: 0,
+  rotateAngle: 60,
+  skewX: 32,
+  skewY: 0,
+  baselineShift: 1,
+  mirrorX: 1,
+  mirrorY: 0,
+  misregX: 8,
+  misregY: -5,
+  misregColorA: '#c41f1f',
+  misregColorB: '#1767a6',
+  confuseDepth: 1,
+  confuseMixed: false,
+  confuseGlyphGuard: true,
+  confuseDictionary: 'unicode',
+  confuseCustom: '',
+  seed: 1,
+  hashIndex: 'global',   // 'line' reproduces pre-v7 per-line seeding
+  fontFamily: '"Zen Old Mincho", "Hiragino Mincho ProN", serif',
+  fontSize: 52,
+  lineHeight: 1.1,
+  letterSpacing: -0.03,
+  align: 'left',
+  vertical: false,
+  ink: '#17140f',
+  paper: '#f4f3ef',
+  accent: '#c41f1f',
+  accentRatio: 0,
+  fontWeight: 400,
+  artboard: 'auto',
+  abW: 1080,
+  abH: 1080,
+  anchor: 'cc',
+  fit: true,
+  marginPct: 6,
+  exportScale: 2,
+  transparentBg: false,
+  deformedOnly: false,
+  videoSize: 'canvas',
+  videoFps: 30,
+  videoDuration: 4,
+  videoLoops: 1,
+  videoStart: 'zero',
+  videoFormat: 'auto',
+  gridEnabled: false,
+  gridCols: 12,
+  gridAutoRows: true,
+  gridRows: 12,
+  gridCellSize: 64,
+  gridGap: 0,
+  gridLines: true,
+  gridLineBreak: true,
+  mode: 'flow'   // 'flow' | 'lock' | 'edit' | 'grid'
+};
+
+var BATCH_PROFILE_KEYS = ['kanji', 'hira', 'kata', 'latin', 'digit', 'punct'];
+var BATCH_PROFILE_LABELS = {
+  all: 'All', kanji: '漢字', hira: 'ひらがな', kata: 'カタカナ',
+  latin: 'ABC', digit: '123', punct: '約物'
+};
+var BATCH_PARAM_KEYS = [
+  'stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation',
+  'rotateAngle', 'skewX', 'skewY', 'baselineShift', 'mirrorX', 'mirrorY',
+  'misregX', 'misregY', 'confuseDepth'
+];
+var BATCH_PARAM_LIMITS = {
+  stretchX: [0, 3], stretchY: [0, 3], radius: [15, 180], ease: [0.02, 0.3],
+  geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45],
+  rotateAngle: [-180, 180], skewX: [-70, 70], skewY: [-70, 70],
+  baselineShift: [-3, 3], mirrorX: [0, 1], mirrorY: [0, 1],
+  misregX: [-40, 40], misregY: [-40, 40], confuseDepth: [0, 1]
+};
+var batchProfiles = {};
+var activeBatchProfile = 'all';
+
+function copyBaseDeformProfile() {
+  var profile = {};
+  for (var i = 0; i < BATCH_PARAM_KEYS.length; i++) {
+    var key = BATCH_PARAM_KEYS[i];
+    profile[key] = params[key];
+  }
+  return profile;
+}
+
+function batchProfileForKey(key) {
+  return key && batchProfiles[key] ? batchProfiles[key] : params;
+}
+
+function editableBatchProfile() {
+  if (activeBatchProfile === 'all') return params;
+  if (!batchProfiles[activeBatchProfile]) batchProfiles[activeBatchProfile] = copyBaseDeformProfile();
+  return batchProfiles[activeBatchProfile];
+}
+
+function normalizeBatchProfiles(raw) {
+  var normalized = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return normalized;
+  for (var i = 0; i < BATCH_PROFILE_KEYS.length; i++) {
+    var profileKey = BATCH_PROFILE_KEYS[i];
+    var source = raw[profileKey];
+    if (!source || typeof source !== 'object' || Array.isArray(source)) continue;
+    var profile = {};
+    for (var j = 0; j < BATCH_PARAM_KEYS.length; j++) {
+      var key = BATCH_PARAM_KEYS[j];
+      var limits = BATCH_PARAM_LIMITS[key];
+      var value = Number(source[key]);
+      if (!isFinite(value)) value = params[key];
+      profile[key] = Math.max(limits[0], Math.min(limits[1], value));
+    }
+    normalized[profileKey] = profile;
+  }
+  return normalized;
+}
+
+function cloneBatchProfiles() {
+  return JSON.parse(JSON.stringify(batchProfiles));
+}
+
+// Saved projects and URL payloads are user-editable input. Normalize them
+// before they ever reach CSS, form controls, layout, or canvas allocation.
+var PARAM_DEFAULTS = {};
+for (var defaultKey in params) PARAM_DEFAULTS[defaultKey] = params[defaultKey];
+
+
+function clampParam(key, min, max, integer) {
+  var value = Number(params[key]);
+  if (!isFinite(value)) value = PARAM_DEFAULTS[key];
+  value = Math.max(min, Math.min(max, value));
+  params[key] = integer ? Math.round(value) : value;
+}
+
+function chooseParam(key, values) {
+  if (values.indexOf(params[key]) === -1) params[key] = PARAM_DEFAULTS[key];
+}
+
+function normalizeParams() {
+  clampParam('stretchX', 0, 3, false);
+  clampParam('stretchY', 0, 3, false);
+  clampParam('radius', 15, 180, false);
+  clampParam('ease', 0.02, 0.3, false);
+  clampParam('geoRatio', 0, 1, false);
+  clampParam('randomness', 0, 2, false);
+  clampParam('rotation', 0, 45, false);
+  clampParam('rotateAngle', -180, 180, false);
+  clampParam('skewX', -70, 70, false);
+  clampParam('skewY', -70, 70, false);
+  clampParam('baselineShift', -3, 3, false);
+  clampParam('mirrorX', 0, 1, true);
+  clampParam('mirrorY', 0, 1, true);
+  clampParam('misregX', -40, 40, false);
+  clampParam('misregY', -40, 40, false);
+  clampParam('confuseDepth', 0, 1, false);
+  clampParam('seed', -1000000000, 1000000000, false);
+  clampParam('fontSize', 18, 160, false);
+  clampParam('lineHeight', 0.9, 2.2, false);
+  clampParam('letterSpacing', -0.1, 0.5, false);
+  clampParam('accentRatio', 0, 1, false);
+  clampParam('abW', 16, 20000, true);
+  clampParam('abH', 16, 20000, true);
+  clampParam('marginPct', 0, 25, false);
+  clampParam('videoDuration', 1, 30, true);
+  clampParam('gridCols', 1, 60, true);
+  clampParam('gridRows', 1, 60, true);
+  clampParam('gridCellSize', 16, 240, true);
+  clampParam('gridGap', 0, 40, true);
+
+  params.fontWeight = Number(params.fontWeight) === 700 ? 700 : 400;
+  params.exportScale = [1, 2, 4, 8].indexOf(Number(params.exportScale)) !== -1 ? Number(params.exportScale) : PARAM_DEFAULTS.exportScale;
+  params.videoFps = [24, 30, 60].indexOf(Number(params.videoFps)) !== -1 ? Number(params.videoFps) : PARAM_DEFAULTS.videoFps;
+  params.videoLoops = [1, 2, 4, 8].indexOf(Number(params.videoLoops)) !== -1 ? Number(params.videoLoops) : PARAM_DEFAULTS.videoLoops;
+  chooseParam('align', ['left', 'center', 'right']);
+  chooseParam('anchor', ['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br']);
+  chooseParam('artboard', ['auto', 'custom', '1080x1080', '1080x1350', '1080x1920', '1920x1080', '2480x3508', '3508x2480']);
+  chooseParam('videoSize', ['canvas', '1080x1080', '1920x1080', '1080x1920']);
+  chooseParam('videoStart', ['zero', 'current']);
+  chooseParam('videoFormat', ['auto', 'webm', 'mp4']);
+  chooseParam('mode', ['flow', 'lock', 'edit', 'grid']);
+  chooseParam('activeOperator', OPERATOR_IDS);
+  chooseParam('confuseDictionary', ['core', 'unicode', 'deep', 'hanmax']);
+  chooseParam('hashIndex', ['line', 'global']);
+
+  var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed', 'confuseGlyphGuard'];
+  for (var i = 0; i < boolKeys.length; i++) {
+    var boolValue = params[boolKeys[i]];
+    params[boolKeys[i]] = boolValue === true || boolValue === 1;
+  }
+  var colorKeys = ['ink', 'paper', 'accent', 'misregColorA', 'misregColorB'];
+  for (var c = 0; c < colorKeys.length; c++) {
+    var colorKey = colorKeys[c];
+    if (typeof params[colorKey] !== 'string' || !/^#[0-9a-f]{6}$/i.test(params[colorKey])) {
+      params[colorKey] = PARAM_DEFAULTS[colorKey];
+    }
+  }
+  if (typeof params.fontFamily !== 'string' || !params.fontFamily.trim()) {
+    params.fontFamily = PARAM_DEFAULTS.fontFamily;
+  } else {
+    params.fontFamily = normalizeFontStack(params.fontFamily.slice(0, 500)) || PARAM_DEFAULTS.fontFamily;
+  }
+  if (typeof params.confuseCustom !== 'string') params.confuseCustom = '';
+  params.confuseCustom = params.confuseCustom.slice(0, 20000).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+  clearConfuseCache();
+}
+
+function normalizeComposition(raw) {
+  var out = cloneCompositionDefaults();
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  function number(source, key, min, max, fallback, integer) {
+    var value = Number(source && source[key]);
+    if (!isFinite(value)) value = fallback;
+    value = Math.max(min, Math.min(max, value));
+    return integer ? Math.round(value) : value;
+  }
+  function bool(source, key, fallback) {
+    if (!source || !Object.prototype.hasOwnProperty.call(source, key)) return fallback;
+    return source[key] === true || source[key] === 1;
+  }
+  function choice(source, key, values, fallback) {
+    return source && values.indexOf(source[key]) !== -1 ? source[key] : fallback;
+  }
+  function color(source, key, fallback) {
+    return source && typeof source[key] === 'string' && /^#[0-9a-f]{6}$/i.test(source[key]) ? source[key] : fallback;
+  }
+  out.schemaVersion = 6;
+  out.enabled = bool(raw, 'enabled', false);
+  out.type = COMPOSITION_DEFS[raw.type] ? raw.type : out.type;
+  out.phase = number(raw, 'phase', 0, 1, out.phase, false);
+  out.speed = number(raw, 'speed', 0.01, 1, out.speed, false);
+  out.direction = Number(raw.direction) === -1 ? -1 : 1;
+  out.axis = ['inherit', 'horizontal', 'vertical'].indexOf(raw.axis) !== -1 ? raw.axis : out.axis;
+  out.seed = number(raw, 'seed', 0, 2147483647, out.seed, true);
+  out.loopLock = bool(raw, 'loopLock', out.loopLock);
+  out.quality = choice(raw, 'quality', ['auto', 'high', 'performance'],
+    choice(raw, 'previewQuality', ['auto', 'high', 'performance'], out.quality));
+  out.logicalViewport.width = number(raw.logicalViewport, 'width', 64, 8192, out.logicalViewport.width, true);
+  out.logicalViewport.height = number(raw.logicalViewport, 'height', 64, 8192, out.logicalViewport.height, true);
+  out.logicalViewport.legacyResponsive = bool(raw.logicalViewport, 'legacyResponsive', Number(raw.schemaVersion || 5) < 6);
+  ['intensity', 'density', 'instability', 'depth', 'legibility'].forEach(function (key) {
+    out.macros[key] = number(raw.macros, key, 0, 1, out.macros[key], false);
+  });
+  var rawFx = raw.fxRack || raw.fx || {};
+  if (rawFx.echoTrail && !rawFx.echo) rawFx.echo = rawFx.echoTrail;
+  out.fxRack.echo.enabled = bool(rawFx.echo, 'enabled', out.fxRack.echo.enabled);
+  out.fxRack.echo.amount = number(rawFx.echo, 'amount', 0, 1, out.fxRack.echo.amount, false);
+  out.fxRack.echo.count = number(rawFx.echo, 'count', 1, 12, out.fxRack.echo.count, true);
+  out.fxRack.echo.phase = number(rawFx.echo, 'phase', 0, 0.5, out.fxRack.echo.phase, false);
+  out.fxRack.echo.decay = number(rawFx.echo, 'decay', 0, 1, out.fxRack.echo.decay, false);
+  out.fxRack.echo.scale = number(rawFx.echo, 'scale', -0.25, 0.25, out.fxRack.echo.scale, false);
+  out.fxRack.echo.rotation = number(rawFx.echo, 'rotation', -45, 45, out.fxRack.echo.rotation, false);
+  out.fxRack.feedback.enabled = bool(rawFx.feedback, 'enabled', out.fxRack.feedback.enabled);
+  out.fxRack.feedback.amount = number(rawFx.feedback, 'amount', 0, 1, out.fxRack.feedback.amount, false);
+  out.fxRack.feedback.zoom = number(rawFx.feedback, 'zoom', -0.2, 0.2, out.fxRack.feedback.zoom, false);
+  out.fxRack.feedback.rotation = number(rawFx.feedback, 'rotation', -30, 30, out.fxRack.feedback.rotation, false);
+  out.fxRack.feedback.warp = number(rawFx.feedback, 'warp', 0, 1, out.fxRack.feedback.warp, false);
+  out.fxRack.signalMask.enabled = bool(rawFx.signalMask, 'enabled', out.fxRack.signalMask.enabled);
+  out.fxRack.signalMask.amount = number(rawFx.signalMask, 'amount', 0, 1, out.fxRack.signalMask.amount, false);
+  out.fxRack.signalMask.mode = choice(rawFx.signalMask, 'mode', ['text', 'inverseText', 'field', 'luma'], out.fxRack.signalMask.mode);
+  out.fxRack.signalMask.feather = number(rawFx.signalMask, 'feather', 0, 1, out.fxRack.signalMask.feather, false);
+  out.fxRack.chromaticSplit.enabled = bool(rawFx.chromaticSplit, 'enabled', out.fxRack.chromaticSplit.enabled);
+  out.fxRack.chromaticSplit.amount = number(rawFx.chromaticSplit, 'amount', 0, 1, out.fxRack.chromaticSplit.amount, false);
+  out.fxRack.chromaticSplit.distance = number(rawFx.chromaticSplit, 'distance', 0, 80, out.fxRack.chromaticSplit.distance, false);
+  out.fxRack.chromaticSplit.angle = number(rawFx.chromaticSplit, 'angle', -180, 180, out.fxRack.chromaticSplit.angle, false);
+  out.fxRack.chromaticSplit.blend = choice(rawFx.chromaticSplit, 'blend', ['screen', 'multiply', 'difference', 'lighter'], out.fxRack.chromaticSplit.blend);
+  out.fxRack.rasterMaterial.enabled = bool(rawFx.rasterMaterial, 'enabled', out.fxRack.rasterMaterial.enabled);
+  out.fxRack.rasterMaterial.amount = number(rawFx.rasterMaterial, 'amount', 0, 1, out.fxRack.rasterMaterial.amount, false);
+  ['pixelate', 'posterize', 'scanline', 'noise'].forEach(function (key) {
+    out.fxRack.rasterMaterial[key] = number(rawFx.rasterMaterial, key, 0, 1, out.fxRack.rasterMaterial[key], false);
+  });
+  if (typeof raw.color2 === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color2)) out.color2 = raw.color2;
+  if (typeof raw.color3 === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color3)) out.color3 = raw.color3;
+
+  var field = raw.field;
+  out.field.cols = number(field, 'cols', 2, 80, out.field.cols, true);
+  out.field.rows = number(field, 'rows', 2, 80, out.field.rows, true);
+  out.field.waveX = number(field, 'waveX', 0.1, 12, out.field.waveX, false);
+  out.field.waveY = number(field, 'waveY', 0.1, 12, out.field.waveY, false);
+  out.field.ampX = number(field, 'ampX', 0, 3, out.field.ampX, false);
+  out.field.ampY = number(field, 'ampY', 0, 3, out.field.ampY, false);
+  out.field.scaleX = number(field, 'scaleX', 0, 3, out.field.scaleX, false);
+  out.field.scaleY = number(field, 'scaleY', 0, 3, out.field.scaleY, false);
+  out.field.rotation = number(field, 'rotation', 0, 90, out.field.rotation, false);
+  out.field.depth = number(field, 'depth', 0, 1, out.field.depth, false);
+  out.field.topology = choice(field, 'topology', ['cartesian', 'polar', 'spiral'], out.field.topology);
+  out.field.fieldType = choice(field, 'fieldType', ['wave', 'curl', 'vortex', 'attractor', 'textDistance'], out.field.fieldType);
+  out.field.sources = number(field, 'sources', 1, 4, out.field.sources, true);
+  out.field.pointerMode = choice(field, 'pointerMode', ['none', 'repel', 'attract', 'vortex', 'lens'], out.field.pointerMode);
+  out.field.pointerForce = number(field, 'pointerForce', 0, 2, out.field.pointerForce, false);
+  out.field.orientation = choice(field, 'orientation', ['fixed', 'tangent', 'normal', 'lookAtCenter'], out.field.orientation);
+  out.field.domainWarp = number(field, 'domainWarp', 0, 2, out.field.domainWarp, false);
+  out.field.perspective = number(field, 'perspective', 0, 1, out.field.perspective, false);
+  out.field.depthFalloff = number(field, 'depthFalloff', 0, 1, out.field.depthFalloff, false);
+  out.field.variation = number(field, 'variation', 0, 1, out.field.variation, false);
+  out.field.variationMode = choice(field, 'variationMode', ['unicode', 'script', 'ink', 'none'], out.field.variationMode);
+  out.field.network = number(field, 'network', 0, 1, out.field.network, false);
+  out.field.echoOrbit = number(field, 'echoOrbit', 0, 8, out.field.echoOrbit, true);
+  out.field.colorMode = choice(field, 'colorMode', ['ink', 'depth', 'unicode', 'field'], out.field.colorMode);
+
+  var flux = raw.fluxRows;
+  out.fluxRows.rows = number(flux, 'rows', 2, 60, out.fluxRows.rows, true);
+  out.fluxRows.curve = number(flux, 'curve', 0.2, 4, out.fluxRows.curve, false);
+  out.fluxRows.tracking = number(flux, 'tracking', 0, 2, out.fluxRows.tracking, false);
+  out.fluxRows.lineGap = number(flux, 'lineGap', 0, 1, out.fluxRows.lineGap, false);
+  out.fluxRows.scroll = number(flux, 'scroll', 0, 8, out.fluxRows.scroll, false);
+  out.fluxRows.amount = number(flux, 'amount', 0, 1, out.fluxRows.amount, false);
+  out.fluxRows.mirror = bool(flux, 'mirror', out.fluxRows.mirror);
+  out.fluxRows.flip = bool(flux, 'flip', out.fluxRows.flip);
+  out.fluxRows.baseline = choice(flux, 'baseline', ['straight', 'wave', 'braid', 'fold'], out.fluxRows.baseline);
+  out.fluxRows.laneSpeed = choice(flux, 'laneSpeed', ['uniform', 'alternate', 'mirror', 'unicode'], out.fluxRows.laneSpeed);
+  out.fluxRows.phaseOffset = number(flux, 'phaseOffset', 0, 1, out.fluxRows.phaseOffset, false);
+  out.fluxRows.amplitude = number(flux, 'amplitude', 0, 2, out.fluxRows.amplitude, false);
+  out.fluxRows.density = number(flux, 'density', 0.1, 2, out.fluxRows.density, false);
+  out.fluxRows.integerTravel = bool(flux, 'integerTravel', out.fluxRows.integerTravel);
+  ['counterflow', 'compression', 'slit', 'accordion', 'tangent', 'weave', 'trail', 'pointerBranch'].forEach(function (key) {
+    out.fluxRows[key] = number(flux, key, 0, 1, out.fluxRows[key], false);
+  });
+  out.fluxRows.scanEcho = number(flux, 'scanEcho', 0, 8, out.fluxRows.scanEcho, true);
+  out.fluxRows.perspective = number(flux, 'perspective', 0, 1, out.fluxRows.perspective, false);
+  out.fluxRows.colorMode = choice(flux, 'colorMode', ['ink', 'phrase', 'glyph', 'lane'], out.fluxRows.colorMode);
+
+  var cascade = raw.cascade;
+  out.cascade.rows = number(cascade, 'rows', 2, 80, out.cascade.rows, true);
+  out.cascade.tracking = number(cascade, 'tracking', 0, 1.5, out.cascade.tracking, false);
+  out.cascade.lineSpace = number(cascade, 'lineSpace', 0, 0.9, out.cascade.lineSpace, false);
+  out.cascade.waveLength = number(cascade, 'waveLength', 0, 1, out.cascade.waveLength, false);
+  out.cascade.amplitude = number(cascade, 'amplitude', 0, 3, out.cascade.amplitude, false);
+  out.cascade.slope = number(cascade, 'slope', 0.2, 4, out.cascade.slope, false);
+  out.cascade.mirror = bool(cascade, 'mirror', out.cascade.mirror);
+  out.cascade.bands = bool(cascade, 'bands', out.cascade.bands);
+  out.cascade.system = ['bands', 'automaton', 'circuit', 'sdf'].indexOf(cascade && cascade.system) !== -1
+    ? cascade.system : (cascade && cascade.system == null ? 'bands' : out.cascade.system);
+  out.cascade.shape = ['rect', 'rounded', 'circle', 'diamond', 'cross', 'line', 'ring'].indexOf(cascade && cascade.shape) !== -1
+    ? cascade.shape : out.cascade.shape;
+  var cascadeColorMode = cascade && cascade.colorMode === 'stripe' ? 'row' : cascade && cascade.colorMode;
+  out.cascade.colorMode = ['state', 'row', 'column', 'unicode', 'gradient', 'ink'].indexOf(cascadeColorMode) !== -1
+    ? cascadeColorMode : out.cascade.colorMode;
+  out.cascade.rule = cascade && cascade.rule === 'custom'
+    ? 'custom'
+    : ([30, 54, 90, 110, 150].indexOf(Number(cascade && cascade.rule)) !== -1
+      ? Number(cascade.rule) : out.cascade.rule);
+  out.cascade.customRule = number(cascade, 'customRule', 0, 255, out.cascade.customRule, true);
+  out.cascade.seed = ['unicode', 'class', 'glyphMask', 'alternating', 'sparse'].indexOf(cascade && cascade.seed) !== -1
+    ? cascade.seed : out.cascade.seed;
+  out.cascade.cells = number(cascade, 'cells', 8, 96, out.cascade.cells, true);
+  out.cascade.circuitDensity = number(cascade, 'circuitDensity', 0.1, 1, out.cascade.circuitDensity, false);
+  out.cascade.pulse = number(cascade, 'pulse', 0, 1, out.cascade.pulse, false);
+  out.cascade.signalMode = ['slices', 'moire', 'radar'].indexOf(cascade && cascade.signalMode) !== -1
+    ? cascade.signalMode : out.cascade.signalMode;
+  out.cascade.signalLayers = number(cascade, 'signalLayers', 1, 8, out.cascade.signalLayers, true);
+  out.cascade.signalFeedback = number(cascade, 'signalFeedback', 0, 1, out.cascade.signalFeedback, false);
+  out.cascade.quantize = number(cascade, 'quantize', 2, 32, out.cascade.quantize, true);
+  out.cascade.sdfMode = ['interference', 'singularity', 'tunnel', 'metaball'].indexOf(cascade && cascade.sdfMode) !== -1
+    ? cascade.sdfMode : out.cascade.sdfMode;
+  out.cascade.frequency = number(cascade, 'frequency', 1, 24, out.cascade.frequency, true);
+  out.cascade.warp = number(cascade, 'warp', 0, 2, out.cascade.warp, false);
+  out.cascade.threshold = number(cascade, 'threshold', 0.05, 0.95, out.cascade.threshold, false);
+  out.cascade.contours = number(cascade, 'contours', 1, 8, out.cascade.contours, true);
+  out.cascade.sdfFeedback = number(cascade, 'sdfFeedback', 0, 1, out.cascade.sdfFeedback, false);
+  out.cascade.automatonMode = choice(cascade, 'automatonMode', ['1d', 'life2d'], out.cascade.automatonMode);
+  out.cascade.lifeRule = choice(cascade, 'lifeRule', ['B3/S23', 'B36/S23', 'B2/S', 'B3678/S34678'], out.cascade.lifeRule);
+  out.cascade.generationCount = number(cascade, 'generationCount', 2, 96, out.cascade.generationCount, true);
+  out.cascade.generationBlend = number(cascade, 'generationBlend', 0, 1, out.cascade.generationBlend, false);
+  out.cascade.pingPong = bool(cascade, 'pingPong', out.cascade.pingPong);
+  out.cascade.circuitBranches = number(cascade, 'circuitBranches', 1, 8, out.cascade.circuitBranches, true);
+  out.cascade.circuitRouters = number(cascade, 'circuitRouters', 1, 24, out.cascade.circuitRouters, true);
+  out.cascade.circuitPackets = number(cascade, 'circuitPackets', 1, 64, out.cascade.circuitPackets, true);
+  out.cascade.packetTrail = number(cascade, 'packetTrail', 0, 1, out.cascade.packetTrail, false);
+  out.cascade.circuitHeatmap = number(cascade, 'circuitHeatmap', 0, 1, out.cascade.circuitHeatmap, false);
+  out.cascade.addressNodes = number(cascade, 'addressNodes', 0, 1, out.cascade.addressNodes, false);
+  out.cascade.pointerInject = bool(cascade, 'pointerInject', out.cascade.pointerInject);
+  out.cascade.signalSources = number(cascade, 'signalSources', 1, 6, out.cascade.signalSources, true);
+  out.cascade.signalSync = number(cascade, 'signalSync', 0, 1, out.cascade.signalSync, false);
+  out.cascade.glyphWarp = number(cascade, 'glyphWarp', 0, 1, out.cascade.glyphWarp, false);
+  out.cascade.diffraction = number(cascade, 'diffraction', 0, 1, out.cascade.diffraction, false);
+  out.cascade.chromatic = number(cascade, 'chromatic', 0, 1, out.cascade.chromatic, false);
+  out.cascade.backgroundAmount = number(cascade, 'backgroundAmount', 0, 1, out.cascade.backgroundAmount, false);
+  out.cascade.textAmount = number(cascade, 'textAmount', 0, 1, out.cascade.textAmount, false);
+  out.cascade.gap = number(cascade, 'gap', 0, 0.8, out.cascade.gap, false);
+  out.cascade.round = number(cascade, 'round', 0, 1, out.cascade.round, false);
+  out.cascade.opacity = number(cascade, 'opacity', 0.04, 1, out.cascade.opacity, false);
+  out.cascade.stroke = number(cascade, 'stroke', 0, 6, out.cascade.stroke, false);
+  out.cascade.scanline = number(cascade, 'scanline', 0, 1, out.cascade.scanline, false);
+  out.cascade.blend = ['source-over', 'multiply', 'screen', 'difference', 'exclusion', 'lighter'].indexOf(cascade && cascade.blend) !== -1
+    ? cascade.blend : out.cascade.blend;
+  out.cascade.glyphMode = ['contrast', 'fixed', 'state'].indexOf(cascade && cascade.glyphMode) !== -1
+    ? cascade.glyphMode : out.cascade.glyphMode;
+  out.cascade.backdropEnabled = bool(cascade, 'backdropEnabled', out.cascade.backdropEnabled);
+  out.cascade.backdropOpacity = number(cascade, 'backdropOpacity', 0, 1, out.cascade.backdropOpacity, false);
+  ['backdrop', 'fieldA', 'fieldB', 'fieldC', 'edge', 'glyph'].forEach(function (key) {
+    if (cascade && typeof cascade[key] === 'string' && /^#[0-9a-f]{6}$/i.test(cascade[key])) out.cascade[key] = cascade[key];
+  });
+
+  var contour = raw.contourAtlas;
+  out.contourAtlas.source = choice(contour, 'source', ['glyphDistance', 'unicodeCharge', 'interference', 'voronoi'], out.contourAtlas.source);
+  var contourRendering = contour && contour.rendering === 'regions' ? 'filled' : contour && contour.rendering;
+  out.contourAtlas.rendering = ['lines', 'glyphs', 'filled', 'hybrid'].indexOf(contourRendering) !== -1 ? contourRendering : out.contourAtlas.rendering;
+  out.contourAtlas.levels = number(contour, 'levels', 2, 32, out.contourAtlas.levels, true);
+  out.contourAtlas.resolution = number(contour, 'resolution', 16, 160, out.contourAtlas.resolution, true);
+  out.contourAtlas.spacing = number(contour, 'spacing', 0.02, 0.5, out.contourAtlas.spacing, false);
+  out.contourAtlas.lineWidth = number(contour, 'lineWidth', 0.25, 8, out.contourAtlas.lineWidth, false);
+  out.contourAtlas.dash = number(contour, 'dash', 0, 1, out.contourAtlas.dash, false);
+  out.contourAtlas.density = number(contour, 'density', 0.1, 2, out.contourAtlas.density, false);
+  out.contourAtlas.charge = number(contour, 'charge', -1, 1, out.contourAtlas.charge, false);
+  out.contourAtlas.interference = number(contour, 'interference', 0, 2, out.contourAtlas.interference, false);
+  out.contourAtlas.pointerRelief = number(contour, 'pointerRelief', -1, 1, out.contourAtlas.pointerRelief, false);
+  out.contourAtlas.glyphs = bool(contour, 'glyphs', out.contourAtlas.glyphs);
+  out.contourAtlas.filled = bool(contour, 'filled', out.contourAtlas.filled);
+  out.contourAtlas.tangent = number(contour, 'tangent', 0, 1, out.contourAtlas.tangent, false);
+  out.contourAtlas.threshold = number(contour, 'threshold', 0, 1, out.contourAtlas.threshold, false);
+  out.contourAtlas.fillOpacity = number(contour, 'fillOpacity', 0, 1, out.contourAtlas.fillOpacity, false);
+  out.contourAtlas.textHeight = number(contour, 'textHeight', 0, 1, out.contourAtlas.textHeight, false);
+  out.contourAtlas.colorMode = choice(contour, 'colorMode', ['ink', 'height', 'script', 'spectral'], out.contourAtlas.colorMode);
+  out.contourAtlas.preset = choice(contour, 'preset', ['topographic', 'seismic', 'isoScript'], out.contourAtlas.preset);
+
+  var feedback = raw.feedbackChamber;
+  out.feedbackChamber.transform = choice(feedback, 'transform', ['zoom', 'rotate', 'drift', 'shear'], out.feedbackChamber.transform);
+  out.feedbackChamber.warp = choice(feedback, 'warp', ['none', 'wave', 'twist', 'tunnel', 'glyphSdf'], out.feedbackChamber.warp);
+  out.feedbackChamber.mirror = choice(feedback, 'mirror', ['none', 'bilateral', 'quad', 'kaleidoscope'], out.feedbackChamber.mirror);
+  out.feedbackChamber.zoom = number(feedback, 'zoom', -0.2, 0.2, out.feedbackChamber.zoom, false);
+  out.feedbackChamber.rotation = number(feedback, 'rotation', -45, 45, out.feedbackChamber.rotation, false);
+  out.feedbackChamber.driftX = number(feedback, 'driftX', -1, 1, out.feedbackChamber.driftX, false);
+  out.feedbackChamber.driftY = number(feedback, 'driftY', -1, 1, out.feedbackChamber.driftY, false);
+  out.feedbackChamber.shear = number(feedback, 'shear', -1, 1, out.feedbackChamber.shear, false);
+  out.feedbackChamber.warpAmount = number(feedback, 'warpAmount', 0, 2, out.feedbackChamber.warpAmount, false);
+  out.feedbackChamber.decay = number(feedback, 'decay', 0, 1, out.feedbackChamber.decay, false);
+  out.feedbackChamber.injection = number(feedback, 'injection', 0, 1, out.feedbackChamber.injection, false);
+  out.feedbackChamber.threshold = number(feedback, 'threshold', 0, 1, out.feedbackChamber.threshold, false);
+  out.feedbackChamber.persistence = number(feedback, 'persistence', 0, 1, out.feedbackChamber.persistence, false);
+  out.feedbackChamber.echoes = number(feedback, 'echoes', 1, 24, out.feedbackChamber.echoes, true);
+  out.feedbackChamber.kaleidoscope = number(feedback, 'kaleidoscope', 2, 16, out.feedbackChamber.kaleidoscope, true);
+  out.feedbackChamber.pointerCenter = bool(feedback, 'pointerCenter', out.feedbackChamber.pointerCenter);
+  out.feedbackChamber.loopLock = bool(feedback, 'loopLock', out.feedbackChamber.loopLock);
+  out.feedbackChamber.preset = choice(feedback, 'preset', ['recursiveType', 'spectralBurn', 'mirrorHall'], out.feedbackChamber.preset);
+  return out;
+}
+
+function cloneCompositionState() {
+  return JSON.parse(JSON.stringify(compositionState));
+}
+
+function persistentCompositionState() {
+  var snapshot = cloneCompositionState();
+  delete snapshot.quality;
+  return snapshot;
+}
+
+
+// The index every per-glyph random is seeded from. See createSpans for
+// why it is stored separately from the per-line token index.
+function glyphHashIndex(el) {
+  var index = parseInt(el.dataset.h, 10);
+  return isFinite(index) ? index : (parseInt(el.dataset.j, 10) || 0);
+}
+
+function hash(j, cp, k) {
+  return (Math.abs(Math.sin((j + 1) * (cp + 1) * (k + params.seed * 13.37))) * 43758.5453) % 1;
+}
+
+/* ---------------- letters: create + randomize ---------------- */
+var letters = [];   // span elements
+var metrics = [];   // per-letter lens state (parallel to letters)
+var metricByElement = new WeakMap();
+var metricsDirty = true;
+var visualOverscan = 0;
+var overscanTimer = null;
+var undoStack = [], redoStack = [];   // deform/lock history (cleared on text change)
+var lineEnds = [];  // cumulative letters.length after each source line (for grid line-breaks)
+var gridLinesEl = document.createElement('div');
+gridLinesEl.id = 'gridLines';
+var gridActualCols = 12;
+var gridActualRows = 1;
+
+// One token = one deformable unit. Usually a single grapheme cluster,
+// but joining scripts (Arabic, Indic, …) are grouped per word so
+// contextual shaping survives the per-span split.
+function tokenizeLine(line) {
+  var chars = toGraphemes(line);
+  var tokens = [];
+  for (var i = 0; i < chars.length; i++) {
+    var ch = chars[i];
+    var cp = ch.codePointAt(0);
+    if (cp === 32 || cp === 9 || cp === 160) {
+      tokens.push({ space: true, text: ' ' });
+      continue;
+    }
+    var joins = charInfo(ch, cp).joins;
+    if (joins && tokens.length && tokens[tokens.length - 1].join) {
+      tokens[tokens.length - 1].text += ch;
+    } else {
+      tokens.push({ text: ch, join: joins });
+    }
+  }
+  // single-level bidi approximation: flip runs of RTL tokens
+  // (neutrals between two RTL tokens travel with the run)
+  if (uni) {
+    var tokInfo = function (t) { return charInfo(t.text, t.text.codePointAt(0)); };
+    var a = 0;
+    while (a < tokens.length) {
+      if (!tokens[a].space && tokInfo(tokens[a]).rtl) {
+        var lastRtl = a, k = a + 1;
+        while (k < tokens.length) {
+          var t = tokens[k];
+          if (!t.space && tokInfo(t).rtl) { lastRtl = k; k++; }
+          else if (t.space || tokInfo(t).punct) { k++; }
+          else break;
+        }
+        if (lastRtl > a) {
+          var run = tokens.slice(a, lastRtl + 1).reverse();
+          for (var r = 0; r < run.length; r++) tokens[a + r] = run[r];
+        }
+        a = lastRtl + 1;
+      } else a++;
+    }
+  }
+  return tokens;
+}
+
+function createSpans(text) {
+  clearEditSelection(); // old spans are being discarded
+  stage.innerHTML = '';
+  letters = [];
+  lineEnds = [];
+  var lines = text.replace(/\r\n?/g, '\n').split('\n');
+  var globalIndex = 0;
+  var frag = document.createDocumentFragment();
+  for (var li = 0; li < lines.length; li++) {
+    var p = document.createElement('p');
+    var tokens = tokenizeLine(lines[li]);
+    for (var j = 0; j < tokens.length; j++) {
+      var tok = tokens[j];
+      if (tok.space) { p.appendChild(document.createTextNode(tok.text)); continue; }
+      var span = document.createElement('span');
+      span.className = 'c' + (charInfo(tok.text, tok.text.codePointAt(0)).punct ? ' punct' : '');
+      span.dataset.j = j;
+      // Randomness is seeded from this index. Before v7 it was the
+      // per-line token position, so the same character at the same
+      // column of two lines came out an exact copy — same scale,
+      // offset, rotation, and even the same Confuse candidate. New
+      // documents seed from the document-wide position instead;
+      // projects saved before v7 keep the old seeding so their
+      // appearance is reproduced exactly.
+      span.dataset.h = params.hashIndex === 'line' ? j : globalIndex;
+      span.dataset.cp = tok.text.codePointAt(0);
+      span.dataset.renderText = tok.text;
+      span.dataset.sourceText = tok.text;
+      span.style.setProperty('--i', globalIndex++);
+      span.textContent = tok.text;
+      p.appendChild(span);
+      letters.push(span);
+    }
+    if (!tokens.length) p.appendChild(document.createElement('br'));
+    frag.appendChild(p);
+    lineEnds.push(letters.length);
+  }
+  stage.appendChild(frag);
+  if (gridLinesEl) stage.insertBefore(gridLinesEl, stage.firstChild);
+  stage.classList.toggle('many', letters.length > 600);
+  applyRandom();
+  rebuildMetrics();
+  if (params.gridEnabled) layoutGrid();
+  undoStack.length = 0;
+  redoStack.length = 0;
+}
+
+// Recompute per-letter random values without recreating spans (keeps lock/toggle state).
+function applyRandom(includeLocked) {
+  for (var i = 0; i < letters.length; i++) {
+    var span = letters[i];
+    var existingMetric = metricByElement.get(span);
+    // Global/per-letter Lock freezes the entire rendered channel stack,
+    // including the seeded base transform and accent assignment.
+    if (!includeLocked && existingMetric && existingMetric.locked) continue;
+    var j = glyphHashIndex(span);
+    var cp = parseInt(span.dataset.cp, 10);
+    // classify by the source character, not the (possibly confused) display
+    var ch = span.dataset.sourceText || span.textContent;
+    var info = charInfo(ch, cp);
+    var isPunct = info.punct;
+    var cls = info.cls;
+    var batchKey = batchKeyFor(ch, cp, info);
+    var deform = batchProfileForKey(batchKey);
+    span.dataset.batch = batchKey;
+    span.dataset.upright = info.upright ? '1' : '';
+
+    var r1 = hash(j, cp, 12.9898);
+    var r2 = hash(j, cp, 78.233);
+    var r3 = hash(j, cp, 192.456);
+    var r4 = hash(j, cp, 421.887);
+    var r5 = hash(j, cp, 333.777);
+    var r6 = hash(j, cp, 77.113);
+
+    var sxMin = 0.78, sxRange = 0.56, syMin = 0.82, syRange = 0.40;
+    if (isPunct) { sxMin = 0.97; sxRange = 0.06; syMin = 0.97; syRange = 0.06; }
+    else if (cls === 'latin') { sxMin = 0.86; sxRange = 0.38; syMin = 0.88; syRange = 0.30; }
+    else if (cls === 'hira' || cls === 'kata') { sxMin = 0.76; sxRange = 0.52; syMin = 0.84; syRange = 0.36; }
+    else if (cls === 'kanji') { sxMin = 0.72; sxRange = 0.56; syMin = 0.80; syRange = 0.40; }
+
+    var R = deform.randomness;
+    // randomness=1 reproduces the original; 0 gives uniform glyphs.
+    var sx = 1 - (1 - (sxMin + sxRange * r1)) * R;
+    var sy = 1 - (1 - (syMin + syRange * r2)) * R;
+    var tx = ((r1 - 0.5) * 0.026) * R;
+    var ty = ((r2 - 0.5) * 0.056) * R;
+    sx = quant(sx, 0.005); sy = quant(sy, 0.005);
+    tx = quant(tx, 0.002); ty = quant(ty, 0.002);
+
+    span.style.setProperty('--sx', sx.toFixed(3));
+    span.style.setProperty('--sy', sy.toFixed(3));
+    span.style.setProperty('--tx', tx.toFixed(3) + 'em');
+    span.style.setProperty('--ty', ty.toFixed(3) + 'em');
+    span.style.setProperty('--rot', ((r5 - 0.5) * 2 * deform.rotation).toFixed(2) + 'deg');
+    if (r6 < params.accentRatio) {
+      span.style.color = params.accent;
+      span.dataset.accent = '1';
+    } else {
+      span.style.removeProperty('color');
+      span.dataset.accent = '';
+    }
+    span.dataset.lensX = ((r1 * 2) - 1).toFixed(3);
+    span.dataset.lensY = ((r2 * 2) - 1).toFixed(3);
+
+    var geo = r3 > (1 - deform.geoRatio);
+    span.dataset.lensMode = geo ? 'geo' : 'organic';
+    var stepX, stepY, blendSeed;
+    if (geo) {
+      stepX = 0.22 + r3 * 0.28;
+      stepY = 0.26 + r4 * 0.32;
+      blendSeed = 0.58 + r4 * 0.24;
+    } else {
+      stepX = 0.16 + r3 * 0.10;
+      stepY = 0.20 + r4 * 0.12;
+      blendSeed = 0.18 + r4 * 0.20;
+    }
+    span.dataset.lensStepX = stepX.toFixed(3);
+    span.dataset.lensStepY = stepY.toFixed(3);
+    span.dataset.lensBlend = blendSeed.toFixed(3);
+  }
+  syncMetricsSeeds();
+  applyAllOperatorVisuals();
+  metricsDirty = true;
+  scheduleVisualOverscan();
+  scheduleEffectStatusUpdate();
+  schedule();
+}
+
+/* ---------------- lens engine (ported, + lock) ---------------- */
+var raf = null;
+var activePointerId = null;
+var pointer = { x: 0, y: 0, targetX: 0, targetY: 0, strength: 0, active: false, type: 'mouse' };
+
+/** @typedef {{toggled:boolean, hovered:boolean, current:number, manual:(number|{x:number,y:number}|null)}} LetterOperatorState */
+/** @returns {Object.<string, LetterOperatorState>} */
+function createOperatorStates() {
+  var states = {};
+  for (var i = 0; i < OPERATOR_IDS.length; i++) {
+    states[OPERATOR_IDS[i]] = { toggled: false, hovered: false, current: 0, manual: null };
+  }
+  return states;
+}
+
+function operatorState(m, id) {
+  if (!m.operatorStates) m.operatorStates = createOperatorStates();
+  if (!m.operatorStates[id]) m.operatorStates[id] = { toggled: false, hovered: false, current: 0, manual: null };
+  return m.operatorStates[id];
+}
+
+function rebuildMetrics() {
+  metricByElement = new WeakMap();
+  metrics = letters.map(function (el) {
+    var metric = {
+      el: el,
+      relX: 0, relY: 0,
+      seedX: 0, seedY: 0, mode: 'organic', stepX: 0.28, stepY: 0.34, blend: 0.32,
+      batchKey: el.dataset.batch || '',
+      active: false,
+      locked: false,
+      explicitLock: false,
+      manualX: null,
+      manualY: null,
+      operatorStates: createOperatorStates(),
+      gridCell: null
+    };
+    // Keep the proven v2 Stretch field names as accessors. Old projects,
+    // undo snapshots, and in-progress compositions remain valid while all
+    // new code evaluates the registry-backed operator state.
+    Object.defineProperties(metric, {
+      toggled: { get: function () { return metric.operatorStates.stretch.toggled; }, set: function (v) { metric.operatorStates.stretch.toggled = !!v; } },
+      hovered: { get: function () { return metric.operatorStates.stretch.hovered; }, set: function (v) { metric.operatorStates.stretch.hovered = !!v; } },
+      currentIntensity: { get: function () { return metric.operatorStates.stretch.current; }, set: function (v) { metric.operatorStates.stretch.current = Number(v) || 0; } }
+    });
+    metricByElement.set(el, metric);
+    return metric;
+  });
+  syncMetricsSeeds();
+  applyAllOperatorVisuals();
+  metricsDirty = true;
+  scheduleVisualOverscan();
+  schedule();
+}
+
+function syncMetricsSeeds() {
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i], el = m.el;
+    m.seedX = parseFloat(el.dataset.lensX || 0);
+    m.seedY = parseFloat(el.dataset.lensY || 0);
+    m.mode = el.dataset.lensMode || 'organic';
+    m.stepX = parseFloat(el.dataset.lensStepX || '0.28');
+    m.stepY = parseFloat(el.dataset.lensStepY || '0.34');
+    m.blend = parseFloat(el.dataset.lensBlend || '0.32');
+    m.batchKey = el.dataset.batch || '';
+  }
+}
+
+// Stage-relative layout centres — recomputed only when layout changes
+// (text, font, size, resize). Scrolling never invalidates these; the
+// per-frame pointer math reads the stage rect once instead.
+function measureLayout() {
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i];
+    var el = m.el;
+    var x = 0, y = 0, o = el;
+    while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
+    m.w = el.offsetWidth;
+    m.h = el.offsetHeight;
+    m.relX = x + m.w / 2;
+    m.relY = y + m.h / 2;
+  }
+  metricsDirty = false;
+  scheduleVisualOverscan();
+}
+
+// CSS transforms do not expand scrollable layout bounds. Estimate each
+// glyph's transformed corners around the real 50%/75% transform origin
+// and reserve one uniform gutter large enough for every direction.
+function updateVisualOverscan() {
+  overscanTimer = null;
+  var needed = 0;
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i], el = m.el;
+    var w = Number(m.w) || el.offsetWidth || params.fontSize;
+    var h = Number(m.h) || el.offsetHeight || params.fontSize;
+    if (!(w > 0 && h > 0)) continue;
+    var matrix = glyphLinearMatrix(el);
+    var ox = w * 0.5, oy = h * 0.75;
+    var st = el.style;
+    var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0)
+      + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * params.fontSize;
+    var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0)
+      + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * params.fontSize;
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    var corners = [[0, 0], [w, 0], [w, h], [0, h]];
+    for (var c = 0; c < corners.length; c++) {
+      var x = corners[c][0] - ox, y = corners[c][1] - oy;
+      var px = ox + matrix.a * x + matrix.c * y + tx;
+      var py = oy + matrix.b * x + matrix.d * y + ty;
+      minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+      minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+    }
+    var mrAx = parseFloat(st.getPropertyValue('--mr-a-x')) || 0;
+    var mrAy = parseFloat(st.getPropertyValue('--mr-a-y')) || 0;
+    var mrBx = parseFloat(st.getPropertyValue('--mr-b-x')) || 0;
+    var mrBy = parseFloat(st.getPropertyValue('--mr-b-y')) || 0;
+    var inkExtra = Math.max(
+      Math.abs(matrix.a * mrAx + matrix.c * mrAy), Math.abs(matrix.b * mrAx + matrix.d * mrAy),
+      Math.abs(matrix.a * mrBx + matrix.c * mrBy), Math.abs(matrix.b * mrBx + matrix.d * mrBy));
+    var glyphExtra = Math.max(
+      Math.max(0, -minX), Math.max(0, maxX - w),
+      Math.max(0, -minY), Math.max(0, maxY - h));
+    needed = Math.max(needed, glyphExtra + inkExtra);
+  }
+  var next = Math.min(20000, Math.max(0, Math.ceil(needed + (needed ? 24 : 0))));
+  if (Math.abs(next - visualOverscan) <= 1) return;
+  var delta = next - visualOverscan;
+  var oldScrollLeft = stageFrame.scrollLeft;
+  var oldScrollTop = stageFrame.scrollTop;
+  visualOverscan = next;
+  stage.style.setProperty('--visual-overscan', visualOverscan + 'px');
+  metricsDirty = true;
+  if (params.gridEnabled) layoutGrid();
+  else schedule();
+  // Padding moves the layout origin. During a live gesture compensate
+  // that movement so the artwork stays under the lens; batch/parameter
+  // changes instead reveal the new top/left gutter immediately.
+  if (pointer && pointer.active) {
+    stageFrame.scrollLeft = Math.max(0, oldScrollLeft + delta);
+    stageFrame.scrollTop = Math.max(0, oldScrollTop + delta);
+  }
+}
+
+function scheduleVisualOverscan() {
+  if (overscanTimer !== null) return;
+  overscanTimer = setTimeout(updateVisualOverscan, 48);
+}
+
+/* ---------------- grid typesetting ---------------- */
+
+
+function placeLetterAtCell(m, cellIndex, cols, cell, gap, originX, originY) {
+  var col = cellIndex % cols;
+  var row = Math.floor(cellIndex / cols);
+  var st = m.el.style;
+  st.position = 'absolute';
+  st.left = (originX + col * (cell + gap)) + 'px';
+  st.top = (originY + row * (cell + gap)) + 'px';
+  st.width = st.height = cell + 'px';
+  st.lineHeight = cell + 'px';
+  st.textAlign = 'center';
+  st.whiteSpace = 'nowrap';
+  st.overflow = 'visible';
+  m.el.dataset.gridCell = cellIndex;
+}
+
+// Strip every grid-related inline override so normal flow resumes cleanly.
+function clearGridStyles() {
+  for (var i = 0; i < metrics.length; i++) {
+    var st = metrics[i].el.style;
+    st.removeProperty('position');
+    st.removeProperty('left');
+    st.removeProperty('top');
+    st.removeProperty('width');
+    st.removeProperty('height');
+    st.removeProperty('line-height');
+    st.removeProperty('text-align');
+    st.removeProperty('white-space');
+    st.removeProperty('overflow');
+    delete metrics[i].el.dataset.gridCell;
+    delete metrics[i].el.dataset.confuseHold; // hold re-applies on the next visual pass
+  }
+  stage.classList.remove('grid-layout');
+  stage.style.removeProperty('--grid-origin-x');
+  stage.style.removeProperty('--grid-origin-y');
+  stage.style.removeProperty('--grid-width');
+  stage.style.removeProperty('--grid-height');
+  stage.style.removeProperty('--grid-stage-width');
+  stage.style.removeProperty('--grid-stage-height');
+  gridActualCols = Math.max(1, params.gridCols | 0);
+  gridActualRows = 1;
+  updateGridStatusNote(0, 0, false, false, 0);
+}
+
+function updateGridStatusNote(cols, rows, rowsExtended, colsExtended, pinnedCount) {
+  var el = document.getElementById('gridStatus');
+  if (!el) return;
+  if (!cols || !rows) { el.textContent = ''; return; }
+  el.textContent = cols + ' × ' + rows + ' / ' + metrics.length + '文字'
+    + (pinnedCount ? ' / ' + pinnedCount + '字を固定配置' : '')
+    + (rowsExtended ? ' — 収まらない文字のため行を自動拡張' : '')
+    + (colsExtended ? ' — 縦書きの改行を守るため列を自動拡張' : '');
+}
+
+// Recompute cell assignment for every letter and position it.
+// Manually pinned letters (m.gridCell already set) keep their cell;
+// everything else auto-flows into the remaining cells in reading order,
+// honoring source line breaks when gridLineBreak is on.
+function layoutGrid() {
+  if (!params.gridEnabled) return;
+  stage.classList.add('grid-layout');
+  gridLinesEl.style.setProperty('--gc', params.gridCellSize + 'px');
+  gridLinesEl.style.setProperty('--gg', params.gridGap + 'px');
+
+  var requestedCols = Math.max(1, params.gridCols | 0);
+  var cols = requestedCols;
+  var cell = params.gridCellSize, gap = params.gridGap;
+  var step = cell + gap;
+  var stageStyle = getComputedStyle(stage);
+  var padLeft = parseFloat(stageStyle.paddingLeft) || 0;
+  var padRight = parseFloat(stageStyle.paddingRight) || 0;
+  var padTop = parseFloat(stageStyle.paddingTop) || 0;
+  var padBottom = parseFloat(stageStyle.paddingBottom) || 0;
+
+  var lineStart = 0, autoSlots = 0, maxLineLen = 0;
+  var lineLengths = [];
+  for (var li = 0; li < lineEnds.length; li++) {
+    var lineLen = lineEnds[li] - lineStart;
+    lineLengths.push(lineLen);
+    if (lineLen > maxLineLen) maxLineLen = lineLen;
+    lineStart = lineEnds[li];
+  }
+
+  // Horizontal flow breaks to the next row. Vertical flow breaks to the
+  // next right-to-left column, so its row count must be known first.
+  var rows;
+  if (params.vertical && params.gridLineBreak) {
+    rows = params.gridAutoRows ? Math.max(1, maxLineLen) : Math.max(1, params.gridRows | 0);
+    var requiredCols = 0;
+    for (var vl = 0; vl < lineLengths.length; vl++) {
+      requiredCols += Math.ceil(Math.max(lineLengths[vl], 1) / rows);
+    }
+    cols = Math.max(requestedCols, requiredCols);
+    autoSlots = requiredCols * rows;
+  } else {
+    for (var hl = 0; hl < lineLengths.length; hl++) {
+      autoSlots += params.gridLineBreak
+        ? Math.ceil(Math.max(lineLengths[hl], 1) / cols) * cols
+        : lineLengths[hl];
+    }
+  }
+
+  // Cell indices encode row × column-count + column. Preserve the same
+  // physical row/column for manual pins when the column count changes.
+  if (gridActualCols !== cols) {
+    for (var ri = 0; ri < metrics.length; ri++) {
+      if (metrics[ri].gridCell == null) continue;
+      var oldCol = metrics[ri].gridCell % gridActualCols;
+      var oldRow = Math.floor(metrics[ri].gridCell / gridActualCols);
+      metrics[ri].gridCell = oldRow * cols + Math.min(oldCol, cols - 1);
+    }
+  }
+
+  var maxPinned = -1;
+  for (var i = 0; i < metrics.length; i++) {
+    if (metrics[i].gridCell != null) {
+      if (metrics[i].gridCell > maxPinned) maxPinned = metrics[i].gridCell;
+    }
+  }
+  var totalCells = Math.max(autoSlots, maxPinned + 1, cols, 1);
+  if (!(params.vertical && params.gridLineBreak)) {
+    rows = params.gridAutoRows
+      ? Math.max(1, Math.ceil(totalCells / cols))
+      : Math.max(params.gridRows, Math.ceil(totalCells / cols));
+  } else {
+    rows = Math.max(rows, Math.ceil(totalCells / cols));
+  }
+
+  // Dry-run the flow before touching the DOM. Pinned cells occasionally
+  // consume a slot needed after a source line-break; grow only when that
+  // actually happens, so a simple swap never creates a blank extra row.
+  // Unusable pins are reported, not cleared in place: a run that fails is
+  // retried with more rows, and clearing during the failed attempt would
+  // destroy pins that the larger retry can still honour.
+  function assignCells(rowCount) {
+    var order = buildCellOrder(cols, rowCount, params.vertical);
+    var claimed = new Array(cols * rowCount);
+    var placed = new Array(metrics.length);
+    var dropped = [];
+    for (var pi = 0; pi < metrics.length; pi++) {
+      var gc = metrics[pi].gridCell;
+      if (gc == null) continue;
+      if (gc >= 0 && gc < cols * rowCount && !claimed[gc]) {
+        claimed[gc] = true;
+        placed[pi] = gc;
+      } else {
+        // Stale/out-of-range or duplicate pin from an old project.
+        dropped.push(pi);
+      }
+    }
+
+    var cursor = 0;
+    var start = 0;
+    for (var li2 = 0; li2 < lineEnds.length; li2++) {
+      for (var k = start; k < lineEnds[li2]; k++) {
+        if (placed[k] != null) continue;
+        while (cursor < order.length && claimed[order[cursor]]) cursor++;
+        if (cursor >= order.length) return null;
+        var targetCell = order[cursor++];
+        claimed[targetCell] = true;
+        placed[k] = targetCell;
+      }
+      if (params.gridLineBreak) {
+        var lineSpan = params.vertical ? rowCount : cols;
+        cursor = Math.ceil(cursor / lineSpan) * lineSpan;
+      }
+      start = lineEnds[li2];
+    }
+    return { placed: placed, dropped: dropped };
+  }
+
+  // The guard bounds a corrupt project: gridCell survives load clamped
+  // only to "finite and non-negative", so a wild value must not be able
+  // to spin this loop.
+  var attempt = assignCells(rows);
+  for (var grow = 0; !attempt && grow < 4096; grow++) {
+    rows++;
+    attempt = assignCells(rows);
+  }
+  if (!attempt) {
+    for (var wipe = 0; wipe < metrics.length; wipe++) metrics[wipe].gridCell = null;
+    rows = Math.max(1, metrics.length + lineEnds.length);
+    attempt = assignCells(rows);
+  }
+  for (var drop = 0; drop < attempt.dropped.length; drop++) {
+    metrics[attempt.dropped[drop]].gridCell = null;
+  }
+  var placements = attempt.placed;
+  var rowsExtended = !params.gridAutoRows && rows > params.gridRows;
+  var colsExtended = cols > requestedCols;
+  var pinnedCount = 0;
+  for (var pc = 0; pc < metrics.length; pc++) if (metrics[pc].gridCell != null) pinnedCount++;
+
+  var gridWidth = cols * step - gap;
+  var gridHeight = rows * step - gap;
+  stage.style.setProperty('--grid-origin-x', padLeft + 'px');
+  stage.style.setProperty('--grid-origin-y', padTop + 'px');
+  stage.style.setProperty('--grid-width', gridWidth + 'px');
+  stage.style.setProperty('--grid-height', gridHeight + 'px');
+  stage.style.setProperty('--grid-stage-width', (padLeft + gridWidth + padRight) + 'px');
+  stage.style.setProperty('--grid-stage-height', (padTop + gridHeight + padBottom) + 'px');
+
+  for (var q = 0; q < metrics.length; q++) {
+    if (placements[q] != null) placeLetterAtCell(metrics[q], placements[q], cols, cell, gap, padLeft, padTop);
+  }
+
+  gridActualCols = cols;
+  gridActualRows = rows;
+  updateGridStatusNote(cols, rows, rowsExtended, colsExtended, pinnedCount);
+  metricsDirty = true;
+  schedule();
+}
+
+function cellIndexAt(pt) {
+  var padLeft = parseFloat(getComputedStyle(stage).paddingLeft) || 0;
+  var padTop = parseFloat(getComputedStyle(stage).paddingTop) || 0;
+  var cols = Math.max(1, gridActualCols | 0);
+  var step = params.gridCellSize + params.gridGap;
+  var col = Math.floor((pt.x - padLeft) / step);
+  var row = Math.floor((pt.y - padTop) / step);
+  col = Math.max(0, Math.min(cols - 1, col));
+  row = Math.max(0, row);
+  return row * cols + col;
+}
+
+function cellMetricAt(pt) {
+  var idx = cellIndexAt(pt);
+  for (var i = 0; i < metrics.length; i++) {
+    if (metrics[i].gridCell === idx || metrics[i].el.dataset.gridCell == idx) return metrics[i];
+  }
+  return null;
+}
+
+// Nearest letter to a stage-space point, measured against each glyph's
+// VISUAL centre (layout centre pushed through its current transform) and
+// normalized by its scaled size — so in a pile-up you grab the letter
+// you are aiming at, not whichever huge box the DOM stacks on top.
+function findNearestLetter(px, py) {
+  if (metricsDirty) measureLayout();
+  if (compositionState.enabled) return compositionMetricAt(px, py);
+  var fs = params.fontSize;
+  // two tiers: among letters whose visual box contains the pointer, the
+  // one with the nearest centre wins (so a small glyph beats the huge
+  // stretched neighbour whose box merely covers it); with no containing
+  // box, fall back to the nearest centre within 80px
+  var bestIn = null, bestInD = Infinity;
+  var bestOut = null, bestOutD = 80 * 80;
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i];
+    // cheap spatial pre-filter on layout position: scales are capped at
+    // 8-9×, so a glyph's visual box can never reach further than about
+    // 5× its size from its layout centre — skip style reads beyond that
+    var reach = (m.w > m.h ? m.w : m.h) * 5 + 100;
+    if (px - m.relX > reach || m.relX - px > reach || py - m.relY > reach || m.relY - py > reach) continue;
+    var st = m.el.style;
+    var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * fs;
+    var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * fs;
+    var matrix = glyphLinearMatrix(m.el);
+    // transform-origin sits at 50% / 75% of the layout box
+    var ox = m.relX;
+    var oy = m.relY + 0.25 * m.h;
+    var centerOffX = m.relX - ox, centerOffY = m.relY - oy;
+    var cx = ox + tx + matrix.a * centerOffX + matrix.c * centerOffY;
+    var cy = oy + ty + matrix.b * centerOffX + matrix.d * centerOffY;
+    var dx = px - cx, dy = py - cy;
+    var d = dx * dx + dy * dy;
+    var det = matrix.a * matrix.d - matrix.b * matrix.c;
+    var contains = false;
+    if (Math.abs(det) > 0.00001) {
+      var qx = px - (ox + tx), qy = py - (oy + ty);
+      var localX = ox + (matrix.d * qx - matrix.c * qy) / det;
+      var localY = oy + (-matrix.b * qx + matrix.a * qy) / det;
+      contains = Math.abs(localX - m.relX) <= m.w * 0.5 + 6 && Math.abs(localY - m.relY) <= m.h * 0.5 + 6;
+    }
+    if (contains) {
+      if (d < bestInD) { bestInD = d; bestIn = m; }
+    } else if (d < bestOutD) {
+      bestOutD = d; bestOut = m;
+    }
+  }
+  return bestIn || bestOut;
+}
+
+function schedule() {
+  if (raf) return;
+  raf = requestAnimationFrame(update);
+}
+
+function scheduleMeasure() {
+  metricsDirty = true;
+  invalidateCompositionSource();
+  schedule();
+}
+
+function update() {
+  raf = null;
+  if (!metrics.length) return;
+  if (metricsDirty) measureLayout();
+  pointer.x += (pointer.targetX - pointer.x) * 0.22;
+  pointer.y += (pointer.targetY - pointer.y) * 0.22;
+  var targetStrength = pointer.active ? 1 : 0;
+  pointer.strength += (targetStrength - pointer.strength) * 0.16;
+
+  var radiusMultiplier = pointer.type === 'touch' ? 1.33 : 1;
+  var stageRect = stage.getBoundingClientRect();
+  var px = (pointer.x - stageRect.left) / canvasView.scale;
+  var py = (pointer.y - stageRect.top) / canvasView.scale;
+  var flow = params.mode === 'flow' && pointer.active;
+  var compositionDistances = flow && compositionState.enabled ? compositionDistancesBySource(px, py) : null;
+
+  var keepAnimating = pointer.active || pointer.strength > 0.002;
+  // Advance every operator first and collect what changed, so the visual
+  // pass can batch its one layout read instead of interleaving a read
+  // and a write per glyph.
+  var dirty = null;
+
+  for (var i = 0; i < metrics.length; i++) {
+    var info = metrics[i];
+    if (info.locked) {
+      for (var lockedIndex = 0; lockedIndex < OPERATOR_IDS.length; lockedIndex++) {
+        operatorState(info, OPERATOR_IDS[lockedIndex]).hovered = false;
+      }
+      continue; // frozen — keep current style untouched
+    }
+
+    var dx = px - info.relX;
+    var dy = py - info.relY;
+    var distSq = compositionDistances && compositionDistances[i] != null
+      ? compositionDistances[i]
+      : dx * dx + dy * dy;
+    var deform = batchProfileForKey(info.batchKey);
+    var radius = deform.radius * radiusMultiplier;
+    var radiusSq = radius * radius;
+
+    // Only the selected operator receives the lens gesture. Every
+    // operator continues easing, so switching the panel never freezes a
+    // half-finished transition.
+    var selectedState = operatorState(info, params.activeOperator);
+    if (flow && distSq < radiusSq) {
+      if (!selectedState.hovered) {
+        selectedState.toggled = !selectedState.toggled;
+        selectedState.hovered = true;
+        scheduleEffectStatusUpdate();
+      }
+    } else {
+      selectedState.hovered = false;
+    }
+
+    var visualChanged = false;
+    for (var oi = 0; oi < OPERATOR_IDS.length; oi++) {
+      var opState = operatorState(info, OPERATOR_IDS[oi]);
+      if (opState.manual != null) continue;
+      var target = opState.toggled ? 1 : 0;
+      var diff = target - opState.current;
+      if (Math.abs(diff) < 0.0015) {
+        if (opState.current !== target) {
+          opState.current = target;
+          visualChanged = true;
+          scheduleEffectStatusUpdate();
+        }
+      } else {
+        opState.current += diff * deform.ease;
+        visualChanged = true;
+        keepAnimating = true;
+      }
+    }
+    if (visualChanged) (dirty || (dirty = [])).push(info);
+  }
+
+  if (dirty) applyOperatorVisualBatch(dirty);
+  if (keepAnimating) schedule();
+}
+
+// Compute and apply --ix/--iy from currentIntensity. Also used to
+// restore a saved project without waiting for the animation loop.
+function applyStretch(info) {
+  var seedX = info.seedX, seedY = info.seedY;
+  var directional = seedX * 0.5;
+  var deform = batchProfileForKey(info.batchKey);
+
+  var stretchX = 1 + info.currentIntensity * (1.48 + seedX * 0.85 + directional * 0.42) * deform.stretchX;
+  var stretchY = 1 + info.currentIntensity * (1.82 + seedY * 1.05 - directional * 0.36) * deform.stretchY;
+  var stepX = isFinite(info.stepX) && info.stepX > 0 ? info.stepX : 0.28;
+  var stepY = isFinite(info.stepY) && info.stepY > 0 ? info.stepY : 0.34;
+  var baseBlend = isFinite(info.blend) ? info.blend : 0.32;
+  if (info.mode === 'geo') {
+    var blend = Math.min(0.94, Math.max(0.42, baseBlend + info.currentIntensity * 0.35));
+    var steppedX = 1 + Math.round((stretchX - 1) / stepX) * stepX;
+    var steppedY = 1 + Math.round((stretchY - 1) / stepY) * stepY;
+    stretchX = stretchX * (1 - blend) + steppedX * blend;
+    stretchY = stretchY * (1 - blend) + steppedY * blend;
+    stretchX += (seedX * 0.12 + seedY * 0.08) * info.currentIntensity;
+    stretchY += (seedY * 0.14 - seedX * 0.05) * info.currentIntensity;
+  } else {
+    var softBlend = Math.max(0, Math.min(0.55, baseBlend * info.currentIntensity));
+    if (softBlend > 0.02) {
+      var easedX = 1 + Math.round((stretchX - 1) / stepX) * stepX;
+      var easedY = 1 + Math.round((stretchY - 1) / stepY) * stepY;
+      stretchX = stretchX * (1 - softBlend) + easedX * softBlend;
+      stretchY = stretchY * (1 - softBlend) + easedY * softBlend;
+    }
+  }
+  if (stretchX < 1) stretchX = 1; else if (stretchX > 8.0) stretchX = 8.0;
+  if (stretchY < 1) stretchY = 1; else if (stretchY > 9.0) stretchY = 9.0;
+
+  info.el.style.setProperty('--ix', stretchX.toFixed(3));
+  info.el.style.setProperty('--iy', stretchY.toFixed(3));
+  info.active = true;
+}
+
+function numericManual(state, fallback) {
+  return state.manual != null && isFinite(Number(state.manual)) ? Number(state.manual) : fallback;
+}
+
+function pairManual(state, x, y) {
+  return state.manual && typeof state.manual === 'object'
+    ? { x: isFinite(Number(state.manual.x)) ? Number(state.manual.x) : x, y: isFinite(Number(state.manual.y)) ? Number(state.manual.y) : y }
+    : { x: x, y: y };
+}
+
+function glyphLinearMatrix(el) {
+  var st = el.style;
+  function ownNumber(name, fallback) { var value = parseFloat(st.getPropertyValue(name)); return isFinite(value) ? value : fallback; }
+  var sx = ownNumber('--sx', 1) * ownNumber('--ix', 1) * ownNumber('--op-mirror-x', 1);
+  var sy = ownNumber('--sy', 1) * ownNumber('--iy', 1) * ownNumber('--op-mirror-y', 1);
+  var rot = ((parseFloat(st.getPropertyValue('--rot')) || 0) + (parseFloat(st.getPropertyValue('--op-rotate')) || 0)) * Math.PI / 180;
+  var tanX = Math.tan((parseFloat(st.getPropertyValue('--op-skew-x')) || 0) * Math.PI / 180);
+  var tanY = Math.tan((parseFloat(st.getPropertyValue('--op-skew-y')) || 0) * Math.PI / 180);
+  var cos = Math.cos(rot), sin = Math.sin(rot);
+  return {
+    a: cos * sx - sin * tanY * sx,
+    b: sin * sx + cos * tanY * sx,
+    c: cos * tanX * sy - sin * sy,
+    d: sin * tanX * sy + cos * sy
+  };
+}
+
+function inversePageOffset(matrix, x, y) {
+  var det = matrix.a * matrix.d - matrix.b * matrix.c;
+  if (Math.abs(det) < 0.00001) return { x: 0, y: 0 };
+  return { x: (matrix.d * x - matrix.c * y) / det, y: (-matrix.b * x + matrix.a * y) / det };
+}
+
+function applyMisregistrationVisual(info, deform) {
+  var el = info.el, style = el.style;
+  var misreg = operatorState(info, 'misregistration');
+  var misregValue = pairManual(misreg, deform.misregX * misreg.current, deform.misregY * misreg.current);
+  var amount = Math.max(Math.abs(misregValue.x), Math.abs(misregValue.y));
+  if (amount > 0.001) {
+    var matrix = glyphLinearMatrix(el);
+    var passA = inversePageOffset(matrix, misregValue.x, misregValue.y);
+    var passB = inversePageOffset(matrix, -misregValue.x * 0.65, -misregValue.y * 0.65);
+    style.setProperty('--mr-a-x', passA.x.toFixed(3) + 'px');
+    style.setProperty('--mr-a-y', passA.y.toFixed(3) + 'px');
+    style.setProperty('--mr-b-x', passB.x.toFixed(3) + 'px');
+    style.setProperty('--mr-b-y', passB.y.toFixed(3) + 'px');
+    style.setProperty('--mr-color-a', params.misregColorA);
+    style.setProperty('--mr-color-b', params.misregColorB);
+    style.setProperty('--mr-opacity', '0.72');
+    el.dataset.misregistration = '1';
+  } else {
+    delete el.dataset.misregistration;
+    style.removeProperty('--mr-opacity');
+  }
+}
+
+// Which glyph Confuse would render right now. Pure with respect to the
+// DOM — it reads operator state and dataset attributes but never
+// measures — so the hold-width pre-pass can ask the same question
+// without triggering a layout.
+function confuseDisplayFor(info, deform) {
+  var el = info.el;
+  var orig = el.dataset.sourceText || el.textContent;
+  var state = operatorState(info, 'confuse');
+  var strength = state.manual != null ? Number(state.manual) : deform.confuseDepth * state.current;
+  strength = Math.max(0, Math.min(1, isFinite(strength) ? strength : 0));
+  if (strength <= 0.001 || Array.from(orig).length !== 1) return orig;
+  var candidates = confuseCandidateRecords(orig);
+  if (!candidates.length) return orig;
+  return selectConfuseCandidate(candidates, strength, glyphHashIndex(el), parseInt(el.dataset.cp, 10) || 0) || orig;
+}
+
+// Codepoint layer: swap the rendered glyph for a graded lookalike.
+// The source text (dataset.sourceText) is never modified — the swap is
+// recomputed from operator state, so undo/carry/export all stay coherent.
+function applyConfuseText(info, deform) {
+  var el = info.el;
+  // Any live evaluation supersedes a restored v4 display snapshot. Font
+  // refresh captures and reapplies that snapshot explicitly when needed.
+  delete el.dataset.savedDerived;
+  var orig = el.dataset.sourceText || el.textContent;
+  var display = confuseDisplayFor(info, deform);
+  var confusing = display !== orig;
+  if (el.textContent !== display) {
+    // capture the un-confused advance width once, so substitution does
+    // not reflow the whole composition (Hold Advance)
+    if (confusing && !el.dataset.confuseHoldW && !params.gridEnabled && el.textContent === orig) {
+      var holdW = el.offsetWidth;
+      if (holdW) el.dataset.confuseHoldW = String(holdW);
+    }
+    el.textContent = display;
+    el.dataset.renderText = display;
+    metricsDirty = true;
+    scheduleMeasure();
+  }
+  if (params.gridEnabled) {
+    // the grid owns width/text-align — drop only the flag so the hold
+    // re-applies cleanly after the grid is turned off
+    if (el.dataset.confuseHold) delete el.dataset.confuseHold;
+  } else if (confusing && el.dataset.confuseHoldW) {
+    if (!el.dataset.confuseHold) {
+      el.style.width = el.dataset.confuseHoldW + 'px';
+      el.style.textAlign = 'center';
+      el.dataset.confuseHold = '1';
+    }
+  } else if (el.dataset.confuseHold) {
+    el.style.removeProperty('width');
+    el.style.removeProperty('text-align');
+    delete el.dataset.confuseHold;
+  }
+  if (!confusing && el.dataset.confuseHoldW) delete el.dataset.confuseHoldW;
+}
+
+function applyOperatorVisual(info) {
+  applyOperatorVisualStyles(info);
+  invalidateCompositionSource();
+  scheduleVisualOverscan();
+  scheduleCompositionDraw();
+}
+
+// The style-writing half, without the whole-artwork invalidations. Batch
+// callers run these once for the whole pass instead of per glyph.
+function applyOperatorVisualStyles(info) {
+  var el = info.el, style = el.style;
+  var deform = batchProfileForKey(info.batchKey);
+  applyConfuseText(info, deform);
+  var stretch = operatorState(info, 'stretch');
+  if (info.manualX != null || info.manualY != null) {
+    style.setProperty('--ix', (info.manualX == null ? 1 : info.manualX).toFixed(3));
+    style.setProperty('--iy', (info.manualY == null ? 1 : info.manualY).toFixed(3));
+    info.active = true;
+  } else if (stretch.current > 0.0001) {
+    applyStretch(info);
+  } else {
+    style.removeProperty('--ix');
+    style.removeProperty('--iy');
+    info.active = false;
+  }
+
+  var rotate = operatorState(info, 'rotate');
+  var rotateValue = numericManual(rotate, deform.rotateAngle * rotate.current);
+  style.setProperty('--op-rotate', rotateValue.toFixed(3) + 'deg');
+
+  var skew = operatorState(info, 'skew');
+  var skewValue = pairManual(skew, deform.skewX * skew.current, deform.skewY * skew.current);
+  style.setProperty('--op-skew-x', skewValue.x.toFixed(3) + 'deg');
+  style.setProperty('--op-skew-y', skewValue.y.toFixed(3) + 'deg');
+
+  var baseline = operatorState(info, 'baselineShift');
+  var baselineValue = numericManual(baseline, deform.baselineShift * baseline.current);
+  style.setProperty('--op-baseline-x', (params.vertical ? baselineValue : 0).toFixed(3) + 'em');
+  style.setProperty('--op-baseline-y', (params.vertical ? 0 : -baselineValue).toFixed(3) + 'em');
+
+  var mirror = operatorState(info, 'mirror');
+  var mirrorValue = pairManual(mirror,
+    deform.mirrorX ? 1 - 2 * mirror.current : 1,
+    deform.mirrorY ? 1 - 2 * mirror.current : 1);
+  style.setProperty('--op-mirror-x', Math.max(-1, Math.min(1, mirrorValue.x)).toFixed(4));
+  style.setProperty('--op-mirror-y', Math.max(-1, Math.min(1, mirrorValue.y)).toFixed(4));
+
+  applyMisregistrationVisual(info, deform);
+}
+
+function applyAllOperatorVisuals(includeLocked) {
+  var targets = [];
+  for (var i = 0; i < metrics.length; i++) {
+    if (!includeLocked && metrics[i].locked) continue;
+    targets.push(metrics[i]);
+  }
+  applyOperatorVisualBatch(targets);
+}
+
+// Single entry point for "apply the visual pass to this set of glyphs", so the
+// three whole-artwork invalidations run once instead of once per glyph.
+//
+// Deliberately does NOT batch the advance-width reads in applyConfuseText.
+// That looks like read/write layout thrashing, but almost every write in the
+// pass targets a custom property consumed only by `transform`, which does not
+// invalidate layout; measured with CDP Performance.LayoutCount, a 520-glyph
+// artwork takes 2 layouts for a first Confuse activation and 1 per pass after
+// that, batched or not. The hold width is also captured at most once per glyph
+// per text/font. Batching measured no better and cost an extra parameter
+// threaded through three functions.
+function applyOperatorVisualBatch(targets) {
+  if (targets.length) {
+    for (var i = 0; i < targets.length; i++) applyOperatorVisualStyles(targets[i]);
+    invalidateCompositionSource();
+    scheduleVisualOverscan();
+    scheduleCompositionDraw();
+  }
+  // Kept outside the guard: with no letters the inventory still has to
+  // reflect composition state and the Reset button's enabled state.
+  scheduleEffectStatusUpdate();
+}
+
+var OPERATOR_STYLE_PROPS = {
+  confuse: ['width', 'text-align'],
+  stretch: ['--ix', '--iy'],
+  rotate: ['--op-rotate'],
+  skew: ['--op-skew-x', '--op-skew-y'],
+  baselineShift: ['--op-baseline-x', '--op-baseline-y'],
+  mirror: ['--op-mirror-x', '--op-mirror-y'],
+  misregistration: ['--mr-a-x', '--mr-a-y', '--mr-b-x', '--mr-b-y', '--mr-color-a', '--mr-color-b', '--mr-opacity']
+};
+
+// Edit/Reset changes one operator on a frozen glyph. Preserve every
+// other rendered channel verbatim even if its global parameter changed
+// while the letter was locked.
+function applySingleOperatorVisual(m, activeId) {
+  var saved = {};
+  for (var id in OPERATOR_STYLE_PROPS) {
+    if (id === activeId) continue;
+    var props = OPERATOR_STYLE_PROPS[id];
+    for (var p = 0; p < props.length; p++) saved[props[p]] = m.el.style.getPropertyValue(props[p]);
+  }
+  var savedMisreg = m.el.dataset.misregistration;
+  var savedActive = m.active;
+  // the confuse channel lives in textContent, not style — freeze it too
+  var savedText = null, savedRender = null, savedHold = null, savedHoldW = null;
+  if (activeId !== 'confuse') {
+    savedText = m.el.textContent;
+    savedRender = m.el.dataset.renderText;
+    savedHold = m.el.dataset.confuseHold;
+    savedHoldW = m.el.dataset.confuseHoldW;
+  }
+  applyOperatorVisual(m);
+  for (var name in saved) {
+    if (saved[name]) m.el.style.setProperty(name, saved[name]);
+    else m.el.style.removeProperty(name);
+  }
+  if (activeId !== 'confuse') {
+    if (m.el.textContent !== savedText) m.el.textContent = savedText;
+    if (savedRender != null) m.el.dataset.renderText = savedRender; else delete m.el.dataset.renderText;
+    if (savedHold != null) m.el.dataset.confuseHold = savedHold; else delete m.el.dataset.confuseHold;
+    if (savedHoldW != null) m.el.dataset.confuseHoldW = savedHoldW; else delete m.el.dataset.confuseHoldW;
+  }
+  if (activeId !== 'misregistration') {
+    if (savedMisreg != null) m.el.dataset.misregistration = savedMisreg;
+    else delete m.el.dataset.misregistration;
+  } else applyMisregistrationVisual(m, batchProfileForKey(m.batchKey));
+  if (activeId !== 'stretch') m.active = savedActive;
+}
+
+/* ---------------- active effect inventory ---------------- */
+var effectStatusUpdateRaf = null;
+var effectStatusSignature = '';
+
+function operatorAffectsMetric(m, id) {
+  var state = operatorState(m, id);
+  if (id === 'stretch' && (m.manualX != null || m.manualY != null)) return true;
+  return state.manual != null || state.toggled || state.current > 0.0005;
+}
+
+function operatorAffectedCount(id) {
+  var count = 0;
+  for (var i = 0; i < metrics.length; i++) {
+    if (operatorAffectsMetric(metrics[i], id)) count++;
+  }
+  return count;
+}
+
+function updateEffectStatus() {
+  effectStatusUpdateRaf = null;
+  var list = document.getElementById('effectStatusList');
+  var empty = document.getElementById('effectStatusEmpty');
+  var total = document.getElementById('effectStatusTotal');
+  if (!list || !empty || !total) return;
+
+  var active = [];
+  for (var i = 0; i < OPERATOR_IDS.length; i++) {
+    var id = OPERATOR_IDS[i];
+    var count = operatorAffectedCount(id);
+    if (count) active.push({ id: id, count: count });
+  }
+  var mixedPairs = [];
+  var mixedCount = 0;
+  for (var mi = 0; mi < metrics.length; mi++) {
+    var source = metrics[mi].el.dataset.sourceText || metrics[mi].el.textContent;
+    var derived = metrics[mi].el.textContent;
+    var sourceScript = confuseScript(source);
+    var derivedScript = confuseScript(derived);
+    if (source !== derived && sourceScript !== derivedScript && sourceScript !== 'common' && derivedScript !== 'common') {
+      mixedCount++;
+      if (mixedPairs.length < 8) mixedPairs.push(source + '\u2192' + derived);
+    }
+  }
+  var compositionActive = compositionState.enabled;
+  var signature = params.activeOperator + '|' + active.map(function (item) {
+    return item.id + ':' + item.count;
+  }).join(',') + '|composition:' + (compositionActive ? compositionState.type + ':' + compositionScene.glyphs.length : 'off')
+    + '|mixed:' + mixedCount + ':' + mixedPairs.join(',');
+  if (signature === effectStatusSignature) return;
+  effectStatusSignature = signature;
+
+  list.textContent = '';
+  empty.hidden = active.length > 0 || compositionActive;
+  total.textContent = (active.length + (compositionActive ? 1 : 0)) + ' / ' + (OPERATOR_IDS.length + 1);
+  var mixedStatus = document.getElementById('confuseCompositionStatus');
+  if (mixedStatus) mixedStatus.textContent = 'Mixed-script display: ' + mixedCount
+    + (mixedPairs.length ? ' \u00b7 ' + mixedPairs.join(' / ') + (mixedCount > mixedPairs.length ? ' / \u2026' : '') : '');
+  document.getElementById('btnReset').disabled = active.length === 0 && !compositionActive;
+
+  for (var a = 0; a < active.length; a++) {
+    var item = active[a];
+    var row = document.createElement('div');
+    row.className = 'effect-status-row' + (item.id === params.activeOperator ? ' is-selected' : '');
+
+    var select = document.createElement('button');
+    select.type = 'button';
+    select.className = 'effect-status-select';
+    select.dataset.effectSelect = item.id;
+    select.setAttribute('aria-pressed', String(item.id === params.activeOperator));
+    select.setAttribute('aria-label', 'Select ' + OPERATOR_DEFS[item.id].label + ', applied to ' + item.count + ' glyphs');
+    var name = document.createElement('span');
+    name.className = 'effect-status-name';
+    name.textContent = OPERATOR_DEFS[item.id].label;
+    var glyphs = document.createElement('span');
+    glyphs.className = 'effect-status-glyphs';
+    glyphs.textContent = item.count + (item.count === 1 ? ' glyph' : ' glyphs');
+    select.appendChild(name);
+    select.appendChild(glyphs);
+    select.addEventListener('click', function () { setActiveOperator(this.dataset.effectSelect); });
+
+    var reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'effect-status-reset';
+    reset.dataset.effectReset = item.id;
+    reset.textContent = 'Reset';
+    reset.setAttribute('aria-label', 'Reset ' + OPERATOR_DEFS[item.id].label + ' on all glyphs');
+    reset.addEventListener('click', function () { resetOperatorEverywhere(this.dataset.effectReset); });
+
+    row.appendChild(select);
+    row.appendChild(reset);
+    list.appendChild(row);
+  }
+  if (compositionActive) {
+    var compositionRow = document.createElement('div');
+    compositionRow.className = 'effect-status-row';
+    var compositionSelect = document.createElement('button');
+    compositionSelect.type = 'button';
+    compositionSelect.className = 'effect-status-select';
+    compositionSelect.setAttribute('aria-label', 'Focus active composition');
+    var compositionName = document.createElement('span');
+    compositionName.className = 'effect-status-name';
+    compositionName.textContent = 'Composition: ' + COMPOSITION_DEFS[compositionState.type].label
+      + (compositionState.type === 'cascade' ? ' / ' + cascadeSystemLabel() : '');
+    var compositionGlyphs = document.createElement('span');
+    compositionGlyphs.className = 'effect-status-glyphs';
+    compositionGlyphs.textContent = compositionScene.glyphs.length + ' instances';
+    compositionSelect.appendChild(compositionName);
+    compositionSelect.appendChild(compositionGlyphs);
+    compositionSelect.addEventListener('click', function () {
+      if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) openMobileSheet('compose', 'btnCompositionApply');
+      else openDesktopSection('compose');
+    });
+    var compositionReset = document.createElement('button');
+    compositionReset.type = 'button';
+    compositionReset.className = 'effect-status-reset';
+    compositionReset.textContent = 'Reset';
+    compositionReset.setAttribute('aria-label', 'Remove composition');
+    compositionReset.addEventListener('click', removeComposition);
+    compositionRow.appendChild(compositionSelect);
+    compositionRow.appendChild(compositionReset);
+    list.appendChild(compositionRow);
+    var activeModules = [];
+    if (Math.abs(compositionState.macros.legibility - COMPOSITION_DEFAULTS.macros.legibility) > 0.001) {
+      activeModules.push({ label: 'Legibility', section: 'macros', key: 'legibility' });
+    }
+    [
+      ['echo', 'Echo / Trail'],
+      ['feedback', 'Feedback'],
+      ['signalMask', 'Signal Mask'],
+      ['chromaticSplit', 'Chromatic Split'],
+      ['rasterMaterial', 'Raster Material']
+    ].forEach(function (entry) {
+      if (compositionState.fxRack[entry[0]].enabled) activeModules.push({
+        label: entry[1], section: 'fxRack', key: entry[0], whole: true
+      });
+    });
+    activeModules.forEach(function (module) {
+      var moduleRow = document.createElement('div');
+      moduleRow.className = 'effect-status-row composition-module-row';
+      var moduleSelect = document.createElement('button');
+      moduleSelect.type = 'button';
+      moduleSelect.className = 'effect-status-select';
+      moduleSelect.setAttribute('aria-label', 'Focus ' + module.label);
+      var moduleName = document.createElement('span');
+      moduleName.className = 'effect-status-name';
+      moduleName.textContent = '↳ ' + module.label;
+      var moduleState = document.createElement('span');
+      moduleState.className = 'effect-status-glyphs';
+      moduleState.textContent = 'active';
+      moduleSelect.appendChild(moduleName);
+      moduleSelect.appendChild(moduleState);
+      moduleSelect.addEventListener('click', function () {
+        if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) openMobileSheet('compose', 'btnCompositionApply');
+        else openDesktopSection('compose');
+      });
+      var moduleReset = document.createElement('button');
+      moduleReset.type = 'button';
+      moduleReset.className = 'effect-status-reset';
+      moduleReset.textContent = 'Reset';
+      moduleReset.setAttribute('aria-label', 'Reset ' + module.label);
+      moduleReset.addEventListener('click', function () {
+        pushHistory();
+        if (module.whole) compositionState[module.section][module.key] =
+          JSON.parse(JSON.stringify(COMPOSITION_DEFAULTS[module.section][module.key]));
+        else compositionState[module.section][module.key] = COMPOSITION_DEFAULTS[module.section][module.key];
+        markAutosaveDirty();
+        syncCompositionUI();
+      });
+      moduleRow.appendChild(moduleSelect);
+      moduleRow.appendChild(moduleReset);
+      list.appendChild(moduleRow);
+    });
+  }
+}
+
+function scheduleEffectStatusUpdate() {
+  if (effectStatusUpdateRaf !== null) return;
+  effectStatusUpdateRaf = requestAnimationFrame(updateEffectStatus);
+}
+
+function resetOperatorEverywhere(id) {
+  if (!OPERATOR_DEFS[id]) return false;
+  var changed = false;
+  for (var i = 0; i < metrics.length; i++) {
+    if (operatorAffectsMetric(metrics[i], id)) { changed = true; break; }
+  }
+  if (!changed) return false;
+
+  pushHistory();
+  for (var j = 0; j < metrics.length; j++) {
+    var m = metrics[j];
+    var state = operatorState(m, id);
+    state.toggled = false;
+    state.hovered = false;
+    state.current = 0;
+    state.manual = null;
+    if (id === 'stretch') m.manualX = m.manualY = null;
+    m.locked = m.explicitLock || hasManualOverrides(m);
+    m.el.classList.toggle('locked', m.locked);
+    applySingleOperatorVisual(m, id);
+  }
+  if (selectedM) updateHud();
+  scheduleEffectStatusUpdate();
+  schedule();
+  return true;
+}
+
+function updatePointerFromEvent(e) {
+  pointer.targetX = e.clientX;
+  pointer.targetY = e.clientY;
+  if (e.pointerType) pointer.type = e.pointerType;
+}
+
+stage.addEventListener('pointerenter', function (e) {
+  if (params.mode === 'flow') pushHistory();
+  updatePointerFromEvent(e);
+  pointer.active = true;
+  schedule();
+});
+
+stage.addEventListener('pointermove', function (e) {
+  if (activePointerId !== null && e.pointerId !== activePointerId && e.pointerType !== 'mouse') return;
+  updatePointerFromEvent(e);
+  if (e.pointerType === 'touch') {
+    if (e.isPrimary && typeof stage.setPointerCapture === 'function') {
+      try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+    }
+  } else if (e.pointerType === 'mouse') {
+    pointer.active = true;
+  }
+  schedule();
+}, { passive: true });
+
+stage.addEventListener('pointerdown', function (e) {
+  if (params.mode === 'flow') pushHistory();
+  activePointerId = e.pointerId;
+  updatePointerFromEvent(e);
+  pointer.active = true;
+  if (e.pointerType === 'touch' && typeof stage.setPointerCapture === 'function') {
+    try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+  }
+  schedule();
+});
+
+function handlePointerEnd(e) {
+  if (activePointerId !== null && e.pointerId !== activePointerId && e.pointerType !== 'mouse') return;
+  if (e.pointerId === activePointerId) activePointerId = null;
+  if (e.pointerType === 'touch' && typeof stage.releasePointerCapture === 'function') {
+    try { stage.releasePointerCapture(e.pointerId); } catch (err) { }
+  }
+  pointer.active = false;
+  schedule();
+}
+stage.addEventListener('pointerup', handlePointerEnd);
+stage.addEventListener('pointercancel', handlePointerEnd);
+stage.addEventListener('pointerleave', function (e) {
+  if (e.pointerType === 'mouse') { pointer.active = false; schedule(); }
+});
+
+/* ---------------- lock ---------------- */
+function findMetric(el) {
+  if (!el || !el.classList || !el.classList.contains('c')) return null;
+  return metricByElement.get(el) || null;
+}
+
+function stagePoint(e) {
+  var rect = stage.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / canvasView.scale,
+    y: (e.clientY - rect.top) / canvasView.scale
+  };
+}
+
+stage.addEventListener('click', function (e) {
+  if (params.mode !== 'lock') return;
+  var pt = stagePoint(e);
+  var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
+  if (!m) return;
+  pushHistory();
+  m.locked = !m.locked;
+  m.explicitLock = m.locked;
+  m.el.classList.toggle('locked', m.locked);
+  if (!m.locked) {
+    m.manualX = m.manualY = null;
+    for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(m, OPERATOR_IDS[oi]).manual = null;
+    applyRandom(); // catch up with parameter/seed edits made while frozen
+  }
+});
+
+/* ---------------- target preview + selection (edit / lock) ---------------- */
+var targetEl = null;
+var selectedM = null;
+var hoverPt = { t: 0 };
+var editHud = document.getElementById('editHud');
+
+function setTarget(m) {
+  var el = m ? m.el : null;
+  if (el === targetEl) return;
+  if (targetEl) targetEl.classList.remove('target');
+  targetEl = el;
+  if (el) el.classList.add('target');
+}
+
+function selectLetter(m) {
+  if (selectedM && selectedM.el) selectedM.el.classList.remove('selected');
+  selectedM = m || null;
+  if (selectedM) selectedM.el.classList.add('selected');
+  updateHud();
+}
+
+function clearEditSelection() {
+  setTarget(null);
+  selectLetter(null);
+}
+
+function updateHud() {
+  if ((params.mode !== 'edit' && params.mode !== 'grid') || !selectedM) { editHud.hidden = true; return; }
+  if (params.mode === 'grid') {
+    editHud.textContent = '';
+    var gb = document.createElement('b');
+    gb.textContent = selectedM.el.textContent;
+    editHud.appendChild(gb);
+    var gv = document.createElement('span');
+    gv.className = 'v';
+    gv.textContent = 'Cell ' + cellMetricCellOf(selectedM)
+      + (selectedM.gridCell != null ? ' / fixed' : ' / auto');
+    editHud.appendChild(gv);
+    var gh = document.createElement('span');
+    gh.className = 'hint';
+    gh.textContent = 'move with arrows, drag to swap, backspace unpins, esc deselects';
+    editHud.appendChild(gh);
+    editHud.hidden = false;
+    return;
+  }
+  var st = selectedM.el.style;
+  var ix = parseFloat(st.getPropertyValue('--ix')) || 1;
+  var iy = parseFloat(st.getPropertyValue('--iy')) || 1;
+  editHud.textContent = '';
+  var b = document.createElement('b');
+  b.textContent = selectedM.el.textContent;
+  editHud.appendChild(b);
+  var v = document.createElement('span');
+  v.className = 'v';
+  if (params.activeOperator === 'stretch') v.textContent = 'Stretch  W ×' + ix.toFixed(2) + ' H ×' + iy.toFixed(2);
+  else if (params.activeOperator === 'confuse') {
+    var confuseHudState = operatorState(selectedM, 'confuse');
+    var confuseHudStrength = confuseHudState.manual != null
+      ? Number(confuseHudState.manual)
+      : batchProfileForKey(selectedM.batchKey).confuseDepth * confuseHudState.current;
+    var confuseSource = selectedM.el.dataset.sourceText || selectedM.el.textContent;
+    var confuseShown = selectedM.el.textContent;
+    v.textContent = 'Confuse  ' + Math.round(Math.max(0, Math.min(1, confuseHudStrength)) * 100) + '%'
+      + (confuseShown !== confuseSource ? '  ' + confuseSource + ' \u2192 ' + confuseShown : '');
+  }
+  else if (params.activeOperator === 'rotate') v.textContent = 'Rotate  ' + (parseFloat(st.getPropertyValue('--op-rotate')) || 0).toFixed(1) + '°';
+  else if (params.activeOperator === 'skew') v.textContent = 'Skew  X ' + (parseFloat(st.getPropertyValue('--op-skew-x')) || 0).toFixed(1) + '° Y ' + (parseFloat(st.getPropertyValue('--op-skew-y')) || 0).toFixed(1) + '°';
+  else if (params.activeOperator === 'baselineShift') {
+    var baselineState = operatorState(selectedM, 'baselineShift');
+    v.textContent = 'Baseline  ' + numericManual(baselineState, batchProfileForKey(selectedM.batchKey).baselineShift * baselineState.current).toFixed(2) + 'em';
+  }
+  else if (params.activeOperator === 'mirror') {
+    v.textContent = 'Mirror  X ' + (parseFloat(st.getPropertyValue('--op-mirror-x')) || 0).toFixed(2) + ' Y ' + (parseFloat(st.getPropertyValue('--op-mirror-y')) || 0).toFixed(2);
+  } else {
+    var mrState = operatorState(selectedM, 'misregistration');
+    var mrProfile = batchProfileForKey(selectedM.batchKey);
+    var mv = pairManual(mrState, mrProfile.misregX * mrState.current, mrProfile.misregY * mrState.current);
+    v.textContent = 'Misregistration  ' + mv.x.toFixed(1) + ', ' + mv.y.toFixed(1) + 'px';
+  }
+  if (compositionState.enabled) {
+    var sourceIndex = metrics.indexOf(selectedM);
+    var instanceCount = 0;
+    for (var ci = 0; ci < compositionScene.glyphs.length; ci++) if (compositionScene.glyphs[ci].sourceIndex === sourceIndex) instanceCount++;
+    v.textContent += '  / Source ' + (sourceIndex + 1) + ' · ' + instanceCount + ' instances';
+  }
+  editHud.appendChild(v);
+  var h = document.createElement('span');
+  h.className = 'hint';
+  h.textContent = '←→↑↓ 微調整（⇧で大きく）・⌫ 初期化・esc 解除';
+  editHud.appendChild(h);
+  editHud.hidden = false;
+}
+
+stage.addEventListener('pointermove', function (e) {
+  if (params.mode === 'flow') return;
+  if (editDrag) { setTarget(editDrag.m); return; }
+  if (gridDrag) { setTarget(cellMetricAt(stagePoint(e))); return; }
+  var now = Date.now();
+  if (now - hoverPt.t < 33) return; // ~30Hz is plenty for a highlight
+  hoverPt.t = now;
+  var pt = stagePoint(e);
+  setTarget(findNearestLetter(pt.x, pt.y));
+});
+
+stage.addEventListener('pointerleave', function () { setTarget(null); });
+
+/* ---------------- edit mode: drag a letter to shape it ---------------- */
+var editDrag = null;
+
+// right/up = stretch, left/down = squash (relative to the value at drag start)
+function dragStretch(base, d) {
+  return d >= 0 ? base * (1 + d / 60) : base / (1 + (-d) / 90);
+}
+
+function hasManualOverrides(m) {
+  if (m.manualX != null || m.manualY != null) return true;
+  for (var i = 0; i < OPERATOR_IDS.length; i++) {
+    if (operatorState(m, OPERATOR_IDS[i]).manual != null) return true;
+  }
+  return false;
+}
+
+function resetLetter(m) {
+  var state = operatorState(m, params.activeOperator);
+  var hasState = params.activeOperator === 'stretch'
+    ? (m.manualX != null || m.manualY != null || state.toggled || state.current > 0.0005)
+    : (state.manual != null || state.toggled || state.current > 0.0005);
+  if (!hasState) return;
+  pushHistory();
+  state.toggled = false;
+  state.hovered = false;
+  state.current = 0;
+  state.manual = null;
+  if (params.activeOperator === 'stretch') m.manualX = m.manualY = null;
+  m.locked = m.explicitLock || hasManualOverrides(m);
+  m.el.classList.toggle('locked', m.locked);
+  applySingleOperatorVisual(m, params.activeOperator);
+  scheduleEffectStatusUpdate();
+  schedule();
+}
+
+function manualValueAtDragStart(m, id) {
+  var state = operatorState(m, id), st = m.el.style;
+  if (id === 'confuse') {
+    var confuseBase = state.manual != null ? Number(state.manual) : batchProfileForKey(m.batchKey).confuseDepth * state.current;
+    return Math.max(0, Math.min(1, isFinite(confuseBase) ? confuseBase : 0));
+  }
+  if (id === 'stretch') return { x: parseFloat(st.getPropertyValue('--ix')) || 1, y: parseFloat(st.getPropertyValue('--iy')) || 1 };
+  if (id === 'rotate') return parseFloat(st.getPropertyValue('--op-rotate')) || 0;
+  if (id === 'skew') return { x: parseFloat(st.getPropertyValue('--op-skew-x')) || 0, y: parseFloat(st.getPropertyValue('--op-skew-y')) || 0 };
+  if (id === 'baselineShift') {
+    var raw = params.vertical ? parseFloat(st.getPropertyValue('--op-baseline-x')) : -parseFloat(st.getPropertyValue('--op-baseline-y'));
+    return isFinite(raw) ? raw : 0;
+  }
+  if (id === 'mirror') return {
+    x: isFinite(parseFloat(st.getPropertyValue('--op-mirror-x'))) ? parseFloat(st.getPropertyValue('--op-mirror-x')) : 1,
+    y: isFinite(parseFloat(st.getPropertyValue('--op-mirror-y'))) ? parseFloat(st.getPropertyValue('--op-mirror-y')) : 1
+  };
+  return pairManual(state, batchProfileForKey(m.batchKey).misregX * state.current, batchProfileForKey(m.batchKey).misregY * state.current);
+}
+
+// Manual double-tap detection (independent of the 'dblclick' event,
+// which iOS Safari does not reliably synthesize once pointerdown
+// calls preventDefault).
+var lastTap = null; // { m, time, x, y }
+var TAP_MOVE_MAX = 12, TAP_TIME_MAX = 400;
+
+stage.addEventListener('pointerdown', function (e) {
+  if (params.mode !== 'edit') return;
+  var pt = stagePoint(e);
+  var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
+  if (!m) return;
+  editDrag = {
+    m: m,
+    id: e.pointerId,
+    x0: e.clientX,
+    y0: e.clientY,
+    moved: false,
+    changed: false,
+    historyPushed: false,
+    operator: params.activeOperator,
+    base: manualValueAtDragStart(m, params.activeOperator)
+  };
+  m.el.classList.add('editing');
+  setTarget(m);
+  selectLetter(m);
+  try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+  if (e.cancelable) e.preventDefault();
+});
+
+stage.addEventListener('pointermove', function (e) {
+  if (!editDrag || e.pointerId !== editDrag.id) return;
+  var fine = e.shiftKey ? 0.25 : 1; // shift = fine adjustment
+  var dx = (e.clientX - editDrag.x0) / canvasView.scale * fine;
+  var dy = (e.clientY - editDrag.y0) / canvasView.scale * fine;
+  if (Math.abs(dx) <= 0.01 && Math.abs(dy) <= 0.01) return;
+  editDrag.changed = true;
+  if (!editDrag.historyPushed && (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01)) {
+    pushHistory();
+    editDrag.historyPushed = true;
+  }
+  if (Math.abs(e.clientX - editDrag.x0) > TAP_MOVE_MAX || Math.abs(e.clientY - editDrag.y0) > TAP_MOVE_MAX) editDrag.moved = true;
+  var m = editDrag.m;
+  var id = editDrag.operator;
+  var state = operatorState(m, id);
+  if (id === 'stretch') {
+    m.manualX = Math.min(8, Math.max(0.25, dragStretch(editDrag.base.x, dx)));
+    m.manualY = Math.min(9, Math.max(0.25, dragStretch(editDrag.base.y, -dy)));
+  } else if (id === 'confuse') {
+    state.manual = Math.max(0, Math.min(1, editDrag.base + dx / 220));
+  } else if (id === 'rotate') {
+    state.manual = Math.max(-360, Math.min(360, editDrag.base + dx));
+  } else if (id === 'skew') {
+    state.manual = { x: Math.max(-85, Math.min(85, editDrag.base.x + dx * 0.5)), y: Math.max(-85, Math.min(85, editDrag.base.y - dy * 0.5)) };
+  } else if (id === 'baselineShift') {
+    var logicalDelta = (params.vertical ? dx : -dy) / Math.max(1, params.fontSize);
+    state.manual = Math.max(-5, Math.min(5, editDrag.base + logicalDelta));
+  } else if (id === 'mirror') {
+    state.manual = { x: Math.max(-1, Math.min(1, editDrag.base.x - dx / 60)), y: Math.max(-1, Math.min(1, editDrag.base.y + dy / 60)) };
+  } else {
+    state.manual = { x: Math.max(-120, Math.min(120, editDrag.base.x + dx)), y: Math.max(-120, Math.min(120, editDrag.base.y + dy)) };
+  }
+  state.toggled = true;
+  state.current = 1;
+  m.locked = true;
+  m.el.classList.add('locked');
+  applySingleOperatorVisual(m, id);
+  scheduleEffectStatusUpdate();
+  if (selectedM === m) updateHud();
+  if (e.cancelable) e.preventDefault();
+});
+
+function endEditDrag(e) {
+  if (!editDrag || e.pointerId !== editDrag.id) return;
+  var m = editDrag.m;
+  m.el.classList.remove('editing');
+  if (!editDrag.changed) {
+    // a tap, not a drag — check whether it completes a double-tap
+    var now = Date.now();
+    if (lastTap && lastTap.m === m && now - lastTap.time < TAP_TIME_MAX &&
+        Math.abs(e.clientX - lastTap.x) < TAP_MOVE_MAX && Math.abs(e.clientY - lastTap.y) < TAP_MOVE_MAX) {
+      resetLetter(m);
+      suppressDblClickUntil = now + 500;
+      lastTap = null;
+    } else {
+      lastTap = { m: m, time: now, x: e.clientX, y: e.clientY };
+    }
+  } else {
+    lastTap = null;
+  }
+  editDrag = null;
+}
+stage.addEventListener('pointerup', endEditDrag);
+stage.addEventListener('pointercancel', endEditDrag);
+
+// Desktop mouse dblclick still works (and fires alongside the manual
+// detection above). Suppress the native duplicate after a manual reset.
+var suppressDblClickUntil = 0;
+stage.addEventListener('dblclick', function (e) {
+  if (params.mode !== 'edit') return;
+  if (Date.now() < suppressDblClickUntil) return;
+  var pt = stagePoint(e);
+  var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
+  if (!m) return;
+  resetLetter(m);
+  if (selectedM === m) updateHud();
+});
+
+/* ---------------- grid mode: drag a letter into a different cell ---------------- */
+var gridDrag = null;
+
+function metricAtGridCell(cellIndex, exclude) {
+  for (var i = 0; i < metrics.length; i++) {
+    if (metrics[i] !== exclude && cellMetricCellOf(metrics[i]) === cellIndex) return metrics[i];
+  }
+  return null;
+}
+
+// Exchange the effective displayed cells, including automatically
+// flowed letters. Keeping both ends pinned makes drag and arrow moves a
+// true swap instead of unexpectedly reflowing the apparent occupant.
+function swapGridCells(m, targetCell) {
+  var prevCell = cellMetricCellOf(m);
+  if (prevCell === targetCell) return;
+  var occupant = metricAtGridCell(targetCell, m);
+  m.gridCell = targetCell;
+  if (occupant) occupant.gridCell = prevCell;
+  layoutGrid();
+}
+
+function unpinGridCell(m) {
+  pushHistory();
+  m.gridCell = null;
+  layoutGrid();
+  updateHud();
+}
+
+stage.addEventListener('pointerdown', function (e) {
+  if (params.mode !== 'grid') return;
+  var pt = stagePoint(e);
+  var m = findNearestLetter(pt.x, pt.y) || findMetric(e.target);
+  if (!m) return;
+  gridDrag = { m: m, id: e.pointerId, moved: false, historyPushed: false, x0: e.clientX, y0: e.clientY };
+  m.el.classList.add('gdragging');
+  selectLetter(m);
+  try { stage.setPointerCapture(e.pointerId); } catch (err) { }
+  if (e.cancelable) e.preventDefault();
+});
+
+stage.addEventListener('pointermove', function (e) {
+  if (!gridDrag || e.pointerId !== gridDrag.id) return;
+  if (Math.abs(e.clientX - gridDrag.x0) > TAP_MOVE_MAX || Math.abs(e.clientY - gridDrag.y0) > TAP_MOVE_MAX) gridDrag.moved = true;
+});
+
+function endGridDrag(e) {
+  if (!gridDrag || e.pointerId !== gridDrag.id) return;
+  gridDrag.m.el.classList.remove('gdragging');
+  if (gridDrag.moved) {
+    var targetCell = cellIndexAt(stagePoint(e));
+    if (cellMetricCellOf(gridDrag.m) !== targetCell) pushHistory();
+    swapGridCells(gridDrag.m, targetCell);
+  }
+  gridDrag = null;
+}
+stage.addEventListener('pointerup', endGridDrag);
+stage.addEventListener('pointercancel', function (e) {
+  if (!gridDrag || e.pointerId !== gridDrag.id) return;
+  gridDrag.m.el.classList.remove('gdragging');
+  gridDrag = null;
+});
+
+/* keyboard cell-nudge for the selected letter (grid mode) */
+function nudgeGridSelected(dCol, dRow) {
+  if (!selectedM) return;
+  pushHistory();
+  var cols = Math.max(1, gridActualCols | 0);
+  var current = selectedM.gridCell != null ? selectedM.gridCell : cellMetricCellOf(selectedM);
+  var col = current % cols, row = Math.floor(current / cols);
+  col = Math.max(0, Math.min(cols - 1, col + dCol));
+  row = Math.max(0, row + dRow);
+  swapGridCells(selectedM, row * cols + col);
+  updateHud();
+}
+
+function cellMetricCellOf(m) {
+  var v = parseInt(m.el.dataset.gridCell, 10);
+  return isNaN(v) ? 0 : v;
+}
+
+/* keyboard fine-nudge for the selected letter */
+var lastNudgePush = 0;
+function nudgeSelected(dx, dy) {
+  if (!selectedM) return;
+  var now = Date.now();
+  if (now - lastNudgePush > 600) pushHistory(); // one history entry per burst
+  lastNudgePush = now;
+  var el = selectedM.el;
+  var id = params.activeOperator;
+  var state = operatorState(selectedM, id);
+  var base = manualValueAtDragStart(selectedM, id);
+  if (id === 'stretch') {
+    selectedM.manualX = Math.min(8, Math.max(0.25, base.x + dx));
+    selectedM.manualY = Math.min(9, Math.max(0.25, base.y + dy));
+  } else if (id === 'confuse') state.manual = Math.max(0, Math.min(1, base + dx + dy));
+  else if (id === 'rotate') state.manual = Math.max(-360, Math.min(360, base + dx * 20));
+  else if (id === 'skew') state.manual = { x: Math.max(-85, Math.min(85, base.x + dx * 20)), y: Math.max(-85, Math.min(85, base.y + dy * 20)) };
+  else if (id === 'baselineShift') state.manual = Math.max(-5, Math.min(5, base + (params.vertical ? dx : dy)));
+  else if (id === 'mirror') state.manual = { x: Math.max(-1, Math.min(1, base.x - dx)), y: Math.max(-1, Math.min(1, base.y - dy)) };
+  else state.manual = { x: Math.max(-120, Math.min(120, base.x + dx * 20)), y: Math.max(-120, Math.min(120, base.y - dy * 20)) };
+  state.toggled = true;
+  state.current = 1;
+  selectedM.locked = true;
+  el.classList.add('locked');
+  applySingleOperatorVisual(selectedM, id);
+  scheduleEffectStatusUpdate();
+  updateHud();
+}
+
+function lockAll() {
+  for (var i = 0; i < metrics.length; i++) {
+    metrics[i].locked = true;
+    metrics[i].explicitLock = true;
+    metrics[i].el.classList.add('locked');
+  }
+}
+function unlockAll() {
+  for (var i = 0; i < metrics.length; i++) {
+    metrics[i].locked = false;
+    metrics[i].explicitLock = false;
+    metrics[i].manualX = metrics[i].manualY = null;
+    for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[i], OPERATOR_IDS[oi]).manual = null;
+    metrics[i].el.classList.remove('locked');
+  }
+  applyRandom();
+}
+function resetAllEffects() {
+  var changed = false;
+  for (var check = 0; check < metrics.length && !changed; check++) {
+    for (var checkOp = 0; checkOp < OPERATOR_IDS.length; checkOp++) {
+      if (operatorAffectsMetric(metrics[check], OPERATOR_IDS[checkOp])) { changed = true; break; }
+    }
+  }
+  if (compositionState.enabled) changed = true;
+  if (!changed) return false;
+  pushHistory();
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i];
+    m.manualX = m.manualY = null;
+    for (var oi = 0; oi < OPERATOR_IDS.length; oi++) {
+      var state = operatorState(m, OPERATOR_IDS[oi]);
+      state.toggled = false; state.hovered = false; state.current = 0; state.manual = null;
+    }
+    m.locked = m.explicitLock;
+    m.el.classList.toggle('locked', m.locked);
+  }
+  applyOperatorVisualBatch(metrics);
+  compositionState = cloneCompositionDefaults();
+  compositionInspector = 'field';
+  setCompositionPlaying(false);
+  syncCompositionUI();
+  if (selectedM) updateHud();
+  scheduleEffectStatusUpdate();
+  schedule();
+  return true;
+}
+
+/* ---------------- batch toggle by character class ---------------- */
+var batchMatchers = {
+  kanji: function (ch, cp) { return batchKeyFor(ch, cp) === 'kanji'; },
+  hira: function (ch, cp) { return batchKeyFor(ch, cp) === 'hira'; },
+  kata: function (ch, cp) { return batchKeyFor(ch, cp) === 'kata'; },
+  latin: function (ch, cp) { return batchKeyFor(ch, cp) === 'latin'; },
+  digit: function (ch, cp) { return batchKeyFor(ch, cp) === 'digit'; },
+  punct: function (ch, cp) { return batchKeyFor(ch, cp) === 'punct'; }
+};
+
+// Apply the currently selected operator to every unlocked letter in one
+// script class; if the class is already on, release it.
+function batchToggle(matcher) {
+  var targets = [];
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i];
+    if (m.locked) continue;
+    // Codepoint operators may change the rendered script. Batch identity
+    // must remain attached to the immutable source character so the same
+    // button can always release what it applied.
+    var ch = m.el.dataset.sourceText || m.el.textContent;
+    var cp = parseInt(m.el.dataset.cp, 10) || ch.codePointAt(0);
+    if (matcher(ch, cp)) targets.push(m);
+  }
+  if (!targets.length) return;
+  pushHistory();
+  var allOn = true;
+  for (var j = 0; j < targets.length; j++) {
+    if (!operatorState(targets[j], params.activeOperator).toggled) { allOn = false; break; }
+  }
+  for (var k = 0; k < targets.length; k++) {
+    var targetState = operatorState(targets[k], params.activeOperator);
+    targetState.toggled = !allOn;
+    targetState.hovered = false;
+  }
+  scheduleEffectStatusUpdate();
+  schedule();
+}
+
+
+function sparseOperatorState(m) {
+  var result = {};
+  for (var i = 0; i < OPERATOR_IDS.length; i++) {
+    var id = OPERATOR_IDS[i];
+    if (id === 'stretch') continue;
+    var state = operatorState(m, id);
+    if (!state.toggled && state.current < 0.0005 && state.manual == null) continue;
+    var saved = { t: state.toggled ? 1 : 0, i: Math.round(state.current * 1000) / 1000 };
+    if (state.manual != null) saved.m = cloneManualValue(state.manual);
+    result[id] = saved;
+  }
+  return Object.keys(result).length ? result : null;
+}
+
+function restoreOperatorStates(m, raw) {
+  for (var i = 0; i < OPERATOR_IDS.length; i++) {
+    var clean = operatorState(m, OPERATOR_IDS[i]);
+    if (OPERATOR_IDS[i] !== 'stretch') { clean.toggled = false; clean.current = 0; clean.manual = null; }
+    clean.hovered = false;
+  }
+  if (!raw || typeof raw !== 'object') return;
+  for (var id in raw) {
+    if (!OPERATOR_DEFS[id] || id === 'stretch') continue;
+    var source = raw[id];
+    if (!source || typeof source !== 'object') continue;
+    var state = operatorState(m, id);
+    state.toggled = !!source.t;
+    state.current = Math.max(0, Math.min(1, Number(source.i) || 0));
+    if (source.m != null) state.manual = normalizeOperatorManual(id, source.m);
+  }
+}
+
+
+function applyLetterState(m, s) {
+  if (!s || typeof s !== 'object') return;
+  m.toggled = !!s.t;
+  m.locked = !!s.l;
+  m.hovered = false;
+  var intensity = Number(s.i);
+  m.currentIntensity = isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0;
+  var manualX = Number(s.mx), manualY = Number(s.my);
+  m.manualX = isFinite(manualX) && manualX > 0 ? Math.max(0.1, Math.min(8, manualX)) : null;
+  m.manualY = isFinite(manualY) && manualY > 0 ? Math.max(0.1, Math.min(9, manualY)) : null;
+  var gridCell = Number(s.gc);
+  m.gridCell = s.gc != null && s.gc !== '' && isFinite(gridCell) && gridCell >= 0 ? Math.floor(gridCell) : null;
+  restoreOperatorStates(m, s.o);
+  m.explicitLock = s.x != null ? !!s.x : (m.locked && !hasManualOverrides(m));
+  m.el.classList.toggle('locked', m.locked);
+  if (m.manualX || m.manualY) {
+    m.el.style.setProperty('--ix', (m.manualX || 1).toFixed(3));
+    m.el.style.setProperty('--iy', (m.manualY || 1).toFixed(3));
+    m.active = true;
+  } else if (m.currentIntensity > 0.001) {
+    applyStretch(m);
+  } else {
+    m.el.style.removeProperty('--ix');
+    m.el.style.removeProperty('--iy');
+    m.active = false;
+  }
+  applyOperatorVisual(m);
+  restoreSavedDerivedText(m, s.d);
+}
+
+// Version 4 projects preserve both immutable source and the exact derived
+// display. Reuse the saved display when it remains safe in the current
+// font; otherwise keep the freshly evaluated, Glyph-Guarded candidate.
+function restoreSavedDerivedText(m, saved) {
+  if (typeof saved !== 'string' || !saved || Array.from(saved).length > 16 || /[\u0000-\u001f\u007f]/.test(saved)) return;
+  if (!operatorAffectsMetric(m, 'confuse')) return;
+  var el = m.el;
+  var source = el.dataset.sourceText || el.textContent;
+  if (saved === source) return;
+  var sourceScript = confuseScript(source);
+  var savedScript = confuseScript(saved);
+  var mixed = sourceScript !== savedScript && sourceScript !== 'common' && savedScript !== 'common';
+  if (mixed && !params.confuseMixed) return;
+  if (params.confuseGlyphGuard && !confuseGlyphQuality(source, saved).supported) return;
+  if (!params.gridEnabled && !el.dataset.confuseHoldW && el.textContent === source) {
+    var holdW = el.offsetWidth;
+    if (holdW) el.dataset.confuseHoldW = String(holdW);
+  }
+  el.textContent = saved;
+  el.dataset.renderText = saved;
+  el.dataset.savedDerived = saved;
+  if (!params.gridEnabled && el.dataset.confuseHoldW) {
+    el.style.width = el.dataset.confuseHoldW + 'px';
+    el.style.textAlign = 'center';
+    el.dataset.confuseHold = '1';
+  }
+  metricsDirty = true;
+}
+
+function restoreStates(states) {
+  if (!Array.isArray(states)) states = [];
+  var n = Math.min(states.length, metrics.length);
+  for (var i = 0; i < n; i++) applyLetterState(metrics[i], states[i]);
+  if (params.gridEnabled) layoutGrid();
+  scheduleEffectStatusUpdate();
+  scheduleMeasure();
+}
+
+/* ---------------- edit text without losing the composition ---------------- */
+// Rebuilding spans wipes every deform. To survive text edits, snapshot
+// each letter (state + inline style + data-* randoms), rebuild, then
+// re-attach the snapshots to the letters that are still the same token —
+// matched as the longest common prefix and suffix of the token streams.
+// A debounced edit burst is localized, so this pairs correctly in
+// practice; only the actually-changed middle gets fresh letters.
+function snapshotLetters() {
+  return metrics.map(function (m) {
+    var el = m.el;
+    var data = {};
+    for (var k in el.dataset) data[k] = el.dataset[k];
+    // match on the source character — the display may be confused
+    return { text: el.dataset.sourceText || el.textContent, style: el.getAttribute('style') || '', data: data, s: letterState(m) };
+  });
+}
+
+function carryLetter(m, o) {
+  var el = m.el;
+  // restore the exact random base (--sx/--sy/--tx/--ty/--rot, lens seeds,
+  // accent colour) AND the current --ix/--iy, so the glyph is
+  // bit-identical to before the edit; keeping the old data-j also keeps
+  // its randoms stable on future applyRandom passes
+  el.setAttribute('style', o.style);
+  for (var k in o.data) el.dataset[k] = o.data[k];
+  el.classList.add('settled'); // skip the reveal animation
+  var s = o.s;
+  m.toggled = !!s.t;
+  m.locked = !!s.l;
+  m.hovered = false;
+  m.currentIntensity = +s.i || 0;
+  m.manualX = s.mx ? +s.mx : null;
+  m.manualY = s.my ? +s.my : null;
+  m.gridCell = (s.gc != null && s.gc !== '') ? +s.gc : null;
+  restoreOperatorStates(m, s.o);
+  m.explicitLock = s.x != null ? !!s.x : (m.locked && !hasManualOverrides(m));
+  el.classList.toggle('locked', m.locked);
+  // unlike applyLetterState, never recompute or clear --ix/--iy here —
+  // the restored style attribute is the exact visual truth, including
+  // lock-frozen stretches that exist only as inline styles
+  m.active = !!(el.style.getPropertyValue('--ix') || el.style.getPropertyValue('--iy'));
+  // the confused display is derived state (textContent), not markup —
+  // the fresh span shows the source char, so recompute the swap
+  applyConfuseText(m, batchProfileForKey(el.dataset.batch || ''));
+  restoreSavedDerivedText(m, s.d);
+}
+
+function rebuildPreservingState(text) {
+  var old = snapshotLetters();
+  createSpans(text);
+  if (!old.length || !metrics.length) return;
+  var nw = metrics;
+  var lim = Math.min(old.length, nw.length);
+  var p = 0;
+  while (p < lim && old[p].text === nw[p].el.textContent) p++;
+  var s = 0, sLim = lim - p;
+  while (s < sLim && old[old.length - 1 - s].text === nw[nw.length - 1 - s].el.textContent) s++;
+  for (var i = 0; i < p; i++) carryLetter(nw[i], old[i]);
+  for (var k = 0; k < s; k++) carryLetter(nw[nw.length - 1 - k], old[old.length - 1 - k]);
+  syncMetricsSeeds(); // metrics were built from pre-carry dataset values
+  if (params.gridEnabled) layoutGrid();
+  scheduleEffectStatusUpdate();
+  scheduleMeasure();
+}
+
+/* ---------------- undo / redo ---------------- */
+function letterState(m) {
+  var s = { t: m.toggled ? 1 : 0, l: m.locked ? 1 : 0, i: Math.round(m.currentIntensity * 1000) / 1000 };
+  if (m.explicitLock) s.x = 1;
+  if (m.manualX || m.manualY) {
+    s.mx = Math.round((m.manualX || 1) * 1000) / 1000;
+    s.my = Math.round((m.manualY || 1) * 1000) / 1000;
+  }
+  if (m.gridCell != null) s.gc = m.gridCell;
+  var ops = sparseOperatorState(m);
+  if (ops) s.o = ops;
+  var sourceText = m.el.dataset.sourceText || m.el.textContent;
+  var renderText = m.el.dataset.renderText || m.el.textContent;
+  if (renderText !== sourceText) s.d = renderText;
+  return s;
+}
+
+// compact string snapshot — cheap enough to take on every gesture
+// even with thousands of letters
+function snapState() {
+  var n = metrics.length;
+  var arr = new Array(n);
+  for (var i = 0; i < n; i++) {
+    var m = metrics[i];
+    arr[i] = (m.toggled ? 1 : 0) + ',' + (m.locked ? 1 : 0) + ',' +
+      Math.round(m.currentIntensity * 1000) + ',' +
+      (m.manualX ? Math.round(m.manualX * 1000) : '') + ',' +
+      (m.manualY ? Math.round(m.manualY * 1000) : '') + ',' +
+      (m.gridCell != null ? m.gridCell : '') + ',' + encodeOperatorStates(m.operatorStates) + ',' + (m.explicitLock ? 1 : '');
+  }
+  var fontSnapshot = encodeURIComponent(params.fontFamily) + ',' + Number(params.fontWeight || 400);
+  return params.seed + '|' + arr.join(';') + '|F=' + fontSnapshot + '|C=' + encodeURIComponent(JSON.stringify(cloneCompositionState()));
+}
+
+function pushHistory() {
+  markAutosaveDirty();
+  var s = snapState();
+  if (undoStack.length && undoStack[undoStack.length - 1] === s) return;
+  undoStack.push(s);
+  if (undoStack.length > 100) undoStack.shift();
+  redoStack.length = 0;
+}
+
+function applySnap(snap) {
+  var sep = snap.indexOf('|');
+  var seed = parseFloat(snap.slice(0, sep));
+  if (seed !== params.seed) {
+    params.seed = seed;
+    // Undo may be restoring an unlocked state from a currently locked
+    // one, so regenerate the base layer before letter locks are applied.
+    applyRandom(true);
+  }
+  var body = snap.slice(sep + 1);
+  var compositionMarker = body.lastIndexOf('|C=');
+  var encodedComposition = '';
+  if (compositionMarker !== -1) {
+    encodedComposition = body.slice(compositionMarker + 3);
+    body = body.slice(0, compositionMarker);
+  }
+  var fontMarker = body.lastIndexOf('|F=');
+  var encodedFont = '';
+  if (fontMarker !== -1) {
+    encodedFont = body.slice(fontMarker + 3);
+    body = body.slice(0, fontMarker);
+  }
+  var rows = body.split(';');
+  var states = [];
+  for (var i = 0; i < rows.length; i++) {
+    if (!rows[i]) continue;
+    var f = rows[i].split(',');
+    states.push({
+      t: +f[0], l: +f[1], i: (+f[2]) / 1000,
+      mx: f[3] ? (+f[3]) / 1000 : 0,
+      my: f[4] ? (+f[4]) / 1000 : 0,
+      gc: f[5] ? +f[5] : null,
+      o: decodeOperatorStates(f[6] || ''),
+      x: f[7] ? 1 : 0
+    });
+  }
+  restoreStates(states);
+  if (encodedComposition) {
+    try { compositionState = normalizeComposition(JSON.parse(decodeURIComponent(encodedComposition))); }
+    catch (compositionUndoError) { compositionState = cloneCompositionDefaults(); }
+    compositionInspector = compositionState.type;
+    setCompositionPlaying(false);
+    syncCompositionUI();
+  }
+  if (encodedFont) {
+    var fontSeparator = encodedFont.lastIndexOf(',');
+    if (fontSeparator !== -1) {
+      try { params.fontFamily = decodeURIComponent(encodedFont.slice(0, fontSeparator)); }
+      catch (fontUndoError) { /* retain the current family */ }
+      params.fontWeight = parseInt(encodedFont.slice(fontSeparator + 1), 10) || 400;
+      syncUI();
+      applyStyle();
+      refreshConfuseFontCandidates();
+      applyAllOperatorVisuals();
+      scheduleCompositionDraw();
+    }
+  }
+  markAutosaveDirty();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapState());
+  applySnap(undoStack.pop());
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapState());
+  applySnap(redoStack.pop());
+}
+
+/* ---------------- export helpers ---------------- */
+function cssNumber(style, name, fallback) {
+  var value = parseFloat(style.getPropertyValue(name));
+  return isFinite(value) ? value : fallback;
+}
+
+function hasVisibleOperatorDeform(m) {
+  if (m.manualX != null || m.manualY != null) return true;
+  for (var i = 0; i < OPERATOR_IDS.length; i++) {
+    var state = operatorState(m, OPERATOR_IDS[i]);
+    if (state.manual != null || state.current > 0.0005) return true;
+  }
+  return false;
+}
+
+// Snapshot of every visible glyph: layout box + effective transform.
+function snapshotGlyphs(forceAll) {
+  if (forceAll && snapshotGlyphs.cache && snapshotGlyphs.cache.revision === compositionSourceRevision) {
+    return snapshotGlyphs.cache.glyphs;
+  }
+  var glyphs = [];
+  var measureCanvas = snapshotGlyphs.measureCanvas || (snapshotGlyphs.measureCanvas = document.createElement('canvas'));
+  var measureCtx = measureCanvas.getContext('2d');
+  var measuredFm = fontMetrics();
+  if (measureCtx) measureCtx.font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i], el = m.el;
+    var cs = getComputedStyle(el);
+    var sx = cssNumber(cs, '--sx', 1);
+    var sy = cssNumber(cs, '--sy', 1);
+    var ix = cssNumber(cs, '--ix', 1);
+    var iy = cssNumber(cs, '--iy', 1);
+    var mirrorX = cssNumber(cs, '--op-mirror-x', 1);
+    var mirrorY = cssNumber(cs, '--op-mirror-y', 1);
+    var tx = (cssNumber(cs, '--tx', 0) + cssNumber(cs, '--op-baseline-x', 0)) * params.fontSize; // em → px
+    var ty = (cssNumber(cs, '--ty', 0) + cssNumber(cs, '--op-baseline-y', 0)) * params.fontSize;
+    // deformed-only export: skip letters at their resting shape
+    if (params.deformedOnly && !forceAll && !hasVisibleOperatorDeform(m)) continue;
+    var rot = cssNumber(cs, '--rot', 0) + cssNumber(cs, '--op-rotate', 0); // deg
+    var skewX = cssNumber(cs, '--op-skew-x', 0);
+    var skewY = cssNumber(cs, '--op-skew-y', 0);
+    var misregState = operatorState(m, 'misregistration');
+    var deform = batchProfileForKey(m.batchKey);
+    var misreg = pairManual(misregState, deform.misregX * misregState.current, deform.misregY * misregState.current);
+    var w = el.offsetWidth, h = el.offsetHeight;
+    var x = 0, y = 0, o = el;
+    while (o && o !== stage) { x += o.offsetLeft; y += o.offsetTop; o = o.offsetParent; }
+    var isGridGlyph = el.dataset.gridCell != null;
+    var bx = x, by = y, bw = w, bh = h;
+    if (isGridGlyph) {
+      // A grid cell may be much smaller than its type. offsetWidth only
+      // reports the cell, so estimate the overflowing ink separately;
+      // otherwise Auto PNG/SVG bounds crop large glyphs to the cell.
+      var tm = measureCtx ? measureCtx.measureText(el.textContent) : null;
+      var inkW = tm ? Math.max(tm.width, (tm.actualBoundingBoxLeft || 0) + (tm.actualBoundingBoxRight || 0)) : params.fontSize;
+      var inkAscent = tm && tm.actualBoundingBoxAscent ? tm.actualBoundingBoxAscent : measuredFm.ascent;
+      var inkDescent = tm && tm.actualBoundingBoxDescent ? tm.actualBoundingBoxDescent : measuredFm.descent;
+      var inkH = inkAscent + inkDescent;
+      var centerX = x + w / 2;
+      var centerY = y + h / 2;
+      if (params.vertical) {
+        if (!el.dataset.upright) {
+          var swap = inkW; inkW = inkH; inkH = swap;
+        }
+        bx = centerX - inkW / 2;
+        by = centerY - inkH / 2;
+        bw = inkW;
+        bh = inkH;
+      } else {
+        var baseline = y + (h - (measuredFm.ascent + measuredFm.descent)) / 2 + measuredFm.ascent;
+        bx = centerX - inkW / 2;
+        by = baseline - inkAscent;
+        bw = inkW;
+        bh = inkH;
+      }
+    }
+    glyphs.push({
+      ch: el.textContent,
+      upright: el.dataset.upright === '1',
+      accent: el.dataset.accent === '1',
+      opacity: isFinite(parseFloat(cs.opacity)) ? parseFloat(cs.opacity) : 1,
+      x: x, y: y, w: w, h: h,
+      bx: bx, by: by, bw: bw, bh: bh,
+      grid: isGridGlyph,
+      ox: x + w / 2, oy: y + h * 0.75,   // transform-origin 50% 75%
+      tx: tx, ty: ty, rot: rot, skewX: skewX, skewY: skewY,
+      scaleX: sx * ix * mirrorX, scaleY: sy * iy * mirrorY,
+      misregX: misreg.x, misregY: misreg.y
+    });
+  }
+  if (forceAll) snapshotGlyphs.cache = { revision: compositionSourceRevision, glyphs: glyphs };
+  return glyphs;
+}
+
+
+function fontMetrics() {
+  var fontStatus = document.fonts && document.fonts.status ? document.fonts.status : '';
+  var cacheKey = params.fontWeight + '|' + params.fontSize + '|' + params.fontFamily + '|' + fontStatus;
+  if (fontMetrics.cacheKey === cacheKey && fontMetrics.cacheValue) return fontMetrics.cacheValue;
+  var c = fontMetrics.canvas || (fontMetrics.canvas = document.createElement('canvas'));
+  var ctx = c.getContext('2d');
+  if (!ctx) return { ascent: params.fontSize * 0.88, descent: params.fontSize * 0.12 };
+  ctx.font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+  var m = ctx.measureText('国Hg');
+  var ascent = (m.fontBoundingBoxAscent != null) ? m.fontBoundingBoxAscent : params.fontSize * 0.88;
+  var descent = (m.fontBoundingBoxDescent != null) ? m.fontBoundingBoxDescent : params.fontSize * 0.12;
+  fontMetrics.cacheKey = cacheKey;
+  fontMetrics.cacheValue = { ascent: ascent, descent: descent };
+  return fontMetrics.cacheValue;
+}
+
+function compositionAxisIsVertical() {
+  return compositionState.axis === 'vertical' || (compositionState.axis === 'inherit' && params.vertical);
+}
+
+function compositionSourceTokens(sourceGlyphs) {
+  var tokens = [];
+  var glyphIndex = 0;
+  var lines = textInput.value.replace(/\r\n?/g, '\n').split('\n');
+  for (var li = 0; li < lines.length; li++) {
+    var line = tokenizeLine(lines[li]);
+    for (var ti = 0; ti < line.length; ti++) {
+      if (line[ti].space) {
+        if (!tokens.length || !tokens[tokens.length - 1].space) tokens.push({ space: true, units: 0.55 });
+      } else if (glyphIndex < sourceGlyphs.length) {
+        tokens.push({ space: false, units: 1, sourceIndex: glyphIndex, glyph: sourceGlyphs[glyphIndex] });
+        glyphIndex++;
+      }
+    }
+    if (li < lines.length - 1 && tokens.length && !tokens[tokens.length - 1].space) tokens.push({ space: true, units: 0.8 });
+  }
+  if (!tokens.length) {
+    for (var gi = 0; gi < sourceGlyphs.length; gi++) tokens.push({ space: false, units: 1, sourceIndex: gi, glyph: sourceGlyphs[gi] });
+  }
+  while (tokens.length && tokens[0].space) tokens.shift();
+  while (tokens.length && tokens[tokens.length - 1].space) tokens.pop();
+  return tokens;
+}
+
+/* ---------------- composition v6 clock + modulation bus ---------------- */
+function createLoopClock(phase, frameCount, seed, direction) {
+  var turn = ((Number(phase) || 0) % 1 + 1) % 1;
+  var count = Math.max(1, Math.round(frameCount || 240));
+  return {
+    turn: turn,
+    angle: Math.PI * 2 * turn,
+    frame: Math.round(turn * count) % count,
+    frameCount: count,
+    seed: Math.max(0, Math.round(Number(seed) || 0)),
+    direction: direction === -1 ? -1 : 1
+  };
+}
+
+// Periodic noise: using a point on a circle guarantees n(0) === n(1).
+function compositionLoopNoise(clock, x, y, salt) {
+  var a = clock.angle;
+  return hash(
+    Math.round((Math.cos(a) + 1) * 4096 + x * 131),
+    Math.round((Math.sin(a) + 1) * 4096 + y * 137),
+    (clock.seed + (salt || 0)) | 0
+  ) * 2 - 1;
+}
+
+function compositionScriptDistribution(tokens) {
+  var result = { hiragana: 0, katakana: 0, kanji: 0, latin: 0, digit: 0, punct: 0, other: 0 };
+  var total = 0;
+  for (var i = 0; i < tokens.length; i++) {
+    var ch = tokens[i] && tokens[i].glyph ? tokens[i].glyph.ch : '';
+    if (!ch) continue;
+    var cp = ch.codePointAt(0);
+    var key = batchKeyFor(ch, cp, charInfo(ch, cp));
+    if (!Object.prototype.hasOwnProperty.call(result, key)) key = 'other';
+    result[key]++;
+    total++;
+  }
+  Object.keys(result).forEach(function (key) { result[key] = result[key] / Math.max(1, total); });
+  return result;
+}
+
+var compositionBusPointer = { x: 0.5, y: 0.5, previousX: 0.5, previousY: 0.5, time: 0 };
+function createCompositionInputBus(tokens, width, height, clock) {
+  var rect = stageArtwork.getBoundingClientRect();
+  var localX = (pointer.x - rect.left) / canvasView.scale;
+  var localY = (pointer.y - rect.top) / canvasView.scale;
+  var logicalPoint = previewPointToComposition(localX, localY);
+  var px = Math.max(0, Math.min(1, logicalPoint.x / Math.max(1, width)));
+  var py = Math.max(0, Math.min(1, logicalPoint.y / Math.max(1, height)));
+  var now = performance.now();
+  var dt = Math.max(1, now - compositionBusPointer.time);
+  var speed = Math.sqrt(
+    Math.pow(px - compositionBusPointer.previousX, 2) +
+    Math.pow(py - compositionBusPointer.previousY, 2)
+  ) * 1000 / dt;
+  compositionBusPointer.previousX = px;
+  compositionBusPointer.previousY = py;
+  compositionBusPointer.time = now;
+  if (pointer.active) {
+    compositionBusPointer.x = px;
+    compositionBusPointer.y = py;
+  }
+  var visible = tokens.filter(function (token) { return token && !token.space && token.glyph; });
+  var frequencies = {}, entropy = 0;
+  for (var i = 0; i < visible.length; i++) {
+    var ch = visible[i].glyph.ch || '';
+    frequencies[ch] = (frequencies[ch] || 0) + 1;
+  }
+  Object.keys(frequencies).forEach(function (ch) {
+    var p = frequencies[ch] / Math.max(1, visible.length);
+    entropy -= p * Math.log(p) / Math.log(2);
+  });
+  return {
+    time: clock,
+    pointer: {
+      x: compositionBusPointer.x, y: compositionBusPointer.y,
+      px: compositionBusPointer.x * width, py: compositionBusPointer.y * height,
+      speed: isFinite(speed) ? Math.min(10, speed) : 0,
+      pressure: pointer.strength || 0, active: !!pointer.active
+    },
+    text: {
+      length: visible.length,
+      lineCount: textInput.value.replace(/\r\n?/g, '\n').split('\n').length,
+      scriptDistribution: compositionScriptDistribution(tokens),
+      entropy: entropy,
+      tokenIndex: 0, codePoint: 0, unicodeHash: 0,
+      glyphWidth: params.fontSize, inkCoverage: 0.5
+    },
+    audio: null,
+    midi: null
+  };
+}
+
+function compileCompositionSource(sourceGlyphs, width, height, state) {
+  var tokens = compositionSourceTokens(sourceGlyphs);
+  var clock = createLoopClock(state.phase, 240, state.seed, state.direction);
+  return {
+    sourceGlyphs: sourceGlyphs,
+    tokens: tokens,
+    viewport: { width: width, height: height },
+    clock: clock,
+    inputs: createCompositionInputBus(tokens, width, height, clock),
+    state: state
+  };
+}
+
+function compositionMacro(name, fallback) {
+  var value = compositionState.macros && Number(compositionState.macros[name]);
+  return isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+}
+
+function compositionPalette() {
+  return [params.ink, params.paper, params.accent, compositionState.color2, compositionState.color3];
+}
+
+
+function orientedCompositionPoint(x, y, width, height) {
+  if (!compositionAxisIsVertical()) return { x: x, y: y, rotation: 0 };
+  return { x: width - (y / Math.max(1, height)) * width, y: (x / Math.max(1, width)) * height, rotation: 90 };
+}
+
+function compositionGlyph(token, cx, cy, scaleX, scaleY, rotation, fill, opacity, instanceIndex) {
+  if (!token || token.space || !token.glyph) return null;
+  var source = token.glyph;
+  var w = Math.max(1, source.w || params.fontSize);
+  var h = Math.max(1, source.h || params.fontSize * params.lineHeight);
+  var point = orientedCompositionPoint(cx, cy, compositionScene.width, compositionScene.height);
+  var x = point.x - w / 2;
+  var y = point.y - h / 2;
+  return {
+    ch: source.ch,
+    sourceIndex: token.sourceIndex,
+    instanceIndex: instanceIndex,
+    composition: true,
+    upright: source.upright,
+    accent: source.accent,
+    opacity: Math.max(0, Math.min(1, opacity == null ? 1 : opacity)),
+    fill: fill || (source.accent ? params.accent : params.ink),
+    x: x, y: y, w: w, h: h, bx: x, by: y, bw: w, bh: h, grid: false,
+    ox: x + w / 2, oy: y + h * 0.75,
+    tx: source.tx || 0, ty: source.ty || 0,
+    rot: (source.rot || 0) + rotation + point.rotation,
+    skewX: source.skewX || 0, skewY: source.skewY || 0,
+    // `|| 1` would misread a legitimate zero: a glyph exactly mid-Mirror has
+    // scale 0, and would pop to full size for that frame instead of collapsing.
+    scaleX: (isFinite(source.scaleX) ? source.scaleX : 1) * Math.max(0.02, scaleX),
+    scaleY: (isFinite(source.scaleY) ? source.scaleY : 1) * Math.max(0.02, scaleY),
+    misregX: source.misregX || 0, misregY: source.misregY || 0
+  };
+}
+
+function compositionEffectiveQuality() {
+  if (compositionQualityOverride) return compositionQualityOverride;
+  if (compositionState.quality !== 'auto') return compositionState.quality;
+  return compositionAutoTier;
+}
+
+function updateCompositionAutoQuality(elapsed) {
+  if (!isFinite(elapsed) || elapsed <= 0 || elapsed > 500) return;
+  compositionFrameAverage = compositionFrameAverage > 0
+    ? compositionFrameAverage * 0.9 + elapsed * 0.1
+    : elapsed;
+  if (compositionState.quality !== 'auto') return;
+  var mobile = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  var previous = compositionAutoTier;
+  var slowThreshold = mobile ? 36 : 22;
+  var recoverThreshold = mobile ? 30 : 19;
+  var fastThreshold = mobile ? 25 : 16.5;
+  if (compositionFrameAverage > slowThreshold) {
+    compositionAutoTier = 'performance';
+    compositionAutoFastFrames = 0;
+  } else if (compositionFrameAverage < fastThreshold) {
+    compositionAutoFastFrames++;
+    if (compositionAutoFastFrames >= 45) compositionAutoTier = 'high';
+  } else {
+    compositionAutoFastFrames = 0;
+    if (compositionAutoTier === 'performance' && compositionFrameAverage < recoverThreshold) {
+      compositionAutoTier = 'normal';
+    } else if (compositionAutoTier === 'high') {
+      compositionAutoTier = 'normal';
+    }
+  }
+  if (previous !== compositionAutoTier) scheduleCompositionDraw();
+}
+
+function compositionLogicalDimensions(fallbackWidth, fallbackHeight) {
+  var viewport = compositionState.logicalViewport || COMPOSITION_DEFAULTS.logicalViewport;
+  if (viewport.legacyResponsive) {
+    return {
+      width: Math.max(1, Math.round(fallbackWidth || stageFrame.clientWidth)),
+      height: Math.max(1, Math.round(fallbackHeight || stageFrame.clientHeight))
+    };
+  }
+  return {
+    width: Math.max(64, Math.round(viewport.width || 1080)),
+    height: Math.max(64, Math.round(viewport.height || 1080))
+  };
+}
+
+
+function previewPointToComposition(px, py) {
+  var layout = compositionPreviewLayout;
+  return {
+    x: (px - layout.dx) / Math.max(0.0001, layout.s),
+    y: (py - layout.dy) / Math.max(0.0001, layout.s)
+  };
+}
+
+function compositionLimit() {
+  var mobile = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  var base = mobile ? 2000 : 5000;
+  var quality = compositionEffectiveQuality();
+  if (quality === 'performance') return Math.round(base * 0.55);
+  if (quality === 'high') return Math.round(base * 1.6);
+  return base;
+}
+
+function generateFieldScene(tokens, width, height, runtime) {
+  var field = compositionState.field;
+  var cols = field.cols, rows = field.rows;
+  var pad = Math.min(28, Math.max(8, Math.min(width, height) * 0.025));
+  var cellW = Math.max(1, (width - pad * 2) / cols);
+  var cellH = Math.max(1, (height - pad * 2) / rows);
+  var baseScale = Math.max(0.04, Math.min(cellW / Math.max(1, params.fontSize * 0.75), cellH / Math.max(1, params.fontSize * params.lineHeight)) * 0.92);
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  var inputs = runtime && runtime.inputs ? runtime.inputs : createCompositionInputBus(tokens, width, height, clock);
+  var phase = clock.angle;
+  var limit = compositionLimit();
+  var glyphs = [], bands = [], instanceIndex = 0;
+  var intensity = compositionMacro('intensity', 0.65);
+  var instability = compositionMacro('instability', 0.35);
+  var depthMacro = compositionMacro('depth', 0.45);
+  var networkPoints = [];
+  for (var row = 0; row < rows; row++) {
+    networkPoints[row] = [];
+    for (var col = 0; col < cols; col++) {
+      if (instanceIndex >= limit) return { glyphs: glyphs, bands: bands, limited: true };
+      var token = tokens[(row * cols + col) % tokens.length];
+      var nx = (col + 0.5) / cols, ny = (row + 0.5) / rows;
+      var cx = pad + nx * (width - pad * 2);
+      var cy = pad + ny * (height - pad * 2);
+      if (field.topology === 'polar' || field.topology === 'spiral') {
+        var theta = nx * Math.PI * 2 + phase * field.echoOrbit * 0.2;
+        var radius = Math.min(width, height) * (0.06 + ny * 0.46);
+        if (field.topology === 'spiral') radius *= 0.38 + nx * 0.82;
+        cx = width * 0.5 + Math.cos(theta) * radius;
+        cy = height * 0.5 + Math.sin(theta) * radius;
+      }
+      var cp = cascadeTokenCode(token);
+      var variationSignal = 0;
+      if (field.variationMode === 'unicode') variationSignal = hash(cp || col, row, compositionState.seed) * 2 - 1;
+      else if (field.variationMode === 'script') {
+        var variationChar = token && token.glyph ? token.glyph.ch : '';
+        variationSignal = hash(String(batchKeyFor(variationChar, cp, charInfo(variationChar, cp))).length, row, col) * 2 - 1;
+      } else if (field.variationMode === 'ink') {
+        variationSignal = token && token.glyph ? Math.max(-1, Math.min(1, ((token.glyph.w || params.fontSize) / Math.max(1, params.fontSize) - 0.7) * 2)) : 0;
+      }
+      var tokenVariation = variationSignal * field.variation;
+      var warpedX = nx + Math.sin(ny * Math.PI * 2 + phase) * field.domainWarp * 0.08;
+      var warpedY = ny + Math.cos(nx * Math.PI * 2 - phase) * field.domainWarp * 0.08;
+      var waveA = Math.sin(phase + col / field.waveX + row / field.waveY + tokenVariation);
+      var waveB = Math.cos(phase + col / field.waveX - row / field.waveY - tokenVariation);
+      if (field.fieldType === 'curl' || field.fieldType === 'vortex') {
+        var dxCenter = warpedX - 0.5, dyCenter = warpedY - 0.5;
+        var angle = Math.atan2(dyCenter, dxCenter) + phase;
+        waveA = Math.cos(angle + (field.fieldType === 'curl' ? Math.hypot(dxCenter, dyCenter) * 16 : 0));
+        waveB = Math.sin(angle + (field.fieldType === 'curl' ? Math.hypot(dxCenter, dyCenter) * 16 : 0));
+      } else if (field.fieldType === 'attractor') {
+        waveA = (0.5 - warpedX) * 2;
+        waveB = (0.5 - warpedY) * 2;
+      } else if (field.fieldType === 'textDistance') {
+        var textSignal = ((cp % 97) / 96) * Math.PI * 2;
+        waveA = Math.sin(textSignal + phase);
+        waveB = Math.cos(textSignal - phase);
+      }
+      for (var sourceIndex = 1; sourceIndex < field.sources; sourceIndex++) {
+        var sourceAngle = phase + sourceIndex / field.sources * Math.PI * 2;
+        waveA += Math.sin((warpedX - 0.5 - Math.cos(sourceAngle) * 0.25) * (6 + sourceIndex) + phase) / field.sources;
+        waveB += Math.cos((warpedY - 0.5 - Math.sin(sourceAngle) * 0.25) * (6 + sourceIndex) - phase) / field.sources;
+      }
+      if (inputs.pointer.active && field.pointerMode !== 'none') {
+        var pdx = cx - inputs.pointer.px, pdy = cy - inputs.pointer.py;
+        var pd = Math.max(12, Math.sqrt(pdx * pdx + pdy * pdy));
+        var pointerGain = Math.max(0, 1 - pd / (Math.min(width, height) * 0.45)) * inputs.pointer.pressure;
+        if (field.pointerMode === 'vortex') {
+          waveA += -pdy / pd * pointerGain * 2 * field.pointerForce;
+          waveB += pdx / pd * pointerGain * 2 * field.pointerForce;
+        } else {
+          var sign = field.pointerMode === 'attract' ? -1 : 1;
+          waveA += pdx / pd * pointerGain * sign * 2 * field.pointerForce;
+          waveB += pdy / pd * pointerGain * sign * 2 * field.pointerForce;
+        }
+      }
+      waveA += compositionLoopNoise(clock, col, row, 31) * instability * 0.3;
+      waveB += compositionLoopNoise(clock, row, col, 47) * instability * 0.3;
+      var depth = Math.max(0.05, 1 + waveA * field.depth * (0.4 + depthMacro));
+      var sx = baseScale * depth * Math.max(0.05, 1 + waveB * field.scaleX);
+      var sy = baseScale * depth * Math.max(0.05, 1 + waveA * field.scaleY);
+      cx += waveA * field.ampX * cellW * intensity;
+      cy += waveB * field.ampY * cellH * intensity;
+      var perspective = 1 - field.perspective * Math.max(0, ny - 0.5) * (0.25 + field.depthFalloff * 0.75);
+      sx *= perspective; sy *= perspective;
+      var rotation = waveA * field.rotation;
+      if (field.orientation === 'tangent') rotation += Math.atan2(waveB, waveA) * 180 / Math.PI;
+      else if (field.orientation === 'normal') rotation += Math.atan2(waveB, waveA) * 180 / Math.PI + 90;
+      else if (field.orientation === 'lookAtCenter') rotation += Math.atan2(height * 0.5 - cy, width * 0.5 - cx) * 180 / Math.PI;
+      var fill = null;
+      if (field.colorMode === 'depth') fill = lerpHex(compositionState.color2, compositionState.color3, Math.max(0, Math.min(1, (depth - 0.5) / 1.2)));
+      else if (field.colorMode === 'unicode') fill = compositionPalette()[Math.abs(cp) % compositionPalette().length];
+      else if (field.colorMode === 'field') fill = lerpHex(params.ink, params.accent, (waveA + 1) * 0.5);
+      var glyph = compositionGlyph(token, cx, cy, sx, sy, rotation, fill, 0.72 + depth * 0.24, instanceIndex++);
+      if (glyph) glyphs.push(glyph);
+      if (glyph && field.echoOrbit > 0) {
+        for (var orbit = 1; orbit <= field.echoOrbit && instanceIndex < limit; orbit++) {
+          var orbitAngle = phase + orbit / field.echoOrbit * Math.PI * 2;
+          var orbitRadius = Math.min(cellW, cellH) * orbit * 0.22;
+          var orbitGlyph = compositionGlyph(
+            token,
+            cx + Math.cos(orbitAngle) * orbitRadius,
+            cy + Math.sin(orbitAngle) * orbitRadius,
+            sx * (1 - orbit / (field.echoOrbit + 1) * 0.25),
+            sy * (1 - orbit / (field.echoOrbit + 1) * 0.25),
+            rotation + orbit * 6,
+            fill,
+            (0.45 / orbit) * compositionMacro('depth', 0.45),
+            instanceIndex++
+          );
+          if (orbitGlyph) glyphs.push(orbitGlyph);
+        }
+      }
+      networkPoints[row][col] = { x: cx, y: cy };
+      if (field.network > 0 && col > 0 && ((row + col) % Math.max(1, Math.round(4 - field.network * 3)) === 0)) {
+        bands.push({
+          kind: 'path', points: [networkPoints[row][col - 1], networkPoints[row][col]],
+          stroke: fill || params.ink, strokeWidth: 0.5 + field.network * 1.5,
+          opacity: field.network * (0.12 + (1 - compositionMacro('legibility', 0.85)) * 0.5)
+        });
+      }
+    }
+  }
+  return { glyphs: glyphs, bands: bands, limited: false };
+}
+
+function generateFluxScene(tokens, width, height, runtime) {
+  var flux = compositionState.fluxRows;
+  var palette = compositionPalette();
+  var units = tokens.reduce(function (sum, token) { return sum + token.units; }, 0) || 1;
+  var rowH = height / flux.rows;
+  var limit = compositionLimit();
+  var glyphs = [], bands = [], instanceIndex = 0;
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  var inputs = runtime && runtime.inputs ? runtime.inputs : createCompositionInputBus(tokens, width, height, clock);
+  var densityMacro = compositionMacro('density', 0.6);
+  var instability = compositionMacro('instability', 0.35);
+  var midpoint = (flux.rows - 1) / 2;
+  for (var row = 0; row < flux.rows; row++) {
+    var edge = flux.mirror && midpoint > 0 ? Math.abs(row - midpoint) / midpoint : 1 - row / Math.max(1, flux.rows - 1);
+    var density = Math.pow(Math.max(0, 1 - edge), flux.curve);
+    var repeats = 1 + Math.round(density * Math.max(1, Math.floor(flux.rows / 2)) * (0.45 + densityMacro * 0.55 + flux.density * 0.5));
+    var unitW = width / Math.max(1, units * repeats);
+    var phraseW = units * unitW + Math.max(0, tokens.length - 1) * unitW * flux.tracking;
+    var rowDirection = flux.flip && row % 2 ? -1 : 1;
+    if (flux.mirror && row > midpoint) rowDirection *= -1;
+    if (flux.laneSpeed === 'alternate' && row % 2) rowDirection *= -1;
+    if (flux.laneSpeed === 'mirror' && row > midpoint) rowDirection *= -1;
+    if (flux.counterflow > 0 && row % 2) rowDirection *= -1;
+    var requestedCycles = Math.max(0, flux.scroll + (flux.laneSpeed === 'unicode' ? cascadeTokenCode(tokens[row % tokens.length]) % 3 : 0));
+    var laneCycles = (flux.integerTravel || compositionState.loopLock) ? Math.max(0, Math.round(requestedCycles)) : requestedCycles;
+    var offset = ((clock.turn * phraseW * laneCycles * rowDirection) % phraseW + phraseW) % phraseW;
+    var rowPhase = clock.angle + row * flux.phaseOffset * Math.PI * 2;
+    var fluxWave = 1 - flux.amount * 0.5 + Math.sin(rowPhase) * flux.amount * 0.5;
+    fluxWave *= 1 + Math.sin(rowPhase * 2) * flux.accordion * 0.35;
+    var perspectiveScale = 1 - flux.perspective * Math.abs(row - midpoint) / Math.max(1, midpoint) * 0.55;
+    var scaleX = unitW / Math.max(1, params.fontSize * 0.72) * perspectiveScale;
+    var scaleY = Math.max(0.04, rowH * (1 - flux.lineGap) / Math.max(1, params.fontSize * params.lineHeight) * fluxWave);
+    var baseY = (row + 0.5) * rowH;
+    var cursor = -offset - phraseW;
+    for (var copy = 0; copy < repeats + 3; copy++) {
+      for (var ti = 0; ti < tokens.length; ti++) {
+        var token = tokens[ti];
+        var tokenW = token.units * unitW;
+        var progress = (cursor + tokenW * 0.5) / Math.max(1, width);
+        var baselineSignal = 0;
+        if (flux.baseline === 'wave') baselineSignal = Math.sin(progress * Math.PI * 2 + rowPhase);
+        else if (flux.baseline === 'braid') baselineSignal = Math.sin(progress * Math.PI * 4 + rowPhase + (row % 2) * Math.PI);
+        else if (flux.baseline === 'fold') baselineSignal = Math.asin(Math.sin(progress * Math.PI * 2 + rowPhase)) * 2 / Math.PI;
+        baselineSignal += compositionLoopNoise(clock, row, ti, copy) * instability * 0.14;
+        var y = baseY + baselineSignal * rowH * flux.amplitude;
+        if (flux.weave > 0) y += Math.sin(progress * Math.PI * 2 + row * Math.PI) * rowH * flux.weave * 0.35;
+        if (inputs.pointer.active && flux.pointerBranch > 0) {
+          var pointerDistance = Math.abs(cursor + tokenW * 0.5 - inputs.pointer.px);
+          y += (y < inputs.pointer.py ? -1 : 1) * Math.max(0, 1 - pointerDistance / Math.max(1, width * 0.25)) * rowH * flux.pointerBranch;
+        }
+        if (!token.space && cursor + tokenW >= -unitW && cursor <= width + unitW) {
+          if (instanceIndex >= limit) return { glyphs: glyphs, bands: bands, limited: true };
+          var color = token.glyph && token.glyph.accent ? params.accent : params.ink;
+          if (flux.colorMode === 'lane') color = palette[row % palette.length];
+          else if (flux.colorMode === 'phrase') color = palette[copy % palette.length];
+          else if (flux.colorMode === 'glyph') color = palette[Math.abs(cascadeTokenCode(token)) % palette.length];
+          var localScaleX = scaleX * (1 - flux.compression * Math.max(0, Math.sin(progress * Math.PI * 2 + rowPhase)) * 0.7);
+          var slitOpacity = flux.slit > 0 && Math.abs(progress - 0.5) < flux.slit * 0.14 ? 0.08 : 1;
+          var tangentRotation = flux.tangent * Math.atan2(baselineSignal * flux.amplitude, 1) * 180 / Math.PI;
+          var glyph = compositionGlyph(token, cursor + tokenW / 2, y, localScaleX, scaleY, tangentRotation, color, slitOpacity, instanceIndex++);
+          if (glyph) glyphs.push(glyph);
+          if (flux.trail > 0) {
+            var trailLength = unitW * (0.5 + flux.trail * 3);
+            bands.push({
+              kind: 'path',
+              points: [{ x: cursor + tokenW / 2 - trailLength * rowDirection, y: y }, { x: cursor + tokenW / 2, y: y }],
+              stroke: color, strokeWidth: Math.max(0.5, rowH * 0.025),
+              opacity: flux.trail * 0.3
+            });
+          }
+        }
+        cursor += tokenW + unitW * flux.tracking;
+      }
+    }
+    if (flux.scanEcho > 0) {
+      for (var scan = 0; scan < flux.scanEcho; scan++) {
+        var scanX = ((clock.turn * (row % 3 + 1) + row / flux.rows + scan / flux.scanEcho) % 1) * width;
+        bands.push({
+          kind: 'path', points: [{ x: scanX, y: row * rowH }, { x: scanX, y: (row + 1) * rowH }],
+          stroke: palette[(row + scan + 2) % palette.length], strokeWidth: 0.5 + scan / Math.max(1, flux.scanEcho) * 2,
+          opacity: 0.12 + scan / Math.max(1, flux.scanEcho) * 0.18, blend: 'difference'
+        });
+      }
+    }
+  }
+  return { glyphs: glyphs, bands: bands, limited: false };
+}
+
+function cascadePalette() {
+  var c = compositionState.cascade;
+  return [c.fieldA, c.fieldB, c.fieldC, c.edge];
+}
+
+function cascadeSystemLabel() {
+  var c = compositionState.cascade;
+  if (c.system === 'bands') {
+    return 'Signal Field / ' + ({ slices: 'Raster Slices', moire: 'Moiré Rails', radar: 'Radial Scan' }[c.signalMode] || 'Raster Slices');
+  }
+  if (c.system === 'sdf') {
+    return 'Optical Shader / ' + ({
+      interference: 'Interference',
+      singularity: 'Singularity',
+      tunnel: 'Depth Tunnel',
+      metaball: 'Metaball Field'
+    }[c.sdfMode] || 'Interference');
+  }
+  return c.system === 'circuit' ? 'Data Circuit' : 'Cellular Automaton';
+}
+
+function cascadeTokenCode(token) {
+  var ch = token && token.glyph && token.glyph.ch ? token.glyph.ch : '';
+  return ch ? ch.codePointAt(0) : 0;
+}
+
+function cascadeColorFor(row, col, state, token, totalRows, totalCols) {
+  var c = compositionState.cascade;
+  var palette = cascadePalette();
+  if (c.colorMode === 'ink') return c.fieldA;
+  if (c.colorMode === 'row') return palette[row % 3];
+  if (c.colorMode === 'column') return palette[col % 3];
+  if (c.colorMode === 'unicode') return palette[cascadeTokenCode(token) % 3];
+  if (c.colorMode === 'gradient') {
+    var t = (row / Math.max(1, totalRows - 1) + col / Math.max(1, totalCols - 1)) * 0.5;
+    return t < 0.5 ? lerpHex(c.fieldA, c.fieldB, t * 2) : lerpHex(c.fieldB, c.fieldC, (t - 0.5) * 2);
+  }
+  return state ? palette[1 + ((row + col + state) % 3)] : palette[0];
+}
+
+function cascadeGlyphColor(fill, state) {
+  var c = compositionState.cascade;
+  if (c.glyphMode === 'fixed') return c.glyph;
+  if (c.glyphMode === 'state') return state ? c.glyph : c.edge;
+  var r = parseInt(fill.slice(1, 3), 16);
+  var g = parseInt(fill.slice(3, 5), 16);
+  var b = parseInt(fill.slice(5, 7), 16);
+  var luminance = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
+  return luminance > 0.57 ? c.fieldA : c.glyph;
+}
+
+function cascadeShapeItem(x, y, w, h, fill, opacity, rotation, state) {
+  var c = compositionState.cascade;
+  return {
+    kind: 'shape', shape: c.shape, x: x, y: y, w: Math.max(0.1, w), h: Math.max(0.1, h),
+    fill: fill, opacity: opacity == null ? c.opacity : opacity,
+    stroke: c.stroke > 0 ? c.edge : null, strokeWidth: c.stroke,
+    radius: c.round, rotation: rotation || 0, blend: c.blend,
+    state: state || 0
+  };
+}
+
+function cascadeBackdrop(width, height, bands) {
+  var c = compositionState.cascade;
+  if (c.backdropEnabled && c.backdropOpacity > 0) {
+    bands.push({
+      kind: 'shape', shape: 'rect', x: 0, y: 0, w: width, h: height,
+      fill: c.backdrop, opacity: c.backdropOpacity, blend: 'source-over', backdrop: true
+    });
+  }
+}
+
+function cascadePostProcess(width, height, bands) {
+  var c = compositionState.cascade;
+  if (c.scanline <= 0) return;
+  var spacing = Math.max(3, Math.round(11 - c.scanline * 7));
+  var lineH = Math.max(0.5, c.scanline * 1.6);
+  for (var y = 0; y < height; y += spacing) {
+    bands.push({
+      kind: 'shape', shape: 'rect', x: 0, y: y, w: width, h: lineH,
+      fill: c.edge, opacity: 0.025 + c.scanline * 0.13,
+      blend: c.blend, post: true
+    });
+  }
+}
+
+function cascadeSeed(tokens, cells) {
+  var c = compositionState.cascade;
+  var visible = tokens.filter(function (token) { return !token.space && token.glyph; });
+  if (!visible.length) visible = tokens;
+  var seed = [];
+  for (var col = 0; col < cells; col++) {
+    var token = visible[col % visible.length];
+    var cp = cascadeTokenCode(token);
+    if (c.seed === 'alternating') seed[col] = col % 2;
+    else if (c.seed === 'sparse') seed[col] = hash(col, cp || col, 19) > 0.82 ? 1 : 0;
+    else if (c.seed === 'glyphMask') {
+      var glyphWidth = token && token.glyph ? token.glyph.w || params.fontSize : params.fontSize;
+      seed[col] = hash(Math.round(glyphWidth), cp || col, col + compositionState.seed) > 0.48 ? 1 : 0;
+    }
+    else if (c.seed === 'class') {
+      var ch = token && token.glyph ? token.glyph.ch : '';
+      var info = charInfo(ch, cp);
+      var key = batchKeyFor(ch, cp, info);
+      seed[col] = key === 'kanji' || key === 'digit' || key === 'punct' ? 1 : 0;
+    } else seed[col] = (cp >> (col % 16)) & 1;
+  }
+  if (seed.indexOf(1) === -1) seed[Math.floor(cells / 2)] = 1;
+  return seed;
+}
+
+function cascadeAutomatonStep(cells, rule) {
+  var next = new Array(cells.length);
+  for (var i = 0; i < cells.length; i++) {
+    var left = cells[(i - 1 + cells.length) % cells.length] ? 1 : 0;
+    var center = cells[i] ? 1 : 0;
+    var right = cells[(i + 1) % cells.length] ? 1 : 0;
+    var pattern = (left << 2) | (center << 1) | right;
+    next[i] = (rule >> pattern) & 1;
+  }
+  return next;
+}
+
+function cascadeLifeStep(board, rows, cols, ruleName) {
+  var parts = String(ruleName || 'B3/S23').split('/');
+  var births = (parts[0] || 'B3').replace('B', '');
+  var survives = (parts[1] || 'S23').replace('S', '');
+  var next = new Array(board.length);
+  for (var row = 0; row < rows; row++) {
+    for (var col = 0; col < cols; col++) {
+      var neighbors = 0;
+      for (var oy = -1; oy <= 1; oy++) {
+        for (var ox = -1; ox <= 1; ox++) {
+          if (!ox && !oy) continue;
+          var ni = ((row + oy + rows) % rows) * cols + ((col + ox + cols) % cols);
+          neighbors += board[ni] ? 1 : 0;
+        }
+      }
+      var alive = board[row * cols + col] ? 1 : 0;
+      next[row * cols + col] = alive
+        ? (survives.indexOf(String(neighbors)) !== -1 ? 1 : 0)
+        : (births.indexOf(String(neighbors)) !== -1 ? 1 : 0);
+    }
+  }
+  return next;
+}
+
+function cascadeGridColumns(requested, rows, layers) {
+  var mobile = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  var backgroundLimit = mobile ? 2400 : 8000;
+  return Math.max(8, Math.min(requested, Math.floor(backgroundLimit / Math.max(1, rows * (layers || 1)))));
+}
+
+function generateCascadeAutomaton(tokens, width, height, runtime) {
+  var c = compositionState.cascade;
+  var rows = c.rows, cols = cascadeGridColumns(c.cells, rows);
+  var backgroundLimited = cols < c.cells;
+  var cellW = width / cols, cellH = height / rows;
+  var gap = Math.min(cellW, cellH) * c.gap * 0.5;
+  var rule = c.rule === 'custom' ? c.customRule : Number(c.rule);
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  // A deterministic forward/back generation timeline removes the
+  // discontinuity of resetting a non-reversible automaton at turn 1.
+  var generationSpan = Math.max(2, c.generationCount);
+  var pingTurn = clock.turn * 2;
+  var timelineTurn = c.pingPong ? (pingTurn <= 1 ? pingTurn : 2 - pingTurn) : clock.turn;
+  var generationPosition = timelineTurn * (generationSpan - 1);
+  var generationIndex = Math.floor(generationPosition);
+  var generationMix = (generationPosition - generationIndex) * c.generationBlend;
+  var cells = cascadeSeed(tokens, cols);
+  var nextCells;
+  if (c.automatonMode === 'life2d') {
+    var board = new Array(rows * cols);
+    for (var bi = 0; bi < board.length; bi++) {
+      var seedToken = tokens[bi % tokens.length];
+      board[bi] = cascadeSeed([seedToken], 1)[0] ^ (hash(bi, compositionState.seed, 71) > 0.72 ? 1 : 0);
+    }
+    for (var lifePre = 0; lifePre < generationIndex; lifePre++) board = cascadeLifeStep(board, rows, cols, c.lifeRule);
+    var nextBoard = cascadeLifeStep(board, rows, cols, c.lifeRule);
+    cells = board;
+    nextCells = nextBoard;
+  } else {
+    for (var pre = 0; pre < generationIndex; pre++) cells = cascadeAutomatonStep(cells, rule);
+    nextCells = cascadeAutomatonStep(cells, rule);
+  }
+  var glyphs = [], bands = [], instanceIndex = 0, limit = compositionLimit();
+  cascadeBackdrop(width, height, bands);
+  for (var row = 0; row < rows; row++) {
+    var renderCells = cells;
+    var renderNextCells = nextCells;
+    if (c.automatonMode !== 'life2d') {
+      for (var rowAdvance = 0; rowAdvance < row; rowAdvance++) {
+        renderCells = cascadeAutomatonStep(renderCells, rule);
+        renderNextCells = cascadeAutomatonStep(renderNextCells, rule);
+      }
+    }
+    for (var col = 0; col < cols; col++) {
+      var sourceCol = c.mirror && row > (rows - 1) / 2 ? cols - 1 - col : col;
+      var cellIndex = c.automatonMode === 'life2d' ? row * cols + sourceCol : sourceCol;
+      var currentState = renderCells[cellIndex] ? 1 : 0;
+      var nextState = renderNextCells[cellIndex] ? 1 : 0;
+      var stateAmount = currentState + (nextState - currentState) * generationMix;
+      var state = stateAmount >= 0.5 ? 1 : 0;
+      var token = tokens[(row * cols + col) % tokens.length];
+      var fill = cascadeColorFor(row, col, state, token, rows, cols);
+      var cellOpacity = c.opacity * (0.2 + stateAmount * 0.8);
+      if (c.bands) bands.push(cascadeShapeItem(col * cellW + gap, row * cellH + gap, cellW - gap * 2, cellH - gap * 2, fill, cellOpacity, state ? 0 : c.round * 45, state));
+      if (!token.space) {
+        if (instanceIndex >= limit) {
+          cascadePostProcess(width, height, bands);
+          return { glyphs: glyphs, bands: bands, limited: true };
+        }
+        var glyph = compositionGlyph(
+          token, (col + 0.5) * cellW, (row + 0.5) * cellH,
+          Math.max(0.02, cellW / Math.max(1, params.fontSize * 0.72)),
+          Math.max(0.02, cellH * (1 - c.lineSpace) / Math.max(1, params.fontSize * params.lineHeight)),
+          0, cascadeGlyphColor(fill, state), 0.3 + stateAmount * 0.7, instanceIndex++
+        );
+        if (glyph) glyphs.push(glyph);
+      }
+    }
+  }
+  cascadePostProcess(width, height, bands);
+  return { glyphs: glyphs, bands: bands, limited: backgroundLimited };
+}
+
+function generateCascadeCircuit(tokens, width, height, runtime) {
+  var c = compositionState.cascade;
+  var cols = Math.max(8, Math.round(c.cells * c.circuitDensity));
+  var rows = c.rows, cellW = width / cols, rowH = height / rows;
+  var glyphs = [], bands = [], instanceIndex = 0, limit = compositionLimit();
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  var inputs = runtime && runtime.inputs ? runtime.inputs : createCompositionInputBus(tokens, width, height, clock);
+  var phase = clock.angle;
+  cascadeBackdrop(width, height, bands);
+  for (var row = 0; row < rows; row++) {
+    var baseY = (row + 0.5) * rowH;
+    var points = [{ x: 0, y: baseY }];
+    for (var col = 0; col < cols; col++) {
+      var token = tokens[(row * cols + col) % tokens.length];
+      var cp = cascadeTokenCode(token);
+      var x = (col + 0.5) * cellW;
+      var signal = Math.sin(phase + row * 0.83 + col * 0.51 + (cp % 17));
+      if (inputs.pointer.active && c.pointerInject) {
+        var pointerFalloff = Math.max(0, 1 - Math.abs(x - inputs.pointer.px) / Math.max(1, width * 0.3));
+        signal += (inputs.pointer.py / Math.max(1, height) - 0.5) * pointerFalloff * 2;
+      }
+      var routeY = baseY + signal * rowH * c.amplitude * 0.28;
+      points.push({ x: x, y: points[points.length - 1].y });
+      points.push({ x: x, y: routeY });
+      var active = hash(row, cp || col, col + 23) < c.circuitDensity;
+      if (active && c.bands) {
+        var pulse = (Math.sin(phase * 2 + col * 0.72 - row * 0.4) + 1) * 0.5;
+        var fill = cascadeColorFor(row, col, pulse > 1 - c.pulse ? 1 : 0, token, rows, cols);
+        var routerBoost = col % Math.max(1, Math.round(cols / Math.max(1, c.circuitRouters))) === 0 ? 1.45 : 1;
+        var nodeSize = Math.min(cellW, rowH) * (0.22 + pulse * c.pulse * 0.48) * routerBoost;
+        bands.push(cascadeShapeItem(x - nodeSize / 2, routeY - nodeSize / 2, nodeSize, nodeSize, fill, c.opacity, signal * 20, active ? 1 : 0));
+        if (c.packetTrail > 0) {
+          var trail = cellW * (0.5 + c.packetTrail * 2.5);
+          bands.push({
+            kind: 'path', points: [{ x: x - trail, y: routeY }, { x: x, y: routeY }],
+            stroke: fill, strokeWidth: Math.max(0.5, rowH * 0.025),
+            opacity: c.packetTrail * (0.12 + pulse * 0.45) * Math.min(1.5, c.circuitPackets / 16), blend: c.blend
+          });
+        }
+        if (c.addressNodes > 0 && hash(cp, row, col) < c.addressNodes * 0.4) {
+          var addressRing = cascadeShapeItem(x - nodeSize, routeY - nodeSize, nodeSize * 2, nodeSize * 2, fill, c.addressNodes * 0.5, 0, 1);
+          addressRing.shape = 'ring';
+          addressRing.stroke = fill;
+          addressRing.strokeWidth = Math.max(0.75, c.stroke || 1);
+          bands.push(addressRing);
+        }
+      }
+      if (!token.space && col % Math.max(1, Math.round(1 / Math.max(0.12, c.circuitDensity))) === 0) {
+        if (instanceIndex >= limit) {
+          cascadePostProcess(width, height, bands);
+          return { glyphs: glyphs, bands: bands, limited: true };
+        }
+        var glyphFill = c.glyphMode === 'fixed' ? c.glyph : cascadeColorFor(row, col, 1, token, rows, cols);
+        var glyph = compositionGlyph(token, x, routeY, Math.max(0.02, cellW / Math.max(1, params.fontSize)), Math.max(0.02, rowH * 0.72 / Math.max(1, params.fontSize * params.lineHeight)), 0, glyphFill, 0.8, instanceIndex++);
+        if (glyph) glyphs.push(glyph);
+      }
+    }
+    points.push({ x: width, y: points[points.length - 1].y });
+    if (c.bands) {
+      bands.push({
+        kind: 'path', points: points, stroke: cascadePalette()[row % 3],
+        strokeWidth: Math.max(0.75, c.stroke || rowH * 0.035),
+        opacity: 0.32 + c.opacity * 0.55, blend: c.blend
+      });
+      if (row < rows - 1 && hash(row, compositionState.seed, 109) < c.circuitBranches / 8) {
+        var branchX = ((hash(row, compositionState.seed, 113) * 0.7 + 0.15) * width);
+        bands.push({
+          kind: 'path',
+          points: [{ x: branchX, y: baseY }, { x: branchX, y: baseY + rowH }, { x: branchX + cellW, y: baseY + rowH }],
+          stroke: cascadePalette()[(row + 1) % 3],
+          strokeWidth: Math.max(0.75, c.stroke || rowH * 0.035),
+          opacity: 0.2 + c.circuitBranches / 8 * 0.55, blend: c.blend
+        });
+      }
+      if (c.circuitHeatmap > 0) {
+        bands.push({
+          kind: 'shape', shape: 'rect', x: 0, y: row * rowH, w: width, h: rowH,
+          fill: lerpHex(c.fieldA, c.fieldB, (Math.sin(phase + row) + 1) * 0.5),
+          opacity: c.circuitHeatmap * 0.08, blend: c.blend
+        });
+      }
+    }
+  }
+  cascadePostProcess(width, height, bands);
+  return { glyphs: glyphs, bands: bands, limited: false };
+}
+
+function cascadeOpticalField(nx, ny, phase, c) {
+  if (c.sdfMode === 'singularity') {
+    var singularX = 0.5 + Math.cos(phase) * 0.22;
+    var singularY = 0.5 + Math.sin(phase * 2) * 0.22;
+    var sdx = nx - singularX, sdy = ny - singularY;
+    var sr = Math.sqrt(sdx * sdx + sdy * sdy);
+    var sa = Math.atan2(sdy, sdx);
+    return Math.sin(sr * c.frequency * 34 - phase * 3 + Math.sin(sa * 6 + phase) * c.warp * 2.5);
+  }
+  if (c.sdfMode === 'tunnel') {
+    var tdx = nx - 0.5, tdy = ny - 0.5;
+    var tr = Math.sqrt(tdx * tdx + tdy * tdy);
+    var ta = Math.atan2(tdy, tdx);
+    return Math.sin(Math.log(tr + 0.035) * c.frequency * 3.4 - phase * 3 + ta * c.warp * 3.2);
+  }
+  if (c.sdfMode === 'metaball') {
+    var centers = [
+      [0.5 + Math.cos(phase) * 0.25, 0.5 + Math.sin(phase * 2) * 0.22],
+      [0.5 + Math.cos(phase * 2 + 2.1) * 0.31, 0.5 + Math.sin(phase * 3 + 1.4) * 0.27],
+      [0.5 + Math.cos(phase * 3 + 4.2) * 0.19, 0.5 + Math.sin(phase + 3.5) * 0.34]
+    ];
+    var energy = 0;
+    for (var ci = 0; ci < centers.length; ci++) {
+      var mdx = nx - centers[ci][0], mdy = ny - centers[ci][1];
+      energy += 0.018 / Math.max(0.002, mdx * mdx + mdy * mdy);
+    }
+    return Math.sin(energy * c.frequency * 0.42 + phase * 2);
+  }
+  var warpX = Math.sin(ny * c.frequency * Math.PI * 2 + phase) * c.warp;
+  var warpY = Math.cos(nx * c.frequency * Math.PI * 2 - phase) * c.warp;
+  var interference = (
+    Math.sin((nx * c.frequency + warpX) * Math.PI * 2 + phase)
+    + Math.cos((ny * c.frequency * 0.73 + warpY) * Math.PI * 2 - phase)
+  ) * 0.5;
+  for (var source = 1; source < c.signalSources; source++) {
+    var sourcePhase = phase * (1 + Math.round(c.signalSync * 2)) + source / c.signalSources * Math.PI * 2;
+    interference += Math.sin(
+      (nx * (c.frequency + source) + ny * source * 0.35) * Math.PI * 2 + sourcePhase
+    ) / (2 + source);
+  }
+  return Math.max(-1.4, Math.min(1.4, interference));
+}
+
+function generateCascadeSdf(tokens, width, height, runtime) {
+  var c = compositionState.cascade;
+  var opticalLayers = Math.max(1, c.contours);
+  var rows = c.rows, cols = cascadeGridColumns(c.cells, rows, 1 + Math.round(opticalLayers * c.sdfFeedback));
+  var backgroundLimited = cols < c.cells;
+  var cellW = width / cols, cellH = height / rows;
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  var phase = clock.angle;
+  var glyphs = [], bands = [], instanceIndex = 0, limit = compositionLimit();
+  var palette = cascadePalette();
+  cascadeBackdrop(width, height, bands);
+  for (var row = 0; row < rows; row++) {
+    var contourPoints = [];
+    for (var col = 0; col < cols; col++) {
+      var nx = (col + 0.5) / cols;
+      var ny = (row + 0.5) / rows;
+      var field = cascadeOpticalField(nx, ny, phase, c);
+      var state = field > c.threshold * 2 - 1 ? 1 : 0;
+      var token = tokens[(row * cols + col) % tokens.length];
+      var magnitude = Math.min(1.4, Math.abs(field));
+      var fill = cascadeColorFor(row, col, state, token, rows, cols);
+      if (c.chromatic > 0) fill = lerpHex(fill, palette[(row + col + 2) % palette.length], Math.min(1, magnitude * c.chromatic));
+      var scale = Math.max(0.1, Math.min(1.55, 0.18 + magnitude * (0.9 + c.amplitude * 0.2)));
+      var centerX = (col + 0.5) * cellW + Math.sin(field * Math.PI + phase) * cellW * c.warp * 0.35;
+      var centerY = (row + 0.5) * cellH + Math.cos(field * Math.PI - phase) * cellH * c.warp * 0.35;
+      if (c.glyphWarp > 0) {
+        var glyphSignal = (cascadeTokenCode(token) % 29) / 28 * Math.PI * 2;
+        centerX += Math.cos(glyphSignal + phase) * cellW * c.glyphWarp;
+        centerY += Math.sin(glyphSignal - phase) * cellH * c.glyphWarp;
+      }
+      var shapeW = cellW * scale * (1 - c.gap);
+      var shapeH = cellH * scale * (1 - c.gap);
+      contourPoints.push({ x: centerX, y: centerY + field * cellH * c.warp * 0.55 });
+      if (c.bands && (state || magnitude > 0.5)) {
+        for (var layer = opticalLayers - 1; layer >= 0; layer--) {
+          var layerT = opticalLayers <= 1 ? 0 : layer / (opticalLayers - 1);
+          var feedbackScale = 1 + layerT * c.sdfFeedback * 2.4 + Math.sin(field * Math.PI * c.frequency) * c.diffraction * 0.22;
+          var offsetPhase = phase + layer * 1.618 + field * Math.PI;
+          var echoX = Math.sin(offsetPhase) * cellW * layerT * c.sdfFeedback;
+          var echoY = Math.cos(offsetPhase * 0.87) * cellH * layerT * c.sdfFeedback;
+          var echoFill = layer === 0 ? fill : palette[(row + col + layer) % palette.length];
+          var item = cascadeShapeItem(
+            centerX + echoX - shapeW * feedbackScale / 2,
+            centerY + echoY - shapeH * feedbackScale / 2,
+            shapeW * feedbackScale, shapeH * feedbackScale,
+            echoFill,
+            c.opacity * (layer === 0 ? 0.72 + magnitude * 0.28 : (0.06 + c.sdfFeedback * 0.11) * (1 - layerT * 0.35)),
+            field * 70 + clock.turn * 360 + layer * 17,
+            state
+          );
+          if (layer > 0) {
+            item.shape = 'ring';
+            item.stroke = echoFill;
+            item.strokeWidth = Math.max(0.6, c.stroke || Math.min(cellW, cellH) * (0.035 + layerT * 0.025));
+            item.blend = c.blend === 'source-over' ? 'difference' : c.blend;
+          }
+          bands.push(item);
+        }
+      }
+      if (!token.space && (state || (row + col) % 3 === 0)) {
+        if (instanceIndex >= limit) {
+          cascadePostProcess(width, height, bands);
+          return { glyphs: glyphs, bands: bands, limited: true };
+        }
+        var glyph = compositionGlyph(
+          token, centerX, centerY,
+          Math.max(0.02, cellW * (0.75 + magnitude * 0.45) / Math.max(1, params.fontSize)),
+          Math.max(0.02, cellH * (0.72 + magnitude * 0.52) / Math.max(1, params.fontSize * params.lineHeight)),
+          field * 28 + (c.sdfMode === 'tunnel' ? Math.atan2(ny - 0.5, nx - 0.5) * 180 / Math.PI : 0),
+          cascadeGlyphColor(fill, state), state ? 0.96 : 0.28, instanceIndex++
+        );
+        if (glyph) glyphs.push(glyph);
+      }
+    }
+    if (c.bands && contourPoints.length > 1) {
+      bands.push({
+        kind: 'path', points: contourPoints,
+        stroke: palette[row % palette.length],
+        strokeWidth: Math.max(0.45, c.stroke || 0.75),
+        opacity: 0.1 + c.sdfFeedback * 0.2,
+        blend: c.blend === 'source-over' ? 'difference' : c.blend
+      });
+    }
+  }
+  cascadePostProcess(width, height, bands);
+  return { glyphs: glyphs, bands: bands, limited: backgroundLimited };
+}
+
+function generateCascadeMoire(tokens, width, height) {
+  var c = compositionState.cascade;
+  var rows = c.rows, rowH = height / rows;
+  var samples = Math.min(192, Math.max(48, c.quantize * 6));
+  var phaseTurn = ((compositionState.phase % 1) + 1) % 1;
+  var phase = phaseTurn * Math.PI * 2;
+  var palette = cascadePalette();
+  var glyphs = [], bands = [], instanceIndex = 0, limit = compositionLimit();
+  var units = tokens.reduce(function (sum, token) { return sum + token.units; }, 0) || 1;
+  var unitW = width / Math.max(1, units + Math.max(0, tokens.length - 1) * c.tracking);
+  cascadeBackdrop(width, height, bands);
+  for (var row = 0; row < rows; row++) {
+    var logicalRow = c.mirror && row > (rows - 1) / 2 ? rows - 1 - row : row;
+    for (var layer = 0; layer < c.signalLayers; layer++) {
+      var points = [];
+      for (var sample = 0; sample <= samples; sample++) {
+        var nx = sample / samples;
+        var carrier = Math.sin(nx * Math.PI * 2 * (2 + c.waveLength * 18) + phase * (1 + layer) + logicalRow * 0.54);
+        var interference = Math.sin(nx * Math.PI * 2 * (3 + layer * 0.37) - phase * 2 + row * 0.29);
+        var signal = carrier * 0.64 + interference * 0.36;
+        var y = (row + 0.5) * rowH + signal * rowH * c.amplitude * (0.18 + c.signalFeedback * 0.32);
+        var qStep = Math.max(0.5, rowH / Math.max(2, c.quantize));
+        y = Math.round(y / qStep) * qStep;
+        points.push({ x: nx * width, y: y + (layer - (c.signalLayers - 1) / 2) * c.signalFeedback * 1.5 });
+      }
+      if (c.bands) {
+        bands.push({
+          kind: 'path', points: points,
+          stroke: palette[(row + layer) % palette.length],
+          strokeWidth: Math.max(0.8, (c.stroke || 0.8) + (c.signalLayers - layer) * 0.32),
+          opacity: c.opacity * (0.22 + (1 - layer / Math.max(1, c.signalLayers)) * (0.28 + c.signalFeedback * 0.35)),
+          blend: c.blend === 'source-over' && layer > 0 ? 'difference' : c.blend
+        });
+      }
+    }
+    if (c.bands) {
+      var nodeCount = Math.min(28, Math.max(6, Math.round(c.quantize * 1.35)));
+      for (var node = 0; node < nodeCount; node++) {
+        var nodeX = (node + 0.5) / nodeCount * width;
+        var nodeNX = nodeX / Math.max(1, width);
+        var nodeCarrier = Math.sin(nodeNX * Math.PI * 2 * (2 + c.waveLength * 18) + phase + logicalRow * 0.54);
+        var nodeInterference = Math.sin(nodeNX * Math.PI * 2 * 3 - phase * 2 + row * 0.29);
+        var nodeSignal = nodeCarrier * 0.64 + nodeInterference * 0.36;
+        if (Math.abs(nodeSignal) < 0.34 && (node + row) % 3) continue;
+        var nodeY = (row + 0.5) * rowH + nodeSignal * rowH * c.amplitude * (0.2 + c.signalFeedback * 0.36);
+        var nodeSize = Math.max(2, rowH * (0.1 + Math.abs(nodeSignal) * (0.16 + c.signalFeedback * 0.24)));
+        var nodeItem = cascadeShapeItem(
+          nodeX - nodeSize / 2, nodeY - nodeSize / 2,
+          nodeSize * (1.2 + Math.abs(nodeSignal) * 1.8), nodeSize,
+          palette[(row + node) % palette.length],
+          c.opacity * (0.38 + Math.abs(nodeSignal) * 0.48),
+          nodeSignal * 38, nodeSignal > 0 ? 1 : 0
+        );
+        nodeItem.shape = (node + row) % 5 === 0 ? 'cross' : ((node + row) % 3 === 0 ? 'ring' : c.shape);
+        nodeItem.blend = c.blend === 'source-over' ? 'difference' : c.blend;
+        bands.push(nodeItem);
+      }
+    }
+    var cursor = 0;
+    for (var ti = 0; ti < tokens.length; ti++) {
+      var token = tokens[ti], tokenW = token.units * unitW;
+      var nxToken = (cursor + tokenW / 2) / Math.max(1, width);
+      var wave = Math.sin(nxToken * Math.PI * 2 * (2 + c.waveLength * 18) + phase + logicalRow * 0.54);
+      var glyphY = (row + 0.5) * rowH + wave * rowH * c.amplitude * (0.2 + c.signalFeedback * 0.32);
+      if (!token.space) {
+        if (instanceIndex >= limit) return { glyphs: glyphs, bands: bands, limited: true };
+        var glyphFill = cascadeColorFor(row, ti, wave > 0 ? 1 : 0, token, rows, tokens.length);
+        var glyph = compositionGlyph(
+          token, cursor + tokenW / 2, glyphY,
+          Math.max(0.02, unitW / Math.max(1, params.fontSize * 0.78)),
+          Math.max(0.02, rowH * (0.65 + Math.abs(wave) * c.signalFeedback) / Math.max(1, params.fontSize * params.lineHeight)),
+          wave * c.signalFeedback * 34,
+          c.glyphMode === 'contrast' ? cascadeGlyphColor(glyphFill, wave > 0 ? 1 : 0) : c.glyph,
+          0.45 + Math.abs(wave) * 0.55,
+          instanceIndex++
+        );
+        if (glyph) glyphs.push(glyph);
+      }
+      cursor += tokenW + unitW * c.tracking;
+    }
+  }
+  var railCount = Math.min(24, Math.max(4, Math.round(c.quantize * 0.7)));
+  if (c.bands) {
+    for (var rail = 0; rail <= railCount; rail++) {
+      var railX = rail / railCount * width;
+      bands.push({
+        kind: 'path',
+        points: [{ x: railX, y: 0 }, { x: railX + Math.sin(phase + rail) * c.signalFeedback * rowH, y: height }],
+        stroke: palette[rail % palette.length],
+        strokeWidth: Math.max(0.55, c.stroke || 0.75),
+        opacity: 0.07 + c.signalFeedback * 0.14,
+        blend: c.blend === 'source-over' ? 'difference' : c.blend
+      });
+    }
+  }
+  cascadePostProcess(width, height, bands);
+  return { glyphs: glyphs, bands: bands, limited: false };
+}
+
+function generateCascadeRadar(tokens, width, height) {
+  var c = compositionState.cascade;
+  var phaseTurn = ((compositionState.phase % 1) + 1) % 1;
+  var phase = phaseTurn * Math.PI * 2;
+  var palette = cascadePalette();
+  var glyphs = [], bands = [], instanceIndex = 0, limit = compositionLimit();
+  var ringCount = Math.min(22, Math.max(4, c.rows));
+  var minSide = Math.min(width, height);
+  var centerX = width * (0.5 + Math.sin(phase) * c.signalFeedback * 0.12);
+  var centerY = height * (0.5 + Math.cos(phase) * c.signalFeedback * 0.12);
+  cascadeBackdrop(width, height, bands);
+  for (var ring = 0; ring < ringCount; ring++) {
+    var radius = minSide * (0.06 + ring / Math.max(1, ringCount - 1) * 0.78);
+    var ellipseY = radius * (0.55 + 0.35 * Math.sin(ring * 0.47 + phase));
+    for (var layer = 0; layer < c.signalLayers; layer++) {
+      var pulse = Math.sin(phase * 2 - ring * 0.63 + layer * 0.91);
+      var layerRadius = radius + pulse * c.signalFeedback * (4 + layer * 2.5);
+      if (c.bands) {
+        var ringItem = cascadeShapeItem(
+          centerX - layerRadius, centerY - ellipseY - layer * c.signalFeedback,
+          layerRadius * 2, ellipseY * 2,
+          palette[(ring + layer) % palette.length],
+          c.opacity * (0.18 + (1 - layer / Math.max(1, c.signalLayers)) * 0.34),
+          phaseTurn * 360 + ring * 3.7, pulse > 0 ? 1 : 0
+        );
+        ringItem.shape = 'ring';
+        ringItem.stroke = palette[(ring + layer) % palette.length];
+        ringItem.strokeWidth = Math.max(1.05, (c.stroke || 0.8) + layer * 0.35);
+        ringItem.blend = c.blend === 'source-over' && layer > 0 ? 'difference' : c.blend;
+        bands.push(ringItem);
+      }
+    }
+    if (c.bands) {
+      var pulseNodeCount = Math.min(24, Math.max(8, c.quantize));
+      for (var pulseNode = ring % 3; pulseNode < pulseNodeCount; pulseNode += 3) {
+        var pulseAngle = pulseNode / pulseNodeCount * Math.PI * 2 + phase + ring * 0.07;
+        var pulseX = centerX + Math.cos(pulseAngle) * radius;
+        var pulseY = centerY + Math.sin(pulseAngle) * ellipseY;
+        var pulseSize = Math.max(2.5, minSide / ringCount * (0.12 + c.signalFeedback * 0.2));
+        var pulseItem = cascadeShapeItem(
+          pulseX - pulseSize / 2, pulseY - pulseSize / 2,
+          pulseSize * (1 + (ring % 4) * 0.45), pulseSize,
+          palette[(ring + pulseNode) % palette.length],
+          c.opacity * (0.48 + c.signalFeedback * 0.42),
+          pulseAngle * 180 / Math.PI, pulseNode % 2
+        );
+        pulseItem.shape = pulseNode % 4 === 0 ? 'cross' : (pulseNode % 2 ? 'ring' : c.shape);
+        pulseItem.blend = c.blend === 'source-over' ? 'difference' : c.blend;
+        bands.push(pulseItem);
+      }
+    }
+    var tokenStep = Math.max(1, Math.floor(tokens.length / Math.max(18, c.quantize * 1.5)));
+    for (var ti = ring % tokenStep; ti < tokens.length; ti += tokenStep) {
+      var token = tokens[ti];
+      if (token.space) continue;
+      if (instanceIndex >= limit) return { glyphs: glyphs, bands: bands, limited: true };
+      var angle = ti / Math.max(1, tokens.length) * Math.PI * 2 + phase + ring * 0.17;
+      var gx = centerX + Math.cos(angle) * radius;
+      var gy = centerY + Math.sin(angle) * ellipseY;
+      var fill = cascadeColorFor(ring, ti, Math.sin(angle + phase) > 0 ? 1 : 0, token, ringCount, tokens.length);
+      var glyph = compositionGlyph(
+        token, gx, gy,
+        Math.max(0.02, minSide / ringCount * 0.74 / Math.max(1, params.fontSize)),
+        Math.max(0.02, minSide / ringCount * (0.7 + c.signalFeedback * 0.8) / Math.max(1, params.fontSize * params.lineHeight)),
+        angle * 180 / Math.PI + 90,
+        cascadeGlyphColor(fill, 1), 0.55 + c.signalFeedback * 0.4, instanceIndex++
+      );
+      if (glyph) glyphs.push(glyph);
+    }
+  }
+  var spokeCount = Math.min(48, Math.max(6, c.quantize));
+  if (c.bands) {
+    for (var spoke = 0; spoke < spokeCount; spoke++) {
+      var spokeAngle = spoke / spokeCount * Math.PI * 2 + phase;
+      var spokeRadius = minSide * 0.82;
+      bands.push({
+        kind: 'path',
+        points: [
+          { x: centerX, y: centerY },
+          { x: centerX + Math.cos(spokeAngle) * spokeRadius, y: centerY + Math.sin(spokeAngle) * spokeRadius * 0.65 }
+        ],
+        stroke: palette[spoke % palette.length],
+        strokeWidth: Math.max(0.7, c.stroke || 0.9),
+        opacity: 0.07 + c.signalFeedback * 0.16,
+        blend: c.blend === 'source-over' ? 'difference' : c.blend
+      });
+    }
+    for (var scan = 0; scan < 3; scan++) {
+      var scanAngle = phase * (scan + 1) + scan * Math.PI * 0.08;
+      var scanRadius = minSide * (0.56 + scan * 0.12);
+      bands.push({
+        kind: 'path',
+        points: [
+          { x: centerX, y: centerY },
+          { x: centerX + Math.cos(scanAngle) * scanRadius, y: centerY + Math.sin(scanAngle) * scanRadius * 0.65 }
+        ],
+        stroke: palette[(scan + 1) % palette.length],
+        strokeWidth: Math.max(1.8, (c.stroke || 0.8) * (3.6 - scan * 0.8)),
+        opacity: c.opacity * (0.42 - scan * 0.09),
+        blend: c.blend === 'source-over' ? 'difference' : c.blend
+      });
+    }
+  }
+  cascadePostProcess(width, height, bands);
+  return { glyphs: glyphs, bands: bands, limited: false };
+}
+
+function generateCascadeBands(tokens, width, height) {
+  var c = compositionState.cascade;
+  if (c.signalMode === 'moire') return generateCascadeMoire(tokens, width, height);
+  if (c.signalMode === 'radar') return generateCascadeRadar(tokens, width, height);
+  var units = tokens.reduce(function (sum, token) { return sum + token.units; }, 0) || 1;
+  var unitW = width / Math.max(1, units + Math.max(0, tokens.length - 1) * c.tracking);
+  var rowH = height / c.rows;
+  var limit = compositionLimit();
+  var phaseTurn = ((compositionState.phase % 1) + 1) % 1;
+  var phase = phaseTurn * Math.PI * 2;
+  var palette = cascadePalette();
+  var glyphs = [], bands = [], instanceIndex = 0;
+  cascadeBackdrop(width, height, bands);
+  for (var row = 0; row < c.rows; row++) {
+    var cursor = 0;
+    var logicalRow = c.mirror && row > (c.rows - 1) / 2 ? c.rows - 1 - row : row;
+    for (var ti = 0; ti < tokens.length; ti++) {
+      var token = tokens[ti];
+      var tokenW = token.units * unitW;
+      var raw = Math.sin(-phase + logicalRow * (Math.PI * 2 / c.rows) + ti * c.waveLength * Math.PI * 2);
+      var shaped = Math.sign(raw) * (1 - Math.pow(1 - Math.abs(raw), c.slope));
+      var bandH = rowH * (1 - c.lineSpace) * Math.max(0.08, 1 + shaped * c.amplitude);
+      var cy = (row + 0.5) * rowH + shaped * c.amplitude * rowH * 0.28;
+      var quantStep = Math.max(0.5, rowH / Math.max(2, c.quantize));
+      cy = Math.round(cy / quantStep) * quantStep;
+      var fill = cascadeColorFor(row, ti, raw > 0 ? 1 : 0, token, c.rows, tokens.length);
+      var gap = Math.min(tokenW, bandH) * c.gap * 0.5;
+      if (c.bands) {
+        for (var layer = c.signalLayers - 1; layer > 0; layer--) {
+          var layerT = layer / Math.max(1, c.signalLayers - 1);
+          var echoScale = 1 + layerT * c.signalFeedback * 0.65;
+          var echoW = (tokenW + unitW * c.tracking - gap * 2 + 0.5) * echoScale;
+          var echoH = (bandH - gap * 2) * echoScale;
+          var echo = cascadeShapeItem(
+            cursor + tokenW / 2 - echoW / 2 + Math.sin(phase + row + ti + layer) * unitW * c.signalFeedback * layerT,
+            cy - echoH / 2 + Math.cos(phase + ti - layer) * rowH * c.signalFeedback * layerT,
+            echoW, echoH,
+            palette[(row + ti + layer) % palette.length],
+            c.opacity * (0.04 + c.signalFeedback * 0.12) * (1 - layerT * 0.35),
+            shaped * c.round * 28 + layer * 9,
+            raw > 0 ? 1 : 0
+          );
+          echo.blend = c.blend === 'source-over' ? 'difference' : c.blend;
+          if (layer % 2) {
+            echo.shape = 'ring';
+            echo.stroke = echo.fill;
+            echo.strokeWidth = Math.max(0.55, c.stroke || 0.8);
+          }
+          bands.push(echo);
+        }
+        bands.push(cascadeShapeItem(cursor + gap, cy - bandH / 2 + gap, tokenW + unitW * c.tracking - gap * 2 + 0.5, bandH - gap * 2, fill, c.opacity, shaped * c.round * 28, raw > 0 ? 1 : 0));
+      }
+      if (!token.space) {
+        if (instanceIndex >= limit) {
+          cascadePostProcess(width, height, bands);
+          return { glyphs: glyphs, bands: bands, limited: true };
+        }
+        var glyph = compositionGlyph(token, cursor + tokenW / 2, cy, unitW / Math.max(1, params.fontSize * 0.72), Math.max(0.02, bandH / Math.max(1, params.fontSize * params.lineHeight)), shaped * c.signalFeedback * 28, cascadeGlyphColor(fill, raw > 0 ? 1 : 0), 1, instanceIndex++);
+        if (glyph) glyphs.push(glyph);
+      }
+      cursor += tokenW + unitW * c.tracking;
+    }
+  }
+  cascadePostProcess(width, height, bands);
+  return { glyphs: glyphs, bands: bands, limited: false };
+}
+
+/* ---------------- Contour Atlas: scalar field → marching squares ---------------- */
+function contourScalar(nx, ny, tokens, clock, inputs, contour) {
+  var value = 0;
+  if (contour.source === 'interference') {
+    value = (
+      Math.sin((nx * 4 + Math.cos(clock.angle) * 0.35) * Math.PI * 2) +
+      Math.cos((ny * 5 + Math.sin(clock.angle) * 0.35) * Math.PI * 2) +
+      Math.sin((nx + ny) * 7 * Math.PI + clock.angle * 2)
+    ) / 3;
+  } else {
+    var visible = Math.max(1, tokens.length);
+    var nearest = Infinity, charge = 0;
+    var sources = Math.min(24, visible);
+    for (var si = 0; si < sources; si++) {
+      var token = tokens[Math.floor(si / sources * visible) % visible];
+      var cp = cascadeTokenCode(token);
+      var sx = 0.08 + hash(cp, si, compositionState.seed) * 0.84;
+      var sy = 0.08 + hash(si, cp, compositionState.seed + 17) * 0.84;
+      var dx = nx - sx, dy = ny - sy;
+      var distance = Math.sqrt(dx * dx + dy * dy);
+      nearest = Math.min(nearest, distance);
+      charge += (((cp % 7) - 3) / 3) / Math.max(0.035, distance) * 0.025;
+    }
+    if (contour.source === 'voronoi') value = 1 - Math.min(1, nearest * 5);
+    else if (contour.source === 'unicodeCharge') value = Math.tanh(charge * contour.charge);
+    else value = Math.cos(Math.min(1, nearest) * Math.PI * (4 + contour.spacing * 8) - clock.angle)
+      * (0.35 + contour.textHeight * 0.65);
+  }
+  value += Math.sin((nx - ny) * Math.PI * 6 + clock.angle) * contour.interference * 0.18;
+  if (inputs.pointer.active && contour.pointerRelief > 0) {
+    var pd = Math.hypot(nx - inputs.pointer.x, ny - inputs.pointer.y);
+    value += Math.max(0, 1 - pd * 4) * contour.pointerRelief * inputs.pointer.pressure;
+  }
+  return Math.max(-1, Math.min(1, value));
+}
+
+function contourEdgePoint(edge, x, y, cellW, cellH, a, b, c, d, level) {
+  function mix(v0, v1) {
+    var denom = v1 - v0;
+    return Math.max(0, Math.min(1, Math.abs(denom) < 0.000001 ? 0.5 : (level - v0) / denom));
+  }
+  if (edge === 0) return { x: x + mix(a, b) * cellW, y: y };
+  if (edge === 1) return { x: x + cellW, y: y + mix(b, c) * cellH };
+  if (edge === 2) return { x: x + (1 - mix(d, c)) * cellW, y: y + cellH };
+  return { x: x, y: y + (1 - mix(a, d)) * cellH };
+}
+
+function contourSegmentsForCell(x, y, cellW, cellH, a, b, c, d, level) {
+  var state = (a >= level ? 8 : 0) | (b >= level ? 4 : 0) | (c >= level ? 2 : 0) | (d >= level ? 1 : 0);
+  var table = {
+    1: [[3, 2]], 2: [[2, 1]], 3: [[3, 1]], 4: [[0, 1]],
+    5: [[0, 3], [2, 1]], 6: [[0, 2]], 7: [[0, 3]],
+    8: [[3, 0]], 9: [[0, 2]], 10: [[3, 2], [0, 1]],
+    11: [[0, 1]], 12: [[3, 1]], 13: [[2, 1]], 14: [[3, 2]]
+  };
+  var edges = table[state] || [];
+  return edges.map(function (pair) {
+    return [
+      contourEdgePoint(pair[0], x, y, cellW, cellH, a, b, c, d, level),
+      contourEdgePoint(pair[1], x, y, cellW, cellH, a, b, c, d, level)
+    ];
+  });
+}
+
+function generateContourAtlasScene(tokens, width, height, runtime) {
+  var contour = compositionState.contourAtlas;
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  var inputs = runtime && runtime.inputs ? runtime.inputs : createCompositionInputBus(tokens, width, height, clock);
+  var effectiveQuality = compositionEffectiveQuality();
+  var qualityScale = effectiveQuality === 'performance' ? 0.62 : (effectiveQuality === 'high' ? 1.25 : 1);
+  var cols = Math.max(12, Math.min(144, Math.round(contour.resolution * qualityScale)));
+  var rows = Math.max(12, Math.round(cols * height / Math.max(1, width)));
+  var values = new Float32Array((cols + 1) * (rows + 1));
+  for (var gy = 0; gy <= rows; gy++) {
+    for (var gx = 0; gx <= cols; gx++) {
+      values[gy * (cols + 1) + gx] = contourScalar(gx / cols, gy / rows, tokens, clock, inputs, contour);
+    }
+  }
+  var cellW = width / cols, cellH = height / rows;
+  var palette = compositionPalette();
+  var glyphs = [], bands = [], segments = [], instanceIndex = 0, limit = compositionLimit();
+  // Marching Squares can otherwise allocate levels × rows × columns
+  // objects before the shared FX budget has a chance to trim the scene.
+  var segmentLimit = Math.max(256, limit);
+  var bandLimit = Math.max(128, Math.floor(limit * 0.65));
+  var contourCapped = false;
+  var needsStoredSegments = contour.glyphs || contour.rendering === 'glyphs' || contour.rendering === 'hybrid';
+  var needsBands = contour.rendering !== 'glyphs' || contour.filled;
+  var levelCount = Math.max(2, contour.levels);
+  contourLevels:
+  for (var levelIndex = 0; levelIndex < levelCount; levelIndex++) {
+    var thresholdShift = (contour.threshold - 0.5) * 0.9;
+    var level = -0.82 + levelIndex / Math.max(1, levelCount - 1) * 1.64 + thresholdShift;
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < cols; col++) {
+        var a = values[row * (cols + 1) + col];
+        var b = values[row * (cols + 1) + col + 1];
+        var c = values[(row + 1) * (cols + 1) + col + 1];
+        var d = values[(row + 1) * (cols + 1) + col];
+        var cellSegments = contourSegmentsForCell(col * cellW, row * cellH, cellW, cellH, a, b, c, d, level);
+        for (var segmentIndex = 0; segmentIndex < cellSegments.length; segmentIndex++) {
+          var segment = cellSegments[segmentIndex];
+          if (needsStoredSegments) {
+            if (segments.length < segmentLimit) segments.push(segment);
+            else contourCapped = true;
+          }
+          if (contour.rendering !== 'glyphs' && bands.length < bandLimit) {
+            bands.push({
+              kind: 'path', points: segment,
+              stroke: contour.colorMode === 'ink' ? params.ink : palette[levelIndex % palette.length],
+              strokeWidth: contour.lineWidth,
+              opacity: 0.2 + contour.density * 0.7,
+              dash: contour.dash > 0 ? [2 + contour.dash * 12, 2 + contour.dash * 8] : null,
+              blend: levelIndex % 3 === 2 ? 'difference' : 'source-over'
+            });
+          } else if (contour.rendering !== 'glyphs') contourCapped = true;
+        }
+        // A filled cell is a cell primitive, not one fill per contour
+        // segment (ambiguous marching states may have two segments).
+        if ((contour.filled || contour.rendering === 'filled') && a >= level && levelIndex % 2 === 0) {
+          if (bands.length < bandLimit) {
+            bands.push({
+              kind: 'shape', shape: 'rect', x: col * cellW, y: row * cellH,
+              w: cellW + 0.5, h: cellH + 0.5,
+              fill: contour.colorMode === 'ink' ? params.ink : palette[levelIndex % palette.length],
+              opacity: contour.fillOpacity * (0.15 + contour.density * 0.35)
+            });
+          } else contourCapped = true;
+        }
+        if ((!needsStoredSegments || segments.length >= segmentLimit) &&
+            (!needsBands || bands.length >= bandLimit)) {
+          contourCapped = true;
+          break contourLevels;
+        }
+      }
+    }
+  }
+  if (contour.glyphs || contour.rendering === 'glyphs' || contour.rendering === 'hybrid') {
+    var step = Math.max(1, Math.round(4 - contour.density * 3));
+    for (var si = 0; si < segments.length && instanceIndex < limit; si += step) {
+      var points = segments[si];
+      var token = tokens[instanceIndex % tokens.length];
+      if (token.space) continue;
+      var dx = points[1].x - points[0].x, dy = points[1].y - points[0].y;
+      var scale = Math.max(0.025, Math.min(cellW, cellH) * 1.5 / Math.max(1, params.fontSize));
+      var glyph = compositionGlyph(
+        token,
+        (points[0].x + points[1].x) * 0.5,
+        (points[0].y + points[1].y) * 0.5,
+        scale, scale,
+        Math.atan2(dy, dx) * 180 / Math.PI * contour.tangent,
+        palette[instanceIndex % palette.length],
+        0.45 + compositionMacro('legibility', 0.85) * 0.55,
+        instanceIndex++
+      );
+      if (glyph) glyphs.push(glyph);
+    }
+  }
+  return { glyphs: glyphs, bands: bands, limited: contourCapped || instanceIndex >= limit };
+}
+
+/* ---------------- Feedback Chamber: deterministic analytical feedback ---------------- */
+function generateFeedbackChamberScene(tokens, width, height, runtime) {
+  var feedback = compositionState.feedbackChamber;
+  var clock = runtime && runtime.clock ? runtime.clock : createLoopClock(compositionState.phase, 240, compositionState.seed, compositionState.direction);
+  var inputs = runtime && runtime.inputs ? runtime.inputs : createCompositionInputBus(tokens, width, height, clock);
+  var glyphs = [], bands = [], instanceIndex = 0, limit = compositionLimit();
+  var visible = tokens.filter(function (token) { return token && !token.space && token.glyph; });
+  var phrase = visible.length ? visible : tokens;
+  var echoCount = Math.min(feedback.echoes, Math.max(1, Math.floor(limit / Math.max(1, phrase.length))));
+  var usePointerCenter = feedback.pointerCenter && inputs.pointer.active;
+  var centerX = usePointerCenter ? inputs.pointer.px : width * 0.5;
+  var centerY = usePointerCenter ? inputs.pointer.py : height * 0.5;
+  var baseAdvance = Math.min(width / Math.max(1, phrase.length), params.fontSize * 1.1);
+  var baseWidth = phrase.length * baseAdvance;
+  var palette = compositionPalette();
+  for (var echo = echoCount - 1; echo >= 0; echo--) {
+    var t = echo / Math.max(1, echoCount - 1);
+    var echoPhase = clock.angle + t * Math.PI * 2;
+    var scale = Math.pow(1 + feedback.zoom, echo);
+    var rotation = feedback.rotation * echo + Math.sin(echoPhase) * feedback.warpAmount * 12;
+    var driftX = feedback.driftX * width * t + Math.cos(echoPhase) * feedback.warpAmount * width * 0.035;
+    var driftY = feedback.driftY * height * t + Math.sin(echoPhase) * feedback.warpAmount * height * 0.035;
+    var copies = feedback.mirror === 'quad' ? 4 : (feedback.mirror === 'bilateral' ? 2 : (feedback.mirror === 'kaleidoscope' ? feedback.kaleidoscope : 1));
+    for (var copy = 0; copy < copies; copy++) {
+      var copyAngle = copy / copies * Math.PI * 2;
+      for (var ti = 0; ti < phrase.length; ti++) {
+        if (instanceIndex >= limit) return { glyphs: glyphs, bands: bands, limited: true, rasterPasses: [{ kind: 'rasterPass', shader: 'feedback', fallback: true }] };
+        var token = phrase[ti];
+        var localX = -baseWidth * 0.5 + (ti + 0.5) * baseAdvance;
+        var localY = 0;
+        var glyphRotation = rotation;
+        if (feedback.warp === 'wave') localY += Math.sin(ti / Math.max(1, phrase.length) * Math.PI * 2 + echoPhase) * params.fontSize * feedback.warpAmount;
+        else if (feedback.warp === 'twist') glyphRotation += Math.sin(ti / Math.max(1, phrase.length) * Math.PI * 2 + echoPhase) * feedback.warpAmount * 16;
+        else if (feedback.warp === 'tunnel') localY += Math.sin(echoPhase + ti * 0.7) * t * height * 0.08;
+        else if (feedback.warp === 'glyphSdf') localY += compositionLoopNoise(clock, ti, echo, cascadeTokenCode(token)) * feedback.warpAmount * params.fontSize;
+        var ca = copyAngle + glyphRotation * Math.PI / 180;
+        var gx = centerX + Math.cos(ca) * localX * scale - Math.sin(ca) * localY * scale + driftX;
+        var gy = centerY + Math.sin(ca) * localX * scale + Math.cos(ca) * localY * scale + driftY;
+        var opacity = feedback.injection * Math.pow(feedback.decay, echo) * (0.4 + feedback.persistence * 0.6);
+        if (opacity < feedback.threshold * 0.08) continue;
+        var glyph = compositionGlyph(
+          token, gx, gy,
+          scale * (1 + feedback.shear * t * 0.2), scale,
+          glyphRotation + copyAngle * 180 / Math.PI,
+          palette[(echo + copy) % palette.length],
+          Math.min(1, opacity), instanceIndex++
+        );
+        if (glyph) {
+          glyph.skewX += feedback.shear * echo * 8;
+          glyphs.push(glyph);
+        }
+      }
+    }
+    bands.push({
+      kind: 'shape', shape: 'ring',
+      x: centerX - baseWidth * scale * 0.52, y: centerY - params.fontSize * scale,
+      w: baseWidth * scale * 1.04, h: params.fontSize * scale * 2,
+      fill: palette[echo % palette.length], stroke: palette[echo % palette.length],
+      strokeWidth: Math.max(0.5, 1.5 * (1 - t)),
+      opacity: Math.pow(feedback.decay, echo) * feedback.persistence * 0.18,
+      rotation: rotation, blend: echo % 2 ? 'screen' : 'difference'
+    });
+  }
+  return {
+    glyphs: glyphs, bands: bands, limited: false,
+    rasterPasses: [{ kind: 'rasterPass', shader: 'feedback', fallback: true, loopLocked: compositionState.loopLock && feedback.loopLock }]
+  };
+}
+
+function generateCascadeScene(tokens, width, height, runtime) {
+  var system = compositionState.cascade.system;
+  var generated;
+  if (system === 'automaton') generated = generateCascadeAutomaton(tokens, width, height, runtime);
+  else if (system === 'circuit') generated = generateCascadeCircuit(tokens, width, height, runtime);
+  else if (system === 'sdf') generated = generateCascadeSdf(tokens, width, height, runtime);
+  else generated = generateCascadeBands(tokens, width, height);
+  var c = compositionState.cascade;
+  generated.glyphs.forEach(function (glyph) { glyph.opacity *= c.textAmount; });
+  generated.bands.forEach(function (band) {
+    band.opacity = (band.opacity == null ? 1 : band.opacity) * c.backgroundAmount;
+  });
+  return generated;
+}
+
+function cloneSceneGlyphForFx(glyph) {
+  return Object.assign({}, glyph);
+}
+
+function cloneSceneBandForFx(band) {
+  var clone = Object.assign({}, band);
+  if (band.points) clone.points = band.points.map(function (point) { return { x: point.x, y: point.y }; });
+  return clone;
+}
+
+function transformSceneItem(item, width, height, scale, rotation, dx, dy) {
+  var cx = width * 0.5, cy = height * 0.5;
+  var radians = rotation * Math.PI / 180;
+  function point(x, y) {
+    var px = (x - cx) * scale, py = (y - cy) * scale;
+    return {
+      x: cx + px * Math.cos(radians) - py * Math.sin(radians) + dx,
+      y: cy + px * Math.sin(radians) + py * Math.cos(radians) + dy
+    };
+  }
+  if (item.composition) {
+    var gp = point(item.ox, item.oy);
+    item.x += gp.x - item.ox; item.y += gp.y - item.oy;
+    item.bx += gp.x - item.ox; item.by += gp.y - item.oy;
+    item.ox = gp.x; item.oy = gp.y;
+    item.scaleX *= scale; item.scaleY *= scale; item.rot += rotation;
+  } else if (item.kind === 'path' && item.points) {
+    item.points = item.points.map(function (p) { return point(p.x, p.y); });
+  } else {
+    var bp = point(item.x + item.w * 0.5, item.y + item.h * 0.5);
+    item.w *= scale; item.h *= scale;
+    item.x = bp.x - item.w * 0.5; item.y = bp.y - item.h * 0.5;
+    item.rotation = (item.rotation || 0) + rotation;
+  }
+}
+
+// Kept as a compact analytical fallback for embedding contexts; the
+// canonical preview/export pipeline is applyCompositionFxRack below.
+function applyCompositionFxRackAnalyticalFallback(scene, width, height, runtime) {
+  var rack = compositionState.fxRack || COMPOSITION_DEFAULTS.fxRack;
+  var limit = compositionLimit();
+  var clock = runtime.clock;
+  // Engine → Echo / Trail
+  if (rack.echo.enabled && rack.echo.amount > 0) {
+    var sourceGlyphs = scene.glyphs.slice();
+    var sourceBands = scene.bands.slice();
+    for (var echoIndex = 1; echoIndex <= rack.echo.count; echoIndex++) {
+      if (scene.glyphs.length >= limit) { scene.limited = true; break; }
+      var echoTurn = clock.turn + rack.echo.phase * echoIndex;
+      var echoScale = 1 + rack.echo.scale * echoIndex;
+      var echoRotation = rack.echo.rotation * echoIndex;
+      var echoOpacity = rack.echo.amount * Math.pow(rack.echo.decay, echoIndex);
+      var echoDx = Math.cos(echoTurn * Math.PI * 2) * rack.echo.amount * echoIndex * 3;
+      var echoDy = Math.sin(echoTurn * Math.PI * 2) * rack.echo.amount * echoIndex * 3;
+      for (var eg = 0; eg < sourceGlyphs.length && scene.glyphs.length < limit; eg++) {
+        var echoGlyph = cloneSceneGlyphForFx(sourceGlyphs[eg]);
+        echoGlyph.opacity *= echoOpacity;
+        transformSceneItem(echoGlyph, width, height, echoScale, echoRotation, echoDx, echoDy);
+        scene.glyphs.unshift(echoGlyph);
+      }
+      for (var eb = 0; eb < sourceBands.length; eb++) {
+        var echoBand = cloneSceneBandForFx(sourceBands[eb]);
+        echoBand.opacity = (echoBand.opacity == null ? 1 : echoBand.opacity) * echoOpacity;
+        transformSceneItem(echoBand, width, height, echoScale, echoRotation, echoDx, echoDy);
+        scene.bands.unshift(echoBand);
+      }
+    }
+  }
+  // Echo → Feedback
+  if (rack.feedback.enabled && rack.feedback.amount > 0) {
+    var feedbackCopies = Math.max(1, Math.round(1 + rack.feedback.amount * 4));
+    var feedbackSource = scene.bands.slice();
+    for (var feedbackIndex = 1; feedbackIndex <= feedbackCopies; feedbackIndex++) {
+      var feedbackScale = 1 + rack.feedback.zoom * feedbackIndex;
+      var feedbackRotation = rack.feedback.rotation * feedbackIndex;
+      for (var fb = 0; fb < feedbackSource.length; fb++) {
+        var feedbackBand = cloneSceneBandForFx(feedbackSource[fb]);
+        feedbackBand.opacity = (feedbackBand.opacity == null ? 1 : feedbackBand.opacity) * rack.feedback.amount * Math.pow(0.58, feedbackIndex);
+        var warpX = Math.sin(clock.angle + feedbackIndex) * rack.feedback.warp * 12;
+        var warpY = Math.cos(clock.angle + feedbackIndex) * rack.feedback.warp * 12;
+        transformSceneItem(feedbackBand, width, height, feedbackScale, feedbackRotation, warpX, warpY);
+        scene.bands.unshift(feedbackBand);
+      }
+    }
+  }
+  // Feedback → Signal Mask
+  if (rack.signalMask.enabled && rack.signalMask.amount > 0) {
+    scene.glyphs.forEach(function (glyph, index) {
+      var signal = (Math.sin(index * 1.618 + clock.angle) + 1) * 0.5;
+      if (rack.signalMask.mode === 'inverseText') signal = 1 - signal;
+      else if (rack.signalMask.mode === 'field') signal = (Math.cos((glyph.ox / Math.max(1, width) - glyph.oy / Math.max(1, height)) * Math.PI * 8 + clock.angle) + 1) * 0.5;
+      glyph.opacity *= 1 - rack.signalMask.amount + signal * rack.signalMask.amount;
+    });
+  }
+  // Signal Mask → Chromatic Split
+  if (rack.chromaticSplit.enabled && rack.chromaticSplit.amount > 0) {
+    var chromaticSource = scene.glyphs.slice();
+    var angle = rack.chromaticSplit.angle * Math.PI / 180;
+    var splitX = Math.cos(angle) * rack.chromaticSplit.distance * rack.chromaticSplit.amount;
+    var splitY = Math.sin(angle) * rack.chromaticSplit.distance * rack.chromaticSplit.amount;
+    for (var cg = 0; cg < chromaticSource.length && scene.glyphs.length + 2 <= limit; cg++) {
+      var cyan = cloneSceneGlyphForFx(chromaticSource[cg]);
+      var red = cloneSceneGlyphForFx(chromaticSource[cg]);
+      cyan.x -= splitX; cyan.bx -= splitX; cyan.ox -= splitX; cyan.y -= splitY; cyan.by -= splitY; cyan.oy -= splitY;
+      red.x += splitX; red.bx += splitX; red.ox += splitX; red.y += splitY; red.by += splitY; red.oy += splitY;
+      cyan.fill = compositionState.color2; red.fill = params.accent;
+      cyan.opacity *= rack.chromaticSplit.amount * 0.55;
+      red.opacity *= rack.chromaticSplit.amount * 0.55;
+      scene.glyphs.unshift(cyan, red);
+    }
+  }
+  // Chromatic Split → Raster Material (vector preview approximation).
+  if (rack.rasterMaterial.enabled && rack.rasterMaterial.amount > 0 && rack.rasterMaterial.scanline > 0) {
+    var spacing = Math.max(3, Math.round(15 - rack.rasterMaterial.scanline * 11));
+    for (var scanY = 0; scanY < height; scanY += spacing) {
+      scene.bands.push({
+        kind: 'shape', shape: 'rect', x: 0, y: scanY, w: width,
+        h: Math.max(0.5, rack.rasterMaterial.scanline * 1.8),
+        fill: params.ink,
+        opacity: rack.rasterMaterial.amount * rack.rasterMaterial.scanline * 0.12,
+        blend: 'multiply', post: true
+      });
+    }
+    scene.rasterPasses = scene.rasterPasses || [];
+    scene.rasterPasses.push({
+      kind: 'rasterPass', shader: 'rasterMaterial',
+      pixelate: rack.rasterMaterial.pixelate,
+      posterize: rack.rasterMaterial.posterize,
+      noise: rack.rasterMaterial.noise,
+      fallback: true
+    });
+  }
+  return scene;
+}
+
+function applyCompositionLegibility(scene) {
+  var legibility = compositionMacro('legibility', 0.85);
+  for (var i = 0; i < scene.glyphs.length; i++) {
+    scene.glyphs[i].opacity *= legibility;
+  }
+  for (var j = 0; j < scene.bands.length; j++) {
+    if (scene.bands[j].backdrop) continue;
+    scene.bands[j].opacity = (scene.bands[j].opacity == null ? 1 : scene.bands[j].opacity) * (0.3 + (1 - legibility) * 0.7);
+  }
+  return scene;
+}
+
+function normalizeCompositionEngineState(id, raw) {
+  var payload = { type: id };
+  payload[id] = raw;
+  return normalizeComposition(payload)[id];
+}
+
+function compositionEngineContract(id, label, generator, controls, modules, presets, capabilities) {
+  return {
+    id: id,
+    label: label,
+    defaults: COMPOSITION_DEFAULTS[id],
+    normalize: function (raw) { return normalizeCompositionEngineState(id, raw); },
+    controls: controls || [],
+    modules: modules || [],
+    presets: presets || [],
+    compile: function (source, viewport, state) {
+      return compileCompositionSource(source, viewport.width, viewport.height, state || compositionState);
+    },
+    evaluate: function (compiled, clock, inputs, quality) {
+      if (clock) compiled.clock = clock;
+      if (inputs) compiled.inputs = inputs;
+      compiled.quality = quality || compositionState.quality;
+      return generator(compiled.tokens, compiled.viewport.width, compiled.viewport.height, compiled);
+    },
+    render: function (frame, renderers) {
+      if (renderers && typeof renderers.scene === 'function') return renderers.scene(frame);
+      return frame;
+    },
+    capabilities: capabilities || { canvas2d: true, svg: true, webgl2: false }
+  };
+}
+
+COMPOSITION_ENGINES = {
+  field: compositionEngineContract(
+    'field', 'Field', generateFieldScene,
+    ['core', 'motion', 'topology', 'material', 'advanced'],
+    ['vectorField', 'network', 'pointer'],
+    ['waveGrid', 'vortexType', 'textAttractor']
+  ),
+  fluxRows: compositionEngineContract(
+    'fluxRows', 'Flux Rows', generateFluxScene,
+    ['core', 'motion', 'topology', 'material'],
+    ['baseline', 'weave', 'trail'],
+    ['counterflow', 'braid', 'scanRows']
+  ),
+  cascade: compositionEngineContract(
+    'cascade', 'Cascade', generateCascadeScene,
+    ['core', 'motion', 'topology', 'material', 'advanced'],
+    ['automaton', 'circuit', 'signalField', 'opticalShader'],
+    ['cellular', 'dataCircuit', 'signalInterference', 'opticalTunnel'],
+    { canvas2d: true, svg: true, webgl2: true, webglFallback: true }
+  ),
+  contourAtlas: compositionEngineContract(
+    'contourAtlas', 'Contour Atlas', generateContourAtlasScene,
+    ['core', 'topology', 'material', 'advanced'],
+    ['scalarField', 'marchingSquares', 'contourGlyphs'],
+    ['topographic', 'seismic', 'isoScript']
+  ),
+  feedbackChamber: compositionEngineContract(
+    'feedbackChamber', 'Feedback Chamber', generateFeedbackChamberScene,
+    ['core', 'motion', 'topology', 'material', 'advanced'],
+    ['recursiveTransform', 'mirror', 'textInjection'],
+    ['recursiveType', 'spectralBurn', 'mirrorHall'],
+    { canvas2d: true, svg: 'raster-best-effort', webgl2: true, webglFallback: true }
+  )
+};
+
+function generateCompositionScene(width, height, qualityMode) {
+  width = Math.max(1, width);
+  height = Math.max(1, height);
+  compositionScene.width = width;
+  compositionScene.height = height;
+  var previousOverride = compositionQualityOverride;
+  if (qualityMode === 'export') compositionQualityOverride = 'high';
+  try {
+    var sourceGlyphs = snapshotGlyphs(true);
+    var engine = COMPOSITION_ENGINES[compositionState.type] || COMPOSITION_ENGINES.field;
+    var compiled = engine.compile(sourceGlyphs, { width: width, height: height }, compositionState);
+    if (!compiled.tokens.length) return { glyphs: [], bands: [], width: width, height: height, limited: false, masks: [], rasterPasses: [] };
+    var generated = engine.evaluate(compiled, compiled.clock, compiled.inputs, compositionEffectiveQuality());
+    generated.glyphs = generated.glyphs || [];
+    generated.bands = generated.bands || [];
+    generated.masks = generated.masks || [];
+    generated.rasterPasses = generated.rasterPasses || [];
+    generated = applyCompositionLegibility(generated);
+    generated.width = width;
+    generated.height = height;
+    generated.engine = compositionState.type;
+    generated.clock = compiled.clock;
+    return generated;
+  } finally {
+    compositionQualityOverride = previousOverride;
+  }
+}
+
+function traceSceneShape(ctx, band) {
+  var x = band.x, y = band.y, w = band.w, h = band.h;
+  var cx = x + w / 2, cy = y + h / 2;
+  ctx.translate(cx, cy);
+  if (band.rotation) ctx.rotate(band.rotation * Math.PI / 180);
+  x = -w / 2; y = -h / 2;
+  ctx.beginPath();
+  if (band.shape === 'circle') {
+    ctx.ellipse(0, 0, Math.abs(w) / 2, Math.abs(h) / 2, 0, 0, Math.PI * 2);
+  } else if (band.shape === 'diamond') {
+    ctx.moveTo(0, y); ctx.lineTo(x + w, 0); ctx.lineTo(0, y + h); ctx.lineTo(x, 0); ctx.closePath();
+  } else if (band.shape === 'cross') {
+    var arm = Math.min(Math.abs(w), Math.abs(h)) * (0.15 + (band.radius || 0) * 0.2);
+    ctx.rect(-arm, y, arm * 2, h);
+    ctx.rect(x, -arm, w, arm * 2);
+  } else if (band.shape === 'line') {
+    ctx.moveTo(x, y + h); ctx.lineTo(x + w, y);
+  } else if (band.shape === 'ring') {
+    ctx.ellipse(0, 0, Math.abs(w) / 2, Math.abs(h) / 2, 0, 0, Math.PI * 2);
+  } else if (band.shape === 'rounded') {
+    var radius = Math.min(Math.abs(w), Math.abs(h)) * Math.min(0.5, Math.max(0, band.radius || 0));
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y); ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius); ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius); ctx.quadraticCurveTo(x, y, x + radius, y); ctx.closePath();
+  } else ctx.rect(x, y, w, h);
+}
+
+function drawSceneBands(ctx, bands, scale, L) {
+  if (!bands || !bands.length) return;
+  ctx.save();
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.translate(L.dx, L.dy);
+  ctx.scale(L.s, L.s);
+  for (var i = 0; i < bands.length; i++) {
+    var band = bands[i];
+    if ((band.opacity == null ? 1 : band.opacity) <= 0.001) continue;
+    ctx.save();
+    ctx.globalAlpha = band.opacity == null ? 1 : band.opacity;
+    ctx.globalCompositeOperation = band.blend || 'source-over';
+    if (band.kind === 'raster' && band.source) {
+      ctx.drawImage(band.source, band.x || 0, band.y || 0, band.w || band.source.width, band.h || band.source.height);
+    } else if (band.kind === 'path' && band.points && band.points.length) {
+      ctx.beginPath();
+      ctx.moveTo(band.points[0].x, band.points[0].y);
+      for (var pointIndex = 1; pointIndex < band.points.length; pointIndex++) ctx.lineTo(band.points[pointIndex].x, band.points[pointIndex].y);
+      ctx.strokeStyle = band.stroke || band.fill || params.ink;
+      ctx.lineWidth = band.strokeWidth || 1;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      if (band.dash && ctx.setLineDash) ctx.setLineDash(band.dash);
+      ctx.stroke();
+    } else {
+      traceSceneShape(ctx, band);
+      if (band.shape === 'line' || band.shape === 'ring') {
+        ctx.strokeStyle = band.stroke || band.fill;
+        ctx.lineWidth = Math.max(0.75, band.strokeWidth || Math.min(band.w, band.h) * 0.12);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = band.fill;
+        ctx.fill();
+        if (band.stroke && band.strokeWidth > 0) {
+          ctx.strokeStyle = band.stroke;
+          ctx.lineWidth = band.strokeWidth;
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ---------------- composition v6: fixed-order FX scene pipeline ----------------
+   Effects are compiled into the scene instead of being painted as a
+   preview-only overlay. The same glyph/path/shape IR therefore reaches
+   preview, screenshot, PNG, video and SVG. compositionState.fxRack is
+   intentionally read defensively so older projects and partially
+   migrated v6 projects remain renderable while the new UI is developed. */
+function compositionFxModule(primary, aliases) {
+  var rack = compositionState && (compositionState.fxRack || compositionState.fx);
+  if (!rack || typeof rack !== 'object') return null;
+  if (rack[primary] && typeof rack[primary] === 'object') return rack[primary];
+  aliases = aliases || [];
+  for (var i = 0; i < aliases.length; i++) {
+    if (rack[aliases[i]] && typeof rack[aliases[i]] === 'object') return rack[aliases[i]];
+  }
+  return null;
+}
+
+function fxNumber(module, keys, fallback, min, max) {
+  if (!module) return fallback;
+  keys = Array.isArray(keys) ? keys : [keys];
+  var value;
+  for (var i = 0; i < keys.length; i++) {
+    if (module[keys[i]] != null) {
+      value = Number(module[keys[i]]);
+      if (isFinite(value)) break;
+    }
+  }
+  if (!isFinite(value)) value = fallback;
+  if (min != null) value = Math.max(min, value);
+  if (max != null) value = Math.min(max, value);
+  return value;
+}
+
+function fxEnabled(module) {
+  if (!module) return false;
+  if (module.enabled != null) return module.enabled === true || module.enabled === 1;
+  if (module.on != null) return module.on === true || module.on === 1;
+  return fxNumber(module, ['amount', 'intensity', 'mix'], 0, 0, 1) > 0.0005;
+}
+
+function compositionFxBudget(qualityMode) {
+  var compact = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  if (qualityMode === 'export') return compact ? 24000 : 48000;
+  var quality = compositionEffectiveQuality();
+  if (quality === 'performance') return compact ? 4200 : 9000;
+  if (quality === 'high') return compact ? 9000 : 22000;
+  return compact ? 6500 : 16000;
+}
+
+function copySceneGlyph(glyph) {
+  var copy = {};
+  for (var key in glyph) if (Object.prototype.hasOwnProperty.call(glyph, key)) copy[key] = glyph[key];
+  return copy;
+}
+
+function copySceneBand(band) {
+  var copy = {};
+  for (var key in band) if (Object.prototype.hasOwnProperty.call(band, key)) copy[key] = band[key];
+  if (band.points) {
+    copy.points = band.points.map(function (point) { return { x: point.x, y: point.y }; });
+  }
+  return copy;
+}
+
+function transformScenePoint(x, y, cx, cy, scale, rotation, dx, dy) {
+  var rad = rotation * Math.PI / 180;
+  var cos = Math.cos(rad), sin = Math.sin(rad);
+  var px = (x - cx) * scale, py = (y - cy) * scale;
+  return {
+    x: cx + px * cos - py * sin + dx,
+    y: cy + px * sin + py * cos + dy
+  };
+}
+
+function transformSceneGlyph(glyph, width, height, transform, alpha, marker) {
+  var copy = copySceneGlyph(glyph);
+  var cx = width / 2, cy = height / 2;
+  var point = transformScenePoint(
+    glyph.ox + (glyph.tx || 0), glyph.oy + (glyph.ty || 0),
+    cx, cy, transform.scale, transform.rotation, transform.dx, transform.dy
+  );
+  copy.tx = point.x - glyph.ox;
+  copy.ty = point.y - glyph.oy;
+  copy.rot = (glyph.rot || 0) + transform.rotation;
+  copy.scaleX = glyph.scaleX * transform.scale;
+  copy.scaleY = glyph.scaleY * transform.scale;
+  copy.opacity = Math.max(0, Math.min(1, (glyph.opacity == null ? 1 : glyph.opacity) * alpha));
+  copy.fxPass = marker;
+  return copy;
+}
+
+function transformSceneBand(band, width, height, transform, alpha, marker) {
+  var copy = copySceneBand(band);
+  var cx = width / 2, cy = height / 2;
+  if (copy.kind === 'path' && copy.points) {
+    copy.points = copy.points.map(function (point) {
+      return transformScenePoint(point.x, point.y, cx, cy, transform.scale, transform.rotation, transform.dx, transform.dy);
+    });
+    copy.strokeWidth = Math.max(0.1, (copy.strokeWidth || 1) * Math.abs(transform.scale));
+  } else {
+    var center = transformScenePoint(
+      copy.x + copy.w / 2, copy.y + copy.h / 2,
+      cx, cy, transform.scale, transform.rotation, transform.dx, transform.dy
+    );
+    copy.w *= Math.abs(transform.scale);
+    copy.h *= Math.abs(transform.scale);
+    copy.x = center.x - copy.w / 2;
+    copy.y = center.y - copy.h / 2;
+    copy.rotation = (copy.rotation || 0) + transform.rotation;
+    if (copy.strokeWidth) copy.strokeWidth *= Math.abs(transform.scale);
+  }
+  copy.opacity = Math.max(0, Math.min(1, (band.opacity == null ? 1 : band.opacity) * alpha));
+  copy.fxPass = marker;
+  return copy;
+}
+
+function appendTransformedScenePass(scene, sourceGlyphs, sourceBands, transform, alpha, marker, budget) {
+  var room = Math.max(0, budget - (scene._basePrimitiveCount || 0) - scene.glyphs.length - scene.bands.length);
+  if (!room || alpha <= 0.001) return;
+  for (var bi = 0; bi < sourceBands.length && room > 0; bi++, room--) {
+    scene.bands.push(transformSceneBand(sourceBands[bi], scene.width, scene.height, transform, alpha, marker));
+  }
+  for (var gi = 0; gi < sourceGlyphs.length && room > 0; gi++, room--) {
+    scene.glyphs.push(transformSceneGlyph(sourceGlyphs[gi], scene.width, scene.height, transform, alpha, marker));
+  }
+  if (room <= 0) scene.limited = true;
+}
+
+function applyEchoTrailFx(scene, module, budget) {
+  if (!fxEnabled(module)) return scene;
+  var amount = fxNumber(module, ['amount', 'intensity', 'mix'], 0.5, 0, 1);
+  var requested = fxNumber(module, ['count', 'echoes', 'passes'], 4, 1, 16);
+  var count = Math.max(1, Math.round(requested));
+  var decay = fxNumber(module, 'decay', 0.68, 0.05, 0.98);
+  var distance = fxNumber(module, ['distance', 'offset', 'spacing'], 12, -240, 240);
+  var angle = fxNumber(module, 'angle', 0, -360, 360) * Math.PI / 180;
+  var scaleStep = fxNumber(module, ['scale', 'zoom'], 0.018, -0.2, 0.2);
+  var rotationStep = fxNumber(module, ['rotation', 'rotate'], 2, -45, 45);
+  var phaseSpacing = fxNumber(module, ['phaseSpacing', 'phase'], 0.08, -1, 1);
+  var phase = (((compositionState.phase || 0) % 1) + 1) % 1;
+  var sourceGlyphs = scene.glyphs.slice();
+  var sourceBands = scene.bands.slice();
+  var effectGlyphs = [], effectBands = [];
+  var target = {
+    glyphs: effectGlyphs, bands: effectBands,
+    width: scene.width, height: scene.height, limited: scene.limited,
+    _basePrimitiveCount: scene.glyphs.length + scene.bands.length
+  };
+  for (var pass = count; pass >= 1; pass--) {
+    var phaseAngle = Math.PI * 2 * (phase + pass * phaseSpacing);
+    var passDistance = distance * pass * amount;
+    appendTransformedScenePass(target, sourceGlyphs, sourceBands, {
+      dx: Math.cos(angle + phaseAngle) * passDistance,
+      dy: Math.sin(angle + phaseAngle) * passDistance,
+      scale: Math.max(0.05, 1 + scaleStep * pass * amount),
+      rotation: rotationStep * pass * amount
+    }, amount * Math.pow(decay, pass), 'echoTrail', budget);
+  }
+  scene.glyphs = effectGlyphs.concat(scene.glyphs);
+  scene.bands = effectBands.concat(scene.bands);
+  scene.limited = scene.limited || target.limited;
+  return scene;
+}
+
+function applyFeedbackFx(scene, module, budget) {
+  if (!fxEnabled(module)) return scene;
+  var amount = fxNumber(module, ['amount', 'intensity', 'mix'], 0.42, 0, 1);
+  var persistence = fxNumber(module, ['persistence', 'decay'], 0.72, 0.05, 0.98);
+  var requested = fxNumber(module, ['passes', 'count', 'echoes'], 5, 1, 14);
+  var count = Math.max(1, Math.round(requested));
+  var zoom = fxNumber(module, ['zoom', 'scale'], 0.04, -0.2, 0.2);
+  var rotation = fxNumber(module, ['rotation', 'rotate'], 3, -45, 45);
+  var warp = fxNumber(module, 'warp', 0, 0, 1);
+  var phase = (((compositionState.phase || 0) % 1) + 1) % 1;
+  var phaseAngle = phase * Math.PI * 2;
+  var sourceGlyphs = scene.glyphs.slice();
+  var sourceBands = scene.bands.slice();
+  var effectGlyphs = [], effectBands = [];
+  var target = {
+    glyphs: effectGlyphs, bands: effectBands,
+    width: scene.width, height: scene.height, limited: scene.limited,
+    _basePrimitiveCount: scene.glyphs.length + scene.bands.length
+  };
+  for (var pass = count; pass >= 1; pass--) {
+    var loopWarp = Math.sin(phaseAngle + pass * 1.618) * warp;
+    appendTransformedScenePass(target, sourceGlyphs, sourceBands, {
+      dx: Math.cos(phaseAngle + pass * 0.73) * loopWarp * scene.width * 0.025 * pass,
+      dy: Math.sin(phaseAngle - pass * 0.61) * loopWarp * scene.height * 0.025 * pass,
+      scale: Math.max(0.05, 1 + zoom * pass * amount),
+      rotation: rotation * pass * amount + loopWarp * 8
+    }, amount * Math.pow(persistence, pass), 'feedback', budget);
+  }
+  scene.glyphs = effectGlyphs.concat(scene.glyphs);
+  scene.bands = effectBands.concat(scene.bands);
+  scene.limited = scene.limited || target.limited;
+  return scene;
+}
+
+function hexLuminance(color) {
+  if (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color)) return 0.5;
+  var r = parseInt(color.slice(1, 3), 16) / 255;
+  var g = parseInt(color.slice(3, 5), 16) / 255;
+  var b = parseInt(color.slice(5, 7), 16) / 255;
+  return r * 0.2126 + g * 0.7152 + b * 0.0722;
+}
+
+function applySignalMaskFx(scene, module) {
+  if (!fxEnabled(module)) return scene;
+  var amount = fxNumber(module, ['amount', 'intensity', 'mix'], 0.5, 0, 1);
+  var threshold = fxNumber(module, 'threshold', 0.5, 0, 1);
+  var softness = Math.max(0.02, fxNumber(module, ['softness', 'feather'], 0.2, 0, 1));
+  var mode = module.mode || module.mask || 'text';
+  var phase = (((compositionState.phase || 0) % 1) + 1) % 1 * Math.PI * 2;
+  function fieldAt(x, y) {
+    var wave = 0.5 + 0.25 * Math.sin(phase + x / Math.max(1, scene.width) * Math.PI * 4)
+      + 0.25 * Math.cos(phase - y / Math.max(1, scene.height) * Math.PI * 4);
+    return Math.max(0, Math.min(1, (wave - threshold + softness) / (softness * 2)));
+  }
+  for (var gi = 0; gi < scene.glyphs.length; gi++) {
+    var glyph = scene.glyphs[gi];
+    var glyphAlpha = 1;
+    if (mode === 'inverseText' || mode === 'inverse-text' || mode === 'inverse') glyphAlpha = 1 - amount;
+    else if (mode === 'field') glyphAlpha = 1 - amount + amount * fieldAt(glyph.ox + (glyph.tx || 0), glyph.oy + (glyph.ty || 0));
+    else if (mode === 'luma') glyphAlpha = 1 - amount + amount * (hexLuminance(glyph.fill || params.ink) >= threshold ? 1 : softness);
+    glyph.opacity = Math.max(0, Math.min(1, (glyph.opacity == null ? 1 : glyph.opacity) * glyphAlpha));
+  }
+  for (var bi = 0; bi < scene.bands.length; bi++) {
+    var band = scene.bands[bi];
+    var bandAlpha = mode === 'text' ? 1 - amount : 1;
+    var bx = band.kind === 'path' && band.points && band.points.length ? band.points[0].x : band.x + band.w / 2;
+    var by = band.kind === 'path' && band.points && band.points.length ? band.points[0].y : band.y + band.h / 2;
+    if (mode === 'field') bandAlpha = 1 - amount + amount * fieldAt(bx, by);
+    else if (mode === 'luma') bandAlpha = 1 - amount + amount * (hexLuminance(band.fill || band.stroke || params.ink) >= threshold ? 1 : softness);
+    band.opacity = Math.max(0, Math.min(1, (band.opacity == null ? 1 : band.opacity) * bandAlpha));
+  }
+  return scene;
+}
+
+function applyChromaticSplitFx(scene, module, budget) {
+  if (!fxEnabled(module)) return scene;
+  var amount = fxNumber(module, ['amount', 'intensity', 'mix'], 0.55, 0, 1);
+  var distance = fxNumber(module, ['distance', 'offset'], 7, 0, 120) * amount;
+  if (distance < 0.01) return scene;
+  var angle = fxNumber(module, 'angle', 0, -360, 360) * Math.PI / 180;
+  var alpha = fxNumber(module, ['opacity', 'alpha'], 0.72, 0, 1) * amount;
+  var blend = module.blend || 'multiply';
+  var colorA = /^#[0-9a-f]{6}$/i.test(module.colorA || '') ? module.colorA : (compositionState.color2 || params.accent);
+  var colorB = /^#[0-9a-f]{6}$/i.test(module.colorB || '') ? module.colorB : (compositionState.color3 || params.ink);
+  var originals = scene.glyphs.slice();
+  var passes = [];
+  var room = Math.max(0, budget - scene.glyphs.length - scene.bands.length);
+  for (var pass = 0; pass < 2 && room > 0; pass++) {
+    var sign = pass ? -1 : 1;
+    for (var gi = 0; gi < originals.length && room > 0; gi++, room--) {
+      var copy = copySceneGlyph(originals[gi]);
+      copy.tx = (copy.tx || 0) + Math.cos(angle) * distance * sign;
+      copy.ty = (copy.ty || 0) + Math.sin(angle) * distance * sign;
+      copy.fill = pass ? colorB : colorA;
+      copy.opacity = Math.max(0, Math.min(1, (copy.opacity == null ? 1 : copy.opacity) * alpha));
+      copy.fxBlend = blend;
+      copy.fxPass = 'chromaticSplit';
+      passes.push(copy);
+    }
+  }
+  if (room <= 0) scene.limited = true;
+  scene.glyphs = passes.concat(scene.glyphs);
+  return scene;
+}
+
+function quantizeHex(color, steps) {
+  if (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color)) return color;
+  var divisor = Math.max(1, steps - 1);
+  var values = [1, 3, 5].map(function (at) {
+    var value = parseInt(color.slice(at, at + 2), 16);
+    return Math.round(Math.round(value / 255 * divisor) / divisor * 255);
+  });
+  return '#' + values.map(function (value) { return value.toString(16).padStart(2, '0'); }).join('');
+}
+
+function applyRasterMaterialFx(scene, module, budget) {
+  if (!fxEnabled(module)) return scene;
+  var mix = fxNumber(module, ['amount', 'intensity', 'mix'], 1, 0, 1);
+  var pixelate = fxNumber(module, ['pixelate', 'pixelation'], 0, 0, 1) * mix;
+  var posterize = fxNumber(module, 'posterize', 0, 0, 1) * mix;
+  var scanline = fxNumber(module, ['scanline', 'scanlines'], 0, 0, 1) * mix;
+  var noise = fxNumber(module, 'noise', 0, 0, 1) * mix;
+  var snap = pixelate > 0.001 ? 1 + pixelate * 31 : 0;
+  var steps = Math.max(2, Math.round(16 - posterize * 13));
+  for (var gi = 0; gi < scene.glyphs.length; gi++) {
+    var glyph = scene.glyphs[gi];
+    if (snap) {
+      var gx = glyph.ox + (glyph.tx || 0), gy = glyph.oy + (glyph.ty || 0);
+      glyph.tx = Math.round(gx / snap) * snap - glyph.ox;
+      glyph.ty = Math.round(gy / snap) * snap - glyph.oy;
+    }
+    if (posterize > 0.001) glyph.fill = quantizeHex(glyph.fill || params.ink, steps);
+  }
+  for (var bi = 0; bi < scene.bands.length; bi++) {
+    var band = scene.bands[bi];
+    if (snap && band.kind === 'path' && band.points) {
+      band.points.forEach(function (point) {
+        point.x = Math.round(point.x / snap) * snap;
+        point.y = Math.round(point.y / snap) * snap;
+      });
+    } else if (snap && band.x != null) {
+      band.x = Math.round(band.x / snap) * snap;
+      band.y = Math.round(band.y / snap) * snap;
+      band.w = Math.max(snap, Math.round(band.w / snap) * snap);
+      band.h = Math.max(snap, Math.round(band.h / snap) * snap);
+    }
+    if (posterize > 0.001) {
+      if (band.fill) band.fill = quantizeHex(band.fill, steps);
+      if (band.stroke) band.stroke = quantizeHex(band.stroke, steps);
+    }
+  }
+  var room = Math.max(0, budget - scene.glyphs.length - scene.bands.length);
+  if (scanline > 0.001 && room > 0) {
+    var lineGap = Math.max(3, Math.round(18 - scanline * 14));
+    var lineCount = Math.min(room, 240, Math.ceil(scene.height / lineGap));
+    for (var line = 0; line < lineCount; line++) {
+      var y = line * lineGap + (((compositionState.phase || 0) * lineGap) % lineGap);
+      scene.bands.push({
+        kind: 'path',
+        points: [{ x: 0, y: y }, { x: scene.width, y: y }],
+        stroke: module.scanlineColor || params.ink,
+        strokeWidth: Math.max(0.5, scanline * 1.8),
+        opacity: scanline * 0.16,
+        blend: module.blend || 'multiply',
+        fxPass: 'rasterMaterial'
+      });
+    }
+    room -= lineCount;
+  }
+  if (noise > 0.001 && room > 0) {
+    var noiseCount = Math.min(room, Math.round(24 + noise * 176));
+    var phase = (((compositionState.phase || 0) % 1) + 1) % 1 * Math.PI * 2;
+    for (var ni = 0; ni < noiseCount; ni++) {
+      var seed = (ni + 1) * 12.9898;
+      var nx = ((Math.sin(seed * 1.17) * 43758.5453) % 1 + 1) % 1;
+      var ny = ((Math.sin(seed * 2.31) * 24634.6345) % 1 + 1) % 1;
+      nx = (nx + Math.sin(phase + seed) * noise * 0.025 + 1) % 1;
+      ny = (ny + Math.cos(phase - seed) * noise * 0.025 + 1) % 1;
+      var size = 0.6 + (((Math.sin(seed * 0.73) * 9758.13) % 1 + 1) % 1) * (1 + noise * 4);
+      scene.bands.push({
+        kind: 'shape', shape: 'rect',
+        x: nx * scene.width, y: ny * scene.height, w: size, h: size,
+        fill: ni % 3 ? params.ink : (compositionState.color2 || params.accent),
+        opacity: noise * (0.06 + (ni % 7) * 0.008),
+        blend: module.blend || 'difference',
+        fxPass: 'rasterMaterial'
+      });
+    }
+    room -= noiseCount;
+  }
+  if (room <= 0) scene.limited = true;
+  scene.rasterMaterial = {
+    pixelate: pixelate,
+    posterize: posterize,
+    scanline: scanline,
+    noise: noise,
+    vectorApproximation: true
+  };
+  return scene;
+}
+
+function enforceCompositionPrimitiveBudget(scene, budget) {
+  function bandCost(band) {
+    if (band && band.kind === 'path' && band.points) return Math.max(1, Math.ceil(band.points.length / 8));
+    return 1;
+  }
+  var rasterCost = (scene.rasterPasses || []).length * 32;
+  var total = scene.glyphs.length + rasterCost;
+  for (var totalIndex = 0; totalIndex < scene.bands.length; totalIndex++) {
+    total += bandCost(scene.bands[totalIndex]);
+  }
+  if (total <= budget) return scene;
+  var available = Math.max(0, budget - rasterCost);
+  var keepGlyphs = Math.min(
+    scene.glyphs.length,
+    scene.bands.length ? Math.floor(available * 0.58) : available
+  );
+  var room = available - keepGlyphs;
+  var keptBands = [];
+  for (var bandIndex = scene.bands.length - 1; bandIndex >= 0; bandIndex--) {
+    var cost = bandCost(scene.bands[bandIndex]);
+    if (cost > room) continue;
+    keptBands.unshift(scene.bands[bandIndex]);
+    room -= cost;
+  }
+  if (room > 0) keepGlyphs = Math.min(scene.glyphs.length, keepGlyphs + room);
+  scene.bands = keptBands;
+  scene.glyphs = scene.glyphs.slice(scene.glyphs.length - keepGlyphs);
+  scene.limited = true;
+  return scene;
+}
+
+/* ---------------- optional WebGL2 raster pass ----------------
+   Optical Shader and Feedback Chamber keep a deterministic Canvas2D
+   scene as their fallback. On WebGL2-capable browsers this transparent
+   raster pass is composited behind live glyphs and is also available to
+   PNG/video/SVG through the shared Scene IR. */
+var compositionWebGLState = {
+  checked: false, available: false, canvas: null, gl: null, program: null,
+  position: null, uniforms: null, texture: null, maskCanvas: null,
+  maskKey: '', lost: false
+};
+
+function webglCompositionAvailable() {
+  if (compositionWebGLState.checked) return compositionWebGLState.available && !compositionWebGLState.lost;
+  compositionWebGLState.checked = true;
+  try {
+    var probe = document.createElement('canvas');
+    compositionWebGLState.available = !!probe.getContext('webgl2', { alpha: true });
+  } catch (error) {
+    compositionWebGLState.available = false;
+  }
+  return compositionWebGLState.available;
+}
+
+function compileCompositionShader(gl, type, source) {
+  var shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    var message = gl.getShaderInfoLog(shader) || 'WebGL shader compile failed';
+    gl.deleteShader(shader);
+    throw new Error(message);
+  }
+  return shader;
+}
+
+function ensureCompositionWebGL(width, height) {
+  if (!webglCompositionAvailable()) return null;
+  var state = compositionWebGLState;
+  if (!state.canvas) {
+    var canvas = document.createElement('canvas');
+    var gl = canvas.getContext('webgl2', {
+      alpha: true, premultipliedAlpha: true, antialias: false,
+      preserveDrawingBuffer: true
+    });
+    if (!gl) return null;
+    canvas.addEventListener('webglcontextlost', function (event) {
+      event.preventDefault();
+      state.lost = true;
+      scheduleCompositionDraw();
+    });
+    canvas.addEventListener('webglcontextrestored', function () {
+      state.lost = false; state.program = null; state.texture = null;
+      state.available = true;
+      scheduleCompositionDraw();
+    });
+    state.canvas = canvas;
+    state.gl = gl;
+  }
+  var targetW = Math.max(32, Math.min(2048, Math.round(width)));
+  var targetH = Math.max(32, Math.min(2048, Math.round(height)));
+  if (state.canvas.width !== targetW) state.canvas.width = targetW;
+  if (state.canvas.height !== targetH) state.canvas.height = targetH;
+  var gl = state.gl;
+  if (!state.program) {
+    var vertexSource = '#version 300 es\n'
+      + 'in vec2 a_position; out vec2 v_uv;\n'
+      + 'void main(){v_uv=a_position*.5+.5;gl_Position=vec4(a_position,0.,1.);}';
+    var fragmentSource = '#version 300 es\n'
+      + 'precision highp float; in vec2 v_uv; out vec4 outColor;\n'
+      + 'uniform sampler2D u_text; uniform vec2 u_resolution;\n'
+      + 'uniform float u_phase,u_mode,u_intensity,u_depth,u_instability;\n'
+      + 'uniform float u_zoom,u_rotation,u_decay,u_echoes,u_warp,u_frequency;\n'
+      + 'uniform vec3 u_colorA,u_colorB,u_colorC;\n'
+      + 'mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}\n'
+      + 'void main(){vec2 uv=v_uv;vec2 p=uv-.5;float ink=texture(u_text,uv).a;'
+      + 'vec3 col=u_colorA;float alpha=0.;\n'
+      + 'if(u_mode>.5){float acc=0.;vec3 spectral=vec3(0.);'
+      + 'for(int i=0;i<16;i++){float fi=float(i);if(fi>=u_echoes)break;'
+      + 'float sc=pow(max(.82,1.+u_zoom),fi);'
+      + 'vec2 q=rot(-(u_rotation*fi+sin(u_phase+fi*.37)*u_warp*.08))*(p/sc);'
+      + 'q+=vec2(sin(u_phase+fi*.53),cos(u_phase-fi*.41))*u_warp*.012*fi;'
+      + 'float a=texture(u_text,q+.5).a*pow(u_decay,fi);'
+      + 'acc+=a;spectral+=mix(u_colorB,u_colorC,fract(fi*.37))*a;}'
+      + 'col=mix(u_colorA,spectral/max(.001,acc),clamp(acc,0.,1.));'
+      + 'alpha=clamp(acc*(.18+.45*u_intensity),0.,.82);'
+      + '}else{float r=length(p);float a=atan(p.y,p.x);'
+      + 'float warp=sin(a*6.+u_phase)*u_warp*.18;'
+      + 'float f=sin((r+warp)*u_frequency*28.-u_phase*2.);'
+      + 'f+=cos((p.x-p.y)*u_frequency*8.+u_phase);'
+      + 'f+=sin((p.x+p.y)*u_frequency*11.-u_phase);f/=3.;'
+      + 'float contour=smoothstep(.18,.02,abs(fract(f*4.)-.5));'
+      + 'float glow=smoothstep(.65,.05,abs(f));'
+      + 'col=mix(u_colorA,u_colorB,.5+.5*f);col=mix(col,u_colorC,contour*.55);'
+      + 'alpha=(.05+contour*.28+glow*.1+ink*.22)*(.35+.65*u_intensity);}'
+      + 'alpha*=smoothstep(.86,.38,length(p));outColor=vec4(col*alpha,alpha);}';
+    var vertex = compileCompositionShader(gl, gl.VERTEX_SHADER, vertexSource);
+    var fragment = compileCompositionShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+    var program = gl.createProgram();
+    gl.attachShader(program, vertex); gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    gl.deleteShader(vertex); gl.deleteShader(fragment);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) || 'WebGL link failed');
+    state.program = program;
+    state.position = gl.getAttribLocation(program, 'a_position');
+    state.uniforms = {};
+    ['u_text', 'u_resolution', 'u_phase', 'u_mode', 'u_intensity', 'u_depth',
+      'u_instability', 'u_zoom', 'u_rotation', 'u_decay', 'u_echoes',
+      'u_warp', 'u_frequency', 'u_colorA', 'u_colorB', 'u_colorC'
+    ].forEach(function (name) { state.uniforms[name] = gl.getUniformLocation(program, name); });
+    var buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(state.position);
+    gl.vertexAttribPointer(state.position, 2, gl.FLOAT, false, 0, 0);
+    state.texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, state.texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  return state;
+}
+
+function webglHexColor(hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex || '')) hex = '#17140f';
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255
+  ];
+}
+
+function updateCompositionWebGLTextTexture(state) {
+  var gl = state.gl;
+  var maskSize = 1024;
+  var key = textInput.value + '|' + params.fontFamily + '|' + params.fontWeight + '|' + params.vertical;
+  if (state.maskKey === key && state.maskCanvas) return;
+  state.maskKey = key;
+  if (!state.maskCanvas) state.maskCanvas = document.createElement('canvas');
+  var canvas = state.maskCanvas;
+  canvas.width = maskSize; canvas.height = maskSize;
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, maskSize, maskSize);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var clean = textInput.value.replace(/\s+/g, ' ').trim() || 'TYPE';
+  var size = Math.max(20, Math.min(180, maskSize / Math.max(5, Math.sqrt(clean.length) * 1.7)));
+  ctx.font = params.fontWeight + ' ' + size + 'px ' + params.fontFamily;
+  var lines = [];
+  var cursor = '';
+  for (var i = 0; i < clean.length; i++) {
+    var next = cursor + clean[i];
+    if (ctx.measureText(next).width > maskSize * 0.82 && cursor) { lines.push(cursor); cursor = clean[i]; }
+    else cursor = next;
+  }
+  if (cursor) lines.push(cursor);
+  lines = lines.slice(0, Math.max(1, Math.floor(maskSize / (size * 1.2))));
+  var startY = maskSize * 0.5 - (lines.length - 1) * size * 0.58;
+  lines.forEach(function (line, index) { ctx.fillText(line, maskSize * 0.5, startY + index * size * 1.16); });
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, state.texture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+}
+
+function renderCompositionWebGLPass(scene) {
+  var useFeedback = compositionState.type === 'feedbackChamber';
+  var useOptical = compositionState.type === 'cascade' && compositionState.cascade.system === 'sdf';
+  if ((!useFeedback && !useOptical) || !webglCompositionAvailable()) return null;
+  try {
+    var state = ensureCompositionWebGL(scene.width, scene.height);
+    if (!state) return null;
+    var gl = state.gl, uniforms = state.uniforms;
+    gl.viewport(0, 0, state.canvas.width, state.canvas.height);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(state.program);
+    updateCompositionWebGLTextTexture(state);
+    gl.uniform1i(uniforms.u_text, 0);
+    gl.uniform2f(uniforms.u_resolution, state.canvas.width, state.canvas.height);
+    var shaderTurn = (((compositionState.phase || 0) % 1) + 1) % 1;
+    gl.uniform1f(uniforms.u_phase, shaderTurn * Math.PI * 2);
+    gl.uniform1f(uniforms.u_mode, useFeedback ? 1 : 0);
+    gl.uniform1f(uniforms.u_intensity, compositionState.macros.intensity);
+    gl.uniform1f(uniforms.u_depth, compositionState.macros.depth);
+    gl.uniform1f(uniforms.u_instability, compositionState.macros.instability);
+    var feedback = compositionState.feedbackChamber;
+    var optical = compositionState.cascade;
+    gl.uniform1f(uniforms.u_zoom, useFeedback ? feedback.zoom : 0);
+    gl.uniform1f(uniforms.u_rotation, (useFeedback ? feedback.rotation : optical.chromatic * 8) * Math.PI / 180);
+    gl.uniform1f(uniforms.u_decay, useFeedback ? feedback.decay : 0.72);
+    gl.uniform1f(uniforms.u_echoes, useFeedback ? Math.min(16, feedback.echoes) : Math.min(16, optical.contours));
+    gl.uniform1f(uniforms.u_warp, useFeedback ? feedback.warpAmount : optical.warp);
+    gl.uniform1f(uniforms.u_frequency, useFeedback ? 7 : optical.frequency);
+    var colorA = webglHexColor(params.ink), colorB = webglHexColor(params.accent), colorC = webglHexColor(compositionState.color2);
+    gl.uniform3fv(uniforms.u_colorA, colorA); gl.uniform3fv(uniforms.u_colorB, colorB); gl.uniform3fv(uniforms.u_colorC, colorC);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    return {
+      kind: 'raster', source: state.canvas, x: 0, y: 0,
+      w: scene.width, h: scene.height,
+      opacity: useFeedback ? 0.82 : 0.72,
+      blend: useFeedback ? 'screen' : 'difference',
+      webgl: true
+    };
+  } catch (error) {
+    compositionWebGLState.available = false;
+    return null;
+  }
+}
+
+function applyCompositionFxRack(scene, width, height, qualityMode) {
+  if (!scene || !compositionState || !compositionState.enabled) return scene;
+  if (scene._v6FxApplied) return scene;
+  scene.glyphs = scene.glyphs || [];
+  scene.bands = scene.bands || [];
+  scene.width = Math.max(1, width || scene.width || 1);
+  scene.height = Math.max(1, height || scene.height || 1);
+  var budget = compositionFxBudget(qualityMode);
+  // Contractually fixed order:
+  // Engine → Echo/Trail → Feedback → Signal Mask →
+  // Chromatic Split → Raster Material → Output.
+  applyEchoTrailFx(scene, compositionFxModule('echoTrail', ['echo', 'trail']), budget);
+  applyFeedbackFx(scene, compositionFxModule('feedback'), budget);
+  applySignalMaskFx(scene, compositionFxModule('signalMask', ['mask']));
+  applyChromaticSplitFx(scene, compositionFxModule('chromaticSplit', ['chromatic']), budget);
+  applyRasterMaterialFx(scene, compositionFxModule('rasterMaterial', ['raster']), budget);
+  enforceCompositionPrimitiveBudget(scene, budget);
+  var webglBand = renderCompositionWebGLPass(scene);
+  if (webglBand) scene.bands.unshift(webglBand);
+  scene.fxOrder = ['echoTrail', 'feedback', 'signalMask', 'chromaticSplit', 'rasterMaterial'];
+  scene._v6FxApplied = true;
+  return scene;
+}
+
+var compositionStatusSignature = '';
+
+function updateCompositionStatus() {
+  var status = document.getElementById('compositionStatus');
+  var remove = document.getElementById('btnCompositionRemove');
+  if (remove && remove.disabled === compositionState.enabled) remove.disabled = !compositionState.enabled;
+  if (!status) return;
+  var nextText = !compositionState.enabled
+    ? 'No composition applied. Selecting a tab does not change the artwork.'
+    : 'Active: ' + COMPOSITION_DEFS[compositionState.type].label
+    + (compositionState.type === 'cascade' ? ' / ' + cascadeSystemLabel() : '')
+    + ' · ' + compositionScene.glyphs.length + ' instances'
+    + (compositionScene.limited ? ' · preview limit reached' : '') + ' · Source-linked';
+  var nextSignature = String(compositionState.enabled) + '|' + nextText;
+  if (nextSignature === compositionStatusSignature) return;
+  compositionStatusSignature = nextSignature;
+  status.classList.toggle('is-active', compositionState.enabled);
+  status.textContent = nextText;
+  if (typeof updateVideoExportAvailability === 'function') updateVideoExportAvailability();
+}
+
+function compositionPreviewDpr(width, height, quality) {
+  var dprCap = quality === 'performance' ? 1 : (quality === 'high' ? 2 : 1.5);
+  var deviceDpr = Math.max(1, window.devicePixelRatio || 1);
+  var compact = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  var maxPixels = compact ? 8000000 : (quality === 'high' ? 24000000 : 16000000);
+  var memoryDpr = Math.sqrt(maxPixels / Math.max(1, width * height));
+  return Math.max(0.5, Math.min(dprCap, deviceDpr, memoryDpr));
+}
+
+function rebuildCompositionSpatialIndex() {
+  var index = {
+    scene: compositionScene, cellSize: 96,
+    buckets: Object.create(null), maxReach: 96
+  };
+  for (var i = 0; i < compositionScene.glyphs.length; i++) {
+    var glyph = compositionScene.glyphs[i];
+    var cx = glyph.ox + (glyph.tx || 0);
+    var cy = glyph.oy + (glyph.ty || 0);
+    var reach = Math.max(
+      8,
+      Math.abs(glyph.w * glyph.scaleX) * 0.65,
+      Math.abs(glyph.h * glyph.scaleY) * 0.65
+    );
+    index.maxReach = Math.max(index.maxReach, reach);
+    var key = Math.floor(cx / index.cellSize) + ',' + Math.floor(cy / index.cellSize);
+    if (!index.buckets[key]) index.buckets[key] = [];
+    index.buckets[key].push(i);
+  }
+  compositionSpatialIndex = index;
+}
+
+function compositionSpatialCandidates(x, y, radius) {
+  if (compositionSpatialIndex.scene !== compositionScene) rebuildCompositionSpatialIndex();
+  var cellSize = compositionSpatialIndex.cellSize;
+  var cellRadius = Math.max(1, Math.ceil(radius / cellSize));
+  if (cellRadius > 16) {
+    var all = new Array(compositionScene.glyphs.length);
+    for (var allIndex = 0; allIndex < all.length; allIndex++) all[allIndex] = allIndex;
+    return all;
+  }
+  var centerX = Math.floor(x / cellSize), centerY = Math.floor(y / cellSize);
+  var result = [];
+  for (var gy = centerY - cellRadius; gy <= centerY + cellRadius; gy++) {
+    for (var gx = centerX - cellRadius; gx <= centerX + cellRadius; gx++) {
+      var bucket = compositionSpatialIndex.buckets[gx + ',' + gy];
+      if (bucket) Array.prototype.push.apply(result, bucket);
+    }
+  }
+  return result;
+}
+
+function maxCompositionLensRadius() {
+  var radius = Number(params.radius) || 0;
+  Object.keys(batchProfiles).forEach(function (key) {
+    radius = Math.max(radius, Number(batchProfiles[key] && batchProfiles[key].radius) || 0);
+  });
+  return Math.max(8, radius * 1.4);
+}
+
+function renderCompositionPreview() {
+  var renderStarted = performance.now();
+  compositionDrawRaf = null;
+  stageFrame.classList.toggle('composition-active', compositionState.enabled);
+  if (!compositionState.enabled || !compositionCtx) {
+    if (compositionCtx) compositionCtx.clearRect(0, 0, compositionCanvas.width, compositionCanvas.height);
+    compositionScene = { glyphs: [], bands: [], width: 0, height: 0, limited: false };
+    updateCompositionStatus();
+    scheduleEffectStatusUpdate();
+    return;
+  }
+  var width = Math.max(1, stageFrame.clientWidth);
+  var height = Math.max(1, stageFrame.clientHeight);
+  var logical = compositionLogicalDimensions(width, height);
+  compositionPreviewLayout = fitCompositionViewport(logical.width, logical.height, width, height);
+  var quality = compositionEffectiveQuality();
+  var dpr = compositionPreviewDpr(width, height, quality);
+  var pixelW = Math.max(1, Math.round(width * dpr));
+  var pixelH = Math.max(1, Math.round(height * dpr));
+  if (compositionCanvas.width !== pixelW) compositionCanvas.width = pixelW;
+  if (compositionCanvas.height !== pixelH) compositionCanvas.height = pixelH;
+  compositionScene = applyCompositionFxRack(
+    generateCompositionScene(logical.width, logical.height, 'preview'),
+    logical.width,
+    logical.height,
+    'preview'
+  );
+  rebuildCompositionSpatialIndex();
+  compositionCtx.setTransform(1, 0, 0, 1, 0, 0);
+  compositionCtx.clearRect(0, 0, pixelW, pixelH);
+  drawSceneBands(compositionCtx, compositionScene.bands, dpr, compositionPreviewLayout);
+  drawGlyphs(compositionCtx, compositionScene.glyphs, dpr, compositionPreviewLayout, fontMetrics(), true);
+  updateCompositionStatus();
+  scheduleEffectStatusUpdate();
+  updateCompositionAutoQuality(performance.now() - renderStarted);
+}
+
+function scheduleCompositionDraw() {
+  if (compositionDrawRaf !== null) return;
+  compositionDrawRaf = requestAnimationFrame(renderCompositionPreview);
+}
+
+function compositionMetricAt(px, py) {
+  if (!compositionState.enabled || !compositionScene.glyphs.length) return null;
+  var logicalPoint = previewPointToComposition(px, py);
+  px = logicalPoint.x;
+  py = logicalPoint.y;
+  var best = null, bestD = Infinity;
+  var candidates = compositionSpatialCandidates(px, py, compositionSpatialIndex.maxReach * 1.5);
+  for (var i = candidates.length - 1; i >= 0; i--) {
+    var g = compositionScene.glyphs[candidates[i]];
+    var cx = g.ox + g.tx, cy = g.oy + g.ty;
+    var reachX = Math.max(8, Math.abs(g.w * g.scaleX) * 0.65);
+    var reachY = Math.max(8, Math.abs(g.h * g.scaleY) * 0.65);
+    var dx = (px - cx) / reachX, dy = (py - cy) / reachY;
+    var d = dx * dx + dy * dy;
+    if (d < bestD && d < 2.25) { bestD = d; best = metrics[g.sourceIndex] || null; }
+  }
+  return best;
+}
+
+function compositionDistancesBySource(px, py) {
+  var logicalPoint = previewPointToComposition(px, py);
+  px = logicalPoint.x;
+  py = logicalPoint.y;
+  var previewScale = Math.max(0.0001, compositionPreviewLayout.s);
+  var logicalRadius = maxCompositionLensRadius() / previewScale;
+  var candidates = compositionSpatialCandidates(px, py, logicalRadius);
+  var result = [];
+  for (var i = 0; i < candidates.length; i++) {
+    var g = compositionScene.glyphs[candidates[i]];
+    var dx = px - (g.ox + g.tx), dy = py - (g.oy + g.ty);
+    // Return preview-space distance so a 125px lens stays 125px
+    // regardless of the fixed Logical viewport or canvas fit scale.
+    var d = (dx * dx + dy * dy) * previewScale * previewScale;
+    if (result[g.sourceIndex] == null || d < result[g.sourceIndex]) result[g.sourceIndex] = d;
+  }
+  return result;
+}
+
+function snapshotRenderableScene(width, height) {
+  if (compositionState.enabled) {
+    var logical = compositionLogicalDimensions(
+      width || Math.max(1, stageFrame.clientWidth),
+      height || Math.max(1, stageFrame.clientHeight)
+    );
+    var sceneWidth = logical.width;
+    var sceneHeight = logical.height;
+    return applyCompositionFxRack(generateCompositionScene(sceneWidth, sceneHeight, 'export'), sceneWidth, sceneHeight, 'export');
+  }
+  return { glyphs: snapshotGlyphs(), bands: [], width: 0, height: 0, limited: false };
+}
+
+function sceneContentBounds(scene, pad) {
+  var bounds = contentBounds(scene.glyphs, pad);
+  if (!scene.bands || !scene.bands.length) return bounds;
+  var minX = bounds.x, minY = bounds.y;
+  var maxX = bounds.x + bounds.w, maxY = bounds.y + bounds.h;
+  for (var i = 0; i < scene.bands.length; i++) {
+    var band = scene.bands[i];
+    if (band.kind === 'path' && band.points && band.points.length) {
+      for (var pointIndex = 0; pointIndex < band.points.length; pointIndex++) {
+        minX = Math.min(minX, band.points[pointIndex].x - pad);
+        minY = Math.min(minY, band.points[pointIndex].y - pad);
+        maxX = Math.max(maxX, band.points[pointIndex].x + pad);
+        maxY = Math.max(maxY, band.points[pointIndex].y + pad);
+      }
+    } else {
+      minX = Math.min(minX, band.x - pad);
+      minY = Math.min(minY, band.y - pad);
+      maxX = Math.max(maxX, band.x + band.w + pad);
+      maxY = Math.max(maxY, band.y + band.h + pad);
+    }
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+
+function compositionExportLayout(scene, fallbackLayout) {
+  var viewport = compositionState.logicalViewport || COMPOSITION_DEFAULTS.logicalViewport;
+  if (!compositionState.enabled || viewport.legacyResponsive || params.artboard !== 'auto') return fallbackLayout;
+  return { w: scene.width, h: scene.height, s: 1, dx: 0, dy: 0 };
+}
+
+function exportBoundsPad() {
+  return params.artboard === 'auto' ? 40 : 0;
+}
+
+var isIOS = /iP(hone|ad|od)/.test(navigator.platform) ||
+  (navigator.userAgent.indexOf('Mac') !== -1 && 'ontouchend' in document); // iPadOS reports as Mac
+
+// iOS Safari does not honor the `download` attribute on blob: URLs —
+// tapping the anchor just navigates to it. Prefer the share sheet
+// (lets the user "Save Image" straight to Photos / Files); fall back
+// to opening the blob in a new tab so they can long-press to save.
+function download(blob, filename) {
+  if (isIOS) {
+    var file = (typeof File !== 'undefined') ? new File([blob], filename, { type: blob.type }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file] }).catch(function (error) {
+        // Cancelling the native iOS share sheet is intentional; opening
+        // a blob tab afterwards feels like a second, unwanted export.
+        if (error && error.name === 'AbortError') return;
+        openBlobTab(blob);
+      });
+      return;
+    }
+    openBlobTab(blob);
+    return;
+  }
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
+
+function openBlobTab(blob) {
+  var url = URL.createObjectURL(blob);
+  var win = window.open(url, '_blank');
+  if (!win) {
+    // popup blocked — navigate the current tab as a last resort
+    window.location.href = url;
+  }
+  setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+}
+
+function stamp() {
+  var d = new Date();
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+}
+
+/* ---------------- PNG export ---------------- */
+function createSafeCanvas(cssWidth, cssHeight, scale, advice) {
+  var outW = Math.max(1, Math.round(cssWidth * scale));
+  var outH = Math.max(1, Math.round(cssHeight * scale));
+  var maxSide = isIOS ? 8192 : 16384;
+  var maxPixels = isIOS ? 32000000 : 96000000;
+  if (outW > maxSide || outH > maxSide || outW * outH > maxPixels) {
+    var sizeError = new Error(
+      'PNGサイズ ' + outW + ' × ' + outH + ' px は端末の安全上限を超えます。' +
+      (advice || 'PNG scaleを下げるか、解像度に依存しないSVGを書き出してください。')
+    );
+    sizeError.code = 'CANVAS_TOO_LARGE';
+    throw sizeError;
+  }
+
+  var canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  var ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('PNG描画用Canvasを作成できませんでした。');
+  return { canvas: canvas, ctx: ctx };
+}
+
+function drawGlyphs(ctx, glyphs, scale, L, fm, useVisualOpacity) {
+  var font = params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+  for (var i = 0; i < glyphs.length; i++) {
+    var g = glyphs[i];
+    var visibleOpacity = (useVisualOpacity || g.composition) ? (g.opacity == null ? 1 : g.opacity) : 1;
+    if (visibleOpacity <= 0.001) continue;
+    function drawPass(offsetX, offsetY, color, alpha, blend) {
+      // Page-space ink offset is placed before the glyph matrix. This is
+      // why Misregistration remains horizontal/vertical even after a
+      // glyph is rotated, skewed, mirrored, or stretched.
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.translate(L.dx, L.dy);
+      ctx.scale(L.s, L.s);
+      ctx.translate(offsetX || 0, offsetY || 0);
+      ctx.translate(g.ox + g.tx, g.oy + g.ty);
+      ctx.rotate((g.rot || 0) * Math.PI / 180);
+      ctx.transform(1, Math.tan((g.skewY || 0) * Math.PI / 180), Math.tan((g.skewX || 0) * Math.PI / 180), 1, 0, 0);
+      ctx.scale(g.scaleX, g.scaleY);
+      ctx.translate(-g.ox, -g.oy);
+      ctx.globalAlpha = ((useVisualOpacity || g.composition) ? g.opacity : 1) * alpha;
+      ctx.globalCompositeOperation = typeof blend === 'string' ? blend : (blend ? 'multiply' : 'source-over');
+      ctx.font = font;
+      ctx.fillStyle = color;
+      if (params.vertical) {
+        var cx = g.x + g.w / 2;
+        var cy = g.y + g.h / 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (!g.upright) {
+          ctx.translate(cx, cy);
+          ctx.rotate(Math.PI / 2);
+          ctx.fillText(g.ch, 0, 0);
+        } else {
+          ctx.fillText(g.ch, cx, cy);
+        }
+      } else {
+        ctx.textAlign = g.grid ? 'center' : 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
+      }
+    }
+    var hasMisreg = Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001;
+    if (hasMisreg) drawPass(g.misregX, g.misregY, params.misregColorA, 0.72, true);
+    drawPass(0, 0, g.fill || (g.accent ? params.accent : params.ink), 1, g.fxBlend || false);
+    if (hasMisreg) drawPass(-g.misregX * 0.65, -g.misregY * 0.65, params.misregColorB, 0.72, true);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function renderCanvas(scale) {
+  var scene = snapshotRenderableScene();
+  var glyphs = scene.glyphs;
+  var bounds = sceneContentBounds(scene, exportBoundsPad());
+  var L = compositionExportLayout(scene, exportLayout(bounds, params));
+  var fm = fontMetrics();
+  var output = createSafeCanvas(L.w, L.h, scale);
+  var canvas = output.canvas, ctx = output.ctx;
+
+  if (!params.transparentBg) {
+    ctx.fillStyle = params.paper;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  drawSceneBands(ctx, scene.bands, scale, L);
+  drawGlyphs(ctx, glyphs, scale, L, fm, false);
+  return canvas;
+}
+
+function drawScreenshotGrid(ctx, scale, scrollX, scrollY) {
+  if (!params.gridEnabled || !params.gridLines) return;
+  var style = getComputedStyle(gridLinesEl);
+  if (style.display === 'none') return;
+  var opacity = parseFloat(style.opacity);
+  if (!isFinite(opacity) || opacity <= 0) return;
+  var left = gridLinesEl.offsetLeft - scrollX;
+  var top = gridLinesEl.offsetTop - scrollY;
+  var width = gridLinesEl.offsetWidth;
+  var height = gridLinesEl.offsetHeight;
+  var step = params.gridCellSize + params.gridGap;
+  if (width <= 0 || height <= 0 || step <= 0) return;
+
+  var lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim() || '#d9d5c9';
+  ctx.save();
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = lineColor;
+  for (var x = left; x < left + width; x += step) ctx.fillRect(Math.round(x), top, 1, height);
+  for (var y = top; y < top + height; y += step) ctx.fillRect(left, Math.round(y), width, 1);
+  ctx.fillRect(left + width - 1, top, 1, height);
+  ctx.fillRect(left, top + height - 1, width, 1);
+  ctx.restore();
+}
+
+function renderCanvasScreenshot() {
+  flushPendingTextRebuild();
+  var cssWidth = Math.max(1, stageFrame.clientWidth);
+  var cssHeight = Math.max(1, stageFrame.clientHeight);
+  var scale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+  var output = createSafeCanvas(cssWidth, cssHeight, scale, 'キャンバス枠を小さくして再試行してください。');
+  var canvas = output.canvas, ctx = output.ctx;
+  var scrollX = stageFrame.scrollLeft;
+  var scrollY = stageFrame.scrollTop;
+
+  // A canvas shot represents the visible artwork surface, so it always
+  // includes the paper currently shown on screen, independent of the
+  // Transparent BG setting used by the production PNG exporter.
+  ctx.fillStyle = getComputedStyle(stageFrame).backgroundColor || params.paper;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.beginPath();
+  ctx.rect(0, 0, cssWidth, cssHeight);
+  ctx.clip();
+  if (!compositionState.enabled) drawScreenshotGrid(ctx, scale, scrollX, scrollY);
+  var screenshotScene = snapshotRenderableScene(cssWidth, cssHeight);
+  var screenshotLayout = compositionState.enabled
+    ? fitCompositionViewport(screenshotScene.width, screenshotScene.height, cssWidth, cssHeight)
+    : { w: cssWidth, h: cssHeight, s: 1, dx: -scrollX, dy: -scrollY };
+  drawSceneBands(ctx, screenshotScene.bands, scale, screenshotLayout);
+  drawGlyphs(ctx, screenshotScene.glyphs, scale, screenshotLayout, fontMetrics(), true);
+  ctx.restore();
+  return canvas;
+}
+
+function exportCanvasScreenshot() {
+  try {
+    renderCanvasScreenshot().toBlob(function (blob) {
+      if (blob) download(blob, 'type-deform-canvas-' + stamp() + '.png');
+      else alert('キャンバス画像の生成に失敗しました。');
+    }, 'image/png');
+  } catch (err) {
+    alert(err.message || 'キャンバス画像の生成に失敗しました。');
+  }
+}
+
+function nothingToExport() {
+  flushPendingTextRebuild();
+  if (!params.deformedOnly) return false;
+  if (compositionState.enabled) return false;
+  for (var i = 0; i < metrics.length; i++) {
+    if (hasVisibleOperatorDeform(metrics[i])) return false;
+  }
+  alert('変形された文字がありません。Deformed only をオフにするか、文字を変形してください。');
+  return true;
+}
+
+function exportPng() {
+  if (nothingToExport()) return;
+  try {
+    renderCanvas(params.exportScale).toBlob(function (blob) {
+      if (blob) download(blob, 'type-deform-' + stamp() + '.png');
+      else alert('PNGの生成に失敗しました。出力倍率を下げて再試行してください。');
+    }, 'image/png');
+  } catch (err) {
+    alert(err.message || 'PNGの生成に失敗しました。');
+  }
+}
+
+function pngBlobPromise() {
+  var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  return Promise.resolve(ready).catch(function () { }).then(function () {
+    return new Promise(function (resolve, reject) {
+      try {
+        renderCanvas(params.exportScale).toBlob(function (blob) {
+          if (blob) resolve(blob); else reject(new Error('PNGの生成に失敗しました。'));
+        }, 'image/png');
+      } catch (err) { reject(err); }
+    });
+  });
+}
+
+// Safari (and the current Clipboard API spec) requires
+// navigator.clipboard.write() to be called synchronously inside the
+// user-gesture handler; it accepts a Promise<Blob> and defers actually
+// reading it. Awaiting font-ready / canvas.toBlob() first — as a naive
+// implementation would — breaks that gesture chain and Safari silently
+// rejects with NotAllowedError.
+function copyPng(btn) {
+  if (nothingToExport()) return;
+  var done = function (ok) {
+    var old = btn.textContent;
+    btn.textContent = ok ? 'Copied!' : 'Copy failed';
+    setTimeout(function () { btn.textContent = old; }, 1400);
+  };
+  if (!navigator.clipboard || typeof ClipboardItem === 'undefined') { done(false); return; }
+  var writePromise;
+  try {
+    writePromise = navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlobPromise() })]);
+  } catch (err) {
+    // engines that reject promise-valued ClipboardItem entries: resolve
+    // the blob first and write it directly (best effort, may still be
+    // blocked by the broken gesture chain on strict browsers)
+    writePromise = pngBlobPromise().then(function (blob) {
+      return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    });
+  }
+  writePromise.then(function () { done(true); }, function (err) {
+    done(false);
+    if (err && err.code === 'CANVAS_TOO_LARGE') alert(err.message);
+  });
+}
+
+/* ---------------- motion video export ---------------- */
+var btnVideoRecord = document.getElementById('btnVideoRecord');
+var btnVideoCancel = document.getElementById('btnVideoCancel');
+var videoExportPanel = document.getElementById('videoExportPanel');
+var videoStatus = document.getElementById('videoStatus');
+var videoProgress = document.getElementById('videoProgress');
+var videoProgressFill = videoProgress ? videoProgress.querySelector('span') : null;
+var videoCaptureHost = document.getElementById('videoCaptureHost');
+var videoCaptureMeta = document.getElementById('videoCaptureMeta');
+var videoExportState = {
+  active: false,
+  cancelled: false,
+  error: null,
+  recorder: null,
+  stream: null,
+  track: null,
+  manualFrames: false,
+  canvas: null,
+  chunks: [],
+  raf: null,
+  timer: null,
+  savedPhase: 0,
+  savedPlaying: false,
+  mime: '',
+  extension: 'webm',
+  targetDurationMs: 0,
+  targetLastTimestampMs: 0,
+  recordedStartedAt: 0,
+  recordedDurationMs: 0
+};
+
+function videoDimensions() {
+  if (params.videoSize === 'canvas') {
+    return {
+      w: Math.max(1, Math.round(stageFrame.clientWidth)),
+      h: Math.max(1, Math.round(stageFrame.clientHeight))
+    };
+  }
+  var parts = String(params.videoSize).split('x');
+  return {
+    w: Math.max(16, Math.min(3840, parseInt(parts[0], 10) || 1080)),
+    h: Math.max(16, Math.min(3840, parseInt(parts[1], 10) || 1080))
+  };
+}
+
+function supportedVideoMime(format) {
+  if (typeof MediaRecorder === 'undefined') return '';
+  var webm = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  var mp4 = [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4'
+  ];
+  var candidates;
+  if (format === 'webm') candidates = webm;
+  else if (format === 'mp4') candidates = mp4;
+  else candidates = webm.concat(mp4);
+  for (var i = 0; i < candidates.length; i++) {
+    if (!MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+  }
+  return '';
+}
+
+function setVideoProgress(value) {
+  var percent = Math.max(0, Math.min(100, value || 0));
+  if (videoProgressFill) videoProgressFill.style.width = percent.toFixed(2) + '%';
+  if (videoProgress) videoProgress.setAttribute('aria-valuenow', String(Math.round(percent)));
+}
+
+function setVideoStatus(text, state) {
+  if (!videoStatus) return;
+  videoStatus.textContent = text;
+  videoStatus.dataset.state = state || 'ready';
+}
+
+function setVideoControlsLocked(locked) {
+  var ids = ['pVideoSize', 'pVideoFps', 'pVideoLoops', 'pVideoDuration', 'pVideoStart', 'pVideoFormat'];
+  for (var i = 0; i < ids.length; i++) {
+    var control = document.getElementById(ids[i]);
+    if (control) control.disabled = !!locked;
+  }
+  if (btnVideoCancel) btnVideoCancel.disabled = !locked;
+  if (videoExportPanel) videoExportPanel.classList.toggle('is-recording', !!locked);
+}
+
+function updateVideoExportAvailability(forceStatus) {
+  if (!btnVideoRecord || videoExportState.active) return;
+  var captureSupported = typeof HTMLCanvasElement !== 'undefined'
+    && (HTMLCanvasElement.prototype.captureStream || HTMLCanvasElement.prototype.mozCaptureStream);
+  var mime = supportedVideoMime(params.videoFormat);
+  var dims = videoDimensions();
+  var framesPerLoop = Math.max(1, Math.round(params.videoDuration * params.videoFps / params.videoLoops));
+  var totalFrames = framesPerLoop * params.videoLoops;
+  var actualDuration = totalFrames / params.videoFps;
+  btnVideoRecord.disabled = !compositionState.enabled || !captureSupported || !mime;
+  if (!forceStatus && videoStatus && ['done', 'error', 'cancelled'].indexOf(videoStatus.dataset.state) !== -1) return;
+  if (!captureSupported || typeof MediaRecorder === 'undefined') {
+    setVideoStatus('このブラウザはCanvas映像収録に対応していません。', 'error');
+  } else if (!mime) {
+    setVideoStatus('選択した映像形式はこのブラウザで利用できません。', 'error');
+  } else if (!compositionState.enabled) {
+    setVideoStatus('Compositionを適用すると映像を書き出せます。', 'ready');
+  } else {
+    setVideoStatus(
+      dims.w + '×' + dims.h + ' · ' + params.videoFps + 'fps · '
+      + actualDuration.toFixed(actualDuration % 1 ? 2 : 0) + 's · '
+      + params.videoLoops + ' loop' + (params.videoLoops === 1 ? '' : 's')
+      + ' · ' + (mime.indexOf('mp4') !== -1 ? 'MP4' : 'WebM'),
+      'ready'
+    );
+  }
+}
+
+function renderVideoFrame(canvas, width, height) {
+  var ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('映像描画用Canvasを作成できませんでした。');
+  var scene = snapshotRenderableScene(width, height);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  if (!params.transparentBg) {
+    ctx.fillStyle = params.paper;
+    ctx.fillRect(0, 0, width, height);
+  }
+  var layout = compositionState.enabled
+    ? fitCompositionViewport(scene.width, scene.height, width, height)
+    : { w: width, h: height, s: 1, dx: 0, dy: 0 };
+  drawSceneBands(ctx, scene.bands, 1, layout);
+  drawGlyphs(ctx, scene.glyphs, 1, layout, fontMetrics(), true);
+}
+
+function restoreAfterVideoExport() {
+  compositionState.phase = videoExportState.savedPhase;
+  var phaseInput = document.getElementById('pCompositionPhase');
+  var phaseValue = document.getElementById('vCompositionPhase');
+  if (phaseInput) phaseInput.value = compositionState.phase;
+  if (phaseValue) phaseValue.textContent = compositionState.phase.toFixed(3);
+  scheduleCompositionDraw();
+  if (videoExportState.savedPlaying) setCompositionPlaying(true);
+}
+
+function normalizeWebmDuration(blob, targetDurationMs, targetLastTimestampMs, recordedDurationMs) {
+  if (!blob || blob.type.indexOf('webm') === -1 || !blob.arrayBuffer
+    || !isFinite(targetDurationMs) || !isFinite(recordedDurationMs)
+    || targetDurationMs <= 0 || recordedDurationMs <= 0) return Promise.resolve(blob);
+  return blob.arrayBuffer().then(function (buffer) {
+    var bytes = new Uint8Array(buffer);
+    function readVint(offset, keepMarker) {
+      if (offset >= bytes.length) return null;
+      var first = bytes[offset];
+      var marker = 0x80;
+      var length = 1;
+      while (length <= 8 && !(first & marker)) {
+        marker >>= 1;
+        length++;
+      }
+      if (length > 8 || offset + length > bytes.length) return null;
+      var value = keepMarker ? first : (first & (marker - 1));
+      for (var index = 1; index < length; index++) value = value * 256 + bytes[offset + index];
+      return { length: length, value: value, unknown: !keepMarker && value === Math.pow(2, 7 * length) - 1 };
+    }
+    function readUnsigned(start, length) {
+      var value = 0;
+      for (var index = 0; index < length; index++) value = value * 256 + bytes[start + index];
+      return value;
+    }
+    // Walk the EBML tree to reach TimecodeScale instead of scanning the
+    // file for its 2A D7 B1 id bytes: that byte triple occurs constantly
+    // inside compressed frame payloads, and rewriting a match there
+    // corrupts the video rather than retiming it.
+    function findChild(start, end, wantedId) {
+      var position = start;
+      while (position < end) {
+        var id = readVint(position, true);
+        if (!id) return null;
+        var size = readVint(position + id.length, false);
+        if (!size) return null;
+        var dataStart = position + id.length + size.length;
+        var dataEnd = size.unknown ? end : Math.min(end, dataStart + size.value);
+        if (dataEnd < dataStart) return null;
+        if (id.value === wantedId) return { dataStart: dataStart, dataEnd: dataEnd };
+        if (dataEnd === position) return null;   // zero-width element: no progress
+        position = dataEnd;
+      }
+      return null;
+    }
+    var segment = findChild(0, bytes.length, 0x18538067);
+    if (!segment) return blob;
+    var info = findChild(segment.dataStart, segment.dataEnd, 0x1549A966);
+    if (!info) return blob;
+    var timecodeScale = findChild(info.dataStart, info.dataEnd, 0x2AD7B1);
+    if (!timecodeScale) return blob;
+    var valueStart = timecodeScale.dataStart;
+    var valueLength = timecodeScale.dataEnd - timecodeScale.dataStart;
+    if (valueLength < 1 || valueLength > 6) return blob;
+    var originalScale = readUnsigned(valueStart, valueLength);
+    if (!originalScale) return blob;
+    var maxValue = Math.pow(256, valueLength) - 1;
+    function scanClusterChildren(start, end, clusterTimecode) {
+      var maxTick = clusterTimecode || 0;
+      var position = start;
+      while (position < end) {
+        var id = readVint(position, true);
+        if (!id) break;
+        var size = readVint(position + id.length, false);
+        if (!size) break;
+        var dataStart = position + id.length + size.length;
+        var dataEnd = size.unknown ? end : Math.min(end, dataStart + size.value);
+        if (dataEnd <= dataStart || dataEnd > bytes.length) break;
+        var idByte = bytes[position];
+        if (id.length === 1 && idByte === 0xe7 && size.value <= 8) {
+          clusterTimecode = readUnsigned(dataStart, size.value);
+          maxTick = Math.max(maxTick, clusterTimecode);
+        } else if (id.length === 1 && (idByte === 0xa3 || idByte === 0xa1)) {
+          var track = readVint(dataStart, false);
+          var timecodeStart = track ? dataStart + track.length : dataEnd;
+          if (timecodeStart + 1 < dataEnd) {
+            var relative = bytes[timecodeStart] * 256 + bytes[timecodeStart + 1];
+            if (relative & 0x8000) relative -= 0x10000;
+            maxTick = Math.max(maxTick, clusterTimecode + relative);
+          }
+        } else if (id.length === 1 && idByte === 0xa0) {
+          maxTick = Math.max(maxTick, scanClusterChildren(dataStart, dataEnd, clusterTimecode));
+        }
+        position = dataEnd;
+      }
+      return maxTick;
+    }
+    // Clusters stay a byte scan — MediaRecorder emits unknown-size
+    // clusters, which a strict walk cannot bound — but confined to the
+    // Segment. A false positive here only skews the computed duration;
+    // it can never write outside the TimecodeScale field above.
+    var maxTimecodeTick = 0;
+    var clusterLimit = Math.min(bytes.length, segment.dataEnd) - 8;
+    for (var clusterIndex = segment.dataStart; clusterIndex < clusterLimit; clusterIndex++) {
+      if (bytes[clusterIndex] !== 0x1f || bytes[clusterIndex + 1] !== 0x43
+        || bytes[clusterIndex + 2] !== 0xb6 || bytes[clusterIndex + 3] !== 0x75) continue;
+      var clusterSize = readVint(clusterIndex + 4, false);
+      if (!clusterSize) continue;
+      var clusterStart = clusterIndex + 4 + clusterSize.length;
+      var clusterEnd = clusterSize.unknown
+        ? segment.dataEnd : Math.min(segment.dataEnd, clusterStart + clusterSize.value);
+      maxTimecodeTick = Math.max(maxTimecodeTick, scanClusterChildren(clusterStart, clusterEnd, 0));
+      if (!clusterSize.unknown) clusterIndex = clusterEnd - 1;
+    }
+    var desiredLastTimestamp = isFinite(targetLastTimestampMs) && targetLastTimestampMs > 0
+      ? targetLastTimestampMs : targetDurationMs;
+    var normalizedScale = maxTimecodeTick > 0
+      ? Math.round(desiredLastTimestamp * 1000000 / maxTimecodeTick)
+      : Math.round(originalScale * targetDurationMs / recordedDurationMs);
+    normalizedScale = Math.max(1, Math.min(maxValue, normalizedScale));
+    for (var writeIndex = valueLength - 1; writeIndex >= 0; writeIndex--) {
+      bytes[valueStart + writeIndex] = normalizedScale & 255;
+      normalizedScale = Math.floor(normalizedScale / 256);
+    }
+    return new Blob([bytes], { type: blob.type });
+  }).catch(function () { return blob; });
+}
+
+function finishVideoExport() {
+  if (videoExportState.raf !== null) cancelAnimationFrame(videoExportState.raf);
+  videoExportState.raf = null;
+  if (videoExportState.timer !== null) clearTimeout(videoExportState.timer);
+  videoExportState.timer = null;
+  if (videoExportState.stream) {
+    var tracks = videoExportState.stream.getTracks();
+    for (var i = 0; i < tracks.length; i++) tracks[i].stop();
+  }
+  var wasCancelled = videoExportState.cancelled;
+  var error = videoExportState.error;
+  var chunks = videoExportState.chunks.slice();
+  var mime = videoExportState.mime || 'video/webm';
+  var extension = videoExportState.extension;
+  var targetDurationMs = videoExportState.targetDurationMs;
+  var targetLastTimestampMs = videoExportState.targetLastTimestampMs;
+  var recordedDurationMs = videoExportState.recordedDurationMs
+    || (videoExportState.recordedStartedAt ? performance.now() - videoExportState.recordedStartedAt : targetDurationMs);
+  videoExportState.active = false;
+  videoExportState.recorder = null;
+  videoExportState.stream = null;
+  videoExportState.track = null;
+  videoExportState.manualFrames = false;
+  if (videoExportState.canvas && videoExportState.canvas.parentNode) videoExportState.canvas.parentNode.removeChild(videoExportState.canvas);
+  if (videoCaptureHost) videoCaptureHost.hidden = true;
+  videoExportState.canvas = null;
+  videoExportState.chunks = [];
+  videoExportState.targetDurationMs = 0;
+  videoExportState.targetLastTimestampMs = 0;
+  videoExportState.recordedStartedAt = 0;
+  videoExportState.recordedDurationMs = 0;
+  setVideoControlsLocked(false);
+  restoreAfterVideoExport();
+  updateVideoExportAvailability();
+  if (error) {
+    setVideoStatus('映像の生成に失敗しました: ' + error, 'error');
+  } else if (wasCancelled) {
+    setVideoStatus('Recording cancelled.', 'cancelled');
+  } else if (!chunks.length) {
+    setVideoStatus('映像データを生成できませんでした。', 'error');
+  } else {
+    var rawBlob = new Blob(chunks, { type: mime });
+    setVideoStatus('Finalizing loop timing…', 'recording');
+    normalizeWebmDuration(rawBlob, targetDurationMs, targetLastTimestampMs, recordedDurationMs).then(function (blob) {
+      download(blob, 'type-deform-motion-' + stamp() + '.' + extension);
+      setVideoProgress(100);
+      setVideoStatus(
+        'Exported · ' + (blob.size / 1024 / 1024).toFixed(1) + ' MB · '
+        + extension.toUpperCase() + ' · ' + (targetDurationMs / 1000).toFixed(targetDurationMs % 1000 ? 2 : 0) + 's',
+        'done'
+      );
+    });
+  }
+}
+
+function stopVideoRecorder() {
+  if (!videoExportState.recordedDurationMs && videoExportState.recordedStartedAt) {
+    videoExportState.recordedDurationMs = performance.now() - videoExportState.recordedStartedAt;
+  }
+  if (!videoExportState.recorder || videoExportState.recorder.state === 'inactive') {
+    finishVideoExport();
+    return;
+  }
+  videoExportState.recorder.stop();
+}
+
+function cancelVideoExport() {
+  if (!videoExportState.active) return;
+  videoExportState.cancelled = true;
+  if (videoExportState.raf !== null) cancelAnimationFrame(videoExportState.raf);
+  videoExportState.raf = null;
+  if (videoExportState.timer !== null) clearTimeout(videoExportState.timer);
+  videoExportState.timer = null;
+  stopVideoRecorder();
+}
+
+function startVideoExport() {
+  if (videoExportState.active) return;
+  if (!compositionState.enabled) {
+    setVideoStatus('先にField / Flux Rows / CascadeをApplyしてください。', 'error');
+    return;
+  }
+  var mime = supportedVideoMime(params.videoFormat);
+  var captureMethod = HTMLCanvasElement.prototype.captureStream || HTMLCanvasElement.prototype.mozCaptureStream;
+  if (!mime || !captureMethod || typeof MediaRecorder === 'undefined') {
+    updateVideoExportAvailability();
+    return;
+  }
+  var dims = videoDimensions();
+  var output;
+  try {
+    output = createSafeCanvas(dims.w, dims.h, 1, '映像Frameを小さくして再試行してください。');
+  } catch (sizeError) {
+    setVideoStatus(sizeError.message || '映像Frameが大きすぎます。', 'error');
+    return;
+  }
+
+  videoExportState.active = true;
+  videoExportState.cancelled = false;
+  videoExportState.error = null;
+  videoExportState.chunks = [];
+  videoExportState.canvas = output.canvas;
+  output.canvas.setAttribute('aria-hidden', 'true');
+  if (videoCaptureHost) {
+    videoCaptureHost.insertBefore(output.canvas, videoCaptureHost.firstChild);
+    videoCaptureHost.hidden = false;
+    if (videoCaptureMeta) videoCaptureMeta.textContent = dims.w + '×' + dims.h;
+  } else document.body.appendChild(output.canvas);
+  videoExportState.savedPhase = compositionState.phase;
+  videoExportState.savedPlaying = compositionPlayRaf !== null;
+  videoExportState.mime = mime;
+  videoExportState.extension = mime.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+  setCompositionPlaying(false);
+  setVideoControlsLocked(true);
+  btnVideoRecord.disabled = true;
+  setVideoProgress(0);
+
+  var fps = params.videoFps;
+  var framesPerLoop = Math.max(1, Math.round(params.videoDuration * fps / params.videoLoops));
+  var totalFrames = framesPerLoop * params.videoLoops;
+  var actualDuration = totalFrames / fps;
+  var startPhase = params.videoStart === 'current' ? videoExportState.savedPhase : 0;
+  // A paced capture stream is more reliable than requestFrame() across
+  // Chromium/WebKit implementations: every rendered sample is held for
+  // one frame interval so the recorder can observe it.
+  var useManualFrames = false;
+  var stream = captureMethod.call(output.canvas, useManualFrames ? 0 : fps);
+  var streamTrack = stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+  if (useManualFrames && (!streamTrack || typeof streamTrack.requestFrame !== 'function')) {
+    var unsupportedManualTracks = stream.getTracks ? stream.getTracks() : [];
+    for (var unsupportedTrackIndex = 0; unsupportedTrackIndex < unsupportedManualTracks.length; unsupportedTrackIndex++) unsupportedManualTracks[unsupportedTrackIndex].stop();
+    useManualFrames = false;
+    stream = captureMethod.call(output.canvas, fps);
+    streamTrack = stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+  }
+  videoExportState.stream = stream;
+  videoExportState.track = streamTrack;
+  videoExportState.manualFrames = useManualFrames;
+  var bitrate = Math.max(3000000, Math.min(40000000, Math.round(dims.w * dims.h * fps * 0.12)));
+  var recorder;
+  try {
+    recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate });
+  } catch (optionsError) {
+    try { recorder = new MediaRecorder(stream); }
+    catch (recorderError) {
+      videoExportState.error = recorderError.message || 'MediaRecorderを開始できません。';
+      finishVideoExport();
+      return;
+    }
+  }
+  videoExportState.recorder = recorder;
+  if (recorder.mimeType) {
+    videoExportState.mime = recorder.mimeType;
+    videoExportState.extension = recorder.mimeType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+  }
+  recorder.ondataavailable = function (event) {
+    if (event.data && event.data.size) videoExportState.chunks.push(event.data);
+  };
+  recorder.onerror = function (event) {
+    videoExportState.error = event && event.error && event.error.message
+      ? event.error.message : 'MediaRecorder error';
+    stopVideoRecorder();
+  };
+  recorder.onstop = finishVideoExport;
+
+  var startedAt = performance.now();
+  videoExportState.targetDurationMs = actualDuration * 1000;
+  videoExportState.targetLastTimestampMs = Math.max(0, (totalFrames - 1) / fps * 1000);
+  videoExportState.recordedStartedAt = startedAt;
+  videoExportState.recordedDurationMs = 0;
+  var frameIndex = 0;
+  var frameDurationMs = 1000 / fps;
+  recorder.start(250);
+  function recordNextFrame() {
+    if (!videoExportState.active) return;
+    if (frameIndex >= totalFrames) {
+      setVideoProgress(100);
+      videoExportState.timer = setTimeout(stopVideoRecorder, Math.max(250, frameDurationMs * 3));
+      return;
+    }
+    var phaseInLoop = (frameIndex % framesPerLoop) / framesPerLoop;
+    compositionState.phase = (startPhase + compositionState.direction * phaseInLoop + 1) % 1;
+    var phaseInput = document.getElementById('pCompositionPhase');
+    var phaseValue = document.getElementById('vCompositionPhase');
+    if (phaseInput) phaseInput.value = compositionState.phase;
+    if (phaseValue) phaseValue.textContent = compositionState.phase.toFixed(3);
+    try {
+      renderVideoFrame(output.canvas, dims.w, dims.h);
+      if (videoExportState.manualFrames && videoExportState.track && typeof videoExportState.track.requestFrame === 'function') {
+        videoExportState.track.requestFrame();
+      }
+    } catch (renderError) {
+      videoExportState.error = renderError.message || '映像Frameの描画に失敗しました。';
+      stopVideoRecorder();
+      return;
+    }
+    if (frameIndex % Math.max(1, Math.round(fps / 12)) === 0) scheduleCompositionDraw();
+    frameIndex++;
+    var progress = frameIndex / totalFrames * 100;
+    setVideoProgress(progress);
+    setVideoStatus(
+      'Recording ' + Math.round(progress) + '% · '
+      + frameIndex + '/' + totalFrames + ' frames',
+      'recording'
+    );
+    if (frameIndex >= totalFrames) {
+      videoExportState.recordedDurationMs = Math.max(1, performance.now() - startedAt);
+      // Give MediaRecorder enough time to accept the last queued frames
+      // before closing the stream, especially for VP9 and large canvases.
+      videoExportState.timer = setTimeout(stopVideoRecorder, Math.max(250, frameDurationMs * 3));
+      return;
+    }
+    // Hold each completed sample across at least two capture ticks.
+    // Catch-up scheduling can bunch slow renders together and make
+    // browsers merge them, so a heavy composition may take longer to
+    // export but retains substantially more of its loop samples.
+    videoExportState.timer = setTimeout(recordNextFrame, Math.max(50, frameDurationMs * 2));
+  }
+  recordNextFrame();
+}
+
+
+function svgSceneBand(band) {
+  var opacity = band.opacity < 1 ? ' opacity="' + band.opacity.toFixed(3) + '"' : '';
+  var blend = band.blend && band.blend !== 'source-over'
+    ? ' style="mix-blend-mode:' + (band.blend === 'lighter' ? 'screen' : escXmlAttr(band.blend)) + '"' : '';
+  if (band.kind === 'raster' && band.source && typeof band.source.toDataURL === 'function') {
+    try {
+      return '<image x="' + Number(band.x || 0).toFixed(2) + '" y="' + Number(band.y || 0).toFixed(2)
+        + '" width="' + Number(band.w || band.source.width).toFixed(2) + '" height="' + Number(band.h || band.source.height).toFixed(2)
+        + '" href="' + escXmlAttr(band.source.toDataURL('image/png')) + '"' + opacity + blend + '/>';
+    } catch (rasterExportError) { return ''; }
+  }
+  if (band.kind === 'path' && band.points && band.points.length) {
+    var pathData = band.points.map(function (point, index) {
+      return (index ? 'L' : 'M') + point.x.toFixed(2) + ' ' + point.y.toFixed(2);
+    }).join(' ');
+    var dash = band.dash && band.dash.length
+      ? ' stroke-dasharray="' + band.dash.map(function (value) { return Number(value).toFixed(2); }).join(' ') + '"' : '';
+    return '<path d="' + pathData + '" fill="none" stroke="' + escXmlAttr(band.stroke || band.fill || params.ink)
+      + '" stroke-width="' + (band.strokeWidth || 1).toFixed(2) + '" stroke-linejoin="round" stroke-linecap="round"' + dash + opacity + blend + '/>';
+  }
+  var rotation = band.rotation
+    ? ' transform="rotate(' + band.rotation.toFixed(2) + ' ' + (band.x + band.w / 2).toFixed(2) + ' ' + (band.y + band.h / 2).toFixed(2) + ')"' : '';
+  var stroke = band.stroke && band.strokeWidth > 0
+    ? ' stroke="' + escXmlAttr(band.stroke) + '" stroke-width="' + band.strokeWidth.toFixed(2) + '"' : '';
+  if (band.shape === 'circle' || band.shape === 'ring') {
+    return '<ellipse cx="' + (band.x + band.w / 2).toFixed(2) + '" cy="' + (band.y + band.h / 2).toFixed(2)
+      + '" rx="' + Math.abs(band.w / 2).toFixed(2) + '" ry="' + Math.abs(band.h / 2).toFixed(2) + '"'
+      + (band.shape === 'ring' ? ' fill="none" stroke="' + escXmlAttr(band.stroke || band.fill) + '" stroke-width="' + Math.max(0.75, band.strokeWidth || Math.min(band.w, band.h) * 0.12).toFixed(2) + '"' : ' fill="' + escXmlAttr(band.fill) + '"' + stroke)
+      + opacity + blend + rotation + '/>';
+  }
+  if (band.shape === 'diamond') {
+    var diamond = [
+      (band.x + band.w / 2).toFixed(2) + ',' + band.y.toFixed(2),
+      (band.x + band.w).toFixed(2) + ',' + (band.y + band.h / 2).toFixed(2),
+      (band.x + band.w / 2).toFixed(2) + ',' + (band.y + band.h).toFixed(2),
+      band.x.toFixed(2) + ',' + (band.y + band.h / 2).toFixed(2)
+    ].join(' ');
+    return '<polygon points="' + diamond + '" fill="' + escXmlAttr(band.fill) + '"' + stroke + opacity + blend + rotation + '/>';
+  }
+  if (band.shape === 'cross') {
+    var arm = Math.min(Math.abs(band.w), Math.abs(band.h)) * (0.15 + (band.radius || 0) * 0.2);
+    var d = 'M' + (band.x + band.w / 2 - arm).toFixed(2) + ' ' + band.y.toFixed(2)
+      + 'H' + (band.x + band.w / 2 + arm).toFixed(2)
+      + 'V' + (band.y + band.h / 2 - arm).toFixed(2)
+      + 'H' + (band.x + band.w).toFixed(2)
+      + 'V' + (band.y + band.h / 2 + arm).toFixed(2)
+      + 'H' + (band.x + band.w / 2 + arm).toFixed(2)
+      + 'V' + (band.y + band.h).toFixed(2)
+      + 'H' + (band.x + band.w / 2 - arm).toFixed(2)
+      + 'V' + (band.y + band.h / 2 + arm).toFixed(2)
+      + 'H' + band.x.toFixed(2)
+      + 'V' + (band.y + band.h / 2 - arm).toFixed(2)
+      + 'H' + (band.x + band.w / 2 - arm).toFixed(2) + 'Z';
+    return '<path d="' + d + '" fill="' + escXmlAttr(band.fill) + '"' + stroke + opacity + blend + rotation + '/>';
+  }
+  if (band.shape === 'line') {
+    return '<line x1="' + band.x.toFixed(2) + '" y1="' + (band.y + band.h).toFixed(2) + '" x2="' + (band.x + band.w).toFixed(2)
+      + '" y2="' + band.y.toFixed(2) + '" stroke="' + escXmlAttr(band.stroke || band.fill) + '" stroke-width="'
+      + Math.max(0.75, band.strokeWidth || Math.min(band.w, band.h) * 0.12).toFixed(2) + '"' + opacity + blend + rotation + '/>';
+  }
+  var radius = band.shape === 'rounded' ? Math.min(Math.abs(band.w), Math.abs(band.h)) * Math.min(0.5, Math.max(0, band.radius || 0)) : 0;
+  return '<rect x="' + band.x.toFixed(2) + '" y="' + band.y.toFixed(2) + '" width="' + band.w.toFixed(2)
+    + '" height="' + band.h.toFixed(2) + '" fill="' + escXmlAttr(band.fill) + '"'
+    + (radius ? ' rx="' + radius.toFixed(2) + '" ry="' + radius.toFixed(2) + '"' : '')
+    + stroke + opacity + blend + rotation + '/>';
+}
+
+function exportSvg() {
+  if (nothingToExport()) return;
+  var scene = snapshotRenderableScene();
+  var glyphs = scene.glyphs;
+  var bounds = sceneContentBounds(scene, exportBoundsPad());
+  var L = compositionExportLayout(scene, exportLayout(bounds, params));
+  var fm = fontMetrics();
+  var W = Math.round(L.w), H = Math.round(L.h);
+
+  var parts = [];
+  parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
+  parts.push('<metadata>' + escXml(JSON.stringify({
+    app: 'type-deformer',
+    version: 7,
+    sourceText: textInput.value,
+    composition: compositionState.enabled ? persistentCompositionState() : null
+  })) + '</metadata>');
+  parts.push('<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond&amp;family=Space+Mono&amp;family=Zen+Old+Mincho&amp;family=Noto+Sans+JP&amp;family=Zen+Kaku+Gothic+New&amp;display=swap");</style>');
+  if (!params.transparentBg) {
+    parts.push('<rect width="100%" height="100%" fill="' + escXmlAttr(params.paper) + '"/>');
+  }
+  parts.push('<g transform="translate(' + L.dx.toFixed(2) + ' ' + L.dy.toFixed(2) + ') scale(' + L.s.toFixed(5) + ')">');
+  for (var bandIndex = 0; bandIndex < scene.bands.length; bandIndex++) {
+    parts.push(svgSceneBand(scene.bands[bandIndex]));
+  }
+  parts.push('<g font-family="' + escXmlAttr(params.fontFamily) + '" font-size="' + params.fontSize + '" font-weight="' + params.fontWeight + '" fill="' + escXmlAttr(params.ink) + '">');
+
+  for (var i = 0; i < glyphs.length; i++) {
+    var g = glyphs[i];
+    var tr = 'translate(' + (g.ox + g.tx).toFixed(2) + ' ' + (g.oy + g.ty).toFixed(2) + ')'
+      + (g.rot ? ' rotate(' + g.rot.toFixed(2) + ')' : '')
+      + ((g.skewX || g.skewY) ? ' matrix(1 ' + Math.tan((g.skewY || 0) * Math.PI / 180).toFixed(6) + ' ' + Math.tan((g.skewX || 0) * Math.PI / 180).toFixed(6) + ' 1 0 0)' : '')
+      + ' scale(' + g.scaleX.toFixed(4) + ' ' + g.scaleY.toFixed(4) + ')'
+      + ' translate(' + (-g.ox).toFixed(2) + ' ' + (-g.oy).toFixed(2) + ')';
+    function pushSvgPass(offsetX, offsetY, color, opacity, blend) {
+      var passTransform = (offsetX || offsetY ? 'translate(' + offsetX.toFixed(2) + ' ' + offsetY.toFixed(2) + ') ' : '') + tr;
+      var blendMode = typeof blend === 'string' ? blend : (blend ? 'multiply' : '');
+      var attrs = ' fill="' + escXmlAttr(color) + '"' + (opacity < 1 ? ' opacity="' + opacity + '"' : '')
+        + (blendMode ? ' style="mix-blend-mode:' + escXmlAttr(blendMode) + '"' : '');
+      if (params.vertical) {
+        var cx = g.x + g.w / 2;
+        var cy = g.y + g.h / 2;
+        passTransform += ' translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ')' + (!g.upright ? ' rotate(90)' : '');
+        parts.push('<text x="0" y="0" text-anchor="middle" dominant-baseline="central"' + attrs + ' transform="' + passTransform + '">' + escXml(g.ch) + '</text>');
+      } else {
+        var textX = g.grid ? g.x + g.w / 2 : g.x;
+        var textY = g.y + baselineOffset(g, fm);
+        var anchor = g.grid ? ' text-anchor="middle"' : '';
+        parts.push('<text x="' + textX.toFixed(2) + '" y="' + textY.toFixed(2) + '"' + anchor + attrs + ' transform="' + passTransform + '">' + escXml(g.ch) + '</text>');
+      }
+    }
+    var hasMisreg = Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001;
+    var svgOpacity = g.composition ? g.opacity : 1;
+    if (hasMisreg) pushSvgPass(g.misregX, g.misregY, params.misregColorA, 0.72 * svgOpacity, true);
+    pushSvgPass(0, 0, g.fill || (g.accent ? params.accent : params.ink), svgOpacity, g.fxBlend || false);
+    if (hasMisreg) pushSvgPass(-g.misregX * 0.65, -g.misregY * 0.65, params.misregColorB, 0.72 * svgOpacity, true);
+  }
+  parts.push('</g></g></svg>');
+
+  var blob = new Blob([parts.join('\n')], { type: 'image/svg+xml' });
+  download(blob, 'type-deform-' + stamp() + '.svg');
+}
+
+/* ---------------- UI wiring ---------------- */
+var rangeControls = [];
+var batchProfileSelect = document.getElementById('pBatchProfile');
+var batchProfileStatus = document.getElementById('batchProfileStatus');
+var btnBatchProfileReset = document.getElementById('btnBatchProfileReset');
+var operatorSelect = document.getElementById('pOperator');
+var operatorPanels = document.querySelectorAll('[data-operator-panel]');
+var mirrorXInput = document.getElementById('pMirrorX');
+var mirrorYInput = document.getElementById('pMirrorY');
+var controlPanel = document.querySelector('.panel');
+
+/* ---------------- progressive desktop / mobile control UI ---------------- */
+var PANEL_UI_KEY = 'typeDeformer.panelUi.v1';
+var MODE_UI_LABELS = { flow: 'Lens', edit: 'Edit', grid: 'Arrange', lock: 'Freeze' };
+var TARGET_UI_LABELS = { all: 'All', kanji: '漢字', hira: 'ひらがな', kata: 'カタカナ', latin: 'ABC', digit: '123', punct: '約物' };
+var mobileActiveSection = 'create';
+
+function contextStatusText() {
+  if (canvasView.active) return 'VIEW × PAN / ZOOM';
+  var op = OPERATOR_DEFS[params.activeOperator] ? OPERATOR_DEFS[params.activeOperator].label : 'Stretch';
+  return op + ' × ' + (MODE_UI_LABELS[params.mode] || 'Lens') + ' × ' + (TARGET_UI_LABELS[activeBatchProfile] || 'All');
+}
+
+function updateContextUI() {
+  var text = contextStatusText();
+  var ids = ['topContextStatus', 'panelContextStatus', 'mobileContextStatus'];
+  for (var i = 0; i < ids.length; i++) {
+    var node = document.getElementById(ids[i]);
+    if (node) node.textContent = text;
+  }
+  if (controlPanel) controlPanel.dataset.mode = params.mode;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode]'), function (button) {
+    button.setAttribute('aria-pressed', String(!canvasView.active && button.dataset.mobileMode === params.mode));
+  });
+  if (btnMobileView) btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-batch]'), function (button) {
+    button.setAttribute('aria-current', String(button.dataset.batch === activeBatchProfile));
+  });
+}
+
+function storePanelSections() {
+  var state = {};
+  Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
+    state[section.dataset.panelSection] = section.classList.contains('is-open');
+  });
+  try { localStorage.setItem(PANEL_UI_KEY, JSON.stringify(state)); } catch (e) { }
+}
+
+function setPanelSectionOpen(section, open, persist) {
+  if (!section) return;
+  section.classList.toggle('is-open', open);
+  var toggle = section.querySelector('.section-toggle');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', String(open));
+    var mark = toggle.querySelector('.section-mark');
+    if (mark) mark.textContent = open ? '−' : '＋';
+  }
+  if (persist !== false) storePanelSections();
+}
+
+function openDesktopSection(key) {
+  var section = document.querySelector('.panel-section[data-panel-section="' + key + '"]');
+  Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (other) {
+    if (other !== section) setPanelSectionOpen(other, false, false);
+  });
+  setPanelSectionOpen(section, true);
+  if (controlPanel) controlPanel.scrollTop = 0;
+}
+
+function setMobileSection(key) {
+  mobileActiveSection = key || 'create';
+  Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
+    section.classList.toggle('mobile-active', section.dataset.panelSection === mobileActiveSection);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
+    button.setAttribute('aria-pressed', String(button.dataset.mobileSection === mobileActiveSection));
+  });
+  if (controlPanel) controlPanel.scrollTop = 0;
+}
+
+function openMobileSheet(sectionKey, anchorId) {
+  if (!controlPanel) return;
+  setMobileSection(sectionKey || mobileActiveSection);
+  controlPanel.classList.add('mobile-open');
+  if (anchorId) requestAnimationFrame(function () {
+    var anchor = document.getElementById(anchorId);
+    if (anchor) anchor.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
+
+function closeMobileSheet() {
+  if (controlPanel) controlPanel.classList.remove('mobile-open', 'mobile-text-focus');
+}
+
+function initProgressiveUI() {
+  var gridSlot = document.getElementById('composeGridSlot');
+  var gridBlock = document.getElementById('gridControlBlock');
+  if (gridSlot && gridBlock) gridSlot.appendChild(gridBlock);
+  var applicationSlot = document.getElementById('applicationSlot');
+  var applicationBlock = document.getElementById('applicationControlBlock');
+  if (applicationSlot && applicationBlock) applicationSlot.appendChild(applicationBlock);
+  var targetBatchSlot = document.getElementById('targetBatchSlot');
+  var targetBatchBlock = document.getElementById('targetBatchBlock');
+  if (targetBatchSlot && targetBatchBlock) targetBatchSlot.appendChild(targetBatchBlock);
+
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(PANEL_UI_KEY)); } catch (e) { }
+  var restoredOpen = false;
+  Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
+    var key = section.dataset.panelSection;
+    var requestedOpen = saved && typeof saved[key] === 'boolean' ? saved[key] : key === 'create';
+    var shouldOpen = requestedOpen && !restoredOpen;
+    if (shouldOpen) restoredOpen = true;
+    setPanelSectionOpen(section, shouldOpen, false);
+    var toggle = section.querySelector('.section-toggle');
+    if (toggle) toggle.addEventListener('click', function () {
+      if (section.classList.contains('is-open')) setPanelSectionOpen(section, false);
+      else openDesktopSection(section.dataset.panelSection);
+    });
+  });
+  if (!restoredOpen) openDesktopSection('create');
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
+    button.addEventListener('click', function () { setMobileSection(button.dataset.mobileSection); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode]'), function (button) {
+    button.addEventListener('click', function () {
+      var map = { flow: 'btnModeFlow', edit: 'btnModeEdit', grid: 'btnModeGrid' };
+      var source = document.getElementById(map[button.dataset.mobileMode]);
+      if (canvasView.active) setCanvasViewActive(false);
+      if (source) source.click();
+      closeMobileSheet();
+    });
+  });
+
+  document.getElementById('btnMobileOperator').addEventListener('click', function () { openMobileSheet('create', 'pOperator'); });
+  document.getElementById('btnMobileTarget').addEventListener('click', function () { openMobileSheet('create', 'pBatchProfile'); });
+  document.getElementById('btnMobileType').addEventListener('click', function () { openMobileSheet('create', 'typographyControls'); });
+  document.getElementById('btnMobileMenu').addEventListener('click', function () { openMobileSheet(mobileActiveSection); });
+  document.getElementById('btnMobileSheetClose').addEventListener('click', closeMobileSheet);
+  document.getElementById('btnMobileUndo').addEventListener('click', undo);
+  document.getElementById('btnMobilePreview').addEventListener('click', function () { document.getElementById('btnPreview').click(); });
+
+  var textArea = document.getElementById('textInput');
+  textArea.addEventListener('focus', function () { if (matchMedia('(max-width: 760px)').matches) controlPanel.classList.add('mobile-text-focus'); });
+  textArea.addEventListener('blur', function () { controlPanel.classList.remove('mobile-text-focus'); });
+
+  Array.prototype.forEach.call(controlPanel.querySelectorAll('input[type="range"]'), function (input) {
+    var minus = document.createElement('button');
+    var plus = document.createElement('button');
+    minus.type = plus.type = 'button';
+    minus.className = plus.className = 'mobile-step';
+    minus.textContent = '−'; plus.textContent = '＋';
+    minus.setAttribute('aria-label', 'Decrease ' + input.id);
+    plus.setAttribute('aria-label', 'Increase ' + input.id);
+    input.parentNode.insertBefore(minus, input);
+    input.parentNode.insertBefore(plus, input.nextSibling);
+    function step(direction) {
+      var amount = Number(input.step) || 1;
+      var next = Math.max(Number(input.min), Math.min(Number(input.max), Number(input.value) + amount * direction));
+      // Composition ranges open their one-gesture history record on
+      // pointerdown. The synthetic mobile step must enter that same path.
+      input.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      input.value = String(Math.round(next / amount) * amount);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    minus.addEventListener('click', function () { step(-1); });
+    plus.addEventListener('click', function () { step(1); });
+  });
+
+  setMobileSection('create');
+  updateContextUI();
+}
+
+initProgressiveUI();
+
+function refreshBatchProfileControls() {
+  var source = batchProfileForKey(activeBatchProfile);
+  for (var i = 0; i < rangeControls.length; i++) {
+    var control = rangeControls[i];
+    if (!control.profiled) continue;
+    control.input.value = source[control.key];
+    control.val.textContent = control.fmt(source[control.key]);
+  }
+  mirrorXInput.checked = !!source.mirrorX;
+  mirrorYInput.checked = !!source.mirrorY;
+  var inherited = activeBatchProfile !== 'all' && !batchProfiles[activeBatchProfile];
+  batchProfileStatus.textContent = activeBatchProfile === 'all'
+    ? 'All：全文字の基準値'
+    : BATCH_PROFILE_LABELS[activeBatchProfile] + '：' + (inherited ? 'Allを継承中（スライダーを動かすと個別設定）' : '個別設定');
+  btnBatchProfileReset.disabled = activeBatchProfile === 'all' || inherited;
+}
+
+function setActiveOperator(id) {
+  params.activeOperator = OPERATOR_DEFS[id] ? id : 'stretch';
+  operatorSelect.value = params.activeOperator;
+  for (var i = 0; i < operatorPanels.length; i++) {
+    operatorPanels[i].hidden = operatorPanels[i].dataset.operatorPanel !== params.activeOperator;
+  }
+  for (var m = 0; m < metrics.length; m++) {
+    for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[m], OPERATOR_IDS[oi]).hovered = false;
+  }
+  if (selectedM) updateHud();
+  updateContextUI();
+  scheduleEffectStatusUpdate();
+}
+
+operatorSelect.addEventListener('change', function () { setActiveOperator(operatorSelect.value); });
+
+function setActiveBatchProfile(key) {
+  activeBatchProfile = key === 'all' || BATCH_PROFILE_KEYS.indexOf(key) !== -1 ? key : 'all';
+  batchProfileSelect.value = activeBatchProfile;
+  refreshBatchProfileControls();
+  updateContextUI();
+}
+
+function bindRange(id, valId, key, fmt, onChange) {
+  var input = document.getElementById(id);
+  var val = document.getElementById(valId);
+  var profiled = BATCH_PARAM_KEYS.indexOf(key) !== -1;
+  input.addEventListener('input', function () {
+    var target = profiled ? editableBatchProfile() : params;
+    target[key] = parseFloat(input.value);
+    val.textContent = fmt(target[key]);
+    if (profiled) refreshBatchProfileControls();
+    if (onChange) onChange();
+  });
+  val.textContent = fmt(parseFloat(input.value));
+  rangeControls.push({ input: input, val: val, key: key, fmt: fmt, profiled: profiled });
+}
+
+var f2 = function (v) { return v.toFixed(2); };
+var f1 = function (v) { return v.toFixed(1); };
+var f0 = function (v) { return String(Math.round(v)); };
+var fDeg = function (v) { return Math.round(v) + '°'; };
+var fEm = function (v) { return v.toFixed(2) + 'em'; };
+var fPx = function (v) { return Math.round(v) + 'px'; };
+
+// rAF-throttled full recompute for slider drags (one pass per frame,
+// not one per input event)
+var randomQueued = false;
+function queueApplyRandom() {
+  if (randomQueued) return;
+  randomQueued = true;
+  requestAnimationFrame(function () {
+    randomQueued = false;
+    applyRandom();
+  });
+}
+
+// settled letters no longer re-render every frame, so a stretch-factor
+// change must explicitly re-apply the current intensities
+var stretchQueued = false;
+function reapplyStretches() {
+  if (stretchQueued) return;
+  stretchQueued = true;
+  requestAnimationFrame(function () {
+    stretchQueued = false;
+    for (var i = 0; i < metrics.length; i++) {
+      var m = metrics[i];
+      if (m.locked) continue;
+      if (m.manualX || m.manualY) continue; // manual values are absolute
+      if (m.currentIntensity > 0.001) applyStretch(m);
+    }
+  });
+}
+
+bindRange('pStretchX', 'vStretchX', 'stretchX', f2, reapplyStretches);
+bindRange('pStretchY', 'vStretchY', 'stretchY', f2, reapplyStretches);
+bindRange('pRadius', 'vRadius', 'radius', f0);
+bindRange('pReturn', 'vReturn', 'ease', f2);
+bindRange('pGeo', 'vGeo', 'geoRatio', f2, queueApplyRandom);
+bindRange('pRandom', 'vRandom', 'randomness', f2, queueApplyRandom);
+bindRange('pRot', 'vRot', 'rotation', f1, queueApplyRandom);
+bindRange('pRotateAngle', 'vRotateAngle', 'rotateAngle', fDeg, applyAllOperatorVisuals);
+bindRange('pSkewX', 'vSkewX', 'skewX', fDeg, applyAllOperatorVisuals);
+bindRange('pSkewY', 'vSkewY', 'skewY', fDeg, applyAllOperatorVisuals);
+bindRange('pBaselineShift', 'vBaselineShift', 'baselineShift', fEm, applyAllOperatorVisuals);
+bindRange('pMisregX', 'vMisregX', 'misregX', fPx, applyAllOperatorVisuals);
+bindRange('pMisregY', 'vMisregY', 'misregY', fPx, applyAllOperatorVisuals);
+bindRange('pConfuseDepth', 'vConfuseDepth', 'confuseDepth', f2, applyAllOperatorVisuals);
+bindRange('pSize', 'vSize', 'fontSize', f0, applyStyle);
+bindRange('pLine', 'vLine', 'lineHeight', f2, applyStyle);
+bindRange('pTrack', 'vTrack', 'letterSpacing', f2, applyStyle);
+bindRange('pAccentRatio', 'vAccentRatio', 'accentRatio', f2, queueApplyRandom);
+bindRange('pMargin', 'vMargin', 'marginPct', f0);
+bindRange('pVideoDuration', 'vVideoDuration', 'videoDuration', function (v) { return Math.round(v) + 's'; }, function () { updateVideoExportAvailability(true); });
+
+batchProfileSelect.addEventListener('change', function () {
+  setActiveBatchProfile(batchProfileSelect.value);
+});
+btnBatchProfileReset.addEventListener('click', function () {
+  if (activeBatchProfile === 'all' || !batchProfiles[activeBatchProfile]) return;
+  delete batchProfiles[activeBatchProfile];
+  markAutosaveDirty();
+  refreshBatchProfileControls();
+  applyRandom();
+  reapplyStretches();
+  applyAllOperatorVisuals();
+});
+
+function updateMirrorAxis(key, checked) {
+  editableBatchProfile()[key] = checked ? 1 : 0;
+  refreshBatchProfileControls();
+  applyAllOperatorVisuals();
+}
+mirrorXInput.addEventListener('change', function () { updateMirrorAxis('mirrorX', mirrorXInput.checked); });
+mirrorYInput.addEventListener('change', function () { updateMirrorAxis('mirrorY', mirrorYInput.checked); });
+document.getElementById('pMisregColorA').addEventListener('input', function (e) {
+  params.misregColorA = e.target.value; applyAllOperatorVisuals();
+});
+document.getElementById('pMisregColorB').addEventListener('input', function (e) {
+  params.misregColorB = e.target.value; applyAllOperatorVisuals();
+});
+document.getElementById('pConfuseDictionary').addEventListener('change', function (e) {
+  params.confuseDictionary = e.target.value;
+  clearConfuseCache();
+  applyAllOperatorVisuals();
+  updateConfuseDictionaryUI();
+  ensureConfuseDictionary();
+});
+document.getElementById('pConfuseMixed').addEventListener('change', function (e) {
+  params.confuseMixed = e.target.checked;
+  clearConfuseCache();
+  applyAllOperatorVisuals();
+  updateConfuseDictionaryUI();
+});
+document.getElementById('pConfuseGlyphGuard').addEventListener('change', function (e) {
+  params.confuseGlyphGuard = e.target.checked;
+  clearConfuseCache();
+  applyAllOperatorVisuals();
+  updateConfuseDictionaryUI();
+});
+document.getElementById('pConfuseProbe').addEventListener('input', updateConfuseExplorer);
+document.getElementById('btnConfuseCustomApply').addEventListener('click', function () {
+  params.confuseCustom = document.getElementById('pConfuseCustom').value.slice(0, 20000).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+  markAutosaveDirty();
+  clearConfuseCache();
+  applyAllOperatorVisuals();
+  updateConfuseDictionaryUI();
+});
+document.getElementById('btnConfuseCustomClear').addEventListener('click', function () {
+  params.confuseCustom = '';
+  document.getElementById('pConfuseCustom').value = '';
+  markAutosaveDirty();
+  clearConfuseCache();
+  applyAllOperatorVisuals();
+  updateConfuseDictionaryUI();
+});
+
+function displayedCompositionText() {
+  var paragraphs = stage.querySelectorAll('p');
+  var lines = [];
+  for (var i = 0; i < paragraphs.length; i++) lines.push(paragraphs[i].textContent.replace(/\u00a0/g, ' '));
+  return lines.join('\n');
+}
+
+function copyPlainTextValue(value, button) {
+  var originalLabel = button.textContent;
+  var done = function (ok) {
+    button.textContent = ok ? 'Copied!' : 'Copy failed';
+    setTimeout(function () { button.textContent = originalLabel; }, 1400);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(value).then(function () { done(true); }, function () {
+      prompt('このテキストをコピーしてください', value);
+      done(false);
+    });
+  } else {
+    prompt('このテキストをコピーしてください', value);
+    done(false);
+  }
+}
+
+var btnCopySourceText = document.getElementById('btnCopySourceText');
+var btnCopyDerivedText = document.getElementById('btnCopyDerivedText');
+btnCopySourceText.addEventListener('click', function () { copyPlainTextValue(textInput.value, btnCopySourceText); });
+btnCopyDerivedText.addEventListener('click', function () { copyPlainTextValue(displayedCompositionText(), btnCopyDerivedText); });
+
+// Ordinary copy from the artwork always yields immutable source text.
+// The explicit Copy display action above is the only path that exports
+// derived Confuse characters as plain text.
+document.addEventListener('copy', function (e) {
+  var selection = window.getSelection && window.getSelection();
+  if (!selection || !selection.rangeCount || !e.clipboardData) return;
+  var range = selection.getRangeAt(0);
+  try { if (!range.intersectsNode(stage)) return; }
+  catch (unsupportedRange) { return; }
+  var container = document.createElement('div');
+  container.appendChild(range.cloneContents());
+  var copiedGlyphs = container.querySelectorAll('.c');
+  for (var i = 0; i < copiedGlyphs.length; i++) {
+    if (copiedGlyphs[i].dataset.sourceText) copiedGlyphs[i].textContent = copiedGlyphs[i].dataset.sourceText;
+  }
+  var paragraphs = container.querySelectorAll('p');
+  var lines = [];
+  if (paragraphs.length) {
+    for (var p = 0; p < paragraphs.length; p++) lines.push(paragraphs[p].textContent.replace(/\u00a0/g, ' '));
+  } else lines.push(container.textContent.replace(/\u00a0/g, ' '));
+  e.preventDefault();
+  e.clipboardData.setData('text/plain', lines.join('\n'));
+});
+
+/* composition controls */
+var COMPOSITION_RANGE_CONTROLS = [
+  ['pCompositionPhase', 'vCompositionPhase', null, 'phase', 3],
+  ['pCompositionSpeed', 'vCompositionSpeed', null, 'speed', 2],
+  ['pFieldCols', 'vFieldCols', 'field', 'cols', 0],
+  ['pFieldRows', 'vFieldRows', 'field', 'rows', 0],
+  ['pFieldWaveX', 'vFieldWaveX', 'field', 'waveX', 1],
+  ['pFieldWaveY', 'vFieldWaveY', 'field', 'waveY', 1],
+  ['pFieldAmpX', 'vFieldAmpX', 'field', 'ampX', 2],
+  ['pFieldAmpY', 'vFieldAmpY', 'field', 'ampY', 2],
+  ['pFieldScaleX', 'vFieldScaleX', 'field', 'scaleX', 2],
+  ['pFieldScaleY', 'vFieldScaleY', 'field', 'scaleY', 2],
+  ['pFieldRotation', 'vFieldRotation', 'field', 'rotation', 0, '°'],
+  ['pFieldDepth', 'vFieldDepth', 'field', 'depth', 2],
+  ['pFluxRows', 'vFluxRows', 'fluxRows', 'rows', 0],
+  ['pFluxCurve', 'vFluxCurve', 'fluxRows', 'curve', 2],
+  ['pFluxTracking', 'vFluxTracking', 'fluxRows', 'tracking', 2],
+  ['pFluxLineGap', 'vFluxLineGap', 'fluxRows', 'lineGap', 2],
+  ['pFluxScroll', 'vFluxScroll', 'fluxRows', 'scroll', 2],
+  ['pFluxAmount', 'vFluxAmount', 'fluxRows', 'amount', 2],
+  ['pCascadeRows', 'vCascadeRows', 'cascade', 'rows', 0],
+  ['pCascadeTracking', 'vCascadeTracking', 'cascade', 'tracking', 2],
+  ['pCascadeLineSpace', 'vCascadeLineSpace', 'cascade', 'lineSpace', 2],
+  ['pCascadeWaveLength', 'vCascadeWaveLength', 'cascade', 'waveLength', 2],
+  ['pCascadeAmplitude', 'vCascadeAmplitude', 'cascade', 'amplitude', 2],
+  ['pCascadeSlope', 'vCascadeSlope', 'cascade', 'slope', 2],
+  ['pCascadeCustomRule', 'vCascadeCustomRule', 'cascade', 'customRule', 0],
+  ['pCascadeCells', 'vCascadeCells', 'cascade', 'cells', 0],
+  ['pCascadeCircuitDensity', 'vCascadeCircuitDensity', 'cascade', 'circuitDensity', 2],
+  ['pCascadePulse', 'vCascadePulse', 'cascade', 'pulse', 2],
+  ['pCascadeSignalLayers', 'vCascadeSignalLayers', 'cascade', 'signalLayers', 0],
+  ['pCascadeSignalFeedback', 'vCascadeSignalFeedback', 'cascade', 'signalFeedback', 2],
+  ['pCascadeQuantize', 'vCascadeQuantize', 'cascade', 'quantize', 0],
+  ['pCascadeFrequency', 'vCascadeFrequency', 'cascade', 'frequency', 0],
+  ['pCascadeWarp', 'vCascadeWarp', 'cascade', 'warp', 2],
+  ['pCascadeThreshold', 'vCascadeThreshold', 'cascade', 'threshold', 2],
+  ['pCascadeContours', 'vCascadeContours', 'cascade', 'contours', 0],
+  ['pCascadeSdfFeedback', 'vCascadeSdfFeedback', 'cascade', 'sdfFeedback', 2],
+  ['pCascadeGap', 'vCascadeGap', 'cascade', 'gap', 2],
+  ['pCascadeRound', 'vCascadeRound', 'cascade', 'round', 2],
+  ['pCascadeOpacity', 'vCascadeOpacity', 'cascade', 'opacity', 2],
+  ['pCascadeStroke', 'vCascadeStroke', 'cascade', 'stroke', 2],
+  ['pCascadeScanline', 'vCascadeScanline', 'cascade', 'scanline', 2],
+  ['pCascadeBackdropOpacity', 'vCascadeBackdropOpacity', 'cascade', 'backdropOpacity', 2],
+  ['pCompositionIntensity', 'vCompositionIntensity', 'macros', 'intensity', 2],
+  ['pCompositionDensity', 'vCompositionDensity', 'macros', 'density', 2],
+  ['pCompositionInstability', 'vCompositionInstability', 'macros', 'instability', 2],
+  ['pCompositionDepthMacro', 'vCompositionDepthMacro', 'macros', 'depth', 2],
+  ['pCompositionLegibility', 'vCompositionLegibility', 'macros', 'legibility', 2],
+  ['pFieldSources', 'vFieldSources', 'field', 'sources', 0],
+  ['pFieldPointerForce', 'vFieldPointerForce', 'field', 'pointerForce', 2],
+  ['pFieldDomainWarp', 'vFieldDomainWarp', 'field', 'domainWarp', 2],
+  ['pFieldPerspective', 'vFieldPerspective', 'field', 'perspective', 2],
+  ['pFieldFalloff', 'vFieldFalloff', 'field', 'depthFalloff', 2],
+  ['pFieldVariationAmount', 'vFieldVariationAmount', 'field', 'variation', 2],
+  ['pFieldNetwork', 'vFieldNetwork', 'field', 'network', 2],
+  ['pFieldEchoOrbit', 'vFieldEchoOrbit', 'field', 'echoOrbit', 0],
+  ['pFluxDensity', 'vFluxDensity', 'fluxRows', 'density', 2],
+  ['pFluxLanePhase', 'vFluxLanePhase', 'fluxRows', 'phaseOffset', 2],
+  ['pFluxAmplitude', 'vFluxAmplitude', 'fluxRows', 'amplitude', 2],
+  ['pFluxPointerBranch', 'vFluxPointerBranch', 'fluxRows', 'pointerBranch', 2],
+  ['pFluxCompression', 'vFluxCompression', 'fluxRows', 'compression', 2],
+  ['pFluxSlit', 'vFluxSlit', 'fluxRows', 'slit', 2],
+  ['pFluxAccordion', 'vFluxAccordion', 'fluxRows', 'accordion', 2],
+  ['pFluxWeave', 'vFluxWeave', 'fluxRows', 'weave', 2],
+  ['pFluxTangent', 'vFluxTangent', 'fluxRows', 'tangent', 2],
+  ['pFluxPerspective', 'vFluxPerspective', 'fluxRows', 'perspective', 2],
+  ['pFluxTrail', 'vFluxTrail', 'fluxRows', 'trail', 2],
+  ['pFluxScanEcho', 'vFluxScanEcho', 'fluxRows', 'scanEcho', 0],
+  ['pCascadeSignalSources', 'vCascadeSignalSources', 'cascade', 'signalSources', 0],
+  ['pCascadeSignalSync', 'vCascadeSignalSync', 'cascade', 'signalSync', 2],
+  ['pCascadeGenerationBlend', 'vCascadeGenerationBlend', 'cascade', 'generationBlend', 2],
+  ['pCascadeCircuitBranches', 'vCascadeCircuitBranches', 'cascade', 'circuitBranches', 0],
+  ['pCascadeCircuitRouters', 'vCascadeCircuitRouters', 'cascade', 'circuitRouters', 0],
+  ['pCascadeCircuitPackets', 'vCascadeCircuitPackets', 'cascade', 'circuitPackets', 0],
+  ['pCascadeCircuitTrail', 'vCascadeCircuitTrail', 'cascade', 'packetTrail', 2],
+  ['pCascadeCircuitHeatmap', 'vCascadeCircuitHeatmap', 'cascade', 'circuitHeatmap', 2],
+  ['pCascadeGlyphWarp', 'vCascadeGlyphWarp', 'cascade', 'glyphWarp', 2],
+  ['pCascadeDiffraction', 'vCascadeDiffraction', 'cascade', 'diffraction', 2],
+  ['pCascadeChromatic', 'vCascadeChromatic', 'cascade', 'chromatic', 2],
+  ['pCascadeBackgroundAmount', null, 'cascade', 'backgroundAmount', 2],
+  ['pCascadeTextAmount', null, 'cascade', 'textAmount', 2],
+  ['pContourLevels', 'vContourLevels', 'contourAtlas', 'levels', 0],
+  ['pContourResolution', 'vContourResolution', 'contourAtlas', 'resolution', 0],
+  ['pContourDensity', 'vContourDensity', 'contourAtlas', 'density', 2],
+  ['pContourSpacing', 'vContourSpacing', 'contourAtlas', 'spacing', 2],
+  ['pContourLineWidth', 'vContourLineWidth', 'contourAtlas', 'lineWidth', 2],
+  ['pContourDash', 'vContourDash', 'contourAtlas', 'dash', 2],
+  ['pContourTangent', 'vContourTangent', 'contourAtlas', 'tangent', 2],
+  ['pContourCharge', 'vContourCharge', 'contourAtlas', 'charge', 2],
+  ['pContourInterference', 'vContourInterference', 'contourAtlas', 'interference', 2],
+  ['pContourPointerRelief', 'vContourPointerRelief', 'contourAtlas', 'pointerRelief', 2],
+  ['pContourThreshold', 'vContourThreshold', 'contourAtlas', 'threshold', 2],
+  ['pContourFillOpacity', 'vContourFillOpacity', 'contourAtlas', 'fillOpacity', 2],
+  ['pContourTextHeight', 'vContourTextHeight', 'contourAtlas', 'textHeight', 2],
+  ['pFeedbackDecay', 'vFeedbackDecay', 'feedbackChamber', 'decay', 2],
+  ['pFeedbackInjection', 'vFeedbackInjection', 'feedbackChamber', 'injection', 2],
+  ['pFeedbackPersistence', 'vFeedbackPersistence', 'feedbackChamber', 'persistence', 2],
+  ['pFeedbackZoom', 'vFeedbackZoom', 'feedbackChamber', 'zoom', 3, '', 'plus1'],
+  ['pFeedbackRotation', 'vFeedbackRotation', 'feedbackChamber', 'rotation', 1, '°'],
+  ['pFeedbackDriftX', 'vFeedbackDriftX', 'feedbackChamber', 'driftX', 2],
+  ['pFeedbackDriftY', 'vFeedbackDriftY', 'feedbackChamber', 'driftY', 2],
+  ['pFeedbackShear', 'vFeedbackShear', 'feedbackChamber', 'shear', 2],
+  ['pFeedbackWarpAmount', 'vFeedbackWarpAmount', 'feedbackChamber', 'warpAmount', 2],
+  ['pFeedbackThreshold', 'vFeedbackThreshold', 'feedbackChamber', 'threshold', 2],
+  ['pFeedbackEchoes', 'vFeedbackEchoes', 'feedbackChamber', 'echoes', 0],
+  ['pFeedbackKaleidoscope', 'vFeedbackKaleidoscope', 'feedbackChamber', 'kaleidoscope', 0],
+  ['pFxEchoCount', 'vFxEchoCount', 'fxRack.echo', 'count', 0],
+  ['pFxEchoPhase', 'vFxEchoPhase', 'fxRack.echo', 'phase', 2],
+  ['pFxEchoDecay', 'vFxEchoDecay', 'fxRack.echo', 'decay', 2],
+  ['pFxEchoScale', 'vFxEchoScale', 'fxRack.echo', 'scale', 3, '', 'plus1'],
+  ['pFxEchoRotation', 'vFxEchoRotation', 'fxRack.echo', 'rotation', 0, '°'],
+  ['pFxFeedbackAmount', 'vFxFeedbackAmount', 'fxRack.feedback', 'amount', 2],
+  ['pFxFeedbackZoom', 'vFxFeedbackZoom', 'fxRack.feedback', 'zoom', 3, '', 'plus1'],
+  ['pFxFeedbackRotation', 'vFxFeedbackRotation', 'fxRack.feedback', 'rotation', 1, '°'],
+  ['pFxFeedbackWarp', 'vFxFeedbackWarp', 'fxRack.feedback', 'warp', 2],
+  ['pFxMaskAmount', 'vFxMaskAmount', 'fxRack.signalMask', 'amount', 2],
+  ['pFxMaskFeather', 'vFxMaskFeather', 'fxRack.signalMask', 'feather', 2],
+  ['pFxChromaticDistance', 'vFxChromaticDistance', 'fxRack.chromaticSplit', 'distance', 0],
+  ['pFxChromaticAngle', 'vFxChromaticAngle', 'fxRack.chromaticSplit', 'angle', 0, '°'],
+  ['pFxRasterPixelate', 'vFxRasterPixelate', 'fxRack.rasterMaterial', 'pixelate', 0, '', 'pixelate'],
+  ['pFxRasterPosterize', 'vFxRasterPosterize', 'fxRack.rasterMaterial', 'posterize', 0, '', 'posterize'],
+  ['pFxRasterScanline', 'vFxRasterScanline', 'fxRack.rasterMaterial', 'scanline', 2],
+  ['pFxRasterNoise', 'vFxRasterNoise', 'fxRack.rasterMaterial', 'noise', 2]
+];
+
+function compositionValue(section, key) {
+  if (!section) return compositionState[key];
+  var target = compositionState;
+  section.split('.').forEach(function (part) { target = target[part]; });
+  return target[key];
+}
+
+function setCompositionValue(section, key, value) {
+  if (!section) { compositionState[key] = value; return; }
+  var target = compositionState;
+  section.split('.').forEach(function (part) { target = target[part]; });
+  target[key] = value;
+}
+
+function compositionValueFromDefaults(section, key) {
+  if (!section) return COMPOSITION_DEFAULTS[key];
+  var target = COMPOSITION_DEFAULTS;
+  section.split('.').forEach(function (part) { target = target[part]; });
+  return JSON.parse(JSON.stringify(target[key]));
+}
+
+function compositionControlDisplayValue(value, transform) {
+  if (transform === 'plus1') return 1 + value;
+  if (transform === 'pixelate') return 1 + Math.round(value * 31);
+  if (transform === 'posterize') return 2 + Math.round(value * 30);
+  return value;
+}
+
+function compositionControlStateValue(value, transform) {
+  if (transform === 'plus1') return value - 1;
+  if (transform === 'pixelate') return (value - 1) / 31;
+  if (transform === 'posterize') return (value - 2) / 30;
+  return value;
+}
+
+function syncCompositionUI() {
+  for (var i = 0; i < COMPOSITION_RANGE_CONTROLS.length; i++) {
+    var spec = COMPOSITION_RANGE_CONTROLS[i];
+    var input = document.getElementById(spec[0]);
+    var output = document.getElementById(spec[1]);
+    var value = compositionControlDisplayValue(compositionValue(spec[2], spec[3]), spec[6]);
+    if (input) input.value = value;
+    if (output) output.textContent = Number(value).toFixed(spec[4]) + (spec[5] || '');
+  }
+  document.getElementById('pCompositionAxis').value = compositionState.axis;
+  document.getElementById('pCompositionDirection').value = String(compositionState.direction);
+  document.getElementById('pCompositionEngine').value = compositionInspector;
+  document.getElementById('pCompositionQuality').value = compositionState.quality;
+  document.getElementById('pCompositionViewportWidth').value = compositionState.logicalViewport.width;
+  document.getElementById('pCompositionViewportHeight').value = compositionState.logicalViewport.height;
+  document.getElementById('pCompositionLoopLock').checked = compositionState.loopLock;
+  document.getElementById('pCompositionColor2').value = compositionState.color2;
+  document.getElementById('pCompositionColor3').value = compositionState.color3;
+  document.getElementById('pFieldTopology').value = compositionState.field.topology;
+  document.getElementById('pFieldMode').value = compositionState.field.fieldType;
+  document.getElementById('pFieldPointerMode').value = compositionState.field.pointerMode;
+  document.getElementById('pFieldOrientation').value = compositionState.field.orientation;
+  document.getElementById('pFieldVariationMode').value = compositionState.field.variationMode;
+  document.getElementById('pFieldColorMap').value = compositionState.field.colorMode;
+  document.getElementById('pFluxBaseline').value = compositionState.fluxRows.baseline;
+  document.getElementById('pFluxSpeedMode').value = compositionState.fluxRows.laneSpeed;
+  document.getElementById('pFluxIntegerTravel').checked = compositionState.fluxRows.integerTravel;
+  document.getElementById('pFluxColorMode').value = compositionState.fluxRows.colorMode;
+  document.getElementById('pFluxMirror').checked = compositionState.fluxRows.mirror;
+  document.getElementById('pFluxFlip').checked = compositionState.fluxRows.flip;
+  document.getElementById('pCascadeMirror').checked = compositionState.cascade.mirror;
+  document.getElementById('pCascadeBands').checked = compositionState.cascade.bands;
+  document.getElementById('pCascadeSystem').value = compositionState.cascade.system;
+  document.getElementById('pCascadeShape').value = compositionState.cascade.shape;
+  document.getElementById('pCascadeColorMode').value = compositionState.cascade.colorMode;
+  document.getElementById('pCascadeSignalMode').value = compositionState.cascade.signalMode;
+  document.getElementById('pCascadeAutomatonMode').value = compositionState.cascade.automatonMode;
+  document.getElementById('pCascadeLifeRule').value = compositionState.cascade.lifeRule;
+  document.getElementById('pCascadePingPong').checked = compositionState.cascade.pingPong;
+  document.getElementById('pCascadePointerInject').checked = compositionState.cascade.pointerInject;
+  document.getElementById('pCascadeSdfMode').value = compositionState.cascade.sdfMode;
+  document.getElementById('pCascadeRule').value = String(compositionState.cascade.rule);
+  document.getElementById('pCascadeSeed').value = compositionState.cascade.seed;
+  document.getElementById('pCascadeBlend').value = compositionState.cascade.blend;
+  document.getElementById('pCascadeGlyphMode').value = compositionState.cascade.glyphMode;
+  document.getElementById('pCascadeBackdropEnabled').checked = compositionState.cascade.backdropEnabled;
+  document.getElementById('pCascadeBackdrop').value = compositionState.cascade.backdrop;
+  document.getElementById('pCascadeFieldA').value = compositionState.cascade.fieldA;
+  document.getElementById('pCascadeFieldB').value = compositionState.cascade.fieldB;
+  document.getElementById('pCascadeFieldC').value = compositionState.cascade.fieldC;
+  document.getElementById('pCascadeEdge').value = compositionState.cascade.edge;
+  document.getElementById('pCascadeGlyph').value = compositionState.cascade.glyph;
+  document.getElementById('pContourSource').value = compositionState.contourAtlas.source;
+  document.getElementById('pContourRendering').value = compositionState.contourAtlas.rendering === 'filled' ? 'regions' : compositionState.contourAtlas.rendering;
+  document.getElementById('pContourColorMap').value = compositionState.contourAtlas.colorMode;
+  document.getElementById('pContourGlyphs').checked = compositionState.contourAtlas.glyphs;
+  document.getElementById('pContourFilled').checked = compositionState.contourAtlas.filled;
+  document.getElementById('pFeedbackTransform').value = compositionState.feedbackChamber.transform;
+  document.getElementById('pFeedbackMirror').value = compositionState.feedbackChamber.mirror;
+  document.getElementById('pFeedbackWarp').value = compositionState.feedbackChamber.warp;
+  document.getElementById('pFeedbackPointerCenter').checked = compositionState.feedbackChamber.pointerCenter;
+  document.getElementById('pFeedbackLoopLock').checked = compositionState.feedbackChamber.loopLock;
+  document.getElementById('pFxEchoEnabled').checked = compositionState.fxRack.echo.enabled;
+  document.getElementById('pFxFeedbackEnabled').checked = compositionState.fxRack.feedback.enabled;
+  document.getElementById('pFxMaskEnabled').checked = compositionState.fxRack.signalMask.enabled;
+  document.getElementById('pFxMaskMode').value = compositionState.fxRack.signalMask.mode;
+  document.getElementById('pFxChromaticEnabled').checked = compositionState.fxRack.chromaticSplit.enabled;
+  document.getElementById('pFxChromaticBlend').value = compositionState.fxRack.chromaticSplit.blend;
+  document.getElementById('pFxRasterEnabled').checked = compositionState.fxRack.rasterMaterial.enabled;
+  Array.prototype.forEach.call(document.querySelectorAll('.composition-fx-module'), function (module) {
+    var checkbox = module.querySelector('summary input[type="checkbox"]');
+    var state = module.querySelector('.fx-state');
+    if (state && checkbox) state.textContent = checkbox.checked ? 'ON' : 'OFF';
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cascade-system-panel]'), function (panel) {
+    panel.hidden = panel.dataset.cascadeSystemPanel !== compositionState.cascade.system;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cascade-for]'), function (row) {
+    row.hidden = row.dataset.cascadeFor.split(',').indexOf(compositionState.cascade.system) === -1;
+  });
+  document.getElementById('pCascadeCustomRule').disabled = compositionState.cascade.rule !== 'custom';
+  document.getElementById('pCascadeLifeRule').disabled = compositionState.cascade.automatonMode !== 'life2d';
+  Array.prototype.forEach.call(document.querySelectorAll('[data-composition-tab]'), function (button) {
+    button.setAttribute('aria-selected', String(button.dataset.compositionTab === compositionInspector));
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-composition-panel]'), function (panel) {
+    panel.hidden = panel.dataset.compositionPanel !== compositionInspector;
+  });
+  document.getElementById('btnCompositionApply').textContent = 'Apply ' + COMPOSITION_DEFS[compositionInspector].label;
+  document.getElementById('compositionDraftStatus').textContent =
+    (compositionState.enabled && compositionState.type === compositionInspector ? 'ACTIVE / ' : 'DRAFT / ')
+    + COMPOSITION_DEFS[compositionInspector].label;
+  document.getElementById('compositionRendererBadge').textContent =
+    (compositionInspector === 'feedbackChamber' || (compositionInspector === 'cascade' && compositionState.cascade.system === 'sdf'))
+      ? (webglCompositionAvailable() ? 'WEBGL2 + CANVAS' : 'CANVAS FALLBACK') : 'CANVAS 2D';
+  populateCompositionPresets();
+  document.getElementById('btnCompositionPlay').disabled = !compositionState.enabled;
+  if (modeButtons && modeButtons.grid) {
+    modeButtons.grid.disabled = compositionState.enabled;
+    modeButtons.grid.title = compositionState.enabled ? 'Composition owns the visible layout. Remove it to arrange the source grid.' : '';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode="grid"]'), function (button) {
+    button.disabled = compositionState.enabled;
+    button.title = compositionState.enabled ? 'Composition owns the visible layout. Remove it to arrange the source grid.' : '';
+  });
+  updateCompositionStatus();
+  scheduleCompositionDraw();
+  scheduleEffectStatusUpdate();
+}
+
+function setCompositionPlaying(playing) {
+  var button = document.getElementById('btnCompositionPlay');
+  if (!compositionState.enabled) playing = false;
+  if (!playing && compositionPlayRaf !== null) {
+    cancelAnimationFrame(compositionPlayRaf);
+    compositionPlayRaf = null;
+    scheduleAutosave();
+  }
+  if (button) {
+    button.setAttribute('aria-pressed', String(playing));
+    button.textContent = playing ? 'Pause' : 'Play';
+  }
+  if (playing && compositionPlayRaf === null) {
+    compositionLastTime = 0;
+    compositionPlayRaf = requestAnimationFrame(function tick(now) {
+      if (compositionPlayRaf === null || !compositionState.enabled) return;
+      if (!compositionLastTime) compositionLastTime = now;
+      var dt = Math.min(0.1, Math.max(0, (now - compositionLastTime) / 1000));
+      compositionLastTime = now;
+      compositionState.phase = (compositionState.phase + dt * compositionState.speed * compositionState.direction + 1) % 1;
+      var phaseInput = document.getElementById('pCompositionPhase');
+      var phaseValue = document.getElementById('vCompositionPhase');
+      if (phaseInput) phaseInput.value = compositionState.phase;
+      if (phaseValue) phaseValue.textContent = compositionState.phase.toFixed(3);
+      scheduleCompositionDraw();
+      compositionPlayRaf = requestAnimationFrame(tick);
+    });
+  }
+}
+
+function removeComposition() {
+  if (!compositionState.enabled) return;
+  pushHistory();
+  compositionState.enabled = false;
+  setCompositionPlaying(false);
+  markAutosaveDirty();
+  syncCompositionUI();
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('[data-composition-tab]'), function (button) {
+  button.addEventListener('click', function () {
+    compositionInspector = button.dataset.compositionTab;
+    syncCompositionUI();
+  });
+});
+document.getElementById('pCompositionEngine').addEventListener('change', function (e) {
+  compositionInspector = e.target.value;
+  syncCompositionUI();
+});
+
+var COMPOSITION_PRESETS = {
+  field: {
+    waveGrid: { label: 'Wave Grid', state: { topology: 'cartesian', fieldType: 'wave', domainWarp: 0.15, network: 0.1, echoOrbit: 0 } },
+    vortexType: { label: 'Vortex Type', state: { topology: 'polar', fieldType: 'vortex', sources: 3, domainWarp: 0.8, network: 0.42, orientation: 'tangent', echoOrbit: 3 } },
+    textAttractor: { label: 'Text Attractor', state: { topology: 'spiral', fieldType: 'textDistance', sources: 4, perspective: 0.5, variation: 0.75, colorMode: 'unicode' } }
+  },
+  fluxRows: {
+    counterflow: { label: 'Counterflow', state: { baseline: 'wave', laneSpeed: 'alternate', scroll: 3, flip: true, amplitude: 0.55, weave: 0.2 } },
+    braid: { label: 'Braided Signal', state: { baseline: 'braid', laneSpeed: 'mirror', scroll: 2, amplitude: 1.1, weave: 0.8, tangent: 0.85, trail: 0.35 } },
+    scanRows: { label: 'Scan Rows', state: { baseline: 'fold', laneSpeed: 'unicode', scroll: 4, slit: 0.62, compression: 0.4, scanEcho: 5, colorMode: 'lane' } }
+  },
+  cascade: {
+    cellular: { label: 'Cellular Bloom', state: { system: 'automaton', automatonMode: '1d', rule: 110, cells: 56, generationBlend: 0.7, pingPong: true } },
+    dataCircuit: { label: 'Packet Storm', state: { system: 'circuit', circuitDensity: 0.82, circuitBranches: 5, circuitRouters: 14, circuitPackets: 36, packetTrail: 0.72, circuitHeatmap: 0.45 } },
+    signalInterference: { label: 'Signal Collapse', state: { system: 'bands', signalMode: 'moire', signalSources: 4, signalLayers: 6, signalFeedback: 0.82, signalSync: 0.2, blend: 'difference' } },
+    opticalTunnel: { label: 'Black Sun', state: { system: 'sdf', sdfMode: 'tunnel', frequency: 13, warp: 1.2, contours: 7, diffraction: 0.62, chromatic: 0.35, blend: 'difference' } }
+  },
+  contourAtlas: {
+    topographic: { label: 'Topographic', state: { source: 'glyphDistance', rendering: 'hybrid', levels: 14, resolution: 84, density: 0.75, lineWidth: 0.8, textHeight: 0.8 } },
+    seismic: { label: 'Seismic Index', state: { source: 'interference', rendering: 'lines', levels: 22, resolution: 112, interference: 1.35, dash: 0.24, tangent: 0.4, colorMode: 'spectral' } },
+    isoScript: { label: 'Iso-Script', state: { source: 'unicodeCharge', rendering: 'glyphs', levels: 10, resolution: 68, density: 1.35, charge: 0.75, tangent: 1, glyphs: true } }
+  },
+  feedbackChamber: {
+    recursiveType: { label: 'Recursive Type', state: { transform: 'zoom', mirror: 'none', warp: 'wave', zoom: 0.025, rotation: 1.5, decay: 0.78, injection: 0.8, echoes: 10 } },
+    spectralBurn: { label: 'Spectral Burn', state: { transform: 'rotate', mirror: 'bilateral', warp: 'glyphSdf', zoom: 0.012, rotation: 6, warpAmount: 0.9, decay: 0.86, threshold: 0.32, echoes: 16 } },
+    mirrorHall: { label: 'Mirror Hall', state: { transform: 'zoom', mirror: 'kaleidoscope', warp: 'twist', zoom: 0.04, rotation: 2.5, warpAmount: 0.55, kaleidoscope: 8, echoes: 12 } }
+  }
+};
+function populateCompositionPresets() {
+  var select = document.getElementById('pCompositionPreset');
+  if (!select || select.dataset.engine === compositionInspector) return;
+  select.dataset.engine = compositionInspector;
+  select.innerHTML = '<option value="">Scene preset…</option>';
+  var presets = COMPOSITION_PRESETS[compositionInspector] || {};
+  Object.keys(presets).forEach(function (key) {
+    var option = document.createElement('option');
+    option.value = key;
+    option.textContent = presets[key].label;
+    select.appendChild(option);
+  });
+  document.getElementById('btnCompositionPresetApply').disabled = true;
+}
+document.getElementById('pCompositionPreset').addEventListener('change', function (e) {
+  document.getElementById('btnCompositionPresetApply').disabled = !e.target.value;
+});
+document.getElementById('btnCompositionPresetApply').addEventListener('click', function () {
+  var select = document.getElementById('pCompositionPreset');
+  var preset = COMPOSITION_PRESETS[compositionInspector] && COMPOSITION_PRESETS[compositionInspector][select.value];
+  if (!preset) return;
+  pushHistory();
+  var next = JSON.parse(JSON.stringify(COMPOSITION_DEFAULTS[compositionInspector]));
+  Object.keys(preset.state).forEach(function (key) { next[key] = preset.state[key]; });
+  compositionState[compositionInspector] = next;
+  markAutosaveDirty();
+  syncCompositionUI();
+});
+
+for (var compositionControlIndex = 0; compositionControlIndex < COMPOSITION_RANGE_CONTROLS.length; compositionControlIndex++) {
+  (function (spec) {
+    var input = document.getElementById(spec[0]);
+    if (!input) return;
+    var gestureOpen = false;
+    function beginGesture() {
+      if (gestureOpen) return;
+      pushHistory();
+      gestureOpen = true;
+    }
+    input.addEventListener('pointerdown', beginGesture);
+    input.addEventListener('keydown', beginGesture);
+    input.addEventListener('change', function () { gestureOpen = false; });
+    input.addEventListener('pointerup', function () { gestureOpen = false; });
+    input.addEventListener('input', function () {
+      var displayValue = Number(input.value);
+      setCompositionValue(spec[2], spec[3], compositionControlStateValue(displayValue, spec[6]));
+      var output = spec[1] ? document.getElementById(spec[1]) : null;
+      if (output) output.textContent = displayValue.toFixed(spec[4]) + (spec[5] || '');
+      markAutosaveDirty();
+      scheduleCompositionDraw();
+      scheduleEffectStatusUpdate();
+    });
+  })(COMPOSITION_RANGE_CONTROLS[compositionControlIndex]);
+}
+
+document.getElementById('pCompositionAxis').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.axis = e.target.value;
+  markAutosaveDirty();
+  scheduleCompositionDraw();
+});
+document.getElementById('pCompositionDirection').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.direction = Number(e.target.value) === -1 ? -1 : 1;
+  markAutosaveDirty();
+});
+document.getElementById('pCompositionColor2').addEventListener('pointerdown', pushHistory);
+document.getElementById('pCompositionColor2').addEventListener('input', function (e) {
+  compositionState.color2 = e.target.value; markAutosaveDirty(); scheduleCompositionDraw();
+});
+document.getElementById('pCompositionColor3').addEventListener('pointerdown', pushHistory);
+document.getElementById('pCompositionColor3').addEventListener('input', function (e) {
+  compositionState.color3 = e.target.value; markAutosaveDirty(); scheduleCompositionDraw();
+});
+document.getElementById('pFluxMirror').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.fluxRows.mirror = e.target.checked; markAutosaveDirty(); scheduleCompositionDraw();
+});
+document.getElementById('pFluxFlip').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.fluxRows.flip = e.target.checked; markAutosaveDirty(); scheduleCompositionDraw();
+});
+document.getElementById('pCascadeMirror').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.cascade.mirror = e.target.checked; markAutosaveDirty(); scheduleCompositionDraw();
+});
+document.getElementById('pCascadeBands').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.cascade.bands = e.target.checked; markAutosaveDirty(); scheduleCompositionDraw();
+});
+document.getElementById('pCascadeBackdropEnabled').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.cascade.backdropEnabled = e.target.checked; markAutosaveDirty(); scheduleCompositionDraw();
+});
+function bindCascadeSelect(id, key, numeric, syncPanels) {
+  document.getElementById(id).addEventListener('change', function (e) {
+    pushHistory();
+    compositionState.cascade[key] = numeric ? Number(e.target.value) : e.target.value;
+    markAutosaveDirty();
+    if (syncPanels) syncCompositionUI(); else scheduleCompositionDraw();
+  });
+}
+bindCascadeSelect('pCascadeSystem', 'system', false, true);
+bindCascadeSelect('pCascadeShape', 'shape', false, false);
+bindCascadeSelect('pCascadeColorMode', 'colorMode', false, false);
+bindCascadeSelect('pCascadeSignalMode', 'signalMode', false, false);
+bindCascadeSelect('pCascadeSdfMode', 'sdfMode', false, false);
+bindCascadeSelect('pCascadeRule', 'rule', false, true);
+bindCascadeSelect('pCascadeSeed', 'seed', false, false);
+bindCascadeSelect('pCascadeBlend', 'blend', false, false);
+bindCascadeSelect('pCascadeGlyphMode', 'glyphMode', false, false);
+function bindCompositionSelect(id, section, key, transform, resync) {
+  var select = document.getElementById(id);
+  if (!select) return;
+  select.addEventListener('change', function () {
+    pushHistory();
+    var value = transform ? transform(select.value) : select.value;
+    setCompositionValue(section, key, value);
+    markAutosaveDirty();
+    if (resync) syncCompositionUI(); else scheduleCompositionDraw();
+  });
+}
+function bindCompositionCheck(id, section, key, resync) {
+  var checkbox = document.getElementById(id);
+  if (!checkbox) return;
+  checkbox.addEventListener('change', function () {
+    pushHistory();
+    setCompositionValue(section, key, checkbox.checked);
+    markAutosaveDirty();
+    if (resync) syncCompositionUI(); else {
+      scheduleCompositionDraw();
+      scheduleEffectStatusUpdate();
+      var module = checkbox.closest && checkbox.closest('.composition-fx-module');
+      if (module) {
+        var state = module.querySelector('.fx-state');
+        if (state) state.textContent = checkbox.checked ? 'ON' : 'OFF';
+      }
+    }
+  });
+}
+[
+  ['pFieldTopology', 'field', 'topology'],
+  ['pFieldMode', 'field', 'fieldType'],
+  ['pFieldPointerMode', 'field', 'pointerMode'],
+  ['pFieldOrientation', 'field', 'orientation'],
+  ['pFieldVariationMode', 'field', 'variationMode'],
+  ['pFieldColorMap', 'field', 'colorMode'],
+  ['pFluxBaseline', 'fluxRows', 'baseline'],
+  ['pFluxSpeedMode', 'fluxRows', 'laneSpeed'],
+  ['pFluxColorMode', 'fluxRows', 'colorMode'],
+  ['pCascadeAutomatonMode', 'cascade', 'automatonMode'],
+  ['pCascadeLifeRule', 'cascade', 'lifeRule'],
+  ['pContourSource', 'contourAtlas', 'source'],
+  ['pContourRendering', 'contourAtlas', 'rendering', function (value) { return value === 'regions' ? 'filled' : value; }],
+  ['pContourColorMap', 'contourAtlas', 'colorMode'],
+  ['pFeedbackTransform', 'feedbackChamber', 'transform'],
+  ['pFeedbackMirror', 'feedbackChamber', 'mirror'],
+  ['pFeedbackWarp', 'feedbackChamber', 'warp'],
+  ['pFxMaskMode', 'fxRack.signalMask', 'mode'],
+  ['pFxChromaticBlend', 'fxRack.chromaticSplit', 'blend']
+].forEach(function (spec) {
+  bindCompositionSelect(spec[0], spec[1], spec[2], spec[3], spec[0] === 'pCascadeAutomatonMode');
+});
+[
+  ['pFluxIntegerTravel', 'fluxRows', 'integerTravel'],
+  ['pCascadePingPong', 'cascade', 'pingPong'],
+  ['pCascadePointerInject', 'cascade', 'pointerInject'],
+  ['pContourGlyphs', 'contourAtlas', 'glyphs'],
+  ['pContourFilled', 'contourAtlas', 'filled'],
+  ['pFeedbackPointerCenter', 'feedbackChamber', 'pointerCenter'],
+  ['pFeedbackLoopLock', 'feedbackChamber', 'loopLock'],
+  ['pFxEchoEnabled', 'fxRack.echo', 'enabled'],
+  ['pFxFeedbackEnabled', 'fxRack.feedback', 'enabled'],
+  ['pFxMaskEnabled', 'fxRack.signalMask', 'enabled'],
+  ['pFxChromaticEnabled', 'fxRack.chromaticSplit', 'enabled'],
+  ['pFxRasterEnabled', 'fxRack.rasterMaterial', 'enabled']
+].forEach(function (spec) { bindCompositionCheck(spec[0], spec[1], spec[2], false); });
+['Backdrop', 'FieldA', 'FieldB', 'FieldC', 'Edge', 'Glyph'].forEach(function (suffix) {
+  var input = document.getElementById('pCascade' + suffix);
+  input.addEventListener('pointerdown', pushHistory);
+  input.addEventListener('input', function () {
+    var key = suffix.charAt(0).toLowerCase() + suffix.slice(1);
+    compositionState.cascade[key] = input.value;
+    markAutosaveDirty();
+    scheduleCompositionDraw();
+  });
+});
+document.getElementById('pCompositionQuality').addEventListener('change', function (e) {
+  compositionState.quality = e.target.value;
+  scheduleCompositionDraw();
+});
+['Width', 'Height'].forEach(function (suffix) {
+  var input = document.getElementById('pCompositionViewport' + suffix);
+  input.addEventListener('change', function () {
+    pushHistory();
+    var key = suffix.toLowerCase();
+    compositionState.logicalViewport[key] = Math.max(320, Math.min(7680, Math.round(Number(input.value) || COMPOSITION_DEFAULTS.logicalViewport[key])));
+    compositionState.logicalViewport.legacyResponsive = false;
+    markAutosaveDirty();
+    syncCompositionUI();
+  });
+});
+document.getElementById('pCompositionLoopLock').addEventListener('change', function (e) {
+  pushHistory();
+  compositionState.loopLock = e.target.checked;
+  markAutosaveDirty();
+  scheduleCompositionDraw();
+});
+
+var FX_RESET_MAP = {
+  btnFxEchoReset: 'echo',
+  btnFxFeedbackReset: 'feedback',
+  btnFxMaskReset: 'signalMask',
+  btnFxChromaticReset: 'chromaticSplit',
+  btnFxRasterReset: 'rasterMaterial'
+};
+Object.keys(FX_RESET_MAP).forEach(function (buttonId) {
+  document.getElementById(buttonId).addEventListener('click', function () {
+    pushHistory();
+    var key = FX_RESET_MAP[buttonId];
+    compositionState.fxRack[key] = JSON.parse(JSON.stringify(COMPOSITION_DEFAULTS.fxRack[key]));
+    markAutosaveDirty();
+    syncCompositionUI();
+  });
+});
+
+var GROUP_DIRECT_PATHS = {
+  pFieldTopology: ['field', 'topology'], pFieldMode: ['field', 'fieldType'],
+  pFieldPointerMode: ['field', 'pointerMode'], pFieldOrientation: ['field', 'orientation'],
+  pFieldVariationMode: ['field', 'variationMode'], pFieldColorMap: ['field', 'colorMode'],
+  pFluxBaseline: ['fluxRows', 'baseline'], pFluxSpeedMode: ['fluxRows', 'laneSpeed'],
+  pFluxIntegerTravel: ['fluxRows', 'integerTravel'], pFluxColorMode: ['fluxRows', 'colorMode'],
+  pFluxMirror: ['fluxRows', 'mirror'], pFluxFlip: ['fluxRows', 'flip'],
+  pCascadeSystem: ['cascade', 'system'], pCascadeShape: ['cascade', 'shape'],
+  pCascadeColorMode: ['cascade', 'colorMode'], pCascadeSignalMode: ['cascade', 'signalMode'],
+  pCascadeSdfMode: ['cascade', 'sdfMode'], pCascadeRule: ['cascade', 'rule'],
+  pCascadeSeed: ['cascade', 'seed'], pCascadeBlend: ['cascade', 'blend'],
+  pCascadeGlyphMode: ['cascade', 'glyphMode'], pCascadeMirror: ['cascade', 'mirror'],
+  pCascadeBands: ['cascade', 'bands'], pCascadeBackdropEnabled: ['cascade', 'backdropEnabled'],
+  pCascadeBackdrop: ['cascade', 'backdrop'], pCascadeFieldA: ['cascade', 'fieldA'],
+  pCascadeFieldB: ['cascade', 'fieldB'], pCascadeFieldC: ['cascade', 'fieldC'],
+  pCascadeEdge: ['cascade', 'edge'], pCascadeGlyph: ['cascade', 'glyph'],
+  pCascadeAutomatonMode: ['cascade', 'automatonMode'], pCascadeLifeRule: ['cascade', 'lifeRule'],
+  pCascadePingPong: ['cascade', 'pingPong'], pCascadePointerInject: ['cascade', 'pointerInject'],
+  pContourSource: ['contourAtlas', 'source'], pContourRendering: ['contourAtlas', 'rendering'],
+  pContourColorMap: ['contourAtlas', 'colorMode'], pContourGlyphs: ['contourAtlas', 'glyphs'],
+  pContourFilled: ['contourAtlas', 'filled'], pFeedbackTransform: ['feedbackChamber', 'transform'],
+  pFeedbackMirror: ['feedbackChamber', 'mirror'], pFeedbackWarp: ['feedbackChamber', 'warp'],
+  pFeedbackPointerCenter: ['feedbackChamber', 'pointerCenter'], pFeedbackLoopLock: ['feedbackChamber', 'loopLock']
+};
+
+var lastCompositionBuildGroup = null;
+Array.prototype.forEach.call(document.querySelectorAll('.composition-build-group'), function (group) {
+  group.addEventListener('toggle', function () {
+    if (group.open) lastCompositionBuildGroup = group;
+  });
+  group.addEventListener('pointerdown', function () { lastCompositionBuildGroup = group; });
+  group.addEventListener('focusin', function () { lastCompositionBuildGroup = group; });
+});
+
+function compositionResetPath(controlId) {
+  for (var i = 0; i < COMPOSITION_RANGE_CONTROLS.length; i++) {
+    var spec = COMPOSITION_RANGE_CONTROLS[i];
+    if (spec[0] === controlId) return [spec[2], spec[3]];
+  }
+  return GROUP_DIRECT_PATHS[controlId] || null;
+}
+
+document.getElementById('btnCompositionResetGroup').addEventListener('click', function () {
+  var panel = document.querySelector('[data-composition-panel="' + compositionInspector + '"]');
+  if (!panel) return;
+  var openGroups = panel.querySelectorAll('.composition-build-group[open]');
+  var group = lastCompositionBuildGroup && panel.contains(lastCompositionBuildGroup) && lastCompositionBuildGroup.open
+    ? lastCompositionBuildGroup
+    : (openGroups.length ? openGroups[openGroups.length - 1] : panel.querySelector('.composition-build-group'));
+  var controls = Array.prototype.slice.call((group || panel).querySelectorAll('input[id], select[id]'));
+  if (!group) {
+    // Cascade predates the collapsible Build groups. Treat its visible
+    // system panel plus common display controls as the current group.
+    controls = controls.filter(function (control) {
+      var systemPanel = control.closest && control.closest('.cascade-system-panel');
+      var conditionalRow = control.closest && control.closest('[data-cascade-for]');
+      var closedDetails = control.closest && control.closest('details:not([open])');
+      return !(systemPanel && systemPanel.hidden)
+        && !(conditionalRow && conditionalRow.hidden)
+        && !closedDetails;
+    });
+  }
+  var resettable = controls.map(function (control) {
+    return { control: control, path: compositionResetPath(control.id) };
+  }).filter(function (entry) { return !!entry.path; });
+  if (!resettable.length) return;
+  pushHistory();
+  resettable.forEach(function (entry) {
+    setCompositionValue(
+      entry.path[0],
+      entry.path[1],
+      compositionValueFromDefaults(entry.path[0], entry.path[1])
+    );
+  });
+  markAutosaveDirty();
+  syncCompositionUI();
+});
+document.getElementById('btnCompositionApply').addEventListener('click', function () {
+  pushHistory();
+  compositionState.type = compositionInspector;
+  compositionState.enabled = true;
+  setCompositionPlaying(false);
+  markAutosaveDirty();
+  syncCompositionUI();
+});
+document.getElementById('btnCompositionRemove').addEventListener('click', removeComposition);
+document.getElementById('btnCompositionReset').addEventListener('click', function () {
+  pushHistory();
+  compositionState[compositionInspector] = JSON.parse(JSON.stringify(COMPOSITION_DEFAULTS[compositionInspector]));
+  markAutosaveDirty();
+  syncCompositionUI();
+});
+document.getElementById('btnCompositionPlay').addEventListener('click', function () {
+  setCompositionPlaying(compositionPlayRaf === null);
+});
+window.addEventListener('resize', scheduleCompositionDraw);
+window.addEventListener('type-deformer-frame-resize', scheduleCompositionDraw);
+
+/* grid */
+function relayoutGrid() { if (params.gridEnabled) layoutGrid(); }
+bindRange('pGridCols', 'vGridCols', 'gridCols', f0, relayoutGrid);
+bindRange('pGridRows', 'vGridRows', 'gridRows', f0, relayoutGrid);
+bindRange('pGridCellSize', 'vGridCellSize', 'gridCellSize', f0, relayoutGrid);
+bindRange('pGridGap', 'vGridGap', 'gridGap', f0, relayoutGrid);
+
+var gridRowsRow = document.getElementById('gridRowsRow');
+document.getElementById('pGridEnabled').addEventListener('change', function (e) {
+  params.gridEnabled = e.target.checked;
+  controlPanel.classList.toggle('grid-enabled', params.gridEnabled);
+  if (params.gridEnabled) layoutGrid();
+  else { clearGridStyles(); applyAllOperatorVisuals(); }
+});
+document.getElementById('pGridAutoRows').addEventListener('change', function (e) {
+  params.gridAutoRows = e.target.checked;
+  gridRowsRow.style.display = params.gridAutoRows ? 'none' : '';
+  relayoutGrid();
+});
+document.getElementById('pGridLines').addEventListener('change', function (e) {
+  params.gridLines = e.target.checked;
+  gridLinesEl.style.display = params.gridLines ? '' : 'none';
+});
+document.getElementById('pGridLineBreak').addEventListener('change', function (e) {
+  params.gridLineBreak = e.target.checked;
+  relayoutGrid();
+});
+document.getElementById('btnGridReset').addEventListener('click', function () {
+  pushHistory();
+  for (var i = 0; i < metrics.length; i++) metrics[i].gridCell = null;
+  relayoutGrid();
+});
+
+var fontSelect = document.getElementById('pFont');
+var fontCustom = document.getElementById('pFontCustom');
+var fontFileInput = document.getElementById('pFontFile');
+var fontFolderInput = document.getElementById('pFontFolder');
+var importedFontSelect = document.getElementById('pImportedFont');
+var btnFontFile = document.getElementById('btnFontFile');
+var btnFontFolder = document.getElementById('btnFontFolder');
+var btnSystemFonts = document.getElementById('btnSystemFonts');
+var btnFontCustomClear = document.getElementById('btnFontCustomClear');
+var fontStatus = document.getElementById('fontStatus');
+var runtimeFontFaces = [];
+var runtimeFontLabels = Object.create(null);
+var runtimeFontSources = Object.create(null);
+var fontCustomTimer = null;
+var fontCustomHistoryOpen = false;
+
+function setFontStatus(message, loaded) {
+  fontStatus.textContent = message;
+  fontStatus.classList.toggle('is-loaded', !!loaded);
+}
+
+function primaryFontName() {
+  return (params.fontFamily.split(',')[0] || '').replace(/"/g, '').trim();
+}
+
+function syncFontStatus() {
+  var primary = primaryFontName();
+  if (runtimeFontLabels[primary]) {
+    importedFontSelect.value = primary;
+    setFontStatus('Active: ' + runtimeFontLabels[primary] + ' · ' + (runtimeFontSources[primary] === 'system' ? '端末のインストール済みフォント' : 'ブラウザ内ライブラリ'), true);
+    return;
+  }
+  importedFontSelect.value = '';
+  if (fontSelect.selectedIndex >= 0) {
+    setFontStatus('Preset: ' + fontSelect.options[fontSelect.selectedIndex].textContent, false);
+  } else if (/^Type Deformer /.test(primary)) {
+    setFontStatus('Font file missing: 同じファイル／フォルダを再読込すると復元できます。', false);
+  } else if (primary) {
+    setFontStatus('Local font name: ' + primary + ' · 端末に書体がない場合はフォールバック', false);
+  } else {
+    setFontStatus('フォントはこの端末のブラウザ内だけで読み込み、サーバーには送信しません。', false);
+  }
+}
+
+
+function registerRuntimeFont(family, label, source) {
+  runtimeFontLabels[family] = label;
+  runtimeFontSources[family] = source;
+  var exists = false;
+  for (var i = 1; i < importedFontSelect.options.length; i++) {
+    if (importedFontSelect.options[i].value === family) {
+      importedFontSelect.options[i].textContent = label;
+      exists = true;
+      break;
+    }
+  }
+  if (!exists) {
+    var option = document.createElement('option');
+    option.value = family;
+    option.textContent = label;
+    importedFontSelect.appendChild(option);
+  }
+  importedFontSelect.disabled = false;
+}
+
+function sortRuntimeFontOptions() {
+  var current = importedFontSelect.value;
+  var options = Array.prototype.slice.call(importedFontSelect.options, 1);
+  options.sort(function (a, b) { return a.textContent.localeCompare(b.textContent, 'ja'); });
+  options.forEach(function (option) { importedFontSelect.appendChild(option); });
+  importedFontSelect.value = current;
+}
+
+function setImportedFont(family) {
+  if (!family || !runtimeFontLabels[family]) return;
+  pushHistory();
+  clearTimeout(fontCustomTimer);
+  params.fontFamily = '"' + safeFontFamily(family) + '", ' + PARAM_DEFAULTS.fontFamily;
+  fontSelect.selectedIndex = -1;
+  fontCustom.value = '';
+  applyFontChange();
+}
+
+function importFontCollection(fileList, sourceLabel, input) {
+  var allFiles = Array.prototype.slice.call(fileList || []);
+  var valid = allFiles.filter(function (file) { return /\.(otf|ttf|woff2?|ttc|otc)$/i.test(file.name); });
+  var maxFiles = 256;
+  var maxFileBytes = 50 * 1024 * 1024;
+  var maxTotalBytes = 250 * 1024 * 1024;
+  var totalBytes = valid.reduce(function (sum, file) { return sum + file.size; }, 0);
+  if (!valid.length) {
+    setFontStatus('Import failed: OTF / TTF / WOFF / WOFF2 / TTC / OTCが見つかりませんでした。', false);
+    input.value = '';
+    return;
+  }
+  if (valid.length > maxFiles || totalBytes > maxTotalBytes || valid.some(function (file) { return file.size > maxFileBytes; })) {
+    setFontStatus('Import failed: 最大256書体・合計250MB・1ファイル50MBまでです。', false);
+    input.value = '';
+    return;
+  }
+  if (typeof FontFace === 'undefined' || !document.fonts) {
+    setFontStatus('Import failed: このブラウザはフォントファイル読込に対応していません。', false);
+    input.value = '';
+    return;
+  }
+  setFontStatus(sourceLabel + 'を読込中… 0 / ' + valid.length, false);
+  var loaded = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  valid.forEach(function (file, index) {
+    chain = chain.then(function () {
+      var sourcePath = file.webkitRelativePath || file.name;
+      var fileBase = file.name.replace(/\.[^.]+$/, '').replace(/[^0-9A-Za-z\u00A0-\uFFFF _-]+/g, ' ').trim().slice(0, 72) || 'User Font';
+      var family = 'Type Deformer ' + fileBase + ' ' + fontLibraryHash(sourcePath + '|' + file.size + '|' + Number(file.lastModified || 0));
+      if (runtimeFontLabels[family]) {
+        loaded++;
+        setFontStatus(sourceLabel + 'を読込中… ' + (index + 1) + ' / ' + valid.length, false);
+        return;
+      }
+      return file.arrayBuffer().then(function (buffer) {
+        var face = new FontFace(family, buffer);
+        return face.load();
+      }).then(function (face) {
+        document.fonts.add(face);
+        runtimeFontFaces.push(face);
+        registerRuntimeFont(family, file.name, 'file');
+        loaded++;
+      }).catch(function () {
+        failed++;
+      }).then(function () {
+        setFontStatus(sourceLabel + 'を読込中… ' + (index + 1) + ' / ' + valid.length, false);
+      });
+    });
+  });
+  chain.then(function () {
+    input.value = '';
+    sortRuntimeFontOptions();
+    syncFontStatus();
+    var current = primaryFontName();
+    var resultText = loaded + '書体を追加' + (failed ? '・' + failed + '件をスキップ' : '');
+    if (runtimeFontLabels[current]) {
+      applyStyle();
+      refreshConfuseFontCandidates();
+      scheduleCompositionDraw();
+      setFontStatus(resultText + ' · Active: ' + runtimeFontLabels[current], true);
+    } else {
+      setFontStatus(resultText + '。Libraryから選ぶと適用されます。', loaded > 0);
+    }
+  });
+}
+
+function applyFontChange() {
+  applyStyle();
+  refreshConfuseFontCandidates();
+  markAutosaveDirty();
+  scheduleCompositionDraw();
+  syncFontStatus();
+}
+
+function applyCustomFontName() {
+  var value = fontCustom.value.trim().replace(/["']/g, '');
+  if (value) {
+    var fallback = fontSelect.selectedIndex >= 0 ? fontSelect.value : PARAM_DEFAULTS.fontFamily;
+    params.fontFamily = '"' + value.slice(0, 180) + '", ' + fallback;
+    fontSelect.selectedIndex = -1;
+  } else {
+    if (fontSelect.selectedIndex < 0) fontSelect.selectedIndex = 0;
+    params.fontFamily = fontSelect.value;
+  }
+  importedFontSelect.value = '';
+  applyFontChange();
+}
+
+fontSelect.addEventListener('change', function (e) {
+  pushHistory();
+  clearTimeout(fontCustomTimer);
+  fontCustom.value = '';
+  params.fontFamily = e.target.value;
+  importedFontSelect.value = '';
+  applyFontChange();
+});
+
+importedFontSelect.addEventListener('change', function () {
+  setImportedFont(importedFontSelect.value);
+});
+
+fontCustom.addEventListener('focus', function () { fontCustomHistoryOpen = false; });
+fontCustom.addEventListener('input', function () {
+  if (!fontCustomHistoryOpen) {
+    pushHistory();
+    fontCustomHistoryOpen = true;
+  }
+  clearTimeout(fontCustomTimer);
+  fontCustomTimer = setTimeout(applyCustomFontName, 180);
+});
+fontCustom.addEventListener('change', function () {
+  clearTimeout(fontCustomTimer);
+  applyCustomFontName();
+  fontCustomHistoryOpen = false;
+});
+
+btnFontCustomClear.addEventListener('click', function () {
+  if (!fontCustom.value && fontSelect.selectedIndex >= 0) return;
+  pushHistory();
+  clearTimeout(fontCustomTimer);
+  fontCustom.value = '';
+  fontSelect.selectedIndex = 0;
+  params.fontFamily = fontSelect.value;
+  importedFontSelect.value = '';
+  applyFontChange();
+});
+
+btnFontFile.addEventListener('click', function () {
+  fontFileInput.click();
+});
+fontFileInput.addEventListener('change', function () {
+  importFontCollection(fontFileInput.files, 'Font files', fontFileInput);
+});
+btnFontFolder.addEventListener('click', function () {
+  fontFolderInput.click();
+});
+fontFolderInput.addEventListener('change', function () {
+  importFontCollection(fontFolderInput.files, 'Font folder', fontFolderInput);
+});
+
+if (typeof window.queryLocalFonts === 'function') btnSystemFonts.hidden = false;
+btnSystemFonts.addEventListener('click', function () {
+  if (typeof window.queryLocalFonts !== 'function') {
+    setFontStatus('このブラウザではインストール済みフォントの一覧取得を利用できません。', false);
+    return;
+  }
+  setFontStatus('端末のフォント一覧への許可を待っています…', false);
+  window.queryLocalFonts().then(function (fonts) {
+    var families = Object.create(null);
+    fonts.forEach(function (font) {
+      var family = safeFontFamily(font.family);
+      if (family) families[family] = true;
+    });
+    var names = Object.keys(families).sort(function (a, b) { return a.localeCompare(b); });
+    names.forEach(function (family) {
+      registerRuntimeFont(family, family + ' · Installed', 'system');
+    });
+    sortRuntimeFontOptions();
+    syncFontStatus();
+    var activeName = primaryFontName();
+    setFontStatus(names.length + '書体を参照可能にしました。' + (runtimeFontLabels[activeName] ? 'Active: ' + runtimeFontLabels[activeName] : 'Libraryから選ぶと適用されます。'), names.length > 0);
+  }).catch(function () {
+    setFontStatus('端末フォントの参照が許可されませんでした。Import folderは引き続き使えます。', false);
+  });
+});
+document.getElementById('pWeight').addEventListener('change', function (e) {
+  pushHistory();
+  params.fontWeight = parseInt(e.target.value, 10) || 400;
+  applyFontChange();
+});
+document.getElementById('pAccent').addEventListener('input', function (e) {
+  params.accent = e.target.value;
+  queueApplyRandom();
+});
+document.getElementById('pInk').addEventListener('input', function (e) {
+  params.ink = e.target.value; applyStyle();
+});
+document.getElementById('pPaper').addEventListener('input', function (e) {
+  params.paper = e.target.value; applyStyle();
+});
+document.getElementById('pAlign').addEventListener('change', function (e) {
+  params.align = e.target.value; applyStyle();
+});
+var btnVertical = document.getElementById('btnVertical');
+btnVertical.addEventListener('click', function () {
+  params.vertical = !params.vertical;
+  markAutosaveDirty();
+  btnVertical.setAttribute('aria-pressed', String(params.vertical));
+  applyStyle();
+  applyAllOperatorVisuals();
+  if (params.gridEnabled) layoutGrid();
+});
+document.getElementById('pTransparent').addEventListener('change', function (e) {
+  params.transparentBg = e.target.checked;
+  updateVideoExportAvailability(true);
+});
+document.getElementById('pDeformedOnly').addEventListener('change', function (e) {
+  params.deformedOnly = e.target.checked;
+});
+document.getElementById('pVideoSize').addEventListener('change', function (e) {
+  params.videoSize = e.target.value;
+  updateVideoExportAvailability(true);
+});
+document.getElementById('pVideoFps').addEventListener('change', function (e) {
+  params.videoFps = Number(e.target.value) || 30;
+  updateVideoExportAvailability(true);
+});
+document.getElementById('pVideoLoops').addEventListener('change', function (e) {
+  params.videoLoops = Number(e.target.value) || 1;
+  updateVideoExportAvailability(true);
+});
+document.getElementById('pVideoStart').addEventListener('change', function (e) {
+  params.videoStart = e.target.value;
+  updateVideoExportAvailability(true);
+});
+document.getElementById('pVideoFormat').addEventListener('change', function (e) {
+  params.videoFormat = e.target.value;
+  updateVideoExportAvailability(true);
+});
+btnVideoRecord.addEventListener('click', function () {
+  var begin = function () { startVideoExport(); };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(begin, begin);
+  else begin();
+});
+btnVideoCancel.addEventListener('click', cancelVideoExport);
+
+/* artboard */
+var abSelect = document.getElementById('pArtboard');
+var abCustomRow = document.getElementById('abCustomRow');
+var abW = document.getElementById('pAbW');
+var abH = document.getElementById('pAbH');
+
+function updateExportInfo() {
+  var el = document.getElementById('vExportSize');
+  if (params.artboard === 'auto') {
+    el.textContent = 'auto';
+  } else {
+    el.textContent = Math.round(params.abW * params.exportScale) + '×' + Math.round(params.abH * params.exportScale);
+  }
+}
+
+abSelect.addEventListener('change', function () {
+  params.artboard = abSelect.value;
+  if (abSelect.value === 'custom') {
+    abCustomRow.style.display = '';
+    params.abW = parseInt(abW.value, 10) || 1080;
+    params.abH = parseInt(abH.value, 10) || 1080;
+  } else if (abSelect.value !== 'auto') {
+    abCustomRow.style.display = 'none';
+    var wh = abSelect.value.split('x');
+    params.abW = parseInt(wh[0], 10);
+    params.abH = parseInt(wh[1], 10);
+    abW.value = params.abW;
+    abH.value = params.abH;
+  } else {
+    abCustomRow.style.display = 'none';
+  }
+  updateExportInfo();
+});
+abW.addEventListener('input', function () { params.abW = parseInt(abW.value, 10) || 1080; updateExportInfo(); });
+abH.addEventListener('input', function () { params.abH = parseInt(abH.value, 10) || 1080; updateExportInfo(); });
+document.getElementById('pAnchor').addEventListener('change', function (e) { params.anchor = e.target.value; });
+document.getElementById('pFit').addEventListener('change', function (e) { params.fit = e.target.checked; });
+document.getElementById('pScale').addEventListener('change', function (e) {
+  params.exportScale = parseFloat(e.target.value) || 2;
+  updateExportInfo();
+});
+
+/* preview */
+var previewOverlay = document.getElementById('previewOverlay');
+function openPreview() {
+  if (nothingToExport()) return;
+  var run = function () {
+    try {
+      var c = renderCanvas(params.exportScale);
+      document.getElementById('previewImg').src = c.toDataURL('image/png');
+      document.getElementById('previewCaption').textContent =
+        c.width + ' × ' + c.height + ' px — ' + (params.transparentBg ? '透過 / ' : '') + 'クリックで閉じる';
+      previewOverlay.hidden = false;
+    } catch (err) {
+      alert(err.message || 'プレビューの生成に失敗しました。');
+    }
+  };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(run, run); else run();
+}
+previewOverlay.addEventListener('click', function () { previewOverlay.hidden = true; });
+document.getElementById('btnPreview').addEventListener('click', openPreview);
+
+/* keyboard shortcuts */
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && !previewOverlay.hidden) {
+    previewOverlay.hidden = true;
+    return;
+  }
+  if (e.key === 'Escape' && canvasView.active) {
+    setCanvasViewActive(false);
+    return;
+  }
+  var tag = (e.target.tagName || '').toLowerCase();
+  var inField = tag === 'input' || tag === 'textarea' || tag === 'select';
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+    if (inField) return; // keep native undo in form fields
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+    return;
+  }
+  if (inField || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (params.mode === 'edit' && selectedM) {
+    var step = e.shiftKey ? 0.25 : 0.05;
+    if (e.key === 'ArrowRight') { nudgeSelected(step, 0); e.preventDefault(); return; }
+    if (e.key === 'ArrowLeft') { nudgeSelected(-step, 0); e.preventDefault(); return; }
+    if (e.key === 'ArrowUp') { nudgeSelected(0, step); e.preventDefault(); return; }
+    if (e.key === 'ArrowDown') { nudgeSelected(0, -step); e.preventDefault(); return; }
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      resetLetter(selectedM);
+      updateHud();
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'Escape') { clearEditSelection(); return; }
+  }
+  else if (params.mode === 'grid' && selectedM) {
+    if (e.key === 'ArrowRight') { nudgeGridSelected(1, 0); e.preventDefault(); return; }
+    if (e.key === 'ArrowLeft') { nudgeGridSelected(-1, 0); e.preventDefault(); return; }
+    if (e.key === 'ArrowUp') { nudgeGridSelected(0, -1); e.preventDefault(); return; }
+    if (e.key === 'ArrowDown') { nudgeGridSelected(0, 1); e.preventDefault(); return; }
+    if (e.key === 'Backspace' || e.key === 'Delete') { unpinGridCell(selectedM); e.preventDefault(); return; }
+    if (e.key === 'Escape') { clearEditSelection(); return; }
+  }
+  if (e.key === 'l' || e.key === 'L') setMode(params.mode === 'lock' ? 'flow' : 'lock');
+  else if (e.key === 'e' || e.key === 'E') setMode(params.mode === 'edit' ? 'flow' : 'edit');
+  else if (e.key === 'g' || e.key === 'G') setMode(params.mode === 'grid' ? 'flow' : 'grid');
+  else if (e.key === 'v' || e.key === 'V') setCanvasViewActive(!canvasView.active);
+  else if (e.key === 'x' || e.key === 'X') document.getElementById('btnXray').click();
+  else if (e.key === 's' || e.key === 'S') document.getElementById('btnShuffle').click();
+  else if (e.key === 'p' || e.key === 'P') openPreview();
+});
+
+function applyStyle() {
+  stage.style.fontFamily = params.fontFamily;
+  stage.style.fontWeight = params.fontWeight;
+  stage.style.fontSize = params.fontSize + 'px';
+  stage.style.setProperty('--grid-font-size', params.fontSize + 'px');
+  stage.style.lineHeight = params.lineHeight;
+  stage.style.letterSpacing = params.letterSpacing + 'em';
+  stage.style.textAlign = params.align;
+  stage.classList.toggle('vertical', params.vertical);
+  stage.style.color = params.ink;
+  stageFrame.style.background = params.paper;
+  applyAllOperatorVisuals();
+  scheduleMeasure();
+}
+
+var textInput = document.getElementById('textInput');
+var rebuildTimer = null;
+function flushPendingTextRebuild() {
+  if (rebuildTimer === null) return;
+  clearTimeout(rebuildTimer);
+  rebuildTimer = null;
+  rebuildPreservingState(textInput.value);
+}
+textInput.addEventListener('input', function () {
+  clearTimeout(rebuildTimer);
+  rebuildTimer = setTimeout(function () {
+    rebuildTimer = null;
+    rebuildPreservingState(textInput.value);
+  }, 250);
+});
+
+document.getElementById('btnShuffle').addEventListener('click', function () {
+  pushHistory();
+  params.seed = (params.seed * 16807 + 0.4327) % 97 + 0.13;
+  applyRandom();
+});
+
+var modeButtons = {
+  flow: document.getElementById('btnModeFlow'),
+  lock: document.getElementById('btnModeLock'),
+  edit: document.getElementById('btnModeEdit'),
+  grid: document.getElementById('btnModeGrid')
+};
+function setMode(mode) {
+  if (mode === 'grid' && compositionState.enabled && params.mode !== 'grid') return;
+  if (canvasView.active) setCanvasViewActive(false);
+  params.mode = mode;
+  markAutosaveDirty();
+  controlPanel.dataset.mode = mode;
+  // A hover latch from Flow must never survive a mode round-trip;
+  // otherwise the first sweep after returning to Flow can be ignored.
+  for (var i = 0; i < metrics.length; i++) {
+    for (var oi = 0; oi < OPERATOR_IDS.length; oi++) operatorState(metrics[i], OPERATOR_IDS[oi]).hovered = false;
+  }
+  for (var k in modeButtons) modeButtons[k].setAttribute('aria-pressed', String(k === mode));
+  stage.classList.toggle('lock-mode', mode === 'lock');
+  stage.classList.toggle('edit-mode', mode === 'edit');
+  stage.classList.toggle('grid-mode', mode === 'grid');
+  clearEditSelection();
+  updateContextUI();
+}
+modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
+modeButtons.lock.addEventListener('click', function () { setMode('lock'); });
+modeButtons.edit.addEventListener('click', function () { setMode('edit'); });
+modeButtons.grid.addEventListener('click', function () { setMode('grid'); });
+var btnXray = document.getElementById('btnXray');
+btnXray.addEventListener('click', function () {
+  var on = btnXray.getAttribute('aria-pressed') !== 'true';
+  btnXray.setAttribute('aria-pressed', String(on));
+  stage.classList.toggle('xray', on);
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-batch]'), function (btn) {
+  btn.addEventListener('click', function () {
+    setActiveBatchProfile(btn.dataset.batch);
+    batchToggle(batchMatchers[btn.dataset.batch]);
+  });
+});
+document.getElementById('btnLockAll').addEventListener('click', function () { pushHistory(); lockAll(); });
+document.getElementById('btnUnlockAll').addEventListener('click', function () { pushHistory(); unlockAll(); });
+document.getElementById('btnReset').addEventListener('click', resetAllEffects);
+
+document.getElementById('btnPng').addEventListener('click', function () {
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(exportPng, exportPng);
+  } else exportPng();
+});
+document.getElementById('btnCapture').addEventListener('click', function () {
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(exportCanvasScreenshot, exportCanvasScreenshot);
+  } else exportCanvasScreenshot();
+});
+document.getElementById('btnSvg').addEventListener('click', function () {
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(exportSvg, exportSvg);
+  else exportSvg();
+});
+var btnCopy = document.getElementById('btnCopy');
+btnCopy.addEventListener('click', function () { copyPng(btnCopy); });
+
+/* ---------------- project save / load ---------------- */
+function syncUI() {
+  for (var i = 0; i < rangeControls.length; i++) {
+    var c = rangeControls[i];
+    var source = c.profiled ? batchProfileForKey(activeBatchProfile) : params;
+    c.input.value = source[c.key];
+    c.val.textContent = c.fmt(source[c.key]);
+  }
+  var isPreset = false;
+  for (var j = 0; j < fontSelect.options.length; j++) {
+    if (fontSelect.options[j].value === params.fontFamily) { isPreset = true; break; }
+  }
+  if (isPreset) {
+    fontSelect.value = params.fontFamily;
+    fontCustom.value = '';
+  } else {
+    fontSelect.selectedIndex = -1;
+    fontCustom.value = (params.fontFamily.split(',')[0] || '').replace(/"/g, '').trim();
+  }
+  syncFontStatus();
+  document.getElementById('pWeight').value = String(params.fontWeight);
+  document.getElementById('pInk').value = params.ink;
+  document.getElementById('pPaper').value = params.paper;
+  document.getElementById('pAccent').value = params.accent;
+  document.getElementById('pMisregColorA').value = params.misregColorA;
+  document.getElementById('pMisregColorB').value = params.misregColorB;
+  document.getElementById('pAlign').value = params.align;
+  document.getElementById('pTransparent').checked = params.transparentBg;
+  document.getElementById('pDeformedOnly').checked = params.deformedOnly;
+  document.getElementById('pConfuseMixed').checked = !!params.confuseMixed;
+  document.getElementById('pConfuseGlyphGuard').checked = !!params.confuseGlyphGuard;
+  document.getElementById('pConfuseDictionary').value = params.confuseDictionary;
+  document.getElementById('pConfuseCustom').value = params.confuseCustom;
+  clearConfuseCache();
+  updateConfuseDictionaryUI();
+  abSelect.value = params.artboard;
+  abCustomRow.style.display = params.artboard === 'custom' ? '' : 'none';
+  abW.value = params.abW;
+  abH.value = params.abH;
+  document.getElementById('pAnchor').value = params.anchor;
+  document.getElementById('pFit').checked = params.fit;
+  document.getElementById('pScale').value = String(params.exportScale);
+  document.getElementById('pVideoSize').value = params.videoSize;
+  document.getElementById('pVideoFps').value = String(params.videoFps);
+  document.getElementById('pVideoLoops').value = String(params.videoLoops);
+  document.getElementById('pVideoStart').value = params.videoStart;
+  document.getElementById('pVideoFormat').value = params.videoFormat;
+  btnVertical.setAttribute('aria-pressed', String(params.vertical));
+  document.getElementById('pGridEnabled').checked = params.gridEnabled;
+  controlPanel.classList.toggle('grid-enabled', params.gridEnabled);
+  document.getElementById('pGridAutoRows').checked = params.gridAutoRows;
+  document.getElementById('pGridLines').checked = params.gridLines;
+  document.getElementById('pGridLineBreak').checked = params.gridLineBreak;
+  gridRowsRow.style.display = params.gridAutoRows ? 'none' : '';
+  gridLinesEl.style.display = params.gridLines ? '' : 'none';
+  stage.classList.toggle('grid-layout', params.gridEnabled);
+  setMode(params.mode);
+  setActiveOperator(params.activeOperator);
+  batchProfileSelect.value = activeBatchProfile;
+  refreshBatchProfileControls();
+  syncCompositionUI();
+  updateExportInfo();
+  updateVideoExportAvailability(true);
+}
+
+function projectData() {
+  flushPendingTextRebuild();
+  return {
+    app: 'type-deformer',
+    version: 7,
+    text: textInput.value,
+    params: params,
+    batchProfiles: cloneBatchProfiles(),
+    composition: persistentCompositionState(),
+    letters: metrics.map(letterState)
+  };
+}
+
+function saveProject() {
+  var blob = new Blob([JSON.stringify(projectData())], { type: 'application/json' });
+  download(blob, 'type-deform-project-' + stamp() + '.json');
+}
+
+function isProjectData(data) {
+  return !!(data && data.app === 'type-deformer' && data.params && typeof data.params === 'object');
+}
+
+function loadProject(data, silent) {
+  if (!isProjectData(data)) {
+    if (!silent) alert('プロジェクトファイルではないようです。');
+    return false;
+  }
+  if (data.version != null && data.version > 7) {
+    if (!silent) alert('このプロジェクトは新しいバージョンで保存されています。');
+    return false;
+  }
+  if (typeof data.text === 'string' && data.text.length > 500000) {
+    if (!silent) alert('テキストが大きすぎるため読み込めません（上限50万文字）。');
+    return false;
+  }
+  // Start from this version's defaults so fields absent from an older
+  // project do not accidentally inherit the currently open artwork.
+  for (var defaultParam in params) params[defaultParam] = PARAM_DEFAULTS[defaultParam];
+  for (var k in params) {
+    if (Object.prototype.hasOwnProperty.call(data.params, k)) params[k] = data.params[k];
+  }
+  // Randomness seeding changed in v7. A project written before then has
+  // no hashIndex field and was authored against per-line seeding, so it
+  // has to keep it or every glyph in the artwork shifts.
+  if (!Object.prototype.hasOwnProperty.call(data.params, 'hashIndex')) {
+    params.hashIndex = Number(data.version) >= 7 ? 'global' : 'line';
+  }
+  normalizeParams();
+  batchProfiles = normalizeBatchProfiles(data.batchProfiles);
+  compositionState = normalizeComposition(data.composition);
+  compositionState.quality = 'auto';
+  compositionInspector = compositionState.type;
+  setCompositionPlaying(false);
+  activeBatchProfile = 'all';
+  params.mode = 'flow';
+  textInput.value = typeof data.text === 'string' ? data.text : '';
+  syncUI();
+  applyStyle();
+  createSpans(textInput.value);
+  // restore per-letter state synchronously — no layout needed, and
+  // rAF never fires while the tab is hidden
+  restoreStates(Array.isArray(data.letters) ? data.letters : []);
+  ensureConfuseDictionary();
+  markAutosaveDirty();
+  return true;
+}
+
+document.getElementById('btnSaveProj').addEventListener('click', saveProject);
+var projFile = document.getElementById('projFile');
+document.getElementById('btnLoadProj').addEventListener('click', function () { projFile.click(); });
+projFile.addEventListener('change', function () {
+  var file = projFile.files && projFile.files[0];
+  if (!file) return;
+  if (file.size > 64 * 1024 * 1024) {
+    alert('プロジェクトファイルが大きすぎます（上限64MB）。');
+    projFile.value = '';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function () {
+    try { loadProject(JSON.parse(reader.result)); }
+    catch (err) { alert('読み込みに失敗しました: ' + err.message); }
+  };
+  reader.onerror = function () { alert('プロジェクトファイルを読み取れませんでした。'); };
+  reader.readAsText(file);
+  projFile.value = '';
+});
+
+/* ---------------- autosave ---------------- */
+var AUTOSAVE_KEY = 'typeDeformer.autosave.v1';
+var AUTOSAVE_BACKUP_KEY = 'typeDeformer.autosave.backup.v1';
+var autosaveDirty = true;
+var autosaveSuspended = false;
+var autosaveIdleHandle = null;
+var autosaveIdleKind = '';
+
+function markAutosaveDirty() {
+  autosaveDirty = true;
+}
+
+// A silent failure here is the one bug in this file that can lose work:
+// a large project plus its backup copy overruns the ~5 MB localStorage
+// quota, autosave stops, and nothing on screen says so. Report it.
+function setAutosaveStatus(message) {
+  var el = document.getElementById('autosaveStatus');
+  if (!el) return;
+  el.textContent = message || '';
+  el.hidden = !message;
+}
+
+function saveAutosave() {
+  if (autosaveSuspended || !autosaveDirty) return;
+  var next;
+  try {
+    next = JSON.stringify(projectData());
+  } catch (serializeError) {
+    setAutosaveStatus('自動保存に失敗しました（作品データを書き出せません）。Save .json で手動保存してください。');
+    return;
+  }
+  var previous = null;
+  try { previous = localStorage.getItem(AUTOSAVE_KEY); }
+  catch (readError) {
+    setAutosaveStatus('自動保存を利用できません（ブラウザのストレージにアクセスできません）。Save .json で手動保存してください。');
+    return;
+  }
+  if (previous === next) {
+    autosaveDirty = false;
+    setAutosaveStatus('');
+    return;
+  }
+  // The backup is a convenience; losing it must not block the main save.
+  if (previous) {
+    try {
+      if (isProjectData(JSON.parse(previous))) localStorage.setItem(AUTOSAVE_BACKUP_KEY, previous);
+    } catch (invalidPrevious) { /* keep the last known backup */ }
+  }
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, next);
+    autosaveDirty = false;
+    setAutosaveStatus('');
+  } catch (writeError) {
+    // Reclaim the backup slot and retry once: one saved state beats none.
+    try {
+      localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
+      localStorage.setItem(AUTOSAVE_KEY, next);
+      autosaveDirty = false;
+      setAutosaveStatus('自動保存の空き容量が不足したため、復旧用のバックアップを破棄しました。Save .json での保存を推奨します。');
+      return;
+    } catch (retryError) { /* fall through to the failure notice */ }
+    setAutosaveStatus('自動保存に失敗しました（ブラウザの保存容量が不足しています。約'
+      + Math.round(next.length / 1024) + 'KB）。Save .json で手動保存してください。');
+  }
+}
+
+function cancelScheduledAutosave() {
+  if (autosaveIdleHandle === null) return;
+  if (autosaveIdleKind === 'idle' && window.cancelIdleCallback) window.cancelIdleCallback(autosaveIdleHandle);
+  else clearTimeout(autosaveIdleHandle);
+  autosaveIdleHandle = null;
+  autosaveIdleKind = '';
+}
+
+function scheduleAutosave() {
+  if (autosaveSuspended || !autosaveDirty || autosaveIdleHandle !== null) return;
+  function runAutosave() {
+    autosaveIdleHandle = null;
+    autosaveIdleKind = '';
+    // Avoid serializing a large project in the middle of typing or
+    // real-time playback. Pause schedules an idle save; pagehide flushes.
+    if (compositionPlayRaf !== null) return;
+    if (rebuildTimer !== null && document.activeElement === textInput) {
+      autosaveIdleKind = 'timer';
+      autosaveIdleHandle = setTimeout(runAutosave, 750);
+      return;
+    }
+    saveAutosave();
+  }
+  if (window.requestIdleCallback) {
+    autosaveIdleKind = 'idle';
+    autosaveIdleHandle = window.requestIdleCallback(runAutosave, { timeout: 2400 });
+  } else {
+    autosaveIdleKind = 'timer';
+    autosaveIdleHandle = setTimeout(runAutosave, 450);
+  }
+}
+
+function tryRestoreAutosave() {
+  var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];
+  for (var i = 0; i < keys.length; i++) {
+    try {
+      var raw = localStorage.getItem(keys[i]);
+      if (!raw) continue;
+      if (loadProject(JSON.parse(raw), true)) return true;
+    } catch (e) { /* try the backup */ }
+  }
+  return false;
+}
+
+function startAutosave() {
+  var panel = document.querySelector('.panel');
+  if (panel) {
+    panel.addEventListener('input', markAutosaveDirty, true);
+    panel.addEventListener('change', markAutosaveDirty, true);
+    panel.addEventListener('click', flushPendingTextRebuild, true);
+  }
+  setInterval(scheduleAutosave, 8000);
+  window.addEventListener('pagehide', function () {
+    cancelScheduledAutosave();
+    saveAutosave();
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      cancelScheduledAutosave();
+      saveAutosave();
+    }
+  });
+}
+
+document.getElementById('btnNew').addEventListener('click', function () {
+  if (!confirm('作品を初期化しますか？（自動保存も消去されます）')) return;
+  // pagehide fires during replace(); suspend first so the just-deleted
+  // project is not immediately written back by the pagehide autosave.
+  autosaveSuspended = true;
+  try {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
+  } catch (e) { }
+  location.replace(location.href.split('#')[0]);
+});
+
+/* ---------------- parameter presets ---------------- */
+var PRESET_KEY = 'typeDeformer.presets.v1';
+var BUILTIN_PRESET_KEYS = ['stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation'];
+var builtinPresets = {
+  subtle: { label: 'Subtle 控えめ', p: { stretchX: 0.6, stretchY: 0.6, radius: 40, ease: 0.06, geoRatio: 0.2, randomness: 0.5, rotation: 0 } },
+  extreme: { label: 'Extreme 過剰', p: { stretchX: 2.2, stretchY: 2.4, radius: 80, ease: 0.12, geoRatio: 0.4, randomness: 1.6, rotation: 12 } },
+  geometric: { label: 'Geometric 幾何', p: { stretchX: 1.4, stretchY: 1.4, radius: 55, ease: 0.1, geoRatio: 1, randomness: 1, rotation: 0 } },
+  organic: { label: 'Organic 有機', p: { stretchX: 1.2, stretchY: 1.4, radius: 55, ease: 0.05, geoRatio: 0, randomness: 1.3, rotation: 4 } }
+};
+
+function loadUserPresets() {
+  try {
+    var store = JSON.parse(localStorage.getItem(PRESET_KEY)) || {};
+    return store && typeof store === 'object' && !Array.isArray(store) ? store : {};
+  }
+  catch (e) { return {}; }
+}
+
+function storeUserPresets(store) {
+  try { localStorage.setItem(PRESET_KEY, JSON.stringify(store)); } catch (e) { }
+}
+
+var presetSelect = document.getElementById('pPreset');
+
+function populatePresets() {
+  presetSelect.innerHTML = '';
+  var ph = document.createElement('option');
+  ph.value = ''; ph.textContent = '— 選択して適用 —';
+  presetSelect.appendChild(ph);
+  for (var k in builtinPresets) {
+    var o = document.createElement('option');
+    o.value = 'b:' + k; o.textContent = builtinPresets[k].label;
+    presetSelect.appendChild(o);
+  }
+  var store = loadUserPresets();
+  Object.keys(store).sort().forEach(function (name) {
+    var o = document.createElement('option');
+    o.value = 'u:' + name; o.textContent = '★ ' + name;
+    presetSelect.appendChild(o);
+  });
+}
+
+presetSelect.addEventListener('change', function () {
+  var v = presetSelect.value;
+  if (!v) return;
+  if (v.indexOf('b:') === 0) {
+    var bp = builtinPresets[v.slice(2)];
+    var presetTarget = editableBatchProfile();
+    if (bp) for (var i = 0; i < BUILTIN_PRESET_KEYS.length; i++) {
+      presetTarget[BUILTIN_PRESET_KEYS[i]] = bp.p[BUILTIN_PRESET_KEYS[i]];
+    }
+  } else {
+    var up = loadUserPresets()[v.slice(2)];
+    if (up) for (var k in params) {
+      if (k !== 'mode' && Object.prototype.hasOwnProperty.call(up, k)) params[k] = up[k];
+    }
+    if (up && Object.prototype.hasOwnProperty.call(up, '_batchProfiles')) {
+      batchProfiles = normalizeBatchProfiles(up._batchProfiles);
+    }
+    if (up && Object.prototype.hasOwnProperty.call(up, '_composition')) {
+      compositionState = normalizeComposition(up._composition);
+      compositionInspector = compositionState.type;
+      setCompositionPlaying(false);
+    }
+  }
+  normalizeParams();
+  syncUI();
+  applyStyle();
+  applyRandom();
+  reapplyStretches();
+  if (params.gridEnabled) layoutGrid(); else clearGridStyles();
+  presetSelect.value = ''; // so the same preset can be re-applied later
+});
+
+document.getElementById('btnSavePreset').addEventListener('click', function () {
+  var name = prompt('プリセット名を入力してください');
+  if (!name) return;
+  name = name.trim().slice(0, 40);
+  if (!name) return;
+  var store = loadUserPresets();
+  var snap = {};
+  for (var k in params) { if (k !== 'mode') snap[k] = params[k]; }
+  snap._batchProfiles = cloneBatchProfiles();
+  snap._composition = persistentCompositionState();
+  store[name] = snap;
+  storeUserPresets(store);
+  populatePresets();
+});
+
+document.getElementById('btnDelPreset').addEventListener('click', function () {
+  var store = loadUserPresets();
+  var names = Object.keys(store);
+  if (!names.length) { alert('保存済みプリセットはありません。'); return; }
+  var name = prompt('削除するプリセット名:\n' + names.join(', '));
+  if (!name || !Object.prototype.hasOwnProperty.call(store, name)) return;
+  delete store[name];
+  storeUserPresets(store);
+  populatePresets();
+});
+
+
+function compressString(str) {
+  var enc = new TextEncoder().encode(str);
+  if (enc.length > 4 * 1024 * 1024) return Promise.reject(new Error('Share URLに収めるには作品データが大きすぎます。JSON保存を使用してください。'));
+  if (typeof CompressionStream === 'undefined') {
+    return Promise.resolve({ tag: 'r', bytes: enc });
+  }
+  try {
+    var stream = new Blob([enc]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return new Response(stream).arrayBuffer().then(function (buf) {
+      var bytes = new Uint8Array(buf);
+      if (bytes.length > 4 * 1024 * 1024) throw new Error('Share URLに収めるには作品データが大きすぎます。JSON保存を使用してください。');
+      return { tag: 'd', bytes: bytes };
+    }).catch(function () {
+      return { tag: 'r', bytes: enc };
+    });
+  } catch (unsupportedFormat) {
+    return Promise.resolve({ tag: 'r', bytes: enc });
+  }
+}
+
+function decompressToString(tag, bytes) {
+  if (tag !== 'r' && tag !== 'd') return Promise.reject(new Error('unknown compression type'));
+  if (bytes.length > 4 * 1024 * 1024) return Promise.reject(new Error('share payload is too large'));
+  if (tag === 'r') return Promise.resolve(new TextDecoder().decode(bytes));
+  if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('compressed links are not supported in this browser'));
+  var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Response(stream).text().then(function (value) {
+    if (value.length > 8 * 1024 * 1024) throw new Error('expanded share payload is too large');
+    return value;
+  });
+}
+
+// sparse letter encoding: only letters that deviate from rest
+function shareData() {
+  flushPendingTextRebuild();
+  var d = { a: 'td', v: 7, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), L: [] };
+  for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
+  for (var i = 0; i < metrics.length; i++) {
+    var s = letterState(metrics[i]);
+    var encodedOps = encodeOperatorStates(metrics[i].operatorStates);
+    if (s.t || s.l || s.i > 0.001 || s.mx || s.my || s.gc != null || encodedOps || s.x || s.d) {
+      d.L.push([i, s.t, s.l, Math.round(s.i * 1000), s.mx ? Math.round(s.mx * 1000) : 0, s.my ? Math.round(s.my * 1000) : 0, s.gc != null ? s.gc : -1, encodedOps, s.x ? 1 : 0, s.d || '']);
+    }
+  }
+  return d;
+}
+
+function buildShareUrl() {
+  return compressString(JSON.stringify(shareData())).then(function (r) {
+    return location.href.split('#')[0] + '#p=' + r.tag + '.' + bytesToB64url(r.bytes);
+  });
+}
+
+function applyShareData(d) {
+  if (!d || d.a !== 'td' || !d.params) throw new Error('not a share payload');
+  if (typeof d.text !== 'string' || d.text.length > 500000) throw new Error('share text is too large');
+  if (d.L != null && !Array.isArray(d.L)) throw new Error('invalid letter data');
+  if ((d.L || []).length > 200000) throw new Error('too many letter states');
+  var letters = [];
+  var maxIdx = -1;
+  for (var i = 0; i < (d.L || []).length; i++) {
+    var row = d.L[i];
+    if (!Array.isArray(row)) continue;
+    var rowIndex = Number(row[0]);
+    if (!isFinite(rowIndex) || rowIndex < 0 || rowIndex > 200000 || Math.floor(rowIndex) !== rowIndex) continue;
+    var restoredLetter = {
+      t: row[1], l: row[2], i: row[3] / 1000,
+      mx: row[4] ? row[4] / 1000 : 0, my: row[5] ? row[5] / 1000 : 0,
+      gc: (row[6] != null && row[6] !== -1) ? row[6] : null,
+      o: decodeOperatorStates(row[7] || '')
+    };
+    if (row.length > 8) restoredLetter.x = row[8] ? 1 : 0;
+    else {
+      var legacyManualLock = !!(restoredLetter.mx || restoredLetter.my);
+      for (var legacyId in restoredLetter.o) {
+        if (restoredLetter.o[legacyId].m != null) { legacyManualLock = true; break; }
+      }
+      restoredLetter.x = restoredLetter.l && !legacyManualLock ? 1 : 0;
+    }
+    if (row.length > 9 && typeof row[9] === 'string') restoredLetter.d = row[9];
+    letters[rowIndex] = restoredLetter;
+    if (rowIndex > maxIdx) maxIdx = rowIndex;
+  }
+  for (var j = 0; j <= maxIdx; j++) { if (!letters[j]) letters[j] = { t: 0, l: 0, i: 0 }; }
+  return loadProject({ app: 'type-deformer', version: d.v || 1, text: d.text, params: d.params, batchProfiles: d.profiles, composition: d.C, letters: letters });
+}
+
+function tryRestoreFromHash() {
+  var h = location.hash;
+  if (h.indexOf('#p=') !== 0) return Promise.resolve(false);
+  var payload = h.slice(3);
+  var dot = payload.indexOf('.');
+  if (dot < 1) return Promise.resolve(false);
+  return Promise.resolve().then(function () {
+    return decompressToString(payload.slice(0, dot), b64urlToBytes(payload.slice(dot + 1)));
+  })
+    .then(function (json) { return applyShareData(JSON.parse(json)); })
+    .catch(function () { return false; });
+}
+
+var btnShare = document.getElementById('btnShare');
+btnShare.addEventListener('click', function () {
+  var urlP = buildShareUrl();
+  var done = function (ok) {
+    var old = 'Share URL';
+    btnShare.textContent = ok ? 'Copied!' : 'Copy failed';
+    setTimeout(function () { btnShare.textContent = old; }, 1600);
+  };
+  urlP.then(function (u) {
+    try { history.replaceState(null, '', u.slice(u.indexOf('#'))); }
+    catch (historyError) { /* clipboard/prompt sharing still works */ }
+  }).catch(function (err) {
+    done(false);
+    alert((err && err.message) || 'Share URLの生成に失敗しました。');
+  });
+  if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+    // same Safari rule as image copy: write() must start inside the
+    // gesture, with the async content wrapped in the ClipboardItem
+    var writePromise;
+    try {
+      writePromise = navigator.clipboard.write([new ClipboardItem({
+        'text/plain': urlP.then(function (u) { return new Blob([u], { type: 'text/plain' }); })
+      })]);
+    } catch (err) {
+      writePromise = urlP.then(function (u) { return navigator.clipboard.writeText(u); });
+    }
+    writePromise.then(function () { done(true); }, function () {
+      urlP.then(function (u) { prompt('このURLをコピーしてください', u); }).catch(function () { });
+    });
+  } else {
+    urlP.then(function (u) { prompt('このURLをコピーしてください', u); }).catch(function () { });
+  }
+});
+
+/* ---------------- boot ---------------- */
+window.addEventListener('resize', scheduleMeasure, { passive: true });
+window.addEventListener('type-deformer-frame-resize', scheduleMeasure);
+// no scroll listener: positions are stage-relative, and the pointer
+// math reads the stage rect once per animation frame
+if (document.fonts) {
+  if (document.fonts.ready) document.fonts.ready.then(function () {
+    refreshConfuseFontCandidates();
+    scheduleMeasure();
+  }).catch(function () { });
+  if (document.fonts.addEventListener) {
+    document.fonts.addEventListener('loadingdone', function () { refreshConfuseFontCandidates(); scheduleMeasure(); });
+    document.fonts.addEventListener('loadingerror', scheduleMeasure);
+  }
+}
+
+applyStyle();
+createSpans(textInput.value);
+updateConfuseDictionaryUI();
+updateExportInfo();
+populatePresets();
+syncCompositionUI();
+// restore order: shared URL wins, then the autosave; autosaving only
+// starts after restore so the default state never clobbers a session
+tryRestoreFromHash().then(function (fromHash) {
+  if (!fromHash) tryRestoreAutosave();
+  startAutosave();
+  // Started only now so the restored project's profile decides whether
+  // the dictionary is needed at all.
+  ensureConfuseDictionary();
+});
+setTimeout(scheduleMeasure, 400);

@@ -16,28 +16,40 @@ Stretch / Radial / Rotate / Skew / Mirror / Misregister / Confuse など複数�
 
 ## ファイル構成
 
-- `index.html` — アプリ本体。UI・変形ロジック・書き出し処理すべてを含む単一ファイルのフロントエンドアプリ（依存ライブラリなし、ビルド不要）。
-- `confuse-dictionary.js` — Confuse オペレータ（文字を似た別の文字へ置き換える操作）が使う、Unicode の各種データ（confusables, Unihan, IVD など）由来の生成データ。`index.html` から `<script>` で読み込まれ、`window.TYPE_DEFORMER_CONFUSE_DICTIONARY` を提供します。サイズが大きいため通常は編集せず、`tools/` のスクリプトで再生成します。
+依存ライブラリなし・ビルド不要のまま、静的ファイルとして配信します。
+
+- `index.html` — マークアップのみ。`styles.css` と `app.js` を読み込みます。
+- `styles.css` — 全スタイル。
+- `app.js` — エディタ本体（ES モジュール）。UI 配線・変形ロジック・レイアウト・書き出し処理。
+- `src/core/*.js` — DOM に依存しない純粋関数を切り出したモジュール群。`app.js` が import します。ユニットテストの対象はここです。
+  - `graphemes.js` 書記素クラスタ分割 / `classify.js` 文字種判定 / `script.js` Confuse のスクリプト判定
+  - `geometry.js` レイアウトと書き出しの幾何計算 / `codec.js` base64url・XML エスケープ
+  - `fonts.js` フォントスタックのサニタイズ / `operators.js` オペレータ定義と状態コーデック
+- `confuse-dictionary.js` — Confuse オペレータ（文字を似た別の文字へ置き換える操作）が使う、Unicode の各種データ（confusables, Unihan, IVD など）由来の生成データ。gzip 後で約 1.4MB あるため初期表示をブロックしないよう**起動後に非同期で読み込まれ**、`window.TYPE_DEFORMER_CONFUSE_DICTIONARY` を提供します。到着するまでは埋め込みの Core 辞書で動作します。手で編集せず `tools/` のスクリプトで再生成します。
 - `tools/build-confuse-dictionary.mjs` — `confuse-dictionary.js` を Unicode の一次データから再構築するビルドスクリプト。
+- `test/` — `src/core/*.js` のユニットテスト（Vitest）。
 - `LICENSE` — 本リポジトリのライセンス（MIT）。
 
 ## ローカルでの動かし方
 
-ビルド不要の単一 HTML ファイルなので、`index.html` をブラウザで直接開くだけで動作します。
-
-```sh
-open index.html          # macOS
-xdg-open index.html      # Linux
-```
-
-一部のブラウザは `file://` での実行時にクリップボードや一部APIを制限することがあるため、うまく動かない場合は簡易サーバー経由での起動を試してください。
+ビルドは不要ですが、`app.js` が ES モジュールのため **`file://` では開けません**（ブラウザが module の読み込みを CORS で拒否します）。任意の静的サーバー経由で開いてください。
 
 ```sh
 python3 -m http.server 8000
 # ブラウザで http://localhost:8000/ を開く
 ```
 
-`confuse-dictionary.js` は `index.html` と同じディレクトリに置く必要があります。存在しない場合、Confuse オペレータは埋め込みの Core 辞書のみで動作するフォールバックになります。
+`confuse-dictionary.js` は `index.html` と同じディレクトリに置く必要があります。存在しない場合、Confuse オペレータは埋め込みの Core 辞書のみで動作するフォールバックになります（設定パネルの辞書ステータス行に表示されます）。
+
+### テスト
+
+```sh
+npm install
+npm test          # Vitest: src/core/*.js の純粋関数
+npm run test:e2e  # Playwright: 実際のページを起動して主要フローを検証
+```
+
+`npm test` は `src/core/*.js` の純粋関数を検証します。エディタ本体（`app.js`）はブラウザ API に強く依存するためユニットテストの対象外で、代わりに `npm run test:e2e` が実ブラウザで起動・辞書の遅延読込・Confuse 置換・PNG/SVG 書き出し・グリッド配置・Share URL の往復を通します。ブラウザのパスは環境変数 `CHROMIUM` で上書きできます。
 
 ## Confuse オペレータと辞書プロファイル
 

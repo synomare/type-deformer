@@ -1,0 +1,15 @@
+{
+  "name": "type-deformer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tests for Type Deformer: Vitest over src/core, Playwright smoke test over the editor.",
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "node test/e2e/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.0",
+    "vitest": "^2.1.9"
+  }
+}
