@@ -39,7 +39,7 @@ jobs:
             0ef57f9e04c7aaaadc80b89bf324da990dbe89b9
             1bafd89eabb8a5646622b5a5b06417dd27c0b6c4
           )
-          for index in $(seq -w 0 9); do
+          for index in {00..09}; do
             file=".github/runtime-reliability-payload/${index}.part"
             actual="$(git hash-object "$file")"
             test "$actual" = "${expected[$((10#$index))]}"
