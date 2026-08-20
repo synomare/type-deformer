@@ -2022,6 +2022,20 @@
       .advanced-parameters > summary,
       .operator-advanced > summary { min-height: 48px; }
     }
+    .autosave-status {
+      min-height: 1.5em;
+      margin: 0.7rem 0 0;
+      padding-top: 0.55rem;
+      border-top: 1px dashed var(--line);
+      letter-spacing: 0.05em;
+    }
+    .autosave-status[data-state="pending"],
+    .autosave-status[data-state="saving"],
+    .autosave-status[data-state="error"] { color: var(--red); }
+    .autosave-status[data-state="saved"],
+    .autosave-status[data-state="restored"] { color: var(--ink); }
+    .autosave-status[data-state="fallback"] { color: var(--dim); }
+
   </style>
 </head>
 
@@ -2861,7 +2875,7 @@ type deformer</textarea>
         </div>
         <div class="video-progress" id="videoProgress" role="progressbar" aria-label="Video export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
         <p class="video-status" id="videoStatus" aria-live="polite">Compositionを適用すると映像を書き出せます。</p>
-        <p class="note">指定秒数の中に選択した回数の完全なループを収録します。透過はWebM / VP9対応ブラウザでのみ保持される場合があります。MP4出力はブラウザの対応状況に依存するベータ機能です。</p>
+        <p class="note">指定秒数を優先して選択した回数の完全なループを収録します。高負荷時は尺を守るため中間フレームを間引く場合があります。透過はWebM / VP9対応ブラウザでのみ保持される場合があります。MP4出力はブラウザの対応状況に依存するベータ機能です。</p>
       </details>
       <details class="help-details"><summary>Export help</summary><p class="note">Canvas shotは現在見えている範囲を枠サイズ・スクロール位置・紙色・Grid線ごとPNG化します。SVGはtext要素＋transformです。Illustrator等では同じフォントが必要です。</p></details>
         </div>
@@ -2879,8 +2893,9 @@ type deformer</textarea>
         <button class="primary" id="btnShare">Share URL</button>
         <input type="file" id="projFile" accept=".json,application/json" hidden>
       </div>
+      <p class="autosave-status note" id="autosaveStatus" role="status" aria-live="polite" data-state="idle">Autosave · preparing…</p>
       <div class="danger-zone"><button id="btnNew">New 新規</button></div>
-      <details class="help-details"><summary>Project help</summary><p class="note">数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。Share URLは作品全体をURLへ埋め込みます。</p></details>
+      <details class="help-details"><summary>Project help</summary><p class="note">作品はIndexedDBへ数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。利用できない環境では容量制限のあるローカル保存へ切り替えます。Share URLは作品全体をURLへ埋め込みます。</p></details>
         </div>
       </section>
       </div>
@@ -10202,6 +10217,7 @@ type deformer</textarea>
       var videoCaptureMeta = document.getElementById('videoCaptureMeta');
       var videoExportState = {
         active: false,
+        finishing: false,
         cancelled: false,
         error: null,
         recorder: null,
@@ -10219,7 +10235,8 @@ type deformer</textarea>
         targetDurationMs: 0,
         targetLastTimestampMs: 0,
         recordedStartedAt: 0,
-        recordedDurationMs: 0
+        recordedDurationMs: 0,
+        droppedFrames: 0
       };
 
       function videoDimensions() {
@@ -10444,6 +10461,8 @@ type deformer</textarea>
       }
 
       function finishVideoExport() {
+        if (videoExportState.finishing) return;
+        videoExportState.finishing = true;
         if (videoExportState.raf !== null) cancelAnimationFrame(videoExportState.raf);
         videoExportState.raf = null;
         if (videoExportState.timer !== null) clearTimeout(videoExportState.timer);
@@ -10461,6 +10480,7 @@ type deformer</textarea>
         var targetLastTimestampMs = videoExportState.targetLastTimestampMs;
         var recordedDurationMs = videoExportState.recordedDurationMs
           || (videoExportState.recordedStartedAt ? performance.now() - videoExportState.recordedStartedAt : targetDurationMs);
+        var droppedFrames = videoExportState.droppedFrames || 0;
         videoExportState.active = false;
         videoExportState.recorder = null;
         videoExportState.stream = null;
@@ -10474,6 +10494,7 @@ type deformer</textarea>
         videoExportState.targetLastTimestampMs = 0;
         videoExportState.recordedStartedAt = 0;
         videoExportState.recordedDurationMs = 0;
+        videoExportState.droppedFrames = 0;
         setVideoControlsLocked(false);
         restoreAfterVideoExport();
         updateVideoExportAvailability();
@@ -10489,11 +10510,20 @@ type deformer</textarea>
           normalizeWebmDuration(rawBlob, targetDurationMs, targetLastTimestampMs, recordedDurationMs).then(function (blob) {
             download(blob, 'type-deform-motion-' + stamp() + '.' + extension);
             setVideoProgress(100);
+            var reportedDurationMs = blob.type.indexOf('webm') !== -1 ? targetDurationMs : recordedDurationMs;
+            var timingDetail = extension === 'mp4'
+              ? ' · captured ' + (reportedDurationMs / 1000).toFixed(2) + 's'
+              : '';
+            var droppedDetail = droppedFrames ? ' · ' + droppedFrames + ' frame' + (droppedFrames === 1 ? '' : 's') + ' dropped' : '';
             setVideoStatus(
               'Exported · ' + (blob.size / 1024 / 1024).toFixed(1) + ' MB · '
-              + extension.toUpperCase() + ' · ' + (targetDurationMs / 1000).toFixed(targetDurationMs % 1000 ? 2 : 0) + 's',
+              + extension.toUpperCase() + ' · target '
+              + (targetDurationMs / 1000).toFixed(targetDurationMs % 1000 ? 2 : 0) + 's'
+              + timingDetail + droppedDetail,
               'done'
             );
+          }, function (finalizeError) {
+            setVideoStatus('映像の後処理に失敗しました: ' + (finalizeError.message || finalizeError), 'error');
           });
         }
       }
@@ -10506,7 +10536,15 @@ type deformer</textarea>
           finishVideoExport();
           return;
         }
-        videoExportState.recorder.stop();
+        try {
+          if (typeof videoExportState.recorder.requestData === 'function') videoExportState.recorder.requestData();
+        } catch (requestDataError) { /* stop() still flushes the final chunk */ }
+        try {
+          videoExportState.recorder.stop();
+        } catch (stopError) {
+          videoExportState.error = stopError.message || 'MediaRecorderを停止できませんでした。';
+          finishVideoExport();
+        }
       }
 
       function cancelVideoExport() {
@@ -10541,9 +10579,11 @@ type deformer</textarea>
         }
 
         videoExportState.active = true;
+        videoExportState.finishing = false;
         videoExportState.cancelled = false;
         videoExportState.error = null;
         videoExportState.chunks = [];
+        videoExportState.droppedFrames = 0;
         videoExportState.canvas = output.canvas;
         output.canvas.setAttribute('aria-hidden', 'true');
         if (videoCaptureHost) {
@@ -10608,6 +10648,14 @@ type deformer</textarea>
         };
         recorder.onstop = finishVideoExport;
 
+        try {
+          recorder.start(250);
+        } catch (startError) {
+          videoExportState.error = startError.message || 'MediaRecorderを開始できませんでした。';
+          finishVideoExport();
+          return;
+        }
+
         var startedAt = performance.now();
         videoExportState.targetDurationMs = actualDuration * 1000;
         videoExportState.targetLastTimestampMs = Math.max(0, (totalFrames - 1) / fps * 1000);
@@ -10615,14 +10663,29 @@ type deformer</textarea>
         videoExportState.recordedDurationMs = 0;
         var frameIndex = 0;
         var frameDurationMs = 1000 / fps;
-        recorder.start(250);
+        var stopDeadline = startedAt + videoExportState.targetDurationMs;
+
         function recordNextFrame() {
           if (!videoExportState.active) return;
-          if (frameIndex >= totalFrames) {
+          var now = performance.now();
+          var elapsed = now - startedAt;
+          if (elapsed >= videoExportState.targetDurationMs) {
+            videoExportState.recordedDurationMs = Math.max(1, elapsed);
             setVideoProgress(100);
-            videoExportState.timer = setTimeout(stopVideoRecorder, Math.max(250, frameDurationMs * 3));
+            stopVideoRecorder();
             return;
           }
+
+          // MediaRecorder timestamps follow wall-clock time. When rendering is
+          // slower than the selected FPS, skip intermediate samples rather than
+          // stretching the requested duration (especially important for MP4,
+          // whose container timing is not rewritten after capture).
+          var expectedFrame = Math.min(totalFrames - 1, Math.floor(elapsed / frameDurationMs));
+          if (expectedFrame > frameIndex) {
+            videoExportState.droppedFrames += expectedFrame - frameIndex;
+            frameIndex = expectedFrame;
+          }
+
           var phaseInLoop = (frameIndex % framesPerLoop) / framesPerLoop;
           compositionState.phase = (startPhase + compositionState.direction * phaseInLoop + 1) % 1;
           var phaseInput = document.getElementById('pCompositionPhase');
@@ -10641,25 +10704,35 @@ type deformer</textarea>
           }
           if (frameIndex % Math.max(1, Math.round(fps / 12)) === 0) scheduleCompositionDraw();
           frameIndex++;
-          var progress = frameIndex / totalFrames * 100;
+
+          var elapsedAfterRender = performance.now() - startedAt;
+          var progress = Math.min(100, Math.max(
+            frameIndex / totalFrames * 100,
+            elapsedAfterRender / videoExportState.targetDurationMs * 100
+          ));
           setVideoProgress(progress);
           setVideoStatus(
             'Recording ' + Math.round(progress) + '% · '
-            + frameIndex + '/' + totalFrames + ' frames',
+            + Math.min(frameIndex, totalFrames) + '/' + totalFrames + ' frames'
+            + (videoExportState.droppedFrames ? ' · ' + videoExportState.droppedFrames + ' dropped' : ''),
             'recording'
           );
-          if (frameIndex >= totalFrames) {
-            videoExportState.recordedDurationMs = Math.max(1, performance.now() - startedAt);
-            // Give MediaRecorder enough time to accept the last queued frames
-            // before closing the stream, especially for VP9 and large canvases.
-            videoExportState.timer = setTimeout(stopVideoRecorder, Math.max(250, frameDurationMs * 3));
+
+          if (elapsedAfterRender >= videoExportState.targetDurationMs) {
+            videoExportState.recordedDurationMs = Math.max(1, elapsedAfterRender);
+            stopVideoRecorder();
             return;
           }
-          // Hold each completed sample across at least two capture ticks.
-          // Catch-up scheduling can bunch slow renders together and make
-          // browsers merge them, so a heavy composition may take longer to
-          // export but retains substantially more of its loop samples.
-          videoExportState.timer = setTimeout(recordNextFrame, Math.max(50, frameDurationMs * 2));
+          if (frameIndex >= totalFrames) {
+            videoExportState.timer = setTimeout(function () {
+              videoExportState.recordedDurationMs = Math.max(1, performance.now() - startedAt);
+              stopVideoRecorder();
+            }, Math.max(0, stopDeadline - performance.now()));
+            return;
+          }
+
+          var nextDeadline = Math.min(stopDeadline, startedAt + frameIndex * frameDurationMs);
+          videoExportState.timer = setTimeout(recordNextFrame, Math.max(0, nextDeadline - performance.now()));
         }
         recordNextFrame();
       }
@@ -13109,32 +13182,220 @@ type deformer</textarea>
       /* ---------------- autosave ---------------- */
       var AUTOSAVE_KEY = 'typeDeformer.autosave.v1';
       var AUTOSAVE_BACKUP_KEY = 'typeDeformer.autosave.backup.v1';
+      var AUTOSAVE_DB_NAME = 'typeDeformer.autosave.v2';
+      var AUTOSAVE_DB_VERSION = 1;
+      var AUTOSAVE_STORE = 'snapshots';
+      var autosaveStatus = document.getElementById('autosaveStatus');
       var autosaveDirty = true;
       var autosaveSuspended = false;
       var autosaveIdleHandle = null;
       var autosaveIdleKind = '';
+      var autosaveRevision = 0;
+      var autosaveSavingPromise = null;
+      var autosaveDbPromise = null;
+      var autosaveBackend = 'indexeddb';
+
+      function setAutosaveStatus(text, state) {
+        if (!autosaveStatus) return;
+        autosaveStatus.textContent = text;
+        autosaveStatus.dataset.state = state || 'idle';
+      }
+
+      function autosaveErrorMessage(error) {
+        if (!error) return 'unknown storage error';
+        return error.message || error.name || String(error);
+      }
+
+      function autosaveClock() {
+        try {
+          return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } catch (error) {
+          return new Date().toTimeString().slice(0, 8);
+        }
+      }
 
       function markAutosaveDirty() {
+        if (autosaveSuspended) return;
         autosaveDirty = true;
+        autosaveRevision++;
+        if (!autosaveSavingPromise) setAutosaveStatus('Autosave · pending changes', 'pending');
+        scheduleAutosave();
+      }
+
+      function openAutosaveDb() {
+        if (autosaveDbPromise) return autosaveDbPromise;
+        autosaveDbPromise = new Promise(function (resolve, reject) {
+          if (!window.indexedDB) {
+            reject(new Error('IndexedDB is unavailable'));
+            return;
+          }
+          var request;
+          try { request = indexedDB.open(AUTOSAVE_DB_NAME, AUTOSAVE_DB_VERSION); }
+          catch (openError) { reject(openError); return; }
+          request.onupgradeneeded = function () {
+            var db = request.result;
+            if (!db.objectStoreNames.contains(AUTOSAVE_STORE)) db.createObjectStore(AUTOSAVE_STORE);
+          };
+          request.onsuccess = function () {
+            var db = request.result;
+            db.onversionchange = function () { db.close(); autosaveDbPromise = null; };
+            resolve(db);
+          };
+          request.onerror = function () { reject(request.error || new Error('IndexedDB open failed')); };
+          request.onblocked = function () { reject(new Error('IndexedDB upgrade is blocked by another tab')); };
+        }).catch(function (error) {
+          autosaveDbPromise = null;
+          throw error;
+        });
+        return autosaveDbPromise;
+      }
+
+      function readIndexedAutosaves() {
+        return openAutosaveDb().then(function (db) {
+          return new Promise(function (resolve, reject) {
+            var transaction;
+            try { transaction = db.transaction(AUTOSAVE_STORE, 'readonly'); }
+            catch (transactionError) { reject(transactionError); return; }
+            var store = transaction.objectStore(AUTOSAVE_STORE);
+            var currentRequest = store.get('current');
+            var backupRequest = store.get('backup');
+            transaction.oncomplete = function () {
+              var values = [];
+              if (currentRequest.result && currentRequest.result.data) values.push(currentRequest.result);
+              if (backupRequest.result && backupRequest.result.data) values.push(backupRequest.result);
+              resolve(values);
+            };
+            transaction.onerror = function () { reject(transaction.error || new Error('IndexedDB read failed')); };
+            transaction.onabort = function () { reject(transaction.error || new Error('IndexedDB read aborted')); };
+          });
+        });
+      }
+
+      function writeIndexedAutosave(data) {
+        return openAutosaveDb().then(function (db) {
+          return new Promise(function (resolve, reject) {
+            var transaction;
+            try { transaction = db.transaction(AUTOSAVE_STORE, 'readwrite'); }
+            catch (transactionError) { reject(transactionError); return; }
+            var store = transaction.objectStore(AUTOSAVE_STORE);
+            var currentRequest = store.get('current');
+            currentRequest.onsuccess = function () {
+              var current = currentRequest.result;
+              if (current && current.data && isProjectData(current.data)) store.put(current, 'backup');
+              store.put({ data: data, savedAt: Date.now(), schema: 1 }, 'current');
+            };
+            transaction.oncomplete = function () { resolve({ backend: 'indexeddb' }); };
+            transaction.onerror = function () { reject(transaction.error || new Error('IndexedDB write failed')); };
+            transaction.onabort = function () { reject(transaction.error || new Error('IndexedDB write aborted')); };
+          });
+        });
+      }
+
+      function clearIndexedAutosaves() {
+        return openAutosaveDb().then(function (db) {
+          return new Promise(function (resolve, reject) {
+            var transaction;
+            try { transaction = db.transaction(AUTOSAVE_STORE, 'readwrite'); }
+            catch (transactionError) { reject(transactionError); return; }
+            var store = transaction.objectStore(AUTOSAVE_STORE);
+            store.delete('current');
+            store.delete('backup');
+            transaction.oncomplete = function () { resolve(); };
+            transaction.onerror = function () { reject(transaction.error || new Error('IndexedDB clear failed')); };
+            transaction.onabort = function () { reject(transaction.error || new Error('IndexedDB clear aborted')); };
+          });
+        });
+      }
+
+      function readLegacyAutosaves() {
+        var values = [];
+        var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];
+        for (var i = 0; i < keys.length; i++) {
+          try {
+            var raw = localStorage.getItem(keys[i]);
+            if (!raw) continue;
+            var parsed = JSON.parse(raw);
+            if (isProjectData(parsed)) values.push({ data: parsed, savedAt: 0, legacy: true });
+          } catch (legacyReadError) { /* try the next legacy slot */ }
+        }
+        return values;
+      }
+
+      function writeLegacyAutosave(data) {
+        var next = JSON.stringify(data);
+        var previous = localStorage.getItem(AUTOSAVE_KEY);
+        if (previous) {
+          try {
+            if (isProjectData(JSON.parse(previous))) localStorage.setItem(AUTOSAVE_BACKUP_KEY, previous);
+          } catch (invalidPrevious) { /* keep the last known backup */ }
+        }
+        localStorage.setItem(AUTOSAVE_KEY, next);
+        return { backend: 'localStorage' };
+      }
+
+      function removeLegacyAutosaves() {
+        try {
+          localStorage.removeItem(AUTOSAVE_KEY);
+          localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
+        } catch (legacyRemoveError) { /* IndexedDB remains authoritative */ }
+      }
+
+      function writeAutosaveSnapshot(data) {
+        return writeIndexedAutosave(data).then(function (result) {
+          autosaveBackend = 'indexeddb';
+          removeLegacyAutosaves();
+          return result;
+        }).catch(function (indexedError) {
+          autosaveBackend = 'localStorage';
+          try {
+            var fallbackResult = writeLegacyAutosave(data);
+            fallbackResult.cause = indexedError;
+            return fallbackResult;
+          } catch (legacyError) {
+            legacyError.indexedDbError = indexedError;
+            throw legacyError;
+          }
+        });
       }
 
       function saveAutosave() {
-        if (autosaveSuspended || !autosaveDirty) return;
+        if (autosaveSuspended || !autosaveDirty) return Promise.resolve(false);
+        if (autosaveSavingPromise) return autosaveSavingPromise;
+        var revision = autosaveRevision;
+        var snapshot;
+        setAutosaveStatus('Autosave · saving…', 'saving');
         try {
-          var next = JSON.stringify(projectData());
-          var previous = localStorage.getItem(AUTOSAVE_KEY);
-          if (previous === next) {
-            autosaveDirty = false;
-            return;
+          snapshot = projectData();
+        } catch (snapshotError) {
+          setAutosaveStatus('Autosave failed · ' + autosaveErrorMessage(snapshotError), 'error');
+          return Promise.reject(snapshotError);
+        }
+
+        var operation = writeAutosaveSnapshot(snapshot).then(function (result) {
+          if (revision === autosaveRevision) autosaveDirty = false;
+          if (result.backend === 'indexeddb') {
+            setAutosaveStatus('Autosave · saved ' + autosaveClock(), 'saved');
+          } else {
+            setAutosaveStatus('Autosave · saved with limited fallback ' + autosaveClock(), 'fallback');
           }
-          if (previous) {
-            try {
-              if (isProjectData(JSON.parse(previous))) localStorage.setItem(AUTOSAVE_BACKUP_KEY, previous);
-            } catch (invalidPrevious) { /* keep the last known backup */ }
+          return true;
+        }, function (error) {
+          setAutosaveStatus('Autosave failed · ' + autosaveErrorMessage(error), 'error');
+          throw error;
+        });
+
+        autosaveSavingPromise = operation.then(function (value) {
+          autosaveSavingPromise = null;
+          if (autosaveDirty) {
+            setAutosaveStatus('Autosave · pending changes', 'pending');
+            scheduleAutosave();
           }
-          localStorage.setItem(AUTOSAVE_KEY, next);
-          autosaveDirty = false;
-        } catch (e) { /* storage full or unavailable — silently skip */ }
+          return value;
+        }, function (error) {
+          autosaveSavingPromise = null;
+          return Promise.reject(error);
+        });
+        return autosaveSavingPromise;
       }
 
       function cancelScheduledAutosave() {
@@ -13146,19 +13407,21 @@ type deformer</textarea>
       }
 
       function scheduleAutosave() {
-        if (autosaveSuspended || !autosaveDirty || autosaveIdleHandle !== null) return;
+        if (autosaveSuspended || !autosaveDirty || autosaveIdleHandle !== null || autosaveSavingPromise) return;
         function runAutosave() {
           autosaveIdleHandle = null;
           autosaveIdleKind = '';
-          // Avoid serializing a large project in the middle of typing or
-          // real-time playback. Pause schedules an idle save; pagehide flushes.
-          if (compositionPlayRaf !== null) return;
+          if (compositionPlayRaf !== null) {
+            autosaveIdleKind = 'timer';
+            autosaveIdleHandle = setTimeout(runAutosave, 1000);
+            return;
+          }
           if (rebuildTimer !== null && document.activeElement === textInput) {
             autosaveIdleKind = 'timer';
             autosaveIdleHandle = setTimeout(runAutosave, 750);
             return;
           }
-          saveAutosave();
+          saveAutosave().catch(function () { /* status already exposes the error */ });
         }
         if (window.requestIdleCallback) {
           autosaveIdleKind = 'idle';
@@ -13169,16 +13432,40 @@ type deformer</textarea>
         }
       }
 
-      function tryRestoreAutosave() {
-        var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];
-        for (var i = 0; i < keys.length; i++) {
-          try {
-            var raw = localStorage.getItem(keys[i]);
-            if (!raw) continue;
-            if (loadProject(JSON.parse(raw), true)) return true;
-          } catch (e) { /* try the backup */ }
+      function restoreAutosaveRecords(records, backend) {
+        for (var i = 0; i < records.length; i++) {
+          var record = records[i];
+          if (!record || !record.data) continue;
+          if (loadProject(record.data, true)) {
+            autosaveBackend = backend;
+            if (backend === 'indexeddb') {
+              autosaveDirty = false;
+              setAutosaveStatus('Autosave · restored' + (record.savedAt ? ' ' + new Date(record.savedAt).toLocaleString() : ''), 'restored');
+            } else {
+              autosaveDirty = true;
+              setAutosaveStatus('Autosave · restored legacy save; migration pending', 'pending');
+            }
+            return true;
+          }
         }
         return false;
+      }
+
+      function tryRestoreAutosave() {
+        return readIndexedAutosaves().then(function (records) {
+          if (restoreAutosaveRecords(records, 'indexeddb')) return true;
+          var legacyRecords = readLegacyAutosaves();
+          return restoreAutosaveRecords(legacyRecords, 'localStorage');
+        }).catch(function () {
+          autosaveBackend = 'localStorage';
+          var legacyRecords = readLegacyAutosaves();
+          return restoreAutosaveRecords(legacyRecords, 'localStorage');
+        });
+      }
+
+      function clearAutosaveStorage() {
+        removeLegacyAutosaves();
+        return clearIndexedAutosaves().catch(function () { /* no IndexedDB store to clear */ });
       }
 
       function startAutosave() {
@@ -13188,29 +13475,30 @@ type deformer</textarea>
           panel.addEventListener('change', markAutosaveDirty, true);
           panel.addEventListener('click', flushPendingTextRebuild, true);
         }
+        if (autosaveDirty) setAutosaveStatus('Autosave · pending changes', 'pending');
+        else if (autosaveStatus && autosaveStatus.dataset.state === 'idle') setAutosaveStatus('Autosave · ready', 'saved');
         setInterval(scheduleAutosave, 8000);
+        scheduleAutosave();
         window.addEventListener('pagehide', function () {
           cancelScheduledAutosave();
-          saveAutosave();
+          if (autosaveDirty) saveAutosave().catch(function () { });
         });
         document.addEventListener('visibilitychange', function () {
           if (document.hidden) {
             cancelScheduledAutosave();
-            saveAutosave();
+            if (autosaveDirty) saveAutosave().catch(function () { });
           }
         });
       }
 
       document.getElementById('btnNew').addEventListener('click', function () {
         if (!confirm('作品を初期化しますか？（自動保存も消去されます）')) return;
-        // pagehide fires during replace(); suspend first so the just-deleted
-        // project is not immediately written back by the pagehide autosave.
+        // Suspend before clearing so pagehide cannot recreate the deleted save.
         autosaveSuspended = true;
-        try {
-          localStorage.removeItem(AUTOSAVE_KEY);
-          localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
-        } catch (e) { }
-        location.replace(location.href.split('#')[0]);
+        cancelScheduledAutosave();
+        setAutosaveStatus('Autosave · clearing…', 'saving');
+        var reload = function () { location.replace(location.href.split('#')[0]); };
+        clearAutosaveStorage().then(reload, reload);
       });
 
       /* ---------------- parameter presets ---------------- */
@@ -13494,7 +13782,15 @@ type deformer</textarea>
       // restore order: shared URL wins, then the autosave; autosaving only
       // starts after restore so the default state never clobbers a session
       tryRestoreFromHash().then(function (fromHash) {
-        if (!fromHash) tryRestoreAutosave();
+        if (fromHash) {
+          setAutosaveStatus('Autosave · shared project pending', 'pending');
+          return false;
+        }
+        return tryRestoreAutosave();
+      }).catch(function (restoreError) {
+        setAutosaveStatus('Autosave restore failed · ' + autosaveErrorMessage(restoreError), 'error');
+        return false;
+      }).then(function () {
         startAutosave();
       });
       setTimeout(scheduleMeasure, 400);
