@@ -100,6 +100,150 @@
       text-transform: none;
     }
 
+    .parameter-tools {
+      position: sticky;
+      top: 1.35rem;
+      z-index: 19;
+      margin: 0 -1rem 0.85rem;
+      padding: 0.65rem 1rem 0.55rem;
+      border-bottom: 1px solid var(--ink);
+      background: var(--card);
+    }
+    .parameter-search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .parameter-search-row input {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      padding: 0.55rem 0.6rem;
+    }
+    .parameter-search-row kbd {
+      padding: 0.34rem 0.4rem;
+      border: 1px solid var(--line);
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 0.5rem;
+      letter-spacing: 0;
+    }
+    .parameter-tools-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      min-height: 1.7rem;
+      color: var(--dim);
+      font-size: 0.5rem;
+      letter-spacing: 0.08em;
+    }
+    .parameter-tools-meta button {
+      margin: 0;
+      padding: 0.3rem 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      color: var(--dim);
+      font-size: 0.5rem;
+    }
+    .parameter-tools-meta button:hover,
+    .parameter-tools-meta button[aria-pressed="true"] {
+      background: transparent;
+      color: var(--red);
+      transform: none;
+      box-shadow: none;
+    }
+    .parameter-changed-count {
+      display: inline-flex;
+      min-width: 1.35rem;
+      height: 1.35rem;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.25rem;
+      border: 1px solid currentColor;
+    }
+    .parameter-results {
+      max-height: min(42vh, 340px);
+      overflow-y: auto;
+      margin: 0.15rem 0 0;
+      border-top: 1px solid var(--line);
+    }
+    .parameter-result {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      border-bottom: 1px solid var(--line);
+    }
+    .parameter-result-main,
+    .parameter-result-reset {
+      margin: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      text-align: left;
+    }
+    .parameter-result-main {
+      min-width: 0;
+      padding: 0.55rem 0.35rem 0.5rem 0;
+    }
+    .parameter-result-main:hover,
+    .parameter-result-main:focus-visible,
+    .parameter-result-reset:hover,
+    .parameter-result-reset:focus-visible {
+      background: transparent;
+      color: var(--red);
+      transform: none;
+      box-shadow: none;
+    }
+    .parameter-result-name,
+    .parameter-result-value {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .parameter-result-name { color: var(--ink); font-size: 0.58rem; }
+    .parameter-result-value { margin-top: 0.2rem; color: var(--red); font-size: 0.52rem; }
+    .parameter-result-group { color: var(--dim); }
+    .parameter-result-reset {
+      align-self: stretch;
+      padding: 0 0.4rem;
+      color: var(--red);
+      font-size: 0.48rem;
+    }
+    .parameter-empty { padding: 0.8rem 0; color: var(--dim); }
+
+    .panel .row.has-parameter-reset {
+      position: relative;
+      padding-left: 0.4rem;
+      padding-right: 2.8rem;
+      border-left: 2px solid transparent;
+    }
+    .panel .row.is-parameter-modified { border-left-color: var(--red); }
+    .parameter-row-reset {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      display: none;
+      margin: 0;
+      padding: 0.22rem 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      color: var(--red);
+      font-size: 0.43rem;
+      transform: translateY(-50%);
+    }
+    .is-parameter-modified > .parameter-row-reset { display: inline-flex; }
+    .parameter-row-reset:hover,
+    .parameter-row-reset:focus-visible {
+      background: transparent;
+      color: var(--ink);
+      transform: translateY(-50%);
+      box-shadow: none;
+    }
+
     .panel-section { border-bottom: 1px solid var(--ink); }
     .section-toggle {
       width: 100%;
@@ -586,7 +730,7 @@
       cursor: ew-resize;
     }
 
-    select, input[type="color"], input[type="text"], input[type="number"] {
+    select, input[type="color"], input[type="text"], input[type="number"], input[type="search"] {
       font-family: var(--mono);
       font-size: 0.62rem;
       letter-spacing: 0.08em;
@@ -595,10 +739,10 @@
       color: var(--ink);
       padding: 0.25em 0.4em;
     }
-    select, input[type="text"] { flex: 1 1 auto; }
-    input[type="text"], input[type="number"] { box-sizing: border-box; }
+    select, input[type="text"], input[type="search"] { flex: 1 1 auto; }
+    input[type="text"], input[type="number"], input[type="search"] { box-sizing: border-box; }
     input[type="number"] { width: 5.5em; }
-    select:focus, input[type="text"]:focus, input[type="number"]:focus { outline: 2px solid var(--red); outline-offset: -1px; }
+    select:focus, input[type="text"]:focus, input[type="number"]:focus, input[type="search"]:focus { outline: 2px solid var(--red); outline-offset: -1px; }
     input[type="color"] {
       width: 3.4em; height: 1.8em; padding: 1px; cursor: pointer;
     }
@@ -715,6 +859,46 @@
     }
 
     .note { color: var(--dim); line-height: 1.7; letter-spacing: 0.06em; margin: 0.6em 0 0; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .workflow-note {
+      margin: 0 0 0.9rem;
+      padding: 0.55rem 0.65rem;
+      border-left: 3px solid var(--red);
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.5;
+      letter-spacing: 0.04em;
+    }
+    .mode-note { min-height: 2.9em; }
+    .mode-note[data-state="ready"] { color: var(--red); }
+    .mode-link {
+      display: block;
+      margin: 0.35rem 0 0;
+      padding: 0.35em 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      color: var(--red);
+      text-align: left;
+    }
+    .mode-link:hover {
+      background: transparent;
+      color: var(--ink);
+      text-decoration: underline;
+      transform: none;
+      box-shadow: none;
+    }
 
     .operator-panel[hidden] { display: none; }
     .operator-panel {
@@ -877,6 +1061,33 @@
       pointer-events: none;
     }
     .stage-frame.composition-active #compositionCanvas { display: block; }
+    #blobTrackOverlay {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #blobTrackOverlay[hidden] { display: none; }
+    .blob-track-preview {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      margin: 0.55rem 0;
+      border: 1px solid var(--line);
+      background: #0d0d0d;
+      image-rendering: pixelated;
+    }
+    .blob-track-status {
+      min-height: 1.2em;
+      margin: 0.35rem 0;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 0.56rem;
+      letter-spacing: 0.06em;
+    }
+    .blob-track-status[data-state="live"] { color: var(--red); }
     .stage-frame.composition-active .stage > p,
     .stage-frame.composition-active .stage > #gridLines { visibility: hidden; }
     .stage-frame.composition-active .stage {
@@ -1146,14 +1357,21 @@
       position: relative; /* enables z-index for target/selected emphasis */
       --ix: 1; --iy: 1;
       --op-baseline-x: 0em; --op-baseline-y: 0em;
+      --op-blob-x: 0px; --op-blob-y: 0px; --op-blob-scale: 1;
+      --op-mosh-x: 0px; --op-mosh-y: 0px;
+      --op-mosh-scale-x: 1; --op-mosh-scale-y: 1;
       --op-rotate: 0deg; --op-skew-x: 0deg; --op-skew-y: 0deg;
       --op-mirror-x: 1; --op-mirror-y: 1;
       transform:
         translateX(var(--tx, 0)) translateY(var(--ty, 0))
         translateX(var(--op-baseline-x)) translateY(var(--op-baseline-y))
+        translateX(var(--op-blob-x)) translateY(var(--op-blob-y))
+        translateX(var(--op-mosh-x)) translateY(var(--op-mosh-y))
         rotate(var(--rot, 0deg)) rotate(var(--op-rotate))
         skew(var(--op-skew-x), var(--op-skew-y))
         scale(var(--op-mirror-x), var(--op-mirror-y))
+        scale(var(--op-blob-scale))
+        scale(var(--op-mosh-scale-x), var(--op-mosh-scale-y))
         scale(var(--sx, 1), var(--sy, 1)) scale(var(--ix, 1), var(--iy, 1));
       transform-origin: 50% 75%;
       transition: transform .1s cubic-bezier(.25, .82, .25, 1);
@@ -1163,6 +1381,18 @@
       filter: blur(4px);
       animation: reveal 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards;
       animation-delay: min(calc(var(--i) * 0.003s + 0.05s), 1.5s);
+      text-shadow: var(--op-mosh-shadow, none);
+    }
+    .stage .c[data-data-mosh="1"] {
+      /* Keep vertical signal loss while allowing the displaced color channels
+         to bleed far beyond the original glyph box. */
+      clip-path: inset(var(--op-mosh-clip-top, 0%) -800px var(--op-mosh-clip-bottom, 0%) -800px);
+      filter:
+        saturate(var(--op-mosh-saturate, 1))
+        contrast(var(--op-mosh-contrast, 1))
+        hue-rotate(var(--op-mosh-hue, 0deg)) !important;
+      transition: none;
+      will-change: transform, filter, clip-path;
     }
 
     /* Misregistration is evaluated after the box transform. The per-letter
@@ -1178,6 +1408,7 @@
       color: var(--mr-color-a);
       opacity: var(--mr-opacity, 0);
       mix-blend-mode: multiply;
+      text-shadow: none;
       transform: translate(var(--mr-a-x, 0px), var(--mr-a-y, 0px));
       transform-origin: 50% 75%;
     }
@@ -1290,12 +1521,25 @@
     }
 
     @media (max-width: 760px) {
-      body { display: block; height: 100svh; }
+      body {
+        display: block;
+        height: 100dvh;
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+      body.mobile-controls-open::before {
+        content: "";
+        position: fixed;
+        inset: calc(49px + env(safe-area-inset-top)) 0 calc(64px + env(safe-area-inset-bottom));
+        z-index: 835;
+        background: rgba(0, 0, 0, 0.16);
+        pointer-events: none;
+      }
       .topbar { display: none; }
-      .app { display: block; height: 100svh; }
+      .app { display: block; height: 100dvh; }
       .stage-wrap {
         position: fixed;
-        inset: calc(49px + env(safe-area-inset-top)) 0 calc(102px + env(safe-area-inset-bottom)) 0;
+        inset: calc(49px + env(safe-area-inset-top)) 0 calc(64px + env(safe-area-inset-bottom)) 0;
         border: 0;
       }
       .stage-frame { resize: none; min-width: 0; min-height: 0; }
@@ -1361,33 +1605,41 @@
         position: fixed;
         inset: auto 0 0;
         z-index: 860;
-        height: calc(102px + env(safe-area-inset-bottom));
+        height: calc(64px + env(safe-area-inset-bottom));
         box-sizing: border-box;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        grid-template-rows: repeat(2, 51px);
+        grid-template-columns: repeat(7, minmax(44px, 1fr));
+        grid-template-rows: 64px;
         padding-bottom: env(safe-area-inset-bottom);
         border-top: 1px solid var(--ink);
         background: var(--paper);
+        transition: transform 0.2s ease;
       }
       .mobile-dock button {
         margin: 0 -1px -1px 0;
         border-color: var(--line);
         box-shadow: none;
         background: transparent;
-        font-size: 0.62rem;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0.35rem 0.1rem;
+        overflow: hidden;
+        font-size: clamp(0.48rem, 2.25vw, 0.6rem);
+        letter-spacing: 0.04em;
+        text-overflow: ellipsis;
       }
       .mobile-dock button[aria-pressed="true"] { color: var(--red); background: transparent; border-top-color: var(--red); }
-      .mobile-dock #btnMobileType { grid-column: span 2; }
+      body.mobile-keyboard-open .mobile-dock { transform: translateY(110%); }
+      body.mobile-keyboard-open .stage-wrap { bottom: 0; }
 
       .panel {
         position: fixed;
         left: 0;
         right: 0;
-        bottom: calc(102px + env(safe-area-inset-bottom));
+        bottom: calc(64px + env(safe-area-inset-bottom));
         z-index: 840;
         width: auto;
-        height: min(58svh, 520px);
+        height: min(78dvh, 680px, calc(100dvh - 49px - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
         box-sizing: border-box;
         overflow-y: auto;
         border: 1px solid var(--ink);
@@ -1397,19 +1649,49 @@
         padding: 52px calc(1rem + env(safe-area-inset-right)) 1.5rem calc(1rem + env(safe-area-inset-left));
         transform: translateY(calc(100% + 2px));
         transition: transform 0.22s cubic-bezier(.2,.8,.2,1), height 0.2s ease;
+        overscroll-behavior: contain;
+        scroll-padding-top: 62px;
       }
-      .panel.mobile-open { transform: translateY(0); }
+      .panel.mobile-open {
+        z-index: 870;
+        transform: translateY(var(--mobile-sheet-drag, 0px));
+      }
+      .panel.mobile-dragging { transition: none; }
       .panel.mobile-text-focus {
-        height: calc(100svh - 49px - 102px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        bottom: 0;
+        height: calc(100dvh - 49px - env(safe-area-inset-top));
       }
       .panel-context { display: none; }
+      .parameter-tools {
+        position: relative;
+        top: auto;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.45rem;
+        margin: -1rem calc(-1rem - env(safe-area-inset-right)) 0.9rem calc(-1rem - env(safe-area-inset-left));
+        padding: 0.65rem calc(1rem + env(safe-area-inset-right)) 0.55rem calc(1rem + env(safe-area-inset-left));
+      }
+      .parameter-search-row { display: block; }
+      .parameter-search-row kbd { display: none; }
+      .parameter-search-row input { min-height: 44px; font-size: 16px; }
+      .parameter-tools-meta { min-height: 0; }
+      .parameter-tools-meta #parameterSearchStatus { display: none; }
+      .parameter-tools-meta button {
+        min-height: 44px;
+        padding: 0 0.5rem;
+        border: 1px solid var(--line);
+      }
+      .parameter-tools-meta button[aria-pressed="true"] { border-color: var(--red); }
+      .parameter-results { grid-column: 1 / -1; max-height: 42dvh; }
+      .parameter-result-main { min-height: 48px; }
+      .parameter-result-reset { min-width: 54px; text-align: center; }
       .mobile-sheet-nav {
-        position: fixed;
+        position: sticky;
         top: 0;
-        left: 0;
-        right: 0;
-        z-index: 30;
+        z-index: 3;
         height: 51px;
+        margin: -52px calc(-1rem - env(safe-area-inset-right)) 1rem calc(-1rem - env(safe-area-inset-left));
         display: grid;
         grid-template-columns: repeat(4, 1fr) auto;
         border-bottom: 1px solid var(--ink);
@@ -1420,19 +1702,26 @@
         position: absolute;
         top: 6px;
         left: 50%;
-        width: 34px;
-        height: 3px;
+        width: 42px;
+        height: 4px;
         background: var(--ink);
         transform: translateX(-50%);
       }
       .mobile-sheet-nav button {
         height: 51px;
-        padding-top: 0.75rem;
+        padding: 0.55rem 0.25rem 0.25rem;
         border: 0;
         border-right: 1px solid var(--line);
         box-shadow: none;
         background: transparent;
-        font-size: 0.55rem;
+        font-size: clamp(0.5rem, 2.4vw, 0.6rem);
+      }
+      .mobile-nav-index {
+        display: block;
+        margin-bottom: 0.1rem;
+        color: var(--dim);
+        font-size: 0.42rem;
+        letter-spacing: 0.08em;
       }
       .mobile-sheet-nav button[aria-pressed="true"] { color: var(--red); background: transparent; }
       .section-toggle { display: none; }
@@ -1489,13 +1778,20 @@
       .composition-reset-actions #btnCompositionRemove { grid-column: 1 / -1; }
       .effect-status-select,
       .effect-status-reset { min-height: 44px; }
+      .panel button { min-height: 44px; }
       .panel .row { min-height: 42px; flex-wrap: wrap; }
-      .panel .row:has(input[type="range"]) > label:first-child { flex: 0 0 100%; }
+      .panel .row.has-parameter-reset { padding-right: 3.2rem; }
+      .panel .row:has(input[type="range"]) {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) 44px minmax(3rem, auto);
+        gap: 0.35rem;
+        min-height: 96px;
+      }
+      .panel .row:has(input[type="range"]) > label:first-child { grid-column: 1 / -1; }
       .panel .mobile-step {
         display: inline-flex;
-        flex: 0 0 36px;
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
         align-items: center;
         justify-content: center;
         padding: 0;
@@ -1503,20 +1799,34 @@
         box-shadow: none;
         font-size: 0.9rem;
       }
-      .panel input[type="range"] { min-width: 52px; }
+      .panel input[type="range"] {
+        min-width: 52px;
+        width: 100%;
+        height: 44px;
+        background: linear-gradient(transparent 21px, var(--ink) 21px, var(--ink) 23px, transparent 23px);
+        touch-action: pan-y;
+      }
+      .panel input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+      .panel input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; }
+      .panel select,
+      .panel input[type="text"],
+      .panel input[type="search"],
+      .panel input[type="number"] { min-height: 44px; max-width: 100%; font-size: 16px; }
+      .panel input[type="color"] { width: 48px; height: 44px; }
+      .panel input[type="checkbox"] { width: 26px; height: 26px; }
       .panel textarea { min-height: 9em; }
-      .panel.mobile-text-focus textarea { min-height: 45svh; }
+      .panel.mobile-text-focus textarea { min-height: 42dvh; }
       #modeHelp { display: none; }
       details.help-details { margin: 1em 0; }
 
       #editHud {
-        bottom: calc(112px + env(safe-area-inset-bottom));
+        bottom: calc(74px + env(safe-area-inset-bottom));
         max-width: calc(100vw - 28px);
         box-sizing: border-box;
       }
       #videoCaptureHost {
         right: 10px;
-        bottom: calc(112px + env(safe-area-inset-bottom));
+        bottom: calc(74px + env(safe-area-inset-bottom));
         width: min(42vw, 220px);
       }
     }
@@ -1530,8 +1840,172 @@
       input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; }
       input[type="checkbox"] { width: 1.4em; height: 1.4em; }
       /* 16px stops iOS Safari from zooming the viewport on focus */
-      textarea, select, input[type="text"], input[type="number"] { font-size: 16px; }
+      textarea, select, input[type="text"], input[type="search"], input[type="number"] { font-size: 16px; }
       .stage { -webkit-tap-highlight-color: transparent; }
+    }
+
+    /* Five-stage workflow shell */
+    .app { grid-template-columns: minmax(390px, 430px) 1fr; }
+    .panel {
+      display: grid;
+      grid-template-columns: 108px minmax(0, 1fr);
+      padding: 0;
+      overflow: hidden;
+    }
+    .panel-content {
+      min-width: 0;
+      overflow-y: auto;
+      padding: 1rem 1rem 4rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .desktop-workflow-nav {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      border-right: 1px solid var(--ink);
+      background: var(--paper);
+    }
+    .workflow-nav-label {
+      margin: 0;
+      padding: 0.85rem 0.75rem;
+      border-bottom: 1px solid var(--ink);
+      font-size: 0.48rem;
+      line-height: 1.3;
+    }
+    .workflow-nav-label span { display: block; color: var(--dim); font-family: var(--jp); letter-spacing: 0.15em; }
+    .desktop-workflow-nav button {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.8rem minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      align-items: baseline;
+      min-height: 76px;
+      margin: 0 -1px -1px 0;
+      padding: 0.75rem 0.55rem;
+      border-color: var(--line);
+      border-left: 3px solid transparent;
+      box-shadow: none;
+      background: transparent;
+      text-align: left;
+    }
+    .desktop-workflow-nav button span { grid-row: 1 / 3; color: var(--dim); font-size: 1rem; letter-spacing: -0.08em; }
+    .desktop-workflow-nav button b { font-size: 0.56rem; letter-spacing: 0.08em; }
+    .desktop-workflow-nav button small { color: var(--dim); font-family: var(--jp); font-size: 0.58rem; letter-spacing: 0.08em; }
+    .desktop-workflow-nav button[aria-current="step"] {
+      z-index: 1;
+      border-left-color: var(--red);
+      background: var(--card);
+      color: var(--red);
+    }
+    .desktop-workflow-nav button[aria-current="step"] span,
+    .desktop-workflow-nav button[aria-current="step"] small { color: var(--red); }
+    .desktop-workflow-nav button:hover { transform: none; box-shadow: none; background: var(--card); }
+    .panel-context { top: -1rem; }
+    .parameter-tools { position: static; margin: 0; padding: 0.75rem 0 0; border: 0; }
+    .section-toggle { display: none; }
+    .panel-section { border: 0; }
+    .panel-section .section-body { padding: 0; }
+    .stage-lede {
+      margin: -1rem -1rem 1rem;
+      padding: 1rem;
+      border-bottom: 1px solid var(--ink);
+      background: var(--paper);
+    }
+    .stage-lede strong { display: block; font-size: 0.78rem; letter-spacing: 0.08em; }
+    .stage-lede strong span { margin-left: 0.6rem; color: var(--red); font-family: var(--jp); font-weight: 400; }
+    .stage-lede p { margin: 0.35rem 0 0; color: var(--dim); font-family: var(--jp); font-size: 0.72rem; letter-spacing: 0.02em; line-height: 1.55; }
+    .stage-actions { display: grid; gap: 0.55rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+    .stage-next {
+      display: flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: space-between;
+      border-color: var(--red);
+      background: var(--red);
+      color: #fff;
+    }
+    .stage-next:hover { background: var(--ink); color: #fff; transform: none; box-shadow: none; }
+    .advanced-parameters,
+    .operator-advanced { margin-top: 1rem; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+    .advanced-parameters > summary,
+    .operator-advanced > summary {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 0.56rem;
+      letter-spacing: 0.06em;
+      list-style: none;
+    }
+    .advanced-parameters > summary span { color: var(--dim); font-family: var(--jp); }
+    .operator-advanced { border-color: var(--line); }
+    .operator-advanced > summary { color: var(--dim); }
+    .topbar { flex-wrap: nowrap; align-items: center; }
+    .topbar .hint { display: none; }
+    .topbar-actions { display: flex; align-items: stretch; margin-left: auto; }
+    .topbar-actions > button,
+    .project-menu > summary {
+      min-height: 32px;
+      margin: 0 0 0 -1px;
+      padding: 0 0.75rem;
+      border: 1px solid var(--line);
+      background: transparent;
+      box-shadow: none;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 0.55rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .topbar-actions > button:hover,
+    .project-menu > summary:hover { background: var(--ink); color: var(--paper); transform: none; box-shadow: none; }
+    .topbar-actions .header-export { border-color: var(--red); background: var(--red); color: #fff; }
+    .project-menu { position: relative; }
+    .project-menu > summary { display: flex; align-items: center; cursor: pointer; list-style: none; }
+    .project-menu-name { margin-left: 0.45rem; color: var(--red); }
+    .project-menu-body {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 920;
+      display: grid;
+      width: 220px;
+      padding: 0.7rem;
+      border: 1px solid var(--ink);
+      background: var(--card);
+      box-shadow: 5px 5px 0 rgba(23,20,15,0.18);
+    }
+    .project-menu-title { margin: 0 0 0.6rem; color: var(--red); font-size: 0.56rem; }
+    .project-menu-title span { float: right; color: var(--dim); font-family: var(--jp); }
+    .project-menu-body button { min-height: 40px; margin-top: -1px; box-shadow: none; text-align: left; }
+    .project-menu-body .project-danger { margin-top: 0.75rem; color: var(--red); }
+    .legacy-mobile-tools { display: none; }
+
+    @media (max-width: 760px) {
+      .app { display: block; }
+      .desktop-workflow-nav { display: none; }
+      .panel { display: block; padding: 52px calc(1rem + env(safe-area-inset-right)) 1.5rem calc(1rem + env(safe-area-inset-left)); overflow-y: auto; }
+      .panel-content { display: contents; }
+      .mobile-topbar { grid-template-columns: auto auto minmax(0, 1fr) auto auto; }
+      .mobile-topbar button { min-width: 44px; padding: 0 0.55rem; font-size: 0.52rem; }
+      .mobile-dock { grid-template-columns: repeat(5, minmax(44px, 1fr)); }
+      .mobile-dock button { display: grid; place-content: center; gap: 0.1rem; min-height: 64px; }
+      .mobile-dock button > span { color: var(--dim); font-size: 0.45rem; }
+      .mobile-dock button[aria-pressed="true"] > span { color: var(--red); }
+      .mobile-sheet-nav { grid-template-columns: 48px minmax(0, 1fr) 64px; }
+      .mobile-sheet-title { align-self: end; overflow: hidden; padding: 0 0.5rem 0.55rem; font-size: 0.58rem; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+      .stage-lede { margin-top: -1rem; }
+      .stage-actions { position: sticky; bottom: -1.5rem; z-index: 4; margin: 1.2rem -1rem -1.5rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: var(--card); }
+      .stage-next { min-height: 52px; }
+      .project-menu { position: fixed; top: calc(49px + env(safe-area-inset-top)); right: 8px; z-index: 930; }
+      .project-menu > summary { display: none; }
+      .project-menu:not([open]) .project-menu-body { display: none; }
+      .project-menu-body { position: static; width: min(260px, calc(100vw - 16px)); }
+      .project-menu-body button { min-height: 48px; }
+      .advanced-parameters > summary,
+      .operator-advanced > summary { min-height: 48px; }
     }
   </style>
 </head>
@@ -1540,33 +2014,71 @@
   <header class="topbar">
     <span class="brand">TYPE DEFORMER<span class="jp">文字変形機</span></span>
     <span class="top-context" id="topContextStatus">Stretch × Lens × All</span>
+    <div class="topbar-actions" aria-label="Project and editing actions">
+      <button type="button" id="btnHeaderUndo">Undo</button>
+      <button type="button" id="btnHeaderRedo">Redo</button>
+      <button type="button" id="btnHeaderPreview">Preview</button>
+      <button type="button" class="header-export" id="btnHeaderExport">Export</button>
+      <details class="project-menu" id="projectMenu">
+        <summary>Project <span class="project-menu-name" id="projectMenuName">local</span></summary>
+        <div class="project-menu-body">
+          <p class="project-menu-title">PROJECT <span>保存・共有</span></p>
+          <button type="button" data-project-proxy="btnSaveProj">Save project</button>
+          <button type="button" data-project-proxy="btnLoadProj">Load project</button>
+          <button type="button" data-project-proxy="btnShare" class="primary">Share URL</button>
+          <button type="button" data-project-proxy="btnNew" class="project-danger">New project</button>
+        </div>
+      </details>
+    </div>
     <span class="hint"><b>V</b> view — <b>L</b> freeze — <b>E</b> edit — <b>G</b> arrange — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
   </header>
 
   <header class="mobile-topbar" aria-label="Mobile toolbar">
     <button type="button" id="btnMobileUndo">Undo</button>
+    <button type="button" id="btnMobileProject">Project</button>
     <span class="mobile-context" id="mobileContextStatus">Stretch × Lens × All</span>
     <button type="button" id="btnMobilePreview">Preview</button>
-    <button type="button" id="btnMobileMenu" aria-label="Open controls">Menu</button>
+    <button type="button" id="btnMobileMenu" aria-label="Open controls" aria-expanded="false">Menu</button>
   </header>
 
   <div class="app">
     <aside class="panel" data-mode="flow" aria-label="Controls">
+      <nav class="desktop-workflow-nav" aria-label="制作ステップ">
+        <p class="workflow-nav-label">WORKFLOW<span>制作手順</span></p>
+        <button type="button" data-workflow-stage="text" aria-current="step"><span>01</span><b>TEXT</b><small>文字</small></button>
+        <button type="button" data-workflow-stage="effect"><span>02</span><b>EFFECT</b><small>効果</small></button>
+        <button type="button" data-workflow-stage="apply"><span>03</span><b>APPLY</b><small>適用</small></button>
+        <button type="button" data-workflow-stage="compose"><span>04</span><b>COMPOSE</b><small>構成</small></button>
+        <button type="button" data-workflow-stage="export"><span>05</span><b>EXPORT</b><small>書き出し</small></button>
+      </nav>
+      <div class="panel-content">
       <nav class="mobile-sheet-nav" aria-label="Control sections">
-        <button type="button" data-mobile-section="create" aria-pressed="true">Create</button>
-        <button type="button" data-mobile-section="compose" aria-pressed="false">Compose</button>
-        <button type="button" data-mobile-section="output" aria-pressed="false">Output</button>
-        <button type="button" data-mobile-section="file" aria-pressed="false">File</button>
-        <button type="button" id="btnMobileSheetClose" aria-label="Close controls">Close</button>
+        <button type="button" id="btnMobileSheetBack" aria-label="Back to canvas">←</button>
+        <strong class="mobile-sheet-title" id="mobileSheetTitle">01 TEXT / 文字</strong>
+        <button type="button" id="btnMobileSheetClose" aria-label="Close controls">Done</button>
       </nav>
       <div class="panel-context" id="panelContextStatus">Stretch × Lens × All</div>
+      <section class="parameter-tools" aria-label="Parameter tools">
+        <div class="parameter-search-row">
+          <label class="sr-only" for="parameterSearch">Find a parameter</label>
+          <input type="search" id="parameterSearch" placeholder="Find a parameter…" autocomplete="off">
+          <kbd>⌘K</kbd>
+        </div>
+        <div class="parameter-tools-meta">
+          <span id="parameterSearchStatus" aria-live="polite">Search all controls</span>
+          <button type="button" id="btnParameterChanged" aria-pressed="false">Changed <span class="parameter-changed-count" id="parameterChangedCount">0</span></button>
+        </div>
+        <div class="parameter-results" id="parameterSearchResults" hidden></div>
+      </section>
 
-      <section class="panel-section is-open mobile-active" data-panel-section="create">
+      <section class="panel-section is-open mobile-active" data-panel-section="text">
         <button type="button" class="section-toggle" aria-expanded="true" aria-controls="sectionCreate">
-          <span>Create</span><span class="section-jp">制作</span><span class="section-mark">−</span>
+          <span>01 TEXT</span><span class="section-jp">文字</span><span class="section-mark">−</span>
         </button>
-        <div class="section-body" id="sectionCreate">
+        <div class="section-body" id="sectionText">
+      <div class="stage-lede"><strong>01 TEXT <span>文字</span></strong><p>まず文字と書体を決めます。効果はあとからいつでも変更できます。</p></div>
       <div class="sub-head"><span>Text</span><span class="r">入力</span></div>
+      <label class="sr-only" for="textInput">Text input</label>
       <textarea id="textInput" spellcheck="false">テクスト。デザイン。グラフィック。
 type deformer</textarea>
 
@@ -1615,10 +2127,13 @@ type deformer</textarea>
           <button id="btnVertical" aria-pressed="false">縦書き</button>
         </div>
         <div class="row"><label for="pInk">Ink</label><input type="color" id="pInk" value="#17140f"><label for="pPaper" style="margin-left:auto">Paper</label><input type="color" id="pPaper" value="#f4f3ef"></div>
-        <div class="row"><label for="pAccent">Accent</label><input type="color" id="pAccent" value="#c41f1f"><input type="range" id="pAccentRatio" min="0" max="1" step="0.02" value="0"><span class="val" id="vAccentRatio">0.00</span></div>
+        <div class="row"><label for="pAccent">Accent</label><input type="color" id="pAccent" value="#c41f1f"><label class="sr-only" for="pAccentRatio">Accent ratio</label><input type="range" id="pAccentRatio" min="0" max="1" step="0.02" value="0"><span class="val" id="vAccentRatio">0.00</span></div>
         <p class="note">Importした書体はこのタブ内で有効になり、PNG・映像・Canvas描画へ反映されます。Projectを別端末で開く場合は同じフォルダを再Importしてください。</p>
       </div>
 
+      <div class="stage-actions"><button type="button" class="stage-next" data-next-stage="effect">Next: Effect / 効果 <span>→</span></button></div>
+
+      <div id="effectControlBlock">
       <div class="sub-head"><span>Operator</span><span class="r">変形</span></div>
       <div class="row"><label for="pOperator">Operator</label>
         <select id="pOperator">
@@ -1629,9 +2144,12 @@ type deformer</textarea>
           <option value="baselineShift">Baseline Shift</option>
           <option value="mirror">Mirror</option>
           <option value="misregistration">Misregistration</option>
+          <option value="dataMosh">Data Mosh</option>
+          <option value="blobTrack">Blob Track</option>
         </select>
       </div>
-      <div id="applicationSlot"></div>
+      </div>
+      <div id="targetControlBlock">
       <div class="sub-head"><span>Target</span><span class="r">対象</span></div>
       <div class="row"><label for="pBatchProfile">Parameters</label>
         <select id="pBatchProfile">
@@ -1647,6 +2165,8 @@ type deformer</textarea>
       </div>
       <p class="note" id="batchProfileStatus">All：全文字の基準値</p>
       <div id="targetBatchSlot"></div>
+      </div>
+      <div id="operatorPanelsBlock">
       <div class="operator-panel" data-operator-panel="stretch">
         <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
         <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
@@ -1673,6 +2193,30 @@ type deformer</textarea>
         <div class="row"><label for="pMisregY">Offset Y</label><input type="range" id="pMisregY" min="-40" max="40" step="1" value="-5"><span class="val" id="vMisregY">-5px</span></div>
         <div class="row"><label for="pMisregColorA">Pass A</label><input type="color" id="pMisregColorA" value="#c41f1f"><label for="pMisregColorB" style="margin-left:auto">Pass B</label><input type="color" id="pMisregColorB" value="#1767a6"></div>
       </div>
+      <div class="operator-panel" data-operator-panel="dataMosh" hidden>
+        <div class="row"><label for="pMoshShift">Block rupture</label><input type="range" id="pMoshShift" min="0" max="320" step="2" value="150"><span class="val" id="vMoshShift">150px</span></div>
+        <div class="row"><label for="pMoshBlock">Block size</label><input type="range" id="pMoshBlock" min="1" max="8" step="1" value="2"><span class="val" id="vMoshBlock">2</span></div>
+        <div class="row"><label for="pMoshChroma">Channel bleed</label><input type="range" id="pMoshChroma" min="0" max="90" step="1" value="34"><span class="val" id="vMoshChroma">34px</span></div>
+        <div class="row"><label for="pMoshCrush">Compression</label><input type="range" id="pMoshCrush" min="0" max="1" step="0.02" value="0.86"><span class="val" id="vMoshCrush">0.86</span></div>
+        <div class="row"><label for="pMoshSmear">Motion smear</label><input type="range" id="pMoshSmear" min="0" max="6" step="0.1" value="3.2"><span class="val" id="vMoshSmear">3.2×</span></div>
+        <div class="row"><label for="pMoshTear">Signal loss</label><input type="range" id="pMoshTear" min="0" max="1" step="0.02" value="0.76"><span class="val" id="vMoshTear">0.76</span></div>
+        <div class="row"><label for="pMoshHold">Frame hold</label><input type="range" id="pMoshHold" min="1" max="12" step="1" value="3"><span class="val" id="vMoshHold">3f</span></div>
+        <p class="note">水平スライスを大きく転送し、数フレーム保持してから破断位置をジャンプ。色チャンネル流出、横方向の残像、信号欠落を重ねます。</p>
+      </div>
+      <div class="operator-panel" data-operator-panel="blobTrack" hidden>
+        <div class="row"><label for="pBlobPull">Follow</label><input type="range" id="pBlobPull" min="0" max="1" step="0.02" value="0.72"><span class="val" id="vBlobPull">0.72</span></div>
+        <div class="row"><label for="pBlobScale">Inflate</label><input type="range" id="pBlobScale" min="0" max="2" step="0.05" value="0.8"><span class="val" id="vBlobScale">0.80</span></div>
+        <div class="row"><label for="pBlobThreshold">Threshold</label><input type="range" id="pBlobThreshold" min="0.02" max="0.8" step="0.01" value="0.18"><span class="val" id="vBlobThreshold">0.18</span></div>
+        <div class="row"><label for="pBlobMinArea">Min area</label><input type="range" id="pBlobMinArea" min="0.001" max="0.2" step="0.001" value="0.012"><span class="val" id="vBlobMinArea">1.2%</span></div>
+        <div class="row"><label for="pBlobMaxArea">Max area</label><input type="range" id="pBlobMaxArea" min="0.05" max="1" step="0.01" value="0.65"><span class="val" id="vBlobMaxArea">65%</span></div>
+        <div class="row"><label for="pBlobMaxBlobs">Max blobs</label><input type="range" id="pBlobMaxBlobs" min="1" max="8" step="1" value="4"><span class="val" id="vBlobMaxBlobs">4</span></div>
+        <div class="row"><label for="pBlobSmoothing">Smoothing</label><input type="range" id="pBlobSmoothing" min="0" max="0.95" step="0.01" value="0.68"><span class="val" id="vBlobSmoothing">0.68</span></div>
+        <div class="row"><label for="pBlobDrawBounds">Draw bounds</label><input type="checkbox" id="pBlobDrawBounds" checked></div>
+        <canvas class="blob-track-preview" id="blobTrackPreview" width="160" height="120" aria-label="Blob tracking threshold preview"></canvas>
+        <p class="blob-track-status" id="blobTrackStatus" role="status" aria-live="polite">CAMERA OFF · Start Cameraで映像入力を開始</p>
+        <div class="btns"><button type="button" id="btnBlobCamera">Start Camera</button><button type="button" id="btnBlobBackground" disabled>Learn Background</button></div>
+        <p class="note">TouchDesignerのBlob Track TOPに近い流れです。Camera → monochrome / background subtraction → threshold → blob ID・座標・サイズを文字へ割り当てます。</p>
+      </div>
       <div class="operator-panel" data-operator-panel="confuse" hidden>
         <div class="row"><label for="pConfuseDepth">Depth</label><input type="range" id="pConfuseDepth" min="0" max="1" step="0.01" value="1"><span class="val" id="vConfuseDepth">1.00</span></div>
         <div class="row"><label for="pConfuseDictionary">Dictionary</label><select id="pConfuseDictionary"><option value="core">Core</option><option value="unicode" selected>Unicode Visual</option><option value="deep">Deep Han</option><option value="hanmax">Han Max</option></select></div>
@@ -1693,11 +2237,13 @@ type deformer</textarea>
         </details>
         <p class="note">Depthは形態距離を操作します。T1＝字形変種、T2＝近似字、T3＝遠縁／意味異体。Han MaxはUnicode漢字圏全体を部首＋残画数で探索し、日本語候補を優先しながら同部首の近接画数・総画数まで広げます。孤立した珍字には近傍総画数をフォールバックします。Glyph guardは現在のフォントで□×になる候補と見た目が変わらないIVSを除外します。TEXT欄の原文は常に保持。</p>
       </div>
-      <div class="context-lens">
+      </div>
+      <div class="context-lens" id="contextLensBlock">
         <div class="sub-head"><span>Lens Gesture</span><span class="r">なぞる</span></div>
         <div class="row"><label for="pRadius">Radius</label><input type="range" id="pRadius" min="15" max="180" step="1" value="45"><span class="val" id="vRadius">45</span></div>
         <div class="row"><label for="pReturn">Ease</label><input type="range" id="pReturn" min="0.02" max="0.3" step="0.01" value="0.08"><span class="val" id="vReturn">0.08</span></div>
       </div>
+      <div id="effectExtrasBlock">
       <div class="btns">
         <button id="btnShuffle">Shuffle 乱数</button>
       </div>
@@ -1708,13 +2254,16 @@ type deformer</textarea>
         <button id="btnSavePreset">Save preset</button>
         <button id="btnDelPreset">Del</button>
       </div>
+      </div>
 
       <div id="applicationControlBlock">
       <div class="sub-head"><span>Application</span><span class="r">操作</span></div>
+      <p class="note mode-note" id="arrangeHint" aria-live="polite">Turn on Grid layout to use Arrange.</p>
+      <button type="button" class="mode-link" id="btnOpenGridSettings" hidden>Open Grid settings</button>
       <div class="application-buttons">
-        <button id="btnModeFlow" aria-pressed="true">Lens</button>
-        <button id="btnModeEdit" aria-pressed="false">Edit</button>
-        <button id="btnModeGrid" aria-pressed="false">Arrange</button>
+        <button id="btnModeFlow" aria-pressed="true" title="Lens: apply the active operator as you move over the text">Lens</button>
+        <button id="btnModeEdit" aria-pressed="false" title="Edit: adjust one glyph directly">Edit</button>
+        <button id="btnModeGrid" aria-pressed="false" title="Arrange: move glyphs between grid cells">Arrange</button>
       </div>
       <div class="btns">
         <button id="btnModeLock" aria-pressed="false">Freeze pick</button>
@@ -1733,7 +2282,8 @@ type deformer</textarea>
 
       <div id="gridControlBlock">
       <div class="sub-head"><span>Grid</span><span class="r">格子</span></div>
-      <div class="row"><label for="pGridEnabled">Enable grid</label><input type="checkbox" id="pGridEnabled"></div>
+      <div class="row"><label for="pGridEnabled">Grid layout</label><input type="checkbox" id="pGridEnabled"></div>
+      <p class="note">Turn on Grid layout before choosing Arrange.</p>
       <div class="grid-options">
       <div class="row"><label for="pGridCols">Columns</label><input type="range" id="pGridCols" min="1" max="60" step="1" value="12"><span class="val" id="vGridCols">12</span></div>
       <div class="row"><label for="pGridAutoRows">Auto rows</label><input type="checkbox" id="pGridAutoRows" checked></div>
@@ -1765,11 +2315,38 @@ type deformer</textarea>
         </div>
       </section>
 
+      <section class="panel-section" data-panel-section="effect">
+        <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionEffect">
+          <span>02 EFFECT</span><span class="section-jp">効果</span><span class="section-mark">＋</span>
+        </button>
+        <div class="section-body" id="sectionEffect">
+      <div class="stage-lede"><strong>02 EFFECT <span>効果</span></strong><p>効果をひとつ選び、まずは基本の3項目で見た目を整えます。</p></div>
+      <div id="effectStageSlot"></div>
+      <details class="advanced-parameters" id="advancedParameterDrawer">
+        <summary>Advanced / All Parameters <span>全パラメータを検索</span></summary>
+        <div id="parameterToolsSlot"></div>
+      </details>
+      <div class="stage-actions"><button type="button" class="stage-next" data-next-stage="apply">Next: Apply / 適用 <span>→</span></button></div>
+        </div>
+      </section>
+
+      <section class="panel-section" data-panel-section="apply">
+        <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionApply">
+          <span>03 APPLY</span><span class="section-jp">適用</span><span class="section-mark">＋</span>
+        </button>
+        <div class="section-body" id="sectionApply">
+      <div class="stage-lede"><strong>03 APPLY <span>適用</span></strong><p>操作方法、対象の文字、なぞる範囲の順に適用方法を決めます。</p></div>
+      <div id="applyStageSlot"></div>
+      <div class="stage-actions"><button type="button" class="stage-next" data-next-stage="compose">Next: Compose / 構成 <span>→</span></button></div>
+        </div>
+      </section>
+
       <section class="panel-section" data-panel-section="compose">
         <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionCompose">
-          <span>Compose</span><span class="section-jp">組版</span><span class="section-mark">＋</span>
+          <span>04 COMPOSE</span><span class="section-jp">構成</span><span class="section-mark">＋</span>
         </button>
         <div class="section-body" id="sectionCompose">
+      <div class="stage-lede"><strong>04 COMPOSE <span>構成</span></strong><p>文字と効果が決まったら、配置、グリッド、動きを組み立てます。</p></div>
       <div class="composition-block">
         <div class="composition-block-head"><span class="index">01</span><span>Engine</span><span class="jp">生成系</span></div>
         <div class="composition-tabs" role="tablist" aria-label="Composition engine">
@@ -2165,11 +2742,12 @@ type deformer</textarea>
         </div>
       </section>
 
-      <section class="panel-section" data-panel-section="output">
+      <section class="panel-section" data-panel-section="export">
         <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionOutput">
-          <span>Output</span><span class="section-jp">書出</span><span class="section-mark">＋</span>
+          <span>05 EXPORT</span><span class="section-jp">書き出し</span><span class="section-mark">＋</span>
         </button>
         <div class="section-body" id="sectionOutput">
+      <div class="stage-lede"><strong>05 EXPORT <span>書き出し</span></strong><p>画面サイズを選び、静止画・SVG・映像として保存します。</p></div>
       <div class="sub-head"><span>Artboard</span><span class="r">画板</span></div>
       <div class="row"><label for="pArtboard">Size</label>
         <select id="pArtboard">
@@ -2273,7 +2851,7 @@ type deformer</textarea>
         </div>
       </section>
 
-      <section class="panel-section" data-panel-section="file">
+      <section class="panel-section project-section" data-panel-section="project" hidden aria-hidden="true">
         <button type="button" class="section-toggle" aria-expanded="false" aria-controls="sectionFile">
           <span>File</span><span class="section-jp">保存</span><span class="section-mark">＋</span>
         </button>
@@ -2289,12 +2867,14 @@ type deformer</textarea>
       <details class="help-details"><summary>Project help</summary><p class="note">数秒ごとに自動保存され、ひとつ前の正常な保存も復旧用に保持します。Share URLは作品全体をURLへ埋め込みます。</p></details>
         </div>
       </section>
+      </div>
     </aside>
 
     <div class="stage-wrap" id="stageWrap">
       <div class="stage-frame" id="stageFrame">
         <div class="stage-artwork" id="stageArtwork">
           <canvas id="compositionCanvas" aria-hidden="true"></canvas>
+          <canvas id="blobTrackOverlay" hidden aria-hidden="true"></canvas>
           <div class="stage" id="stage" aria-label="変形キャンバス"></div>
         </div>
       </div>
@@ -2312,14 +2892,21 @@ type deformer</textarea>
     </div>
   </div>
 
-  <nav class="mobile-dock" aria-label="Mobile tools">
-    <button type="button" data-mobile-mode="flow" aria-pressed="true">Lens</button>
-    <button type="button" data-mobile-mode="edit" aria-pressed="false">Edit</button>
-    <button type="button" data-mobile-mode="grid" aria-pressed="false">Arrange</button>
-    <button type="button" id="btnMobileView" aria-pressed="false">View</button>
-    <button type="button" id="btnMobileOperator">Operator</button>
-    <button type="button" id="btnMobileTarget">Target</button>
-    <button type="button" id="btnMobileType">Type</button>
+  <nav class="mobile-dock" aria-label="制作ステップ">
+    <button type="button" data-mobile-section="text" aria-pressed="true"><span>01</span>Text</button>
+    <button type="button" data-mobile-section="effect" aria-pressed="false"><span>02</span>Effect</button>
+    <button type="button" data-mobile-section="apply" aria-pressed="false"><span>03</span>Apply</button>
+    <button type="button" data-mobile-section="compose" aria-pressed="false"><span>04</span>Compose</button>
+    <button type="button" data-mobile-section="export" aria-pressed="false"><span>05</span>Export</button>
+    <div class="legacy-mobile-tools" aria-hidden="true">
+      <button type="button" data-mobile-mode="flow" aria-pressed="true">Lens</button>
+      <button type="button" data-mobile-mode="edit" aria-pressed="false">Edit</button>
+      <button type="button" data-mobile-mode="grid" aria-pressed="false">Arrange</button>
+      <button type="button" id="btnMobileView" aria-pressed="false">View</button>
+      <button type="button" id="btnMobileOperator">Operator</button>
+      <button type="button" id="btnMobileTarget">Target</button>
+      <button type="button" id="btnMobileType">Type</button>
+    </div>
   </nav>
 
   <div id="previewOverlay" hidden>
@@ -2335,7 +2922,6 @@ type deformer</textarea>
 
   <div id="editHud" hidden></div>
 
-  <script src="confuse-dictionary.js"></script>
   <script>
     (function () {
       'use strict';
@@ -2346,6 +2932,249 @@ type deformer</textarea>
       var stageArtwork = document.getElementById('stageArtwork');
       var compositionCanvas = document.getElementById('compositionCanvas');
       var compositionCtx = compositionCanvas.getContext('2d');
+      var blobTrackOverlay = document.getElementById('blobTrackOverlay');
+      var blobTrackOverlayCtx = blobTrackOverlay.getContext('2d');
+      var blobTrackPreview = document.getElementById('blobTrackPreview');
+      var blobTrackPreviewCtx = blobTrackPreview.getContext('2d', { willReadFrequently: true });
+      var blobTrackStatus = document.getElementById('blobTrackStatus');
+      var btnBlobCamera = document.getElementById('btnBlobCamera');
+      var btnBlobBackground = document.getElementById('btnBlobBackground');
+      var blobTrackState = {
+        stream: null, video: null, sourceCanvas: null, sourceCtx: null,
+        background: null, blobs: [], nextId: 1, raf: null, lastFrame: 0,
+        width: 160, height: 120
+      };
+
+      function setBlobTrackStatus(text, state) {
+        blobTrackStatus.textContent = text;
+        blobTrackStatus.dataset.state = state || 'idle';
+      }
+
+      function stopBlobCamera() {
+        if (blobTrackState.raf != null) cancelAnimationFrame(blobTrackState.raf);
+        blobTrackState.raf = null;
+        if (blobTrackState.stream) {
+          var tracks = blobTrackState.stream.getTracks();
+          for (var i = 0; i < tracks.length; i++) tracks[i].stop();
+        }
+        blobTrackState.stream = null;
+        blobTrackState.background = null;
+        blobTrackState.blobs = [];
+        if (blobTrackState.video) blobTrackState.video.srcObject = null;
+        btnBlobCamera.textContent = 'Start Camera';
+        btnBlobBackground.disabled = true;
+        blobTrackOverlay.hidden = true;
+        blobTrackOverlayCtx.clearRect(0, 0, blobTrackOverlay.width, blobTrackOverlay.height);
+        setBlobTrackStatus('CAMERA OFF · Start Cameraで映像入力を開始', 'idle');
+        applyBlobTrackingFrame();
+      }
+
+      async function startBlobCamera() {
+        if (blobTrackState.stream) { stopBlobCamera(); return; }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setBlobTrackStatus('CAMERA UNAVAILABLE · HTTPSまたはlocalhostで開いてください', 'error');
+          return;
+        }
+        btnBlobCamera.disabled = true;
+        setBlobTrackStatus('CAMERA REQUEST · カメラ使用を許可してください', 'idle');
+        try {
+          var stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+          });
+          var video = blobTrackState.video || document.createElement('video');
+          video.muted = true;
+          video.playsInline = true;
+          video.autoplay = true;
+          video.srcObject = stream;
+          await video.play();
+          blobTrackState.stream = stream;
+          blobTrackState.video = video;
+          blobTrackState.background = null;
+          blobTrackState.blobs = [];
+          btnBlobCamera.textContent = 'Stop Camera';
+          btnBlobBackground.disabled = false;
+          setBlobTrackStatus('LIVE · SIMPLE DETECTOR · Learn Backgroundで背景差分', 'live');
+          blobTrackState.raf = requestAnimationFrame(processBlobTrackFrame);
+        } catch (err) {
+          setBlobTrackStatus(err && err.name === 'NotAllowedError'
+            ? 'CAMERA BLOCKED · ブラウザ設定からカメラを許可してください'
+            : 'CAMERA ERROR · 映像入力を開始できませんでした', 'error');
+        } finally {
+          btnBlobCamera.disabled = false;
+        }
+      }
+
+      function learnBlobBackground() {
+        if (!blobTrackState.sourceCtx || !blobTrackState.stream) return;
+        var frame = blobTrackState.sourceCtx.getImageData(0, 0, blobTrackState.width, blobTrackState.height).data;
+        var bg = new Uint8Array(blobTrackState.width * blobTrackState.height);
+        for (var i = 0, p = 0; i < frame.length; i += 4, p++) bg[p] = Math.round(frame[i] * 0.2126 + frame[i + 1] * 0.7152 + frame[i + 2] * 0.0722);
+        blobTrackState.background = bg;
+        blobTrackState.blobs = [];
+        setBlobTrackStatus('LIVE · BACKGROUND SUBTRACTION · 0 BLOBS', 'live');
+      }
+
+      function connectedBlobComponents(mask, width, height) {
+        var seen = new Uint8Array(mask.length);
+        var queue = new Int32Array(mask.length);
+        var minPixels = Math.max(1, Math.round(params.blobMinArea * mask.length));
+        var maxPixels = Math.max(minPixels, Math.round(params.blobMaxArea * mask.length));
+        var components = [];
+        for (var start = 0; start < mask.length; start++) {
+          if (!mask[start] || seen[start]) continue;
+          var head = 0, tail = 0;
+          queue[tail++] = start;
+          seen[start] = 1;
+          var area = 0, sumX = 0, sumY = 0;
+          var minX = width, minY = height, maxX = 0, maxY = 0;
+          while (head < tail) {
+            var index = queue[head++];
+            var x = index % width, y = (index / width) | 0;
+            area++; sumX += x; sumY += y;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+            for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+              if (!ox && !oy) continue;
+              var nx = x + ox, ny = y + oy;
+              if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+              var ni = ny * width + nx;
+              if (mask[ni] && !seen[ni]) { seen[ni] = 1; queue[tail++] = ni; }
+            }
+          }
+          if (area >= minPixels && area <= maxPixels) components.push({
+            area: area / mask.length,
+            cx: sumX / area / width, cy: sumY / area / height,
+            x: minX / width, y: minY / height,
+            w: (maxX - minX + 1) / width, h: (maxY - minY + 1) / height
+          });
+        }
+        components.sort(function (a, b) { return b.area - a.area; });
+        return components.slice(0, Math.max(1, Math.round(params.blobMaxBlobs)));
+      }
+
+      function trackBlobIds(detected) {
+        var previous = blobTrackState.blobs.slice();
+        var used = {};
+        var smoothing = params.blobSmoothing;
+        for (var i = 0; i < detected.length; i++) {
+          var blob = detected[i], best = null, bestIndex = -1, bestD = 0.12 * 0.12;
+          for (var j = 0; j < previous.length; j++) {
+            if (used[j]) continue;
+            var dx = blob.cx - previous[j].cx, dy = blob.cy - previous[j].cy;
+            var d = dx * dx + dy * dy;
+            if (d < bestD) { bestD = d; best = previous[j]; bestIndex = j; }
+          }
+          if (best) {
+            used[bestIndex] = true;
+            blob.id = best.id;
+            blob.cx = best.cx * smoothing + blob.cx * (1 - smoothing);
+            blob.cy = best.cy * smoothing + blob.cy * (1 - smoothing);
+            blob.x = best.x * smoothing + blob.x * (1 - smoothing);
+            blob.y = best.y * smoothing + blob.y * (1 - smoothing);
+            blob.w = best.w * smoothing + blob.w * (1 - smoothing);
+            blob.h = best.h * smoothing + blob.h * (1 - smoothing);
+            blob.area = best.area * smoothing + blob.area * (1 - smoothing);
+          } else blob.id = blobTrackState.nextId++;
+        }
+        return detected;
+      }
+
+      function drawBlobTrackPreview(mask, blobs, width, height) {
+        var image = blobTrackPreviewCtx.createImageData(width, height);
+        for (var i = 0; i < mask.length; i++) {
+          var value = mask[i] ? 238 : 12, p = i * 4;
+          image.data[p] = image.data[p + 1] = image.data[p + 2] = value;
+          image.data[p + 3] = 255;
+        }
+        blobTrackPreviewCtx.putImageData(image, 0, 0);
+        blobTrackPreviewCtx.strokeStyle = '#c41f1f';
+        blobTrackPreviewCtx.fillStyle = '#c41f1f';
+        blobTrackPreviewCtx.font = '7px monospace';
+        blobTrackPreviewCtx.lineWidth = 1;
+        for (var b = 0; b < blobs.length; b++) {
+          var blob = blobs[b];
+          blobTrackPreviewCtx.strokeRect(blob.x * width, blob.y * height, blob.w * width, blob.h * height);
+          blobTrackPreviewCtx.fillText('id' + blob.id, blob.x * width + 2, Math.max(8, blob.y * height - 2));
+        }
+      }
+
+      function drawBlobTrackOverlay() {
+        var show = !!blobTrackState.stream && params.blobDrawBounds && params.activeOperator === 'blobTrack';
+        blobTrackOverlay.hidden = !show;
+        if (!show) return;
+        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        var width = Math.max(1, stageArtwork.offsetWidth), height = Math.max(1, stageArtwork.offsetHeight);
+        var pixelW = Math.round(width * dpr), pixelH = Math.round(height * dpr);
+        if (blobTrackOverlay.width !== pixelW || blobTrackOverlay.height !== pixelH) {
+          blobTrackOverlay.width = pixelW; blobTrackOverlay.height = pixelH;
+        }
+        blobTrackOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        blobTrackOverlayCtx.clearRect(0, 0, width, height);
+        blobTrackOverlayCtx.strokeStyle = '#c41f1f';
+        blobTrackOverlayCtx.fillStyle = '#c41f1f';
+        blobTrackOverlayCtx.lineWidth = 1;
+        blobTrackOverlayCtx.font = '10px monospace';
+        for (var i = 0; i < blobTrackState.blobs.length; i++) {
+          var blob = blobTrackState.blobs[i];
+          var x = blob.x * width, y = blob.y * height, w = blob.w * width, h = blob.h * height;
+          blobTrackOverlayCtx.strokeRect(x, y, w, h);
+          blobTrackOverlayCtx.beginPath();
+          blobTrackOverlayCtx.moveTo(blob.cx * width - 7, blob.cy * height);
+          blobTrackOverlayCtx.lineTo(blob.cx * width + 7, blob.cy * height);
+          blobTrackOverlayCtx.moveTo(blob.cx * width, blob.cy * height - 7);
+          blobTrackOverlayCtx.lineTo(blob.cx * width, blob.cy * height + 7);
+          blobTrackOverlayCtx.stroke();
+          blobTrackOverlayCtx.fillText('blob ' + blob.id, x + 3, Math.max(11, y - 4));
+        }
+      }
+
+      function applyBlobTrackingFrame() {
+        if (typeof metrics === 'undefined' || !metrics) return;
+        for (var i = 0; i < metrics.length; i++) {
+          var state = operatorState(metrics[i], 'blobTrack');
+          if (metrics[i].locked || (state.current <= 0.0005 && state.manual == null)) continue;
+          applyBlobTrackVisual(metrics[i], batchProfileForKey(metrics[i].batchKey));
+        }
+        drawBlobTrackOverlay();
+        invalidateCompositionSource();
+        scheduleVisualOverscan();
+        scheduleCompositionDraw();
+      }
+
+      function processBlobTrackFrame(now) {
+        if (!blobTrackState.stream || !blobTrackState.video) return;
+        blobTrackState.raf = requestAnimationFrame(processBlobTrackFrame);
+        if (now - blobTrackState.lastFrame < 33 || blobTrackState.video.readyState < 2) return;
+        blobTrackState.lastFrame = now;
+        var width = blobTrackState.width, height = blobTrackState.height;
+        if (!blobTrackState.sourceCanvas) {
+          blobTrackState.sourceCanvas = document.createElement('canvas');
+          blobTrackState.sourceCanvas.width = width; blobTrackState.sourceCanvas.height = height;
+          blobTrackState.sourceCtx = blobTrackState.sourceCanvas.getContext('2d', { willReadFrequently: true });
+        }
+        var ctx = blobTrackState.sourceCtx;
+        ctx.save(); ctx.translate(width, 0); ctx.scale(-1, 1);
+        ctx.drawImage(blobTrackState.video, 0, 0, width, height); ctx.restore();
+        var pixels = ctx.getImageData(0, 0, width, height).data;
+        var mask = new Uint8Array(width * height);
+        var threshold = params.blobThreshold * 255;
+        for (var i = 0, p = 0; i < pixels.length; i += 4, p++) {
+          var luminance = pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722;
+          mask[p] = blobTrackState.background
+            ? (Math.abs(luminance - blobTrackState.background[p]) >= threshold ? 1 : 0)
+            : (luminance >= threshold ? 1 : 0);
+        }
+        blobTrackState.blobs = trackBlobIds(connectedBlobComponents(mask, width, height));
+        drawBlobTrackPreview(mask, blobTrackState.blobs, width, height);
+        setBlobTrackStatus('LIVE · ' + (blobTrackState.background ? 'BACKGROUND SUBTRACTION' : 'SIMPLE DETECTOR')
+          + ' · ' + blobTrackState.blobs.length + ' BLOB' + (blobTrackState.blobs.length === 1 ? '' : 'S'), 'live');
+        applyBlobTrackingFrame();
+      }
+
+      btnBlobCamera.addEventListener('click', startBlobCamera);
+      btnBlobBackground.addEventListener('click', learnBlobBackground);
+      window.addEventListener('pagehide', stopBlobCamera);
 
       /* ---------------- canvas view camera ----------------
          View state is intentionally device-local and ephemeral: it changes
@@ -2648,7 +3477,9 @@ type deformer</textarea>
         skew: { id: 'skew', short: 'k', label: 'Skew', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 30, strengthMode: STRENGTH_MODES.CONTINUOUS },
         baselineShift: { id: 'baselineShift', short: 'b', label: 'Baseline Shift', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 40, strengthMode: STRENGTH_MODES.CONTINUOUS },
         mirror: { id: 'mirror', short: 'm', label: 'Mirror', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 50, strengthMode: STRENGTH_MODES.CONTINUOUS },
-        misregistration: { id: 'misregistration', short: 'p', label: 'Misregistration', layer: 'ink', layerOrder: EVALUATION_LAYERS.ink, order: 60, strengthMode: STRENGTH_MODES.CONTINUOUS }
+        blobTrack: { id: 'blobTrack', short: 'o', label: 'Blob Track', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 10, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        misregistration: { id: 'misregistration', short: 'p', label: 'Misregistration', layer: 'ink', layerOrder: EVALUATION_LAYERS.ink, order: 60, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        dataMosh: { id: 'dataMosh', short: 'd', label: 'Data Mosh', layer: 'ink', layerOrder: EVALUATION_LAYERS.ink, order: 70, strengthMode: STRENGTH_MODES.CONTINUOUS }
       };
       var OPERATOR_IDS = Object.keys(OPERATOR_DEFS).sort(function (a, b) {
         return OPERATOR_DEFS[a].layerOrder - OPERATOR_DEFS[b].layerOrder || OPERATOR_DEFS[a].order - OPERATOR_DEFS[b].order;
@@ -2871,6 +3702,53 @@ type deformer</textarea>
       // still has a useful Core fallback. The generated file is deterministic;
       // rebuild it with tools/build-confuse-dictionary.mjs when Unicode updates.
       var CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
+      var confuseDictionaryPromise = null;
+      var confuseDictionaryState = CONFUSE_DATA ? 'ready' : 'idle';
+
+      function loadConfuseDictionary() {
+        if (CONFUSE_DATA) {
+          confuseDictionaryState = 'ready';
+          return Promise.resolve(CONFUSE_DATA);
+        }
+        if (confuseDictionaryPromise) return confuseDictionaryPromise;
+        confuseDictionaryState = 'loading';
+        confuseDictionaryPromise = new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          script.src = 'confuse-dictionary.js';
+          script.async = true;
+          script.onload = function () {
+            CONFUSE_DATA = window.TYPE_DEFORMER_CONFUSE_DICTIONARY || null;
+            if (!CONFUSE_DATA) {
+              confuseDictionaryState = 'error';
+              reject(new Error('Unicode dictionary did not expose data'));
+              return;
+            }
+            confuseDictionaryState = 'ready';
+            resolve(CONFUSE_DATA);
+          };
+          script.onerror = function () {
+            confuseDictionaryState = 'error';
+            reject(new Error('Unicode dictionary could not be loaded'));
+          };
+          document.head.appendChild(script);
+        }).catch(function (error) {
+          confuseDictionaryPromise = null;
+          throw error;
+        });
+        return confuseDictionaryPromise;
+      }
+
+      function ensureConfuseDictionary() {
+        if (params.activeOperator !== 'confuse' || CONFUSE_DATA) return;
+        updateConfuseDictionaryUI();
+        loadConfuseDictionary().then(function () {
+          clearConfuseCache();
+          applyAllOperatorVisuals();
+          updateConfuseDictionaryUI();
+        }, function () {
+          updateConfuseDictionaryUI();
+        });
+      }
       var confuseCache = Object.create(null);
       var confuseCacheRevision = 0;
       var confuseCustomRaw = null;
@@ -3357,8 +4235,14 @@ type deformer</textarea>
           var meta = CONFUSE_DATA.meta;
           status.textContent = 'Unicode ' + meta.unicode + ' · Unihan variants ' + Number(meta.hanVariantKeys || 0).toLocaleString() + ' · Han universe ' + Number(meta.hanUniverseKeys || meta.radicalStrokeKeys || 0).toLocaleString() + ' · equivalent ' + Number(meta.hanEquivalentMappings || 0).toLocaleString() + ' · IVD ' + meta.ivd + ' · Glyph guard ' + (params.confuseGlyphGuard ? 'ON' : 'OFF') + ' · Custom ' + confuseCustomStats.entries;
           status.classList.remove('is-fallback');
+        } else if (confuseDictionaryState === 'loading') {
+          status.textContent = 'Loading Unicode dictionary... Core fallback is active for now.';
+          status.classList.add('is-fallback');
+        } else if (confuseDictionaryState === 'idle') {
+          status.textContent = 'Unicode dictionary loads when Confuse is selected. Core fallback is active.';
+          status.classList.add('is-fallback');
         } else {
-          status.textContent = 'External dictionary unavailable — Core fallback active. Keep confuse-dictionary.js beside this HTML.';
+          status.textContent = 'Unicode dictionary unavailable. Core fallback is active. Keep confuse-dictionary.js beside this HTML.';
           status.classList.add('is-fallback');
         }
         if (confuseCustomStats.errors) status.textContent += ' · ' + confuseCustomStats.errors + ' invalid line(s)';
@@ -3425,6 +4309,24 @@ type deformer</textarea>
         misregY: -5,
         misregColorA: '#c41f1f',
         misregColorB: '#1767a6',
+        moshShift: 150,
+        moshBlock: 2,
+        moshChroma: 34,
+        moshCrush: 0.86,
+        moshSmear: 3.2,
+        moshTear: 0.76,
+        moshHold: 3,
+        blobPull: 0.72,
+        blobSwirl: 0.24,
+        blobScale: 0.8,
+        blobThreshold: 0.18,
+        blobMinArea: 0.012,
+        blobMaxArea: 0.65,
+        blobMaxBlobs: 4,
+        blobSmoothing: 0.68,
+        blobDrawBounds: true,
+        blobAnchorX: 0.5,
+        blobAnchorY: 0.5,
         confuseDepth: 1,
         confuseMixed: false,
         confuseGlyphGuard: true,
@@ -3476,14 +4378,18 @@ type deformer</textarea>
       var BATCH_PARAM_KEYS = [
         'stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation',
         'rotateAngle', 'skewX', 'skewY', 'baselineShift', 'mirrorX', 'mirrorY',
-        'misregX', 'misregY', 'confuseDepth'
+        'misregX', 'misregY', 'moshShift', 'moshBlock', 'moshChroma', 'moshCrush', 'moshSmear', 'moshTear', 'moshHold',
+        'blobPull', 'blobScale', 'confuseDepth'
       ];
       var BATCH_PARAM_LIMITS = {
         stretchX: [0, 3], stretchY: [0, 3], radius: [15, 180], ease: [0.02, 0.3],
         geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45],
         rotateAngle: [-180, 180], skewX: [-70, 70], skewY: [-70, 70],
         baselineShift: [-3, 3], mirrorX: [0, 1], mirrorY: [0, 1],
-        misregX: [-40, 40], misregY: [-40, 40], confuseDepth: [0, 1]
+        misregX: [-40, 40], misregY: [-40, 40],
+        moshShift: [0, 320], moshBlock: [1, 8], moshChroma: [0, 90], moshCrush: [0, 1],
+        moshSmear: [0, 6], moshTear: [0, 1], moshHold: [1, 12],
+        blobPull: [0, 1], blobScale: [0, 2], confuseDepth: [0, 1]
       };
       var batchProfiles = {};
       var activeBatchProfile = 'all';
@@ -3563,6 +4469,23 @@ type deformer</textarea>
         clampParam('mirrorY', 0, 1, true);
         clampParam('misregX', -40, 40, false);
         clampParam('misregY', -40, 40, false);
+        clampParam('moshShift', 0, 320, false);
+        clampParam('moshBlock', 1, 8, true);
+        clampParam('moshChroma', 0, 90, false);
+        clampParam('moshCrush', 0, 1, false);
+        clampParam('moshSmear', 0, 6, false);
+        clampParam('moshTear', 0, 1, false);
+        clampParam('moshHold', 1, 12, true);
+        clampParam('blobPull', 0, 1, false);
+        clampParam('blobSwirl', -1, 1, false);
+        clampParam('blobScale', 0, 2, false);
+        clampParam('blobThreshold', 0.02, 0.8, false);
+        clampParam('blobMinArea', 0.001, 0.2, false);
+        clampParam('blobMaxArea', 0.05, 1, false);
+        clampParam('blobMaxBlobs', 1, 8, true);
+        clampParam('blobSmoothing', 0, 0.95, false);
+        clampParam('blobAnchorX', 0, 1, false);
+        clampParam('blobAnchorY', 0, 1, false);
         clampParam('confuseDepth', 0, 1, false);
         clampParam('seed', -1000000000, 1000000000, false);
         clampParam('fontSize', 18, 160, false);
@@ -3592,7 +4515,7 @@ type deformer</textarea>
         chooseParam('activeOperator', OPERATOR_IDS);
         chooseParam('confuseDictionary', ['core', 'unicode', 'deep', 'hanmax']);
 
-        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed', 'confuseGlyphGuard'];
+        var boolKeys = ['vertical', 'fit', 'transparentBg', 'deformedOnly', 'gridEnabled', 'gridAutoRows', 'gridLines', 'gridLineBreak', 'confuseMixed', 'confuseGlyphGuard', 'blobDrawBounds'];
         for (var i = 0; i < boolKeys.length; i++) {
           var boolValue = params[boolKeys[i]];
           params[boolKeys[i]] = boolValue === true || boolValue === 1;
@@ -4253,9 +5176,13 @@ type deformer</textarea>
           var ox = w * 0.5, oy = h * 0.75;
           var st = el.style;
           var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0)
-            + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * params.fontSize;
+            + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * params.fontSize
+            + (parseFloat(st.getPropertyValue('--op-blob-x')) || 0)
+            + (parseFloat(st.getPropertyValue('--op-mosh-x')) || 0);
           var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0)
-            + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * params.fontSize;
+            + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * params.fontSize
+            + (parseFloat(st.getPropertyValue('--op-blob-y')) || 0)
+            + (parseFloat(st.getPropertyValue('--op-mosh-y')) || 0);
           var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
           var corners = [[0, 0], [w, 0], [w, h], [0, h]];
           for (var c = 0; c < corners.length; c++) {
@@ -4557,8 +5484,10 @@ type deformer</textarea>
           var reach = (m.w > m.h ? m.w : m.h) * 5 + 100;
           if (px - m.relX > reach || m.relX - px > reach || py - m.relY > reach || m.relY - py > reach) continue;
           var st = m.el.style;
-          var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * fs;
-          var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * fs;
+          var tx = ((parseFloat(st.getPropertyValue('--tx')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-x')) || 0)) * fs
+            + (parseFloat(st.getPropertyValue('--op-blob-x')) || 0) + (parseFloat(st.getPropertyValue('--op-mosh-x')) || 0);
+          var ty = ((parseFloat(st.getPropertyValue('--ty')) || 0) + (parseFloat(st.getPropertyValue('--op-baseline-y')) || 0)) * fs
+            + (parseFloat(st.getPropertyValue('--op-blob-y')) || 0) + (parseFloat(st.getPropertyValue('--op-mosh-y')) || 0);
           var matrix = glyphLinearMatrix(m.el);
           // transform-origin sits at 50% / 75% of the layout box
           var ox = m.relX;
@@ -4720,8 +5649,9 @@ type deformer</textarea>
       function glyphLinearMatrix(el) {
         var st = el.style;
         function ownNumber(name, fallback) { var value = parseFloat(st.getPropertyValue(name)); return isFinite(value) ? value : fallback; }
-        var sx = ownNumber('--sx', 1) * ownNumber('--ix', 1) * ownNumber('--op-mirror-x', 1);
-        var sy = ownNumber('--sy', 1) * ownNumber('--iy', 1) * ownNumber('--op-mirror-y', 1);
+        var sharedScale = ownNumber('--op-blob-scale', 1);
+        var sx = ownNumber('--sx', 1) * ownNumber('--ix', 1) * ownNumber('--op-mirror-x', 1) * sharedScale * ownNumber('--op-mosh-scale-x', 1);
+        var sy = ownNumber('--sy', 1) * ownNumber('--iy', 1) * ownNumber('--op-mirror-y', 1) * sharedScale * ownNumber('--op-mosh-scale-y', 1);
         var rot = ((parseFloat(st.getPropertyValue('--rot')) || 0) + (parseFloat(st.getPropertyValue('--op-rotate')) || 0)) * Math.PI / 180;
         var tanX = Math.tan((parseFloat(st.getPropertyValue('--op-skew-x')) || 0) * Math.PI / 180);
         var tanY = Math.tan((parseFloat(st.getPropertyValue('--op-skew-y')) || 0) * Math.PI / 180);
@@ -4738,6 +5668,143 @@ type deformer</textarea>
         var det = matrix.a * matrix.d - matrix.b * matrix.c;
         if (Math.abs(det) < 0.00001) return { x: 0, y: 0 };
         return { x: (matrix.d * x - matrix.c * y) / det, y: (-matrix.b * x + matrix.a * y) / det };
+      }
+
+      var dataMoshFrame = 0;
+      var dataMoshMotionRaf = null;
+      var dataMoshLastFrameAt = 0;
+
+      function dataMoshValues(info, deform) {
+        var state = operatorState(info, 'dataMosh');
+        var strength = Math.max(0, Math.min(1, state.current));
+        var j = parseInt(info.el.dataset.j, 10) || 0;
+        var block = Math.floor(j / Math.max(1, Math.round(deform.moshBlock)));
+        var cp = parseInt(info.el.dataset.cp, 10) || 1;
+        var heldFrame = Math.floor(dataMoshFrame / Math.max(1, Math.round(deform.moshHold)));
+        var movingBlock = block + heldFrame * 131;
+        var hx = hash(movingBlock, cp % 37 + 17, 71) * 2 - 1;
+        var hy = hash(movingBlock, cp % 29 + 23, 113) * 2 - 1;
+        var burst = 0.45 + hash(movingBlock, cp % 47 + 7, 137) * 1.7;
+        var shift = pairManual(state,
+          hx * deform.moshShift * burst * strength,
+          hy * deform.moshShift * deform.moshCrush * 0.62 * strength);
+        var crushPhase = hash(movingBlock, cp % 19 + 31, 149) * 2 - 1;
+        var crush = deform.moshCrush * strength;
+        var chromaSign = hash(movingBlock, cp % 43 + 11, 191) > 0.5 ? 1 : -1;
+        var smearFlip = hash(movingBlock, cp % 53 + 5, 269) > 0.88 ? -1 : 1;
+        var smear = 1 + Math.abs(hx) * deform.moshSmear * burst * strength;
+        var tear = deform.moshTear * strength;
+        var clipTop = hash(movingBlock, cp % 23 + 3, 307) * tear * 58;
+        var clipBottom = hash(movingBlock, cp % 17 + 9, 347) * tear * 58;
+        var clipSum = clipTop + clipBottom;
+        if (clipSum > 88) { clipTop *= 88 / clipSum; clipBottom *= 88 / clipSum; }
+        var chromaBurst = deform.moshChroma * strength * (0.65 + burst);
+        return {
+          x: shift.x, y: shift.y,
+          scaleX: smearFlip * Math.max(0.08, smear + crushPhase * crush * 0.5),
+          scaleY: Math.max(0.06, 1 - Math.abs(crushPhase) * crush * 0.82),
+          passAX: chromaSign * chromaBurst,
+          passAY: hy * chromaBurst * 0.48,
+          passBX: -chromaSign * chromaBurst * 0.86,
+          passBY: -hy * chromaBurst * 0.36,
+          clipTop: clipTop,
+          clipBottom: clipBottom,
+          saturate: 1 + crush * 4.5,
+          contrast: 1 + crush * 2.4,
+          hue: hx * crush * 155,
+          active: state.manual != null || strength > 0.001
+        };
+      }
+
+      function applyDataMoshVisual(info, deform) {
+        var style = info.el.style;
+        var value = dataMoshValues(info, deform);
+        style.setProperty('--op-mosh-x', value.x.toFixed(3) + 'px');
+        style.setProperty('--op-mosh-y', value.y.toFixed(3) + 'px');
+        style.setProperty('--op-mosh-scale-x', value.scaleX.toFixed(4));
+        style.setProperty('--op-mosh-scale-y', value.scaleY.toFixed(4));
+        style.setProperty('--op-mosh-pass-a-x', value.passAX.toFixed(3) + 'px');
+        style.setProperty('--op-mosh-pass-a-y', value.passAY.toFixed(3) + 'px');
+        style.setProperty('--op-mosh-pass-b-x', value.passBX.toFixed(3) + 'px');
+        style.setProperty('--op-mosh-pass-b-y', value.passBY.toFixed(3) + 'px');
+        style.setProperty('--op-mosh-clip-top', value.clipTop.toFixed(2) + '%');
+        style.setProperty('--op-mosh-clip-bottom', value.clipBottom.toFixed(2) + '%');
+        style.setProperty('--op-mosh-saturate', value.saturate.toFixed(3));
+        style.setProperty('--op-mosh-contrast', value.contrast.toFixed(3));
+        style.setProperty('--op-mosh-hue', value.hue.toFixed(2) + 'deg');
+        style.setProperty('--op-mosh-shadow', value.active
+          ? value.passAX.toFixed(2) + 'px ' + value.passAY.toFixed(2) + 'px 0 rgba(0,238,255,.88), '
+            + value.passBX.toFixed(2) + 'px ' + value.passBY.toFixed(2) + 'px 0 rgba(255,0,91,.84)'
+          : 'none');
+        if (value.active) {
+          info.el.dataset.dataMosh = '1';
+          scheduleDataMoshMotion();
+        } else delete info.el.dataset.dataMosh;
+      }
+
+      function hasLiveDataMosh() {
+        for (var i = 0; i < metrics.length; i++) {
+          if (!metrics[i].locked && operatorState(metrics[i], 'dataMosh').current > 0.0005) return true;
+        }
+        return false;
+      }
+
+      function scheduleDataMoshMotion() {
+        if (dataMoshMotionRaf != null || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        dataMoshMotionRaf = requestAnimationFrame(updateDataMoshMotion);
+      }
+
+      function updateDataMoshMotion(now) {
+        dataMoshMotionRaf = null;
+        if (!hasLiveDataMosh()) return;
+        if (now - dataMoshLastFrameAt >= 72) {
+          dataMoshLastFrameAt = now;
+          dataMoshFrame++;
+          for (var i = 0; i < metrics.length; i++) {
+            if (metrics[i].locked || operatorState(metrics[i], 'dataMosh').current <= 0.0005) continue;
+            applyDataMoshVisual(metrics[i], batchProfileForKey(metrics[i].batchKey));
+          }
+          invalidateCompositionSource();
+          scheduleVisualOverscan();
+          scheduleCompositionDraw();
+        }
+        scheduleDataMoshMotion();
+      }
+
+      function blobTrackValues(info, deform) {
+        var state = operatorState(info, 'blobTrack');
+        var strength = Math.max(0, Math.min(1, state.current));
+        var stageW = Math.max(1, stage.scrollWidth || stage.offsetWidth);
+        var stageH = Math.max(1, stage.scrollHeight || stage.offsetHeight);
+        var blobs = blobTrackState.blobs;
+        if (!blobs.length || strength <= 0.0005) {
+          var resting = pairManual(state, 0, 0);
+          return { x: resting.x, y: resting.y, scale: 1 };
+        }
+        var j = parseInt(info.el.dataset.j, 10) || 0;
+        var blob = blobs[j % blobs.length];
+        var slot = Math.floor(j / blobs.length);
+        var cp = parseInt(info.el.dataset.cp, 10) || 1;
+        var scatterX = (hash(slot, cp % 41 + blob.id, 223) * 2 - 1) * blob.w * stageW * 0.38;
+        var scatterY = (hash(slot, cp % 31 + blob.id, 251) * 2 - 1) * blob.h * stageH * 0.38;
+        var targetX = blob.cx * stageW + scatterX;
+        var targetY = blob.cy * stageH + scatterY;
+        var dx = targetX - info.relX;
+        var dy = targetY - info.relY;
+        var offset = pairManual(state, dx * deform.blobPull * strength, dy * deform.blobPull * strength);
+        var areaScale = Math.min(1.5, Math.sqrt(blob.area / Math.max(0.001, params.blobMinArea)) * 0.42);
+        return {
+          x: offset.x,
+          y: offset.y,
+          scale: Math.max(0.2, 1 + deform.blobScale * strength * areaScale)
+        };
+      }
+
+      function applyBlobTrackVisual(info, deform) {
+        var value = blobTrackValues(info, deform);
+        info.el.style.setProperty('--op-blob-x', value.x.toFixed(3) + 'px');
+        info.el.style.setProperty('--op-blob-y', value.y.toFixed(3) + 'px');
+        info.el.style.setProperty('--op-blob-scale', value.scale.toFixed(4));
       }
 
       function applyMisregistrationVisual(info, deform) {
@@ -4856,6 +5923,8 @@ type deformer</textarea>
         style.setProperty('--op-mirror-x', Math.max(-1, Math.min(1, mirrorValue.x)).toFixed(4));
         style.setProperty('--op-mirror-y', Math.max(-1, Math.min(1, mirrorValue.y)).toFixed(4));
 
+        applyBlobTrackVisual(info, deform);
+        applyDataMoshVisual(info, deform);
         applyMisregistrationVisual(info, deform);
         invalidateCompositionSource();
         scheduleVisualOverscan();
@@ -4877,7 +5946,9 @@ type deformer</textarea>
         skew: ['--op-skew-x', '--op-skew-y'],
         baselineShift: ['--op-baseline-x', '--op-baseline-y'],
         mirror: ['--op-mirror-x', '--op-mirror-y'],
-        misregistration: ['--mr-a-x', '--mr-a-y', '--mr-b-x', '--mr-b-y', '--mr-color-a', '--mr-color-b', '--mr-opacity']
+        blobTrack: ['--op-blob-x', '--op-blob-y', '--op-blob-scale'],
+        misregistration: ['--mr-a-x', '--mr-a-y', '--mr-b-x', '--mr-b-y', '--mr-color-a', '--mr-color-b', '--mr-opacity'],
+        dataMosh: ['--op-mosh-x', '--op-mosh-y', '--op-mosh-scale-x', '--op-mosh-scale-y', '--op-mosh-pass-a-x', '--op-mosh-pass-a-y', '--op-mosh-pass-b-x', '--op-mosh-pass-b-y', '--op-mosh-shadow', '--op-mosh-clip-top', '--op-mosh-clip-bottom', '--op-mosh-saturate', '--op-mosh-contrast', '--op-mosh-hue']
       };
 
       // Edit/Reset changes one operator on a frozen glyph. Preserve every
@@ -4891,6 +5962,7 @@ type deformer</textarea>
           for (var p = 0; p < props.length; p++) saved[props[p]] = m.el.style.getPropertyValue(props[p]);
         }
         var savedMisreg = m.el.dataset.misregistration;
+        var savedDataMosh = m.el.dataset.dataMosh;
         var savedActive = m.active;
         // the confuse channel lives in textContent, not style — freeze it too
         var savedText = null, savedRender = null, savedHold = null, savedHoldW = null;
@@ -4915,6 +5987,10 @@ type deformer</textarea>
           if (savedMisreg != null) m.el.dataset.misregistration = savedMisreg;
           else delete m.el.dataset.misregistration;
         } else applyMisregistrationVisual(m, batchProfileForKey(m.batchKey));
+        if (activeId !== 'dataMosh') {
+          if (savedDataMosh != null) m.el.dataset.dataMosh = savedDataMosh;
+          else delete m.el.dataset.dataMosh;
+        }
         if (activeId !== 'stretch') m.active = savedActive;
       }
 
@@ -5280,6 +6356,10 @@ type deformer</textarea>
         }
         else if (params.activeOperator === 'mirror') {
           v.textContent = 'Mirror  X ' + (parseFloat(st.getPropertyValue('--op-mirror-x')) || 0).toFixed(2) + ' Y ' + (parseFloat(st.getPropertyValue('--op-mirror-y')) || 0).toFixed(2);
+        } else if (params.activeOperator === 'dataMosh') {
+          v.textContent = 'Data Mosh  ' + (parseFloat(st.getPropertyValue('--op-mosh-x')) || 0).toFixed(1) + ', ' + (parseFloat(st.getPropertyValue('--op-mosh-y')) || 0).toFixed(1) + 'px';
+        } else if (params.activeOperator === 'blobTrack') {
+          v.textContent = 'Blob Track  ' + (parseFloat(st.getPropertyValue('--op-blob-x')) || 0).toFixed(1) + ', ' + (parseFloat(st.getPropertyValue('--op-blob-y')) || 0).toFixed(1) + 'px';
         } else {
           var mrState = operatorState(selectedM, 'misregistration');
           var mrProfile = batchProfileForKey(selectedM.batchKey);
@@ -5365,6 +6445,8 @@ type deformer</textarea>
           x: isFinite(parseFloat(st.getPropertyValue('--op-mirror-x'))) ? parseFloat(st.getPropertyValue('--op-mirror-x')) : 1,
           y: isFinite(parseFloat(st.getPropertyValue('--op-mirror-y'))) ? parseFloat(st.getPropertyValue('--op-mirror-y')) : 1
         };
+        if (id === 'dataMosh') return { x: parseFloat(st.getPropertyValue('--op-mosh-x')) || 0, y: parseFloat(st.getPropertyValue('--op-mosh-y')) || 0 };
+        if (id === 'blobTrack') return { x: parseFloat(st.getPropertyValue('--op-blob-x')) || 0, y: parseFloat(st.getPropertyValue('--op-blob-y')) || 0 };
         return pairManual(state, batchProfileForKey(m.batchKey).misregX * state.current, batchProfileForKey(m.batchKey).misregY * state.current);
       }
 
@@ -5426,6 +6508,10 @@ type deformer</textarea>
           state.manual = Math.max(-5, Math.min(5, editDrag.base + logicalDelta));
         } else if (id === 'mirror') {
           state.manual = { x: Math.max(-1, Math.min(1, editDrag.base.x - dx / 60)), y: Math.max(-1, Math.min(1, editDrag.base.y + dy / 60)) };
+        } else if (id === 'dataMosh') {
+          state.manual = { x: Math.max(-640, Math.min(640, editDrag.base.x + dx)), y: Math.max(-640, Math.min(640, editDrag.base.y + dy)) };
+        } else if (id === 'blobTrack') {
+          state.manual = { x: Math.max(-2000, Math.min(2000, editDrag.base.x + dx)), y: Math.max(-2000, Math.min(2000, editDrag.base.y + dy)) };
         } else {
           state.manual = { x: Math.max(-120, Math.min(120, editDrag.base.x + dx)), y: Math.max(-120, Math.min(120, editDrag.base.y + dy)) };
         }
@@ -5575,6 +6661,8 @@ type deformer</textarea>
         else if (id === 'skew') state.manual = { x: Math.max(-85, Math.min(85, base.x + dx * 20)), y: Math.max(-85, Math.min(85, base.y + dy * 20)) };
         else if (id === 'baselineShift') state.manual = Math.max(-5, Math.min(5, base + (params.vertical ? dx : dy)));
         else if (id === 'mirror') state.manual = { x: Math.max(-1, Math.min(1, base.x - dx)), y: Math.max(-1, Math.min(1, base.y - dy)) };
+        else if (id === 'dataMosh') state.manual = { x: Math.max(-640, Math.min(640, base.x + dx * 20)), y: Math.max(-640, Math.min(640, base.y - dy * 20)) };
+        else if (id === 'blobTrack') state.manual = { x: Math.max(-2000, Math.min(2000, base.x + dx * 20)), y: Math.max(-2000, Math.min(2000, base.y - dy * 20)) };
         else state.manual = { x: Math.max(-120, Math.min(120, base.x + dx * 20)), y: Math.max(-120, Math.min(120, base.y - dy * 20)) };
         state.toggled = true;
         state.current = 1;
@@ -5695,6 +6783,8 @@ type deformer</textarea>
         if (id === 'skew') return { x: clampFinite(pair.x, -85, 85, 0), y: clampFinite(pair.y, -85, 85, 0) };
         if (id === 'mirror') return { x: clampFinite(pair.x, -1, 1, 1), y: clampFinite(pair.y, -1, 1, 1) };
         if (id === 'misregistration') return { x: clampFinite(pair.x, -120, 120, 0), y: clampFinite(pair.y, -120, 120, 0) };
+        if (id === 'dataMosh') return { x: clampFinite(pair.x, -640, 640, 0), y: clampFinite(pair.y, -640, 640, 0) };
+        if (id === 'blobTrack') return { x: clampFinite(pair.x, -2000, 2000, 0), y: clampFinite(pair.y, -2000, 2000, 0) };
         return null;
       }
 
@@ -6050,8 +7140,13 @@ type deformer</textarea>
           var iy = cssNumber(cs, '--iy', 1);
           var mirrorX = cssNumber(cs, '--op-mirror-x', 1);
           var mirrorY = cssNumber(cs, '--op-mirror-y', 1);
-          var tx = (cssNumber(cs, '--tx', 0) + cssNumber(cs, '--op-baseline-x', 0)) * params.fontSize; // em → px
-          var ty = (cssNumber(cs, '--ty', 0) + cssNumber(cs, '--op-baseline-y', 0)) * params.fontSize;
+          var blobScale = cssNumber(cs, '--op-blob-scale', 1);
+          var moshScaleX = cssNumber(cs, '--op-mosh-scale-x', 1);
+          var moshScaleY = cssNumber(cs, '--op-mosh-scale-y', 1);
+          var tx = (cssNumber(cs, '--tx', 0) + cssNumber(cs, '--op-baseline-x', 0)) * params.fontSize
+            + cssNumber(cs, '--op-blob-x', 0) + cssNumber(cs, '--op-mosh-x', 0); // em + px
+          var ty = (cssNumber(cs, '--ty', 0) + cssNumber(cs, '--op-baseline-y', 0)) * params.fontSize
+            + cssNumber(cs, '--op-blob-y', 0) + cssNumber(cs, '--op-mosh-y', 0);
           // deformed-only export: skip letters at their resting shape
           if (params.deformedOnly && !forceAll && !hasVisibleOperatorDeform(m)) continue;
           var rot = cssNumber(cs, '--rot', 0) + cssNumber(cs, '--op-rotate', 0); // deg
@@ -6102,8 +7197,12 @@ type deformer</textarea>
             grid: isGridGlyph,
             ox: x + w / 2, oy: y + h * 0.75,   // transform-origin 50% 75%
             tx: tx, ty: ty, rot: rot, skewX: skewX, skewY: skewY,
-            scaleX: sx * ix * mirrorX, scaleY: sy * iy * mirrorY,
-            misregX: misreg.x, misregY: misreg.y
+            scaleX: sx * ix * mirrorX * blobScale * moshScaleX,
+            scaleY: sy * iy * mirrorY * blobScale * moshScaleY,
+            misregX: misreg.x, misregY: misreg.y,
+            moshPassAX: cssNumber(cs, '--op-mosh-pass-a-x', 0), moshPassAY: cssNumber(cs, '--op-mosh-pass-a-y', 0),
+            moshPassBX: cssNumber(cs, '--op-mosh-pass-b-x', 0), moshPassBY: cssNumber(cs, '--op-mosh-pass-b-y', 0),
+            moshClipTop: cssNumber(cs, '--op-mosh-clip-top', 0), moshClipBottom: cssNumber(cs, '--op-mosh-clip-bottom', 0)
           });
         }
         if (forceAll) snapshotGlyphs.cache = { revision: compositionSourceRevision, glyphs: glyphs };
@@ -6135,6 +7234,7 @@ type deformer</textarea>
             var py = g.oy + g.ty + mb * lx + md * ly;
             var offsets = [[0, 0]];
             if (Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001) offsets.push([g.misregX, g.misregY], [-g.misregX * 0.65, -g.misregY * 0.65]);
+            if (Math.abs(g.moshPassAX || 0) > 0.001 || Math.abs(g.moshPassAY || 0) > 0.001) offsets.push([g.moshPassAX, g.moshPassAY], [g.moshPassBX, g.moshPassBY]);
             for (var pass = 0; pass < offsets.length; pass++) {
               var passX = px + offsets[pass][0], passY = py + offsets[pass][1];
               if (passX < minX) minX = passX; if (passX > maxX) maxX = passX;
@@ -6342,7 +7442,10 @@ type deformer</textarea>
           skewX: source.skewX || 0, skewY: source.skewY || 0,
           scaleX: (source.scaleX || 1) * Math.max(0.02, scaleX),
           scaleY: (source.scaleY || 1) * Math.max(0.02, scaleY),
-          misregX: source.misregX || 0, misregY: source.misregY || 0
+          misregX: source.misregX || 0, misregY: source.misregY || 0,
+          moshPassAX: source.moshPassAX || 0, moshPassAY: source.moshPassAY || 0,
+          moshPassBX: source.moshPassBX || 0, moshPassBY: source.moshPassBY || 0,
+          moshClipTop: source.moshClipTop || 0, moshClipBottom: source.moshClipBottom || 0
         };
       }
 
@@ -8858,6 +9961,7 @@ type deformer</textarea>
             // Page-space ink offset is placed before the glyph matrix. This is
             // why Misregistration remains horizontal/vertical even after a
             // glyph is rotated, skewed, mirrored, or stretched.
+            ctx.save();
             ctx.setTransform(scale, 0, 0, scale, 0, 0);
             ctx.translate(L.dx, L.dy);
             ctx.scale(L.s, L.s);
@@ -8871,6 +9975,13 @@ type deformer</textarea>
             ctx.globalCompositeOperation = typeof blend === 'string' ? blend : (blend ? 'multiply' : 'source-over');
             ctx.font = font;
             ctx.fillStyle = color;
+            if ((g.moshClipTop || 0) > 0.01 || (g.moshClipBottom || 0) > 0.01) {
+              var clipTop = g.y + g.h * (g.moshClipTop || 0) / 100;
+              var clipHeight = g.h * Math.max(0.01, 1 - ((g.moshClipTop || 0) + (g.moshClipBottom || 0)) / 100);
+              ctx.beginPath();
+              ctx.rect(g.x - g.w * 4, clipTop, g.w * 9, clipHeight);
+              ctx.clip();
+            }
             if (params.vertical) {
               var cx = g.x + g.w / 2;
               var cy = g.y + g.h / 2;
@@ -8888,10 +9999,14 @@ type deformer</textarea>
               ctx.textBaseline = 'alphabetic';
               ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
             }
+            ctx.restore();
           }
           var hasMisreg = Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001;
+          var hasMosh = Math.abs(g.moshPassAX || 0) > 0.001 || Math.abs(g.moshPassAY || 0) > 0.001;
           if (hasMisreg) drawPass(g.misregX, g.misregY, params.misregColorA, 0.72, true);
+          if (hasMosh) drawPass(g.moshPassAX, g.moshPassAY, '#00b8d9', 0.72, 'screen');
           drawPass(0, 0, g.fill || (g.accent ? params.accent : params.ink), 1, g.fxBlend || false);
+          if (hasMosh) drawPass(g.moshPassBX, g.moshPassBY, '#ff204e', 0.68, 'multiply');
           if (hasMisreg) drawPass(-g.misregX * 0.65, -g.misregY * 0.65, params.misregColorB, 0.72, true);
         }
         ctx.globalAlpha = 1;
@@ -9035,16 +10150,25 @@ type deformer</textarea>
         };
         if (!navigator.clipboard || typeof ClipboardItem === 'undefined') { done(false); return; }
         var writePromise;
+        var fallbackWrite = function () {
+          return pngBlobPromise().then(function (blob) {
+            return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          });
+        };
         try {
           writePromise = navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlobPromise() })]);
         } catch (err) {
           // engines that reject promise-valued ClipboardItem entries: resolve
           // the blob first and write it directly (best effort, may still be
           // blocked by the broken gesture chain on strict browsers)
-          writePromise = pngBlobPromise().then(function (blob) {
-            return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          });
+          writePromise = fallbackWrite();
         }
+        // Some browsers return a rejected promise instead of throwing when
+        // promise-valued ClipboardItems are unsupported. Retry with a Blob.
+        writePromise = Promise.resolve(writePromise).catch(function (err) {
+          if (err && err.code === 'CANVAS_TOO_LARGE') throw err;
+          return fallbackWrite();
+        });
         writePromise.then(function () { done(true); }, function (err) {
           done(false);
           if (err && err.code === 'CANVAS_TOO_LARGE') alert(err.message);
@@ -9652,9 +10776,12 @@ type deformer</textarea>
             }
           }
           var hasMisreg = Math.abs(g.misregX) > 0.001 || Math.abs(g.misregY) > 0.001;
+          var hasMosh = Math.abs(g.moshPassAX || 0) > 0.001 || Math.abs(g.moshPassAY || 0) > 0.001;
           var svgOpacity = g.composition ? g.opacity : 1;
           if (hasMisreg) pushSvgPass(g.misregX, g.misregY, params.misregColorA, 0.72 * svgOpacity, true);
+          if (hasMosh) pushSvgPass(g.moshPassAX, g.moshPassAY, '#00b8d9', 0.72 * svgOpacity, 'screen');
           pushSvgPass(0, 0, g.fill || (g.accent ? params.accent : params.ink), svgOpacity, g.fxBlend || false);
+          if (hasMosh) pushSvgPass(g.moshPassBX, g.moshPassBY, '#ff204e', 0.68 * svgOpacity, 'multiply');
           if (hasMisreg) pushSvgPass(-g.misregX * 0.65, -g.misregY * 0.65, params.misregColorB, 0.72 * svgOpacity, true);
         }
         parts.push('</g></g></svg>');
@@ -9675,9 +10802,14 @@ type deformer</textarea>
       var controlPanel = document.querySelector('.panel');
 
       /* ---------------- progressive desktop / mobile control UI ---------------- */
-      var PANEL_UI_KEY = 'typeDeformer.panelUi.v1';
+      var PANEL_UI_KEY = 'typeDeformer.panelUi.v2';
       var MODE_UI_LABELS = { flow: 'Lens', edit: 'Edit', grid: 'Arrange', lock: 'Freeze' };
       var TARGET_UI_LABELS = { all: 'All', kanji: '漢字', hira: 'ひらがな', kata: 'カタカナ', latin: 'ABC', digit: '123', punct: '約物' };
+      var WORKFLOW_STAGES = ['text', 'effect', 'apply', 'compose', 'export'];
+      var WORKFLOW_LABELS = {
+        text: '01 TEXT / 文字', effect: '02 EFFECT / 効果', apply: '03 APPLY / 適用',
+        compose: '04 COMPOSE / 構成', export: '05 EXPORT / 書き出し'
+      };
       var mobileActiveSection = 'create';
 
       function contextStatusText() {
@@ -9698,6 +10830,11 @@ type deformer</textarea>
           button.setAttribute('aria-pressed', String(!canvasView.active && button.dataset.mobileMode === params.mode));
         });
         if (btnMobileView) btnMobileView.setAttribute('aria-pressed', String(canvasView.active));
+        Array.prototype.forEach.call(document.querySelectorAll('[data-workflow-stage]'), function (button) {
+          button.setAttribute('aria-current', button.dataset.workflowStage === mobileActiveSection ? 'step' : 'false');
+        });
+        var sheetTitle = document.getElementById('mobileSheetTitle');
+        if (sheetTitle) sheetTitle.textContent = WORKFLOW_LABELS[mobileActiveSection] || WORKFLOW_LABELS.text;
         Array.prototype.forEach.call(document.querySelectorAll('button[data-batch]'), function (button) {
           button.setAttribute('aria-current', String(button.dataset.batch === activeBatchProfile));
         });
@@ -9706,7 +10843,9 @@ type deformer</textarea>
       function storePanelSections() {
         var state = {};
         Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
-          state[section.dataset.panelSection] = section.classList.contains('is-open');
+          if (WORKFLOW_STAGES.indexOf(section.dataset.panelSection) !== -1) {
+            state[section.dataset.panelSection] = section.classList.contains('is-open');
+          }
         });
         try { localStorage.setItem(PANEL_UI_KEY, JSON.stringify(state)); } catch (e) { }
       }
@@ -9724,29 +10863,58 @@ type deformer</textarea>
       }
 
       function openDesktopSection(key) {
+        if (key === 'create') key = 'text';
+        if (key === 'output') key = 'export';
+        if (key === 'file') key = 'project';
         var section = document.querySelector('.panel-section[data-panel-section="' + key + '"]');
         Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (other) {
           if (other !== section) setPanelSectionOpen(other, false, false);
         });
         setPanelSectionOpen(section, true);
+        if (WORKFLOW_STAGES.indexOf(key) !== -1) mobileActiveSection = key;
+        updateContextUI();
         if (controlPanel) controlPanel.scrollTop = 0;
       }
 
       function setMobileSection(key) {
-        mobileActiveSection = key || 'create';
+        if (key === 'create') key = 'text';
+        if (key === 'output') key = 'export';
+        if (key === 'file') key = 'project';
+        mobileActiveSection = WORKFLOW_STAGES.indexOf(key) !== -1 ? key : 'text';
         Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
           section.classList.toggle('mobile-active', section.dataset.panelSection === mobileActiveSection);
         });
         Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
           button.setAttribute('aria-pressed', String(button.dataset.mobileSection === mobileActiveSection));
         });
+        updateContextUI();
         if (controlPanel) controlPanel.scrollTop = 0;
+      }
+
+      function syncMobilePanelA11y(open) {
+        if (!controlPanel) return;
+        var mobile = matchMedia('(max-width: 760px)').matches;
+        if (!mobile) {
+          controlPanel.inert = false;
+          controlPanel.removeAttribute('aria-hidden');
+          document.body.classList.remove('mobile-controls-open', 'mobile-keyboard-open');
+          return;
+        }
+        controlPanel.inert = !open;
+        controlPanel.setAttribute('aria-hidden', String(!open));
+        document.body.classList.toggle('mobile-controls-open', open);
       }
 
       function openMobileSheet(sectionKey, anchorId) {
         if (!controlPanel) return;
         setMobileSection(sectionKey || mobileActiveSection);
+        syncMobilePanelA11y(true);
         controlPanel.classList.add('mobile-open');
+        var menuButton = document.getElementById('btnMobileMenu');
+        if (menuButton) {
+          menuButton.setAttribute('aria-expanded', 'true');
+          menuButton.setAttribute('aria-label', 'Close control sheet');
+        }
         if (anchorId) requestAnimationFrame(function () {
           var anchor = document.getElementById(anchorId);
           if (anchor) anchor.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -9754,26 +10922,300 @@ type deformer</textarea>
       }
 
       function closeMobileSheet() {
+        var focusWasInside = controlPanel && controlPanel.contains(document.activeElement);
         if (controlPanel) controlPanel.classList.remove('mobile-open', 'mobile-text-focus');
+        document.body.classList.remove('mobile-keyboard-open');
+        syncMobilePanelA11y(false);
+        var menuButton = document.getElementById('btnMobileMenu');
+        if (menuButton) {
+          menuButton.setAttribute('aria-expanded', 'false');
+          menuButton.setAttribute('aria-label', 'Open controls');
+          if (focusWasInside) requestAnimationFrame(function () { menuButton.focus(); });
+        }
+      }
+
+      var parameterEntries = [];
+      var parameterRows = [];
+      var parameterChangedOnly = false;
+      var parameterRefreshFrame = 0;
+
+      function parameterTitle(value) {
+        return String(value || '')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/[-_]+/g, ' ')
+          .replace(/^p(?=[A-Z])/, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
+      }
+
+      function parameterLabel(control) {
+        var label = control.id ? controlPanel.querySelector('label[for="' + control.id + '"]') : null;
+        return (label && label.textContent.trim()) || control.getAttribute('aria-label') || parameterTitle(control.id);
+      }
+
+      function parameterGroup(control) {
+        var operatorPanel = control.closest('[data-operator-panel]');
+        if (operatorPanel) return 'Operator · ' + parameterTitle(operatorPanel.dataset.operatorPanel);
+        var compositionPanel = control.closest('[data-composition-panel]');
+        if (compositionPanel) return 'Compose · ' + parameterTitle(compositionPanel.dataset.compositionPanel);
+        if (control.closest('#gridControlBlock')) return 'Compose · Grid';
+        if (control.closest('#typographyControls')) return 'Create · Typography';
+        var details = control.closest('details');
+        if (details) {
+          var summary = details.querySelector(':scope > summary');
+          if (summary) return parameterTitle(summary.textContent);
+        }
+        var section = control.closest('[data-panel-section]');
+        return section ? parameterTitle(section.dataset.panelSection) : 'Controls';
+      }
+
+      function parameterValue(control) {
+        if (control.type === 'checkbox' || control.type === 'radio') return control.checked ? 'ON' : 'OFF';
+        if (control.tagName === 'SELECT') {
+          var option = control.options[control.selectedIndex];
+          return option ? option.textContent.trim() : control.value;
+        }
+        return control.type === 'color' ? control.value.toUpperCase() : String(control.value);
+      }
+
+      function parameterRawValue(control) {
+        if (control.type === 'checkbox' || control.type === 'radio') return String(control.checked);
+        return String(control.value);
+      }
+
+      function resetParameterEntry(entry, deferRefresh) {
+        var control = entry.control;
+        control.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        if (control.type === 'checkbox' || control.type === 'radio') control.checked = entry.defaultChecked;
+        else control.value = entry.defaultValue;
+        control.dispatchEvent(new Event('input', { bubbles: true }));
+        control.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!deferRefresh) scheduleParameterUIRefresh();
+      }
+
+      function resetParameterRow(row) {
+        for (var i = 0; i < row.parameterEntries.length; i++) resetParameterEntry(row.parameterEntries[i], true);
+        scheduleParameterUIRefresh();
+      }
+
+      function revealParameter(entry) {
+        var control = entry.control;
+        var operatorPanel = control.closest('[data-operator-panel]');
+        if (operatorPanel && operatorSelect.value !== operatorPanel.dataset.operatorPanel) {
+          operatorSelect.value = operatorPanel.dataset.operatorPanel;
+          operatorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        var compositionPanel = control.closest('[data-composition-panel]');
+        if (compositionPanel && compositionPanel.hidden) {
+          var tab = document.querySelector('[data-composition-tab="' + compositionPanel.dataset.compositionPanel + '"]');
+          if (tab) tab.click();
+        }
+        var ancestor = control.parentElement;
+        while (ancestor && ancestor !== controlPanel) {
+          if (ancestor.tagName === 'DETAILS') ancestor.open = true;
+          ancestor = ancestor.parentElement;
+        }
+        var section = control.closest('[data-panel-section]');
+        var sectionKey = section ? section.dataset.panelSection : 'create';
+        if (matchMedia('(max-width: 760px)').matches) openMobileSheet(sectionKey);
+        else openDesktopSection(sectionKey);
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            control.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            control.focus({ preventScroll: true });
+          });
+        });
+      }
+
+      function renderParameterResults() {
+        var search = document.getElementById('parameterSearch');
+        var results = document.getElementById('parameterSearchResults');
+        var status = document.getElementById('parameterSearchStatus');
+        if (!search || !results || !status) return;
+        var query = search.value.trim().toLowerCase();
+        if (!query && !parameterChangedOnly) {
+          results.hidden = true;
+          results.replaceChildren();
+          status.textContent = 'Search all controls';
+          return;
+        }
+        var matches = parameterEntries.filter(function (entry) {
+          return (!parameterChangedOnly || entry.modified) && (!query || entry.searchText.indexOf(query) !== -1);
+        });
+        if (query) matches.sort(function (a, b) {
+          var aStarts = a.label.toLowerCase().indexOf(query) === 0 ? 0 : 1;
+          var bStarts = b.label.toLowerCase().indexOf(query) === 0 ? 0 : 1;
+          return aStarts - bStarts || a.label.localeCompare(b.label);
+        });
+        status.textContent = matches.length + (parameterChangedOnly ? ' changed' : ' results');
+        results.replaceChildren();
+        results.hidden = false;
+        if (!matches.length) {
+          var empty = document.createElement('div');
+          empty.className = 'parameter-empty';
+          empty.textContent = 'No matching parameters';
+          results.appendChild(empty);
+          return;
+        }
+        matches.slice(0, 16).forEach(function (entry) {
+          var row = document.createElement('div');
+          row.className = 'parameter-result';
+          var main = document.createElement('button');
+          main.type = 'button';
+          main.className = 'parameter-result-main';
+          main.dataset.parameterTarget = entry.control.id;
+          var name = document.createElement('span');
+          name.className = 'parameter-result-name';
+          name.textContent = entry.label;
+          var value = document.createElement('span');
+          value.className = 'parameter-result-value';
+          value.textContent = parameterValue(entry.control) + ' · ';
+          var group = document.createElement('span');
+          group.className = 'parameter-result-group';
+          group.textContent = entry.group;
+          value.appendChild(group);
+          main.appendChild(name);
+          main.appendChild(value);
+          main.addEventListener('click', function () { revealParameter(entry); });
+          row.appendChild(main);
+          if (entry.modified) {
+            var reset = document.createElement('button');
+            reset.type = 'button';
+            reset.className = 'parameter-result-reset';
+            reset.textContent = 'RESET';
+            reset.setAttribute('aria-label', 'Reset ' + entry.label);
+            reset.addEventListener('click', function () { resetParameterEntry(entry); });
+            row.appendChild(reset);
+          }
+          results.appendChild(row);
+        });
+      }
+
+      function refreshParameterUI() {
+        parameterRefreshFrame = 0;
+        var changed = 0;
+        for (var i = 0; i < parameterEntries.length; i++) {
+          var entry = parameterEntries[i];
+          entry.modified = parameterRawValue(entry.control) !== entry.defaultRaw;
+          entry.searchText = (entry.label + ' ' + entry.group + ' ' + entry.control.id + ' ' + parameterValue(entry.control)).toLowerCase();
+          if (entry.modified) changed++;
+        }
+        for (var r = 0; r < parameterRows.length; r++) {
+          var row = parameterRows[r];
+          row.element.classList.toggle('is-parameter-modified', row.parameterEntries.some(function (entry) { return entry.modified; }));
+        }
+        var count = document.getElementById('parameterChangedCount');
+        if (count) count.textContent = String(changed);
+        renderParameterResults();
+      }
+
+      function scheduleParameterUIRefresh() {
+        if (!parameterRefreshFrame) parameterRefreshFrame = requestAnimationFrame(refreshParameterUI);
+      }
+
+      function initParameterNavigator() {
+        var rowMap = new Map();
+        var controls = controlPanel.querySelectorAll('input[id^="p"]:not([type="file"]):not(#parameterSearch), select[id^="p"], textarea[id^="p"]');
+        Array.prototype.forEach.call(controls, function (control) {
+          var entry = {
+            control: control,
+            label: parameterLabel(control),
+            group: parameterGroup(control),
+            defaultValue: control.value,
+            defaultChecked: control.checked,
+            defaultRaw: parameterRawValue(control),
+            modified: false,
+            searchText: ''
+          };
+          parameterEntries.push(entry);
+          var rowElement = control.closest('.row');
+          if (!rowElement) return;
+          var row = rowMap.get(rowElement);
+          if (!row) {
+            row = { element: rowElement, parameterEntries: [] };
+            rowMap.set(rowElement, row);
+            parameterRows.push(row);
+            rowElement.classList.add('has-parameter-reset');
+            var reset = document.createElement('button');
+            reset.type = 'button';
+            reset.className = 'parameter-row-reset';
+            reset.textContent = 'RESET';
+            reset.setAttribute('aria-label', 'Reset this parameter row');
+            reset.addEventListener('click', function () { resetParameterRow(row); });
+            rowElement.appendChild(reset);
+          }
+          row.parameterEntries.push(entry);
+        });
+        var search = document.getElementById('parameterSearch');
+        var changedButton = document.getElementById('btnParameterChanged');
+        search.addEventListener('input', renderParameterResults);
+        search.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            search.value = '';
+            parameterChangedOnly = false;
+            changedButton.setAttribute('aria-pressed', 'false');
+            renderParameterResults();
+          } else if (event.key === 'Enter') {
+            var first = document.querySelector('.parameter-result-main');
+            if (first) { event.preventDefault(); first.click(); }
+          }
+        });
+        changedButton.addEventListener('click', function () {
+          parameterChangedOnly = !parameterChangedOnly;
+          changedButton.setAttribute('aria-pressed', String(parameterChangedOnly));
+          renderParameterResults();
+        });
+        controlPanel.addEventListener('input', scheduleParameterUIRefresh, true);
+        controlPanel.addEventListener('change', scheduleParameterUIRefresh, true);
+        document.addEventListener('keydown', function (event) {
+          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            if (matchMedia('(max-width: 760px)').matches && !controlPanel.classList.contains('mobile-open')) openMobileSheet(mobileActiveSection);
+            requestAnimationFrame(function () { search.focus(); search.select(); });
+          }
+        });
+        refreshParameterUI();
       }
 
       function initProgressiveUI() {
+        var effectSlot = document.getElementById('effectStageSlot');
+        var applySlot = document.getElementById('applyStageSlot');
+        var effectBlocks = ['effectControlBlock', 'operatorPanelsBlock', 'effectExtrasBlock'];
+        var applyBlocks = ['applicationControlBlock', 'targetControlBlock', 'contextLensBlock', 'targetBatchBlock'];
+        effectBlocks.forEach(function (id) {
+          var block = document.getElementById(id);
+          if (effectSlot && block) effectSlot.appendChild(block);
+        });
+        applyBlocks.forEach(function (id) {
+          var block = document.getElementById(id);
+          if (applySlot && block) applySlot.appendChild(block);
+        });
         var gridSlot = document.getElementById('composeGridSlot');
         var gridBlock = document.getElementById('gridControlBlock');
         if (gridSlot && gridBlock) gridSlot.appendChild(gridBlock);
-        var applicationSlot = document.getElementById('applicationSlot');
-        var applicationBlock = document.getElementById('applicationControlBlock');
-        if (applicationSlot && applicationBlock) applicationSlot.appendChild(applicationBlock);
-        var targetBatchSlot = document.getElementById('targetBatchSlot');
-        var targetBatchBlock = document.getElementById('targetBatchBlock');
-        if (targetBatchSlot && targetBatchBlock) targetBatchSlot.appendChild(targetBatchBlock);
+        var parameterToolsSlot = document.getElementById('parameterToolsSlot');
+        var parameterTools = document.querySelector('.parameter-tools');
+        if (parameterToolsSlot && parameterTools) parameterToolsSlot.appendChild(parameterTools);
+
+        Array.prototype.forEach.call(document.querySelectorAll('.operator-panel'), function (panel) {
+          var rows = Array.prototype.filter.call(panel.children, function (child) { return child.classList && child.classList.contains('row'); });
+          if (rows.length <= 3) return;
+          var details = document.createElement('details');
+          details.className = 'operator-advanced';
+          var summary = document.createElement('summary');
+          summary.textContent = 'More effect controls / 詳細';
+          details.appendChild(summary);
+          rows.slice(3).forEach(function (row) { details.appendChild(row); });
+          panel.appendChild(details);
+        });
 
         var saved = null;
         try { saved = JSON.parse(localStorage.getItem(PANEL_UI_KEY)); } catch (e) { }
         var restoredOpen = false;
         Array.prototype.forEach.call(document.querySelectorAll('.panel-section'), function (section) {
           var key = section.dataset.panelSection;
-          var requestedOpen = saved && typeof saved[key] === 'boolean' ? saved[key] : key === 'create';
+          var requestedOpen = saved && typeof saved[key] === 'boolean' ? saved[key] : key === 'text';
           var shouldOpen = requestedOpen && !restoredOpen;
           if (shouldOpen) restoredOpen = true;
           setPanelSectionOpen(section, shouldOpen, false);
@@ -9784,6 +11226,19 @@ type deformer</textarea>
           });
         });
         if (!restoredOpen) openDesktopSection('create');
+
+        Array.prototype.forEach.call(document.querySelectorAll('[data-workflow-stage]'), function (button) {
+          button.addEventListener('click', function () {
+            if (matchMedia('(max-width: 760px)').matches) openMobileSheet(button.dataset.workflowStage);
+            else openDesktopSection(button.dataset.workflowStage);
+          });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-next-stage]'), function (button) {
+          button.addEventListener('click', function () {
+            if (matchMedia('(max-width: 760px)').matches) openMobileSheet(button.dataset.nextStage);
+            else openDesktopSection(button.dataset.nextStage);
+          });
+        });
 
         Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
           button.addEventListener('click', function () { setMobileSection(button.dataset.mobileSection); });
@@ -9801,14 +11256,99 @@ type deformer</textarea>
         document.getElementById('btnMobileOperator').addEventListener('click', function () { openMobileSheet('create', 'pOperator'); });
         document.getElementById('btnMobileTarget').addEventListener('click', function () { openMobileSheet('create', 'pBatchProfile'); });
         document.getElementById('btnMobileType').addEventListener('click', function () { openMobileSheet('create', 'typographyControls'); });
-        document.getElementById('btnMobileMenu').addEventListener('click', function () { openMobileSheet(mobileActiveSection); });
+        document.getElementById('btnOpenGridSettings').addEventListener('click', function () {
+          if (matchMedia('(max-width: 760px)').matches) {
+            openMobileSheet('compose', 'gridControlBlock');
+          } else {
+            openDesktopSection('compose');
+            requestAnimationFrame(function () {
+              var gridBlock = document.getElementById('gridControlBlock');
+              if (gridBlock) gridBlock.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            });
+          }
+        });
+        document.getElementById('btnMobileMenu').addEventListener('click', function () {
+          if (controlPanel.classList.contains('mobile-open')) closeMobileSheet();
+          else openMobileSheet(mobileActiveSection);
+        });
         document.getElementById('btnMobileSheetClose').addEventListener('click', closeMobileSheet);
+        document.getElementById('btnMobileSheetBack').addEventListener('click', closeMobileSheet);
         document.getElementById('btnMobileUndo').addEventListener('click', undo);
         document.getElementById('btnMobilePreview').addEventListener('click', function () { document.getElementById('btnPreview').click(); });
+        document.getElementById('btnHeaderUndo').addEventListener('click', undo);
+        document.getElementById('btnHeaderRedo').addEventListener('click', redo);
+        document.getElementById('btnHeaderPreview').addEventListener('click', function () { document.getElementById('btnPreview').click(); });
+        document.getElementById('btnHeaderExport').addEventListener('click', function () { openDesktopSection('export'); });
+
+        var projectMenu = document.getElementById('projectMenu');
+        document.getElementById('btnMobileProject').addEventListener('click', function () {
+          if (projectMenu) projectMenu.open = !projectMenu.open;
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-project-proxy]'), function (button) {
+          button.addEventListener('click', function () {
+            var source = document.getElementById(button.dataset.projectProxy);
+            if (source) source.click();
+            if (projectMenu) projectMenu.open = false;
+          });
+        });
 
         var textArea = document.getElementById('textInput');
-        textArea.addEventListener('focus', function () { if (matchMedia('(max-width: 760px)').matches) controlPanel.classList.add('mobile-text-focus'); });
-        textArea.addEventListener('blur', function () { controlPanel.classList.remove('mobile-text-focus'); });
+        textArea.addEventListener('focus', function () {
+          if (!matchMedia('(max-width: 760px)').matches) return;
+          controlPanel.classList.add('mobile-text-focus');
+          document.body.classList.add('mobile-keyboard-open');
+          requestAnimationFrame(function () { textArea.scrollIntoView({ block: 'start' }); });
+        });
+        textArea.addEventListener('blur', function () {
+          controlPanel.classList.remove('mobile-text-focus');
+          document.body.classList.remove('mobile-keyboard-open');
+        });
+
+        var sheetNav = document.querySelector('.mobile-sheet-nav');
+        var sheetDragStart = 0;
+        var sheetDragDistance = 0;
+        if (sheetNav) {
+          sheetNav.addEventListener('touchstart', function (event) {
+            if (!controlPanel.classList.contains('mobile-open') || event.touches.length !== 1) return;
+            sheetDragStart = event.touches[0].clientY;
+            sheetDragDistance = 0;
+            controlPanel.classList.add('mobile-dragging');
+          }, { passive: true });
+          sheetNav.addEventListener('touchmove', function (event) {
+            if (!sheetDragStart || event.touches.length !== 1) return;
+            sheetDragDistance = Math.max(0, event.touches[0].clientY - sheetDragStart);
+            if (sheetDragDistance > 4) event.preventDefault();
+            controlPanel.style.setProperty('--mobile-sheet-drag', Math.min(sheetDragDistance, 180) + 'px');
+          }, { passive: false });
+          function finishSheetDrag() {
+            if (!sheetDragStart) return;
+            var shouldClose = sheetDragDistance > 64;
+            sheetDragStart = 0;
+            sheetDragDistance = 0;
+            controlPanel.classList.remove('mobile-dragging');
+            controlPanel.style.removeProperty('--mobile-sheet-drag');
+            if (shouldClose) closeMobileSheet();
+          }
+          sheetNav.addEventListener('touchend', finishSheetDrag);
+          sheetNav.addEventListener('touchcancel', finishSheetDrag);
+        }
+
+        stageWrap.addEventListener('pointerdown', function (event) {
+          if (!matchMedia('(max-width: 760px)').matches || !controlPanel.classList.contains('mobile-open')) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          closeMobileSheet();
+        }, true);
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && controlPanel.classList.contains('mobile-open')) closeMobileSheet();
+        });
+
+        var mobileLayoutQuery = matchMedia('(max-width: 760px)');
+        function syncMobileLayoutMode() {
+          syncMobilePanelA11y(mobileLayoutQuery.matches && controlPanel.classList.contains('mobile-open'));
+        }
+        if (mobileLayoutQuery.addEventListener) mobileLayoutQuery.addEventListener('change', syncMobileLayoutMode);
+        else mobileLayoutQuery.addListener(syncMobileLayoutMode);
 
         Array.prototype.forEach.call(controlPanel.querySelectorAll('input[type="range"]'), function (input) {
           var minus = document.createElement('button');
@@ -9835,10 +11375,12 @@ type deformer</textarea>
         });
 
         setMobileSection('create');
+        syncMobilePanelA11y(false);
         updateContextUI();
       }
 
       initProgressiveUI();
+      initParameterNavigator();
 
       function refreshBatchProfileControls() {
         var source = batchProfileForKey(activeBatchProfile);
@@ -9855,6 +11397,7 @@ type deformer</textarea>
           ? 'All：全文字の基準値'
           : BATCH_PROFILE_LABELS[activeBatchProfile] + '：' + (inherited ? 'Allを継承中（スライダーを動かすと個別設定）' : '個別設定');
         btnBatchProfileReset.disabled = activeBatchProfile === 'all' || inherited;
+        scheduleParameterUIRefresh();
       }
 
       function setActiveOperator(id) {
@@ -9869,6 +11412,8 @@ type deformer</textarea>
         if (selectedM) updateHud();
         updateContextUI();
         scheduleEffectStatusUpdate();
+        ensureConfuseDictionary();
+        drawBlobTrackOverlay();
       }
 
       operatorSelect.addEventListener('change', function () { setActiveOperator(operatorSelect.value); });
@@ -9944,6 +11489,20 @@ type deformer</textarea>
       bindRange('pBaselineShift', 'vBaselineShift', 'baselineShift', fEm, applyAllOperatorVisuals);
       bindRange('pMisregX', 'vMisregX', 'misregX', fPx, applyAllOperatorVisuals);
       bindRange('pMisregY', 'vMisregY', 'misregY', fPx, applyAllOperatorVisuals);
+      bindRange('pMoshShift', 'vMoshShift', 'moshShift', fPx, applyAllOperatorVisuals);
+      bindRange('pMoshBlock', 'vMoshBlock', 'moshBlock', f0, applyAllOperatorVisuals);
+      bindRange('pMoshChroma', 'vMoshChroma', 'moshChroma', fPx, applyAllOperatorVisuals);
+      bindRange('pMoshCrush', 'vMoshCrush', 'moshCrush', f2, applyAllOperatorVisuals);
+      bindRange('pMoshSmear', 'vMoshSmear', 'moshSmear', function (v) { return v.toFixed(1) + '×'; }, applyAllOperatorVisuals);
+      bindRange('pMoshTear', 'vMoshTear', 'moshTear', f2, applyAllOperatorVisuals);
+      bindRange('pMoshHold', 'vMoshHold', 'moshHold', function (v) { return Math.round(v) + 'f'; }, applyAllOperatorVisuals);
+      bindRange('pBlobPull', 'vBlobPull', 'blobPull', f2, applyAllOperatorVisuals);
+      bindRange('pBlobScale', 'vBlobScale', 'blobScale', f2, applyAllOperatorVisuals);
+      bindRange('pBlobThreshold', 'vBlobThreshold', 'blobThreshold', f2);
+      bindRange('pBlobMinArea', 'vBlobMinArea', 'blobMinArea', function (v) { return (v * 100).toFixed(1) + '%'; });
+      bindRange('pBlobMaxArea', 'vBlobMaxArea', 'blobMaxArea', function (v) { return Math.round(v * 100) + '%'; });
+      bindRange('pBlobMaxBlobs', 'vBlobMaxBlobs', 'blobMaxBlobs', f0);
+      bindRange('pBlobSmoothing', 'vBlobSmoothing', 'blobSmoothing', f2);
       bindRange('pConfuseDepth', 'vConfuseDepth', 'confuseDepth', f2, applyAllOperatorVisuals);
       bindRange('pSize', 'vSize', 'fontSize', f0, applyStyle);
       bindRange('pLine', 'vLine', 'lineHeight', f2, applyStyle);
@@ -9977,6 +11536,11 @@ type deformer</textarea>
       });
       document.getElementById('pMisregColorB').addEventListener('input', function (e) {
         params.misregColorB = e.target.value; applyAllOperatorVisuals();
+      });
+      document.getElementById('pBlobDrawBounds').addEventListener('change', function (e) {
+        params.blobDrawBounds = e.target.checked;
+        markAutosaveDirty();
+        drawBlobTrackOverlay();
       });
       document.getElementById('pConfuseDictionary').addEventListener('change', function (e) {
         params.confuseDictionary = e.target.value;
@@ -10324,14 +11888,8 @@ type deformer</textarea>
             ? (webglCompositionAvailable() ? 'WEBGL2 + CANVAS' : 'CANVAS FALLBACK') : 'CANVAS 2D';
         populateCompositionPresets();
         document.getElementById('btnCompositionPlay').disabled = !compositionState.enabled;
-        if (modeButtons && modeButtons.grid) {
-          modeButtons.grid.disabled = compositionState.enabled;
-          modeButtons.grid.title = compositionState.enabled ? 'Composition owns the visible layout. Remove it to arrange the source grid.' : '';
-        }
-        Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode="grid"]'), function (button) {
-          button.disabled = compositionState.enabled;
-          button.title = compositionState.enabled ? 'Composition owns the visible layout. Remove it to arrange the source grid.' : '';
-        });
+        scheduleParameterUIRefresh();
+        updateArrangeAvailability();
         updateCompositionStatus();
         scheduleCompositionDraw();
         scheduleEffectStatusUpdate();
@@ -10750,8 +12308,10 @@ type deformer</textarea>
       document.getElementById('pGridEnabled').addEventListener('change', function (e) {
         params.gridEnabled = e.target.checked;
         controlPanel.classList.toggle('grid-enabled', params.gridEnabled);
+        if (!params.gridEnabled && params.mode === 'grid') setMode('flow');
         if (params.gridEnabled) layoutGrid();
         else { clearGridStyles(); applyAllOperatorVisuals(); }
+        updateArrangeAvailability();
       });
       document.getElementById('pGridAutoRows').addEventListener('change', function (e) {
         params.gridAutoRows = e.target.checked;
@@ -11250,7 +12810,32 @@ type deformer</textarea>
         edit: document.getElementById('btnModeEdit'),
         grid: document.getElementById('btnModeGrid')
       };
+      function updateArrangeAvailability() {
+        var disabled = !params.gridEnabled || compositionState.enabled;
+        var reason = compositionState.enabled
+          ? 'Composition owns the visible layout. Remove it to arrange the source grid.'
+          : (!params.gridEnabled ? 'Turn on Grid layout before using Arrange.' : 'Grid layout is ready. Arrange moves glyphs between cells.');
+        Array.prototype.forEach.call(document.querySelectorAll('#btnModeGrid, [data-mobile-mode="grid"]'), function (button) {
+          button.disabled = disabled;
+          button.setAttribute('aria-disabled', String(disabled));
+          button.title = disabled ? reason : 'Arrange: move glyphs between grid cells';
+        });
+        var hint = document.getElementById('arrangeHint');
+        if (hint) {
+          hint.textContent = reason;
+          hint.dataset.state = disabled ? 'blocked' : 'ready';
+        }
+        var gridLink = document.getElementById('btnOpenGridSettings');
+        if (gridLink) gridLink.hidden = !(!params.gridEnabled && !compositionState.enabled);
+      }
       function setMode(mode) {
+        if (mode === 'grid' && !params.gridEnabled) {
+          if (params.mode === 'grid') mode = 'flow';
+          else {
+            updateArrangeAvailability();
+            return;
+          }
+        }
         if (mode === 'grid' && compositionState.enabled && params.mode !== 'grid') return;
         if (canvasView.active) setCanvasViewActive(false);
         params.mode = mode;
@@ -11266,6 +12851,7 @@ type deformer</textarea>
         stage.classList.toggle('edit-mode', mode === 'edit');
         stage.classList.toggle('grid-mode', mode === 'grid');
         clearEditSelection();
+        updateArrangeAvailability();
         updateContextUI();
       }
       modeButtons.flow.addEventListener('click', function () { setMode('flow'); });
@@ -11331,6 +12917,7 @@ type deformer</textarea>
         document.getElementById('pAccent').value = params.accent;
         document.getElementById('pMisregColorA').value = params.misregColorA;
         document.getElementById('pMisregColorB').value = params.misregColorB;
+        document.getElementById('pBlobDrawBounds').checked = !!params.blobDrawBounds;
         document.getElementById('pAlign').value = params.align;
         document.getElementById('pTransparent').checked = params.transparentBg;
         document.getElementById('pDeformedOnly').checked = params.deformedOnly;
@@ -11368,6 +12955,7 @@ type deformer</textarea>
         syncCompositionUI();
         updateExportInfo();
         updateVideoExportAvailability(true);
+        scheduleParameterUIRefresh();
       }
 
       function projectData() {
@@ -11411,8 +12999,30 @@ type deformer</textarea>
         for (var k in params) {
           if (Object.prototype.hasOwnProperty.call(data.params, k)) params[k] = data.params[k];
         }
+        // Projects/autosaves created by the first, restrained Data Mosh build
+        // should open with the new rupture model instead of preserving its
+        // much weaker 34px/9px defaults.
+        var legacyDataMosh = !Object.prototype.hasOwnProperty.call(data.params, 'moshSmear');
+        if (legacyDataMosh) {
+          params.moshShift = PARAM_DEFAULTS.moshShift;
+          params.moshBlock = PARAM_DEFAULTS.moshBlock;
+          params.moshChroma = PARAM_DEFAULTS.moshChroma;
+          params.moshCrush = PARAM_DEFAULTS.moshCrush;
+          params.moshSmear = PARAM_DEFAULTS.moshSmear;
+          params.moshTear = PARAM_DEFAULTS.moshTear;
+          params.moshHold = PARAM_DEFAULTS.moshHold;
+        }
         normalizeParams();
         batchProfiles = normalizeBatchProfiles(data.batchProfiles);
+        if (legacyDataMosh) for (var profileKey in batchProfiles) {
+          batchProfiles[profileKey].moshShift = params.moshShift;
+          batchProfiles[profileKey].moshBlock = params.moshBlock;
+          batchProfiles[profileKey].moshChroma = params.moshChroma;
+          batchProfiles[profileKey].moshCrush = params.moshCrush;
+          batchProfiles[profileKey].moshSmear = params.moshSmear;
+          batchProfiles[profileKey].moshTear = params.moshTear;
+          batchProfiles[profileKey].moshHold = params.moshHold;
+        }
         compositionState = normalizeComposition(data.composition);
         compositionState.quality = 'auto';
         compositionInspector = compositionState.type;
@@ -11795,13 +13405,17 @@ type deformer</textarea>
           // same Safari rule as image copy: write() must start inside the
           // gesture, with the async content wrapped in the ClipboardItem
           var writePromise;
+          var fallbackWrite = function () {
+            return urlP.then(function (u) { return navigator.clipboard.writeText(u); });
+          };
           try {
             writePromise = navigator.clipboard.write([new ClipboardItem({
               'text/plain': urlP.then(function (u) { return new Blob([u], { type: 'text/plain' }); })
             })]);
           } catch (err) {
-            writePromise = urlP.then(function (u) { return navigator.clipboard.writeText(u); });
+            writePromise = fallbackWrite();
           }
+          writePromise = Promise.resolve(writePromise).catch(function () { return fallbackWrite(); });
           writePromise.then(function () { done(true); }, function () {
             urlP.then(function (u) { prompt('このURLをコピーしてください', u); }).catch(function () { });
           });
