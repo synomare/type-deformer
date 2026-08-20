@@ -24,10 +24,6 @@ function readRequired(filePath) {
   }
 }
 
-function countMatches(text, pattern) {
-  return Array.from(text.matchAll(pattern)).length;
-}
-
 function localAssetPath(rawUrl) {
   const value = rawUrl.trim();
   if (!value || value.startsWith('#') || value.startsWith('//')) return null;
@@ -67,8 +63,11 @@ if (html) {
   for (const match of html.matchAll(getByIdPattern)) {
     if (!match[2].includes('${')) addReference(match[2], 'getElementById');
   }
-  const forPattern = /\bfor\s*=\s*(["'])([^"']+)\1/gi;
-  for (const match of markupOnly.matchAll(forPattern)) addReference(match[2], 'label[for]');
+  const labelPattern = /<label\b([^>]*)>/gi;
+  for (const match of markupOnly.matchAll(labelPattern)) {
+    const forMatch = match[1].match(/(?:^|\s)for\s*=\s*(["'])([^"']+)\1/i);
+    if (forMatch) addReference(forMatch[2], 'label[for]');
+  }
   const ariaControlsPattern = /\baria-controls\s*=\s*(["'])([^"']+)\1/gi;
   for (const match of markupOnly.matchAll(ariaControlsPattern)) {
     for (const id of match[2].trim().split(/\s+/)) addReference(id, 'aria-controls');
