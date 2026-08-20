@@ -1,0 +1,55 @@
+name: Apply Confuse prewarm
+
+on:
+  push:
+    branches:
+      - chatgpt/confuse-prewarm-2026-08-21
+    paths:
+      - scripts/apply-confuse-prewarm.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out performance branch
+        uses: actions/checkout@v7
+        with:
+          ref: chatgpt/confuse-prewarm-2026-08-21
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply exact source patch
+        run: python3 scripts/apply-confuse-prewarm.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run structural validation
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: npm run test:e2e
+
+      - name: Commit tested prewarm integration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html package.json
+          if git diff --cached --quiet; then
+            echo "No generated changes required."
+            exit 0
+          fi
+          git commit -m "perf: prewarm Confuse dictionary on capable devices"
+          git push origin HEAD:chatgpt/confuse-prewarm-2026-08-21
