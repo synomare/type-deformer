@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>type deformer — text graphic editor</title>
   <meta name="theme-color" content="#f4f3ef">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23f4f3ef'/%3E%3Cpath d='M8 12h48v12H38v32H26V24H8z' fill='%2317140f'/%3E%3Crect x='48' y='48' width='8' height='8' fill='%23c41f1f'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&amp;family=Space+Mono:wght@400;700&amp;family=Zen+Old+Mincho:wght@400;700&amp;family=Noto+Sans+JP:wght@400;700&amp;family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
@@ -1944,7 +1945,7 @@
     .operator-advanced > summary { color: var(--dim); }
     .topbar { flex-wrap: nowrap; align-items: center; }
     .topbar .hint { display: none; }
-    .topbar-actions { display: flex; align-items: stretch; margin-left: auto; }
+    .topbar-actions { display: flex; align-items: stretch; margin-left: auto; margin-right: 7rem; }
     .topbar-actions > button,
     .project-menu > summary {
       min-height: 32px;
@@ -1962,7 +1963,12 @@
     .topbar-actions > button:hover,
     .project-menu > summary:hover { background: var(--ink); color: var(--paper); transform: none; box-shadow: none; }
     .topbar-actions .header-export { border-color: var(--red); background: var(--red); color: #fff; }
-    .project-menu { position: relative; }
+    .project-menu {
+      position: fixed;
+      top: calc(0.7rem + env(safe-area-inset-top));
+      right: calc(1rem + env(safe-area-inset-right));
+      z-index: 920;
+    }
     .project-menu > summary { display: flex; align-items: center; cursor: pointer; list-style: none; }
     .project-menu-name { margin-left: 0.45rem; color: var(--red); }
     .project-menu-body {
@@ -1982,6 +1988,15 @@
     .project-menu-body button { min-height: 40px; margin-top: -1px; box-shadow: none; text-align: left; }
     .project-menu-body .project-danger { margin-top: 0.75rem; color: var(--red); }
     .legacy-mobile-tools { display: none; }
+
+    @media (min-width: 761px) and (max-width: 900px) {
+      .topbar { gap: 0.35rem 0.65rem; padding-left: 0.65rem; padding-right: 0.65rem; }
+      .topbar .jp { display: none; }
+      .top-context { min-width: 0; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }
+      .topbar-actions { margin-right: 6.5rem; }
+      .topbar-actions > button,
+      .project-menu > summary { padding-left: 0.5rem; padding-right: 0.5rem; font-size: 0.5rem; }
+    }
 
     @media (max-width: 760px) {
       .app { display: block; }
@@ -2019,27 +2034,28 @@
       <button type="button" id="btnHeaderRedo">Redo</button>
       <button type="button" id="btnHeaderPreview">Preview</button>
       <button type="button" class="header-export" id="btnHeaderExport">Export</button>
-      <details class="project-menu" id="projectMenu">
-        <summary>Project <span class="project-menu-name" id="projectMenuName">local</span></summary>
-        <div class="project-menu-body">
-          <p class="project-menu-title">PROJECT <span>保存・共有</span></p>
-          <button type="button" data-project-proxy="btnSaveProj">Save project</button>
-          <button type="button" data-project-proxy="btnLoadProj">Load project</button>
-          <button type="button" data-project-proxy="btnShare" class="primary">Share URL</button>
-          <button type="button" data-project-proxy="btnNew" class="project-danger">New project</button>
-        </div>
-      </details>
     </div>
     <span class="hint"><b>V</b> view — <b>L</b> freeze — <b>E</b> edit — <b>G</b> arrange — <b>S</b> shuffle — <b>P</b> preview — <b>⌘Z</b> undo</span>
   </header>
 
   <header class="mobile-topbar" aria-label="Mobile toolbar">
     <button type="button" id="btnMobileUndo">Undo</button>
-    <button type="button" id="btnMobileProject">Project</button>
+    <button type="button" id="btnMobileProject" aria-controls="projectMenu" aria-expanded="false" aria-haspopup="true">Project</button>
     <span class="mobile-context" id="mobileContextStatus">Stretch × Lens × All</span>
     <button type="button" id="btnMobilePreview">Preview</button>
     <button type="button" id="btnMobileMenu" aria-label="Open controls" aria-expanded="false">Menu</button>
   </header>
+
+  <details class="project-menu" id="projectMenu">
+    <summary>Project <span class="project-menu-name" id="projectMenuName">local</span></summary>
+    <div class="project-menu-body">
+      <p class="project-menu-title">PROJECT <span>保存・共有</span></p>
+      <button type="button" data-project-proxy="btnSaveProj">Save project</button>
+      <button type="button" data-project-proxy="btnLoadProj">Load project</button>
+      <button type="button" data-project-proxy="btnShare" class="primary">Share URL</button>
+      <button type="button" data-project-proxy="btnNew" class="project-danger">New project</button>
+    </div>
+  </details>
 
   <div class="app">
     <aside class="panel" data-mode="flow" aria-label="Controls">
@@ -10800,6 +10816,17 @@ type deformer</textarea>
       var mirrorXInput = document.getElementById('pMirrorX');
       var mirrorYInput = document.getElementById('pMirrorY');
       var controlPanel = document.querySelector('.panel');
+      var projectMenu = document.getElementById('projectMenu');
+      var mobileProjectButton = document.getElementById('btnMobileProject');
+
+      function syncProjectMenuA11y() {
+        if (mobileProjectButton) mobileProjectButton.setAttribute('aria-expanded', String(!!(projectMenu && projectMenu.open)));
+      }
+
+      function closeProjectMenu() {
+        if (projectMenu) projectMenu.open = false;
+        syncProjectMenuA11y();
+      }
 
       /* ---------------- progressive desktop / mobile control UI ---------------- */
       var PANEL_UI_KEY = 'typeDeformer.panelUi.v2';
@@ -10810,7 +10837,7 @@ type deformer</textarea>
         text: '01 TEXT / 文字', effect: '02 EFFECT / 効果', apply: '03 APPLY / 適用',
         compose: '04 COMPOSE / 構成', export: '05 EXPORT / 書き出し'
       };
-      var mobileActiveSection = 'create';
+      var mobileActiveSection = 'text';
 
       function contextStatusText() {
         if (canvasView.active) return 'VIEW × PAN / ZOOM';
@@ -10862,6 +10889,13 @@ type deformer</textarea>
         if (persist !== false) storePanelSections();
       }
 
+      function resetControlPanelScroll() {
+        if (!controlPanel) return;
+        controlPanel.scrollTop = 0;
+        var panelContent = controlPanel.querySelector('.panel-content');
+        if (panelContent) panelContent.scrollTop = 0;
+      }
+
       function openDesktopSection(key) {
         if (key === 'create') key = 'text';
         if (key === 'output') key = 'export';
@@ -10873,7 +10907,7 @@ type deformer</textarea>
         setPanelSectionOpen(section, true);
         if (WORKFLOW_STAGES.indexOf(key) !== -1) mobileActiveSection = key;
         updateContextUI();
-        if (controlPanel) controlPanel.scrollTop = 0;
+        resetControlPanelScroll();
       }
 
       function setMobileSection(key) {
@@ -10888,7 +10922,7 @@ type deformer</textarea>
           button.setAttribute('aria-pressed', String(button.dataset.mobileSection === mobileActiveSection));
         });
         updateContextUI();
-        if (controlPanel) controlPanel.scrollTop = 0;
+        resetControlPanelScroll();
       }
 
       function syncMobilePanelA11y(open) {
@@ -10907,6 +10941,7 @@ type deformer</textarea>
 
       function openMobileSheet(sectionKey, anchorId) {
         if (!controlPanel) return;
+        closeProjectMenu();
         setMobileSection(sectionKey || mobileActiveSection);
         syncMobilePanelA11y(true);
         controlPanel.classList.add('mobile-open');
@@ -11017,7 +11052,7 @@ type deformer</textarea>
           ancestor = ancestor.parentElement;
         }
         var section = control.closest('[data-panel-section]');
-        var sectionKey = section ? section.dataset.panelSection : 'create';
+        var sectionKey = section ? section.dataset.panelSection : 'text';
         if (matchMedia('(max-width: 760px)').matches) openMobileSheet(sectionKey);
         else openDesktopSection(sectionKey);
         requestAnimationFrame(function () {
@@ -11171,7 +11206,10 @@ type deformer</textarea>
         document.addEventListener('keydown', function (event) {
           if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
             event.preventDefault();
-            if (matchMedia('(max-width: 760px)').matches && !controlPanel.classList.contains('mobile-open')) openMobileSheet(mobileActiveSection);
+            var advancedDrawer = document.getElementById('advancedParameterDrawer');
+            if (matchMedia('(max-width: 760px)').matches) openMobileSheet('effect');
+            else openDesktopSection('effect');
+            if (advancedDrawer) advancedDrawer.open = true;
             requestAnimationFrame(function () { search.focus(); search.select(); });
           }
         });
@@ -11225,7 +11263,7 @@ type deformer</textarea>
             else openDesktopSection(section.dataset.panelSection);
           });
         });
-        if (!restoredOpen) openDesktopSection('create');
+        if (!restoredOpen) openDesktopSection('text');
 
         Array.prototype.forEach.call(document.querySelectorAll('[data-workflow-stage]'), function (button) {
           button.addEventListener('click', function () {
@@ -11241,7 +11279,7 @@ type deformer</textarea>
         });
 
         Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-section]'), function (button) {
-          button.addEventListener('click', function () { setMobileSection(button.dataset.mobileSection); });
+          button.addEventListener('click', function () { openMobileSheet(button.dataset.mobileSection); });
         });
         Array.prototype.forEach.call(document.querySelectorAll('[data-mobile-mode]'), function (button) {
           button.addEventListener('click', function () {
@@ -11253,9 +11291,9 @@ type deformer</textarea>
           });
         });
 
-        document.getElementById('btnMobileOperator').addEventListener('click', function () { openMobileSheet('create', 'pOperator'); });
-        document.getElementById('btnMobileTarget').addEventListener('click', function () { openMobileSheet('create', 'pBatchProfile'); });
-        document.getElementById('btnMobileType').addEventListener('click', function () { openMobileSheet('create', 'typographyControls'); });
+        document.getElementById('btnMobileOperator').addEventListener('click', function () { openMobileSheet('effect', 'pOperator'); });
+        document.getElementById('btnMobileTarget').addEventListener('click', function () { openMobileSheet('apply', 'pBatchProfile'); });
+        document.getElementById('btnMobileType').addEventListener('click', function () { openMobileSheet('text', 'typographyControls'); });
         document.getElementById('btnOpenGridSettings').addEventListener('click', function () {
           if (matchMedia('(max-width: 760px)').matches) {
             openMobileSheet('compose', 'gridControlBlock');
@@ -11280,15 +11318,19 @@ type deformer</textarea>
         document.getElementById('btnHeaderPreview').addEventListener('click', function () { document.getElementById('btnPreview').click(); });
         document.getElementById('btnHeaderExport').addEventListener('click', function () { openDesktopSection('export'); });
 
-        var projectMenu = document.getElementById('projectMenu');
-        document.getElementById('btnMobileProject').addEventListener('click', function () {
-          if (projectMenu) projectMenu.open = !projectMenu.open;
+        if (projectMenu) projectMenu.addEventListener('toggle', syncProjectMenuA11y);
+        if (mobileProjectButton) mobileProjectButton.addEventListener('click', function () {
+          if (!projectMenu) return;
+          var shouldOpen = !projectMenu.open;
+          if (shouldOpen && controlPanel && controlPanel.classList.contains('mobile-open')) closeMobileSheet();
+          projectMenu.open = shouldOpen;
+          syncProjectMenuA11y();
         });
         Array.prototype.forEach.call(document.querySelectorAll('[data-project-proxy]'), function (button) {
           button.addEventListener('click', function () {
             var source = document.getElementById(button.dataset.projectProxy);
             if (source) source.click();
-            if (projectMenu) projectMenu.open = false;
+            closeProjectMenu();
           });
         });
 
@@ -11374,7 +11416,7 @@ type deformer</textarea>
           plus.addEventListener('click', function () { step(1); });
         });
 
-        setMobileSection('create');
+        setMobileSection('text');
         syncMobilePanelA11y(false);
         updateContextUI();
       }
