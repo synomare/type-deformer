@@ -1,0 +1,13 @@
+{
+  "name": "type-deformer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/validate.mjs",
+    "test": "npm run check"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
