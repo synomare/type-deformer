@@ -46,6 +46,7 @@ jobs:
           done
           cat .github/runtime-reliability-payload/*.part > /tmp/runtime-reliability.b64
           base64 --decode /tmp/runtime-reliability.b64 | gzip --decompress > /tmp/apply-runtime-reliability.mjs
+          echo "1b93177bdae78a839e5363b731d8cdb768c7db6b6276e741ec9811b03990a840  /tmp/apply-runtime-reliability.mjs" | sha256sum --check --strict
           node --check /tmp/apply-runtime-reliability.mjs
           node /tmp/apply-runtime-reliability.mjs
           npm test
