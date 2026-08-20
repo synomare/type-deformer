@@ -6,6 +6,9 @@ on:
       - chatgpt/runtime-reliability-2026-08-21
     paths:
       - .github/workflows/apply-runtime-reliability.yml
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
