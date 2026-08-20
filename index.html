@@ -11255,7 +11255,10 @@ type deformer</textarea>
           var key = section.dataset.panelSection;
           var requestedOpen = saved && typeof saved[key] === 'boolean' ? saved[key] : key === 'text';
           var shouldOpen = requestedOpen && !restoredOpen;
-          if (shouldOpen) restoredOpen = true;
+          if (shouldOpen) {
+            restoredOpen = true;
+            if (WORKFLOW_STAGES.indexOf(key) !== -1) mobileActiveSection = key;
+          }
           setPanelSectionOpen(section, shouldOpen, false);
           var toggle = section.querySelector('.section-toggle');
           if (toggle) toggle.addEventListener('click', function () {
@@ -11416,7 +11419,7 @@ type deformer</textarea>
           plus.addEventListener('click', function () { step(1); });
         });
 
-        setMobileSection('text');
+        setMobileSection(mobileActiveSection);
         syncMobilePanelA11y(false);
         updateContextUI();
       }
