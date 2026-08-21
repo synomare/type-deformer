@@ -6,6 +6,7 @@ on:
       - chatgpt/keyframe-timeline-2026-08-22
     paths:
       - .github/workflows/apply-keyframe-timeline.yml
+      - .keyframe-timeline-trigger
       - scripts/apply-keyframe-timeline.mjs
       - text-animator-timeline.js
       - text-animator-timeline-ui.js
@@ -62,7 +63,7 @@ jobs:
       - name: Remove temporary files and generated artifacts
         run: |
           rm -rf node_modules playwright-report test-results
-          rm -f scripts/apply-keyframe-timeline.mjs .github/workflows/apply-keyframe-timeline.yml
+          rm -f scripts/apply-keyframe-timeline.mjs .github/workflows/apply-keyframe-timeline.yml .keyframe-timeline-trigger
 
       - name: Commit tested result
         run: |
