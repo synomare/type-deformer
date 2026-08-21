@@ -1,0 +1,57 @@
+name: Apply Text Animator foundation
+
+on:
+  push:
+    branches:
+      - chatgpt/text-animator-foundation-2026-08-21
+    paths:
+      - .github/workflows/apply-text-animator.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v7
+        with:
+          ref: chatgpt/text-animator-foundation-2026-08-21
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Apply integration patch
+        run: node scripts/apply-text-animator.mjs
+
+      - name: Generate lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate source and unit behavior
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run rendered browser smoke tests
+        run: npm run test:e2e
+
+      - name: Remove one-shot patch machinery
+        run: rm scripts/apply-text-animator.mjs .github/workflows/apply-text-animator.yml
+
+      - name: Commit tested result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add Text Animator stack and motion engine"
+          git push origin HEAD:chatgpt/text-animator-foundation-2026-08-21
