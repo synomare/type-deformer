@@ -47,8 +47,28 @@ test('text animator applies, animates, stacks, and survives project serializatio
   const beforePhase = Number(await phaseControl.inputValue());
   await playButton.click();
   await expect(playButton).toHaveText('Pause');
-  await expect.poll(async () => Number(await phaseControl.inputValue()), { timeout: 3_000 })
-    .not.toBe(beforePhase);
+  await expect.poll(async () => {
+    const snapshot = await page.evaluate(() => window.TypeDeformerTextAnimatorRuntime.snapshot());
+    return {
+      enabled: snapshot.enabled,
+      playing: snapshot.playing,
+      speed: snapshot.speed,
+      motionEnabled: snapshot.motionEnabled,
+      clockAdvanced: snapshot.lastTime > 0,
+      phaseMoved: Math.abs(snapshot.phase - beforePhase) > 0.000001,
+      domPhaseMatches: Math.abs(snapshot.phase - Number(document.getElementById('pTextAnimatorPhase').value)) < 0.000001,
+      pageErrors: pageErrors.slice()
+    };
+  }, { timeout: 3_000 }).toMatchObject({
+    enabled: true,
+    playing: true,
+    speed: 1.25,
+    motionEnabled: true,
+    clockAdvanced: true,
+    phaseMoved: true,
+    domPhaseMatches: true,
+    pageErrors: []
+  });
   await playButton.click();
   await expect(playButton).toHaveText('Play');
 
