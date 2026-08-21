@@ -61,15 +61,9 @@ const after = `      function scheduleTextAnimatorTick(tick, delay) {
           textAnimatorLastTime = 0;
           function tick(now) {
             if (textAnimatorPlayRaf === null || !params.textAnimator.enabled) return;
-            // Timers continue to receive heavily throttled callbacks in hidden
-            // tabs. Freeze the phase there instead of producing a large jump
-            // when the document becomes visible again.
-            if (document.hidden) {
-              textAnimatorLastTime = 0;
-              scheduleTextAnimatorTick(tick, 250);
-              return;
-            }
             if (!textAnimatorLastTime) textAnimatorLastTime = now;
+            // Background tabs and headless browsers may throttle timers. The
+            // delta cap prevents a later callback from jumping the animation.
             var delta = Math.min(0.1, Math.max(0, (now - textAnimatorLastTime) / 1000));
             textAnimatorLastTime = now;
             params.textAnimator.phase = (params.textAnimator.phase + delta * textAnimatorPlaybackSpeed() + 1) % 1;
