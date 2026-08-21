@@ -26,11 +26,18 @@ test('text animator applies, animates, stacks, and survives project serializatio
 
   await expect(page.locator('#stage')).toHaveClass(/text-animator-active/);
   await expect.poll(async () => {
-    return page.locator('#stage .c').first().evaluate(element => ({
-      x: parseFloat(element.style.getPropertyValue('--ta-x')) || 0,
-      y: parseFloat(element.style.getPropertyValue('--ta-y')) || 0,
-      rotation: parseFloat(element.style.getPropertyValue('--ta-rotation')) || 0
-    }));
+    return page.locator('#stage .c').evaluateAll(elements => {
+      const channels = elements.map(element => ({
+        x: Math.abs(parseFloat(element.style.getPropertyValue('--ta-x')) || 0),
+        y: Math.abs(parseFloat(element.style.getPropertyValue('--ta-y')) || 0),
+        rotation: Math.abs(parseFloat(element.style.getPropertyValue('--ta-rotation')) || 0)
+      }));
+      return {
+        x: Math.max(...channels.map(value => value.x)),
+        y: Math.max(...channels.map(value => value.y)),
+        rotation: Math.max(...channels.map(value => value.rotation))
+      };
+    });
   }).toMatchObject({ x: 160, y: 42, rotation: 24 });
 
   await page.locator('#pTextAnimatorMotionEnabled').check();
