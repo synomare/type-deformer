@@ -7,6 +7,14 @@ on:
     paths:
       - .github/workflows/apply-text-animator.yml
       - .text-animator-trigger
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-text-animator.yml
+      - .text-animator-trigger
+      - scripts/apply-text-animator.mjs
+      - text-animator.js
 
 permissions:
   contents: write
