@@ -42,13 +42,15 @@ test('text animator applies, animates, stacks, and survives project serializatio
 
   await page.locator('#pTextAnimatorMotionEnabled').check();
   await setControl(page.locator('#pTextAnimatorSpeed'), 1.25);
-  const beforePhase = Number(await page.locator('#pTextAnimatorPhase').inputValue());
-  await page.locator('#btnTextAnimatorPlay').click();
-  await page.waitForTimeout(220);
-  const afterPhase = Number(await page.locator('#pTextAnimatorPhase').inputValue());
-  expect(afterPhase).not.toBe(beforePhase);
-  await page.locator('#btnTextAnimatorPlay').click();
-  await expect(page.locator('#btnTextAnimatorPlay')).toHaveText('Play');
+  const phaseControl = page.locator('#pTextAnimatorPhase');
+  const playButton = page.locator('#btnTextAnimatorPlay');
+  const beforePhase = Number(await phaseControl.inputValue());
+  await playButton.click();
+  await expect(playButton).toHaveText('Pause');
+  await expect.poll(async () => Number(await phaseControl.inputValue()), { timeout: 3_000 })
+    .not.toBe(beforePhase);
+  await playButton.click();
+  await expect(playButton).toHaveText('Play');
 
   await page.locator('#btnTextAnimatorAdd').click();
   await expect(page.locator('#pTextAnimatorLayer option')).toHaveCount(2);
