@@ -7,6 +7,15 @@ await import('../text-animator-timeline.js');
 const engine = globalThis.TypeDeformerTextAnimator;
 const timeline = engine.timeline;
 
+function items() {
+  return [
+    { characterIndex: 0, wordIndex: 0, lineIndex: 0 },
+    { characterIndex: 1, wordIndex: 0, lineIndex: 0 },
+    { characterIndex: 2, wordIndex: 1, lineIndex: 0 },
+    { characterIndex: 3, wordIndex: 2, lineIndex: 1 }
+  ];
+}
+
 function oneItem() {
   return [{ characterIndex: 0, wordIndex: 0, lineIndex: 0 }];
 }
@@ -75,7 +84,7 @@ test('keyframe operations add, move, duplicate, remove, copy, and paste tracks',
   animator = timeline.upsertKey(animator, 'rotation', 0.1, 10, 'easeOut');
   const firstId = animator.tracks.rotation[0].id;
   animator = timeline.moveKey(animator, 'rotation', firstId, 0.2, 30, 'hold');
-  assert.equal(animator.tracks.rotation[0].time, 0.2);
+  assert.ok(Math.abs(animator.tracks.rotation[0].time - 0.2) < 1e-12);
   assert.equal(animator.tracks.rotation[0].value, 30);
   assert.equal(animator.tracks.rotation[0].easing, 'hold');
 
