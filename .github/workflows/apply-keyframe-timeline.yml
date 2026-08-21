@@ -15,6 +15,7 @@ on:
       - package.json
   pull_request:
     paths:
+      - .keyframe-timeline-trigger
       - text-animator-timeline.js
       - text-animator-timeline-ui.js
       - tests/text-animator-timeline.unit.mjs
