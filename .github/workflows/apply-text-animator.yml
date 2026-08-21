@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/apply-text-animator.yml
       - .text-animator-trigger
+      - tests/text-animator.smoke.spec.mjs
+      - tests/text-animator.unit.mjs
   pull_request:
     branches:
       - main
@@ -15,6 +17,9 @@ on:
       - .text-animator-trigger
       - scripts/apply-text-animator.mjs
       - text-animator.js
+      - tests/text-animator.smoke.spec.mjs
+      - tests/text-animator.unit.mjs
+      - playwright.config.mjs
 
 permissions:
   contents: write
