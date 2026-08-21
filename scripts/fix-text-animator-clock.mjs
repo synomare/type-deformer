@@ -37,18 +37,16 @@ const before = `      function setTextAnimatorPlaying(playing) {
       }
 `;
 
-const after = `      function scheduleTextAnimatorTick(tick, delay) {
-        textAnimatorPlayRaf = setTimeout(function () {
-          tick(performance.now());
-        }, delay);
-      }
+const after = `      var textAnimatorTickCount = 0;
+      var textAnimatorLastDelta = 0;
 
       function setTextAnimatorPlaying(playing) {
         if (!params.textAnimator.enabled) playing = false;
         if (!playing && textAnimatorPlayRaf !== null) {
-          clearTimeout(textAnimatorPlayRaf);
+          clearInterval(textAnimatorPlayRaf);
           textAnimatorPlayRaf = null;
           textAnimatorLastTime = 0;
+          textAnimatorLastDelta = 0;
           markAutosaveDirty();
           if (typeof scheduleAutosave === 'function') scheduleAutosave();
         }
@@ -58,24 +56,25 @@ const after = `      function scheduleTextAnimatorTick(tick, delay) {
           button.textContent = playing ? 'Pause' : 'Play';
         }
         if (playing && textAnimatorPlayRaf === null) {
-          textAnimatorLastTime = 0;
-          function tick(now) {
+          textAnimatorLastTime = performance.now();
+          textAnimatorPlayRaf = setInterval(function () {
             if (textAnimatorPlayRaf === null || !params.textAnimator.enabled) return;
-            if (!textAnimatorLastTime) textAnimatorLastTime = now;
-            // Background tabs and headless browsers may throttle timers. The
-            // delta cap prevents a later callback from jumping the animation.
+            var now = performance.now();
             var delta = Math.min(0.1, Math.max(0, (now - textAnimatorLastTime) / 1000));
             textAnimatorLastTime = now;
-            // mutableActiveTextAnimator() normalizes and replaces the state
-            // object. Resolve speed first, then write phase through the current
-            // reference; otherwise the assignment lands on the discarded state.
+            textAnimatorLastDelta = delta;
+            textAnimatorTickCount++;
+
+            // Read the active speed first because resolving the active animator
+            // normalizes and replaces params.textAnimator. Then write the phase
+            // into one explicit normalized state object.
             var playbackSpeed = textAnimatorPlaybackSpeed();
-            params.textAnimator.phase = (params.textAnimator.phase + delta * playbackSpeed + 1) % 1;
+            var nextState = textAnimatorEngine.normalizeState(params.textAnimator);
+            nextState.phase = (nextState.phase + delta * playbackSpeed + 1) % 1;
+            params.textAnimator = nextState;
             syncTextAnimatorPhaseUI();
-            applyTextAnimatorFrame(params.textAnimator.phase);
-            scheduleTextAnimatorTick(tick, 16);
-          }
-          scheduleTextAnimatorTick(tick, 0);
+            applyTextAnimatorFrame(nextState.phase);
+          }, 16);
         }
         updateTextAnimatorStatus();
       }
@@ -84,11 +83,13 @@ const after = `      function scheduleTextAnimatorTick(tick, delay) {
         play: function () { setTextAnimatorPlaying(true); },
         pause: function () { setTextAnimatorPlaying(false); },
         setPhase: function (phase) {
-          params.textAnimator.phase = ((Number(phase) || 0) % 1 + 1) % 1;
+          var nextState = textAnimatorEngine.normalizeState(params.textAnimator);
+          nextState.phase = ((Number(phase) || 0) % 1 + 1) % 1;
+          params.textAnimator = nextState;
           syncTextAnimatorPhaseUI();
-          applyTextAnimatorFrame(params.textAnimator.phase);
+          applyTextAnimatorFrame(nextState.phase);
           markAutosaveDirty();
-          return params.textAnimator.phase;
+          return nextState.phase;
         },
         snapshot: function () {
           var active = mutableActiveTextAnimator();
@@ -97,6 +98,8 @@ const after = `      function scheduleTextAnimatorTick(tick, delay) {
             playing: textAnimatorPlayRaf !== null,
             phase: Number(params.textAnimator.phase) || 0,
             lastTime: Number(textAnimatorLastTime) || 0,
+            lastDelta: Number(textAnimatorLastDelta) || 0,
+            tickCount: textAnimatorTickCount,
             timerHandle: textAnimatorPlayRaf,
             speed: Number(active.motion.speed) || 0,
             motionEnabled: !!active.motion.enabled,
@@ -113,4 +116,4 @@ if (source.indexOf(before, index + before.length) >= 0) {
 }
 source = source.slice(0, index) + after + source.slice(index + before.length);
 fs.writeFileSync(indexPath, source);
-console.log('Applied Text Animator realtime clock fix.');
+console.log('Applied Text Animator isolated playback clock.');
