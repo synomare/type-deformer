@@ -1,0 +1,66 @@
+name: Finalize ordered deformer stack
+
+on:
+  push:
+    branches:
+      - chatgpt/deformer-stack-2026-08-22
+    paths:
+      - .github/workflows/finalize-deformer-stack.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-deformer-stack
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v7
+        with:
+          ref: chatgpt/deformer-stack-2026-08-22
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Apply ordered deformer integration
+        run: node scripts/apply-deformer-stack.mjs
+
+      - name: Refresh lockfile and install dependencies
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm ci
+
+      - name: Run structural and unit validation
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run rendered browser tests
+        run: npm run test:e2e
+
+      - name: Check patch hygiene
+        run: git diff --check
+
+      - name: Remove one-shot integration machinery
+        run: |
+          rm -f scripts/apply-deformer-stack.mjs
+          rm -f .github/workflows/finalize-deformer-stack.yml
+
+      - name: Commit tested source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add ordered Bend Arc Wave deformer stack"
+          git push origin HEAD:chatgpt/deformer-stack-2026-08-22
