@@ -49,6 +49,7 @@ test('text animator applies, animates, stacks, and survives project serializatio
   await expect(playButton).toHaveText('Pause');
   await expect.poll(async () => {
     const snapshot = await page.evaluate(() => window.TypeDeformerTextAnimatorRuntime.snapshot());
+    const domPhase = Number(await phaseControl.inputValue());
     return {
       enabled: snapshot.enabled,
       playing: snapshot.playing,
@@ -56,7 +57,7 @@ test('text animator applies, animates, stacks, and survives project serializatio
       motionEnabled: snapshot.motionEnabled,
       clockAdvanced: snapshot.lastTime > 0,
       phaseMoved: Math.abs(snapshot.phase - beforePhase) > 0.000001,
-      domPhaseMatches: Math.abs(snapshot.phase - Number(document.getElementById('pTextAnimatorPhase').value)) < 0.000001,
+      domPhaseMatches: Math.abs(snapshot.phase - domPhase) < 0.000001,
       pageErrors: pageErrors.slice()
     };
   }, { timeout: 3_000 }).toMatchObject({
