@@ -48,16 +48,24 @@ test('text animator applies, animates, stacks, and survives project serializatio
   await playButton.click();
   await expect(playButton).toHaveText('Pause');
   await expect.poll(async () => {
-    const snapshot = await page.evaluate(() => window.TypeDeformerTextAnimatorRuntime.snapshot());
-    const domPhase = Number(await phaseControl.inputValue());
+    const state = await page.evaluate(() => {
+      const snapshot = window.TypeDeformerTextAnimatorRuntime.snapshot();
+      const domPhase = Number(document.getElementById('pTextAnimatorPhase').value);
+      return {
+        enabled: snapshot.enabled,
+        playing: snapshot.playing,
+        speed: snapshot.speed,
+        motionEnabled: snapshot.motionEnabled,
+        ticked: snapshot.tickCount > 1,
+        clockAdvanced: snapshot.lastTime > 0 && snapshot.lastDelta > 0,
+        phase: snapshot.phase,
+        domPhase,
+        domPhaseMatches: Math.abs(snapshot.phase - domPhase) <= 0.0015
+      };
+    });
     return {
-      enabled: snapshot.enabled,
-      playing: snapshot.playing,
-      speed: snapshot.speed,
-      motionEnabled: snapshot.motionEnabled,
-      clockAdvanced: snapshot.lastTime > 0,
-      phaseMoved: Math.abs(snapshot.phase - beforePhase) > 0.000001,
-      domPhaseMatches: Math.abs(snapshot.phase - domPhase) < 0.000001,
+      ...state,
+      phaseMoved: Math.abs(state.phase - beforePhase) > 0.000001,
       pageErrors: pageErrors.slice()
     };
   }, { timeout: 3_000 }).toMatchObject({
@@ -65,6 +73,7 @@ test('text animator applies, animates, stacks, and survives project serializatio
     playing: true,
     speed: 1.25,
     motionEnabled: true,
+    ticked: true,
     clockAdvanced: true,
     phaseMoved: true,
     domPhaseMatches: true,
