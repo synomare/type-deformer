@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/apply-text-animator.yml
       - .text-animator-trigger
+      - scripts/fix-text-animator-clock.mjs
       - tests/text-animator.smoke.spec.mjs
       - tests/text-animator.unit.mjs
   pull_request:
@@ -16,6 +17,7 @@ on:
       - .github/workflows/apply-text-animator.yml
       - .text-animator-trigger
       - scripts/apply-text-animator.mjs
+      - scripts/fix-text-animator-clock.mjs
       - text-animator.js
       - tests/text-animator.smoke.spec.mjs
       - tests/text-animator.unit.mjs
@@ -42,7 +44,9 @@ jobs:
           package-manager-cache: false
 
       - name: Apply integration patch
-        run: node scripts/apply-text-animator.mjs
+        run: |
+          node scripts/apply-text-animator.mjs
+          node scripts/fix-text-animator-clock.mjs
 
       - name: Generate lockfile
         run: npm install --package-lock-only --ignore-scripts
@@ -60,7 +64,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Remove one-shot patch machinery
-        run: rm -f scripts/apply-text-animator.mjs .github/workflows/apply-text-animator.yml .text-animator-trigger
+        run: rm -f scripts/apply-text-animator.mjs scripts/fix-text-animator-clock.mjs .github/workflows/apply-text-animator.yml .text-animator-trigger
 
       - name: Commit tested result
         run: |
