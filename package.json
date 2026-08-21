@@ -6,7 +6,7 @@
   "scripts": {
     "check": "node scripts/validate.mjs",
     "test": "npm run check && npm run test:unit",
-    "test:unit": "node --test tests/text-animator.unit.mjs",
+    "test:unit": "node --test tests/*.unit.mjs",
     "test:e2e": "playwright test"
   },
   "engines": {
