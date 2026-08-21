@@ -75,6 +75,31 @@ const after = `      function scheduleTextAnimatorTick(tick, delay) {
         }
         updateTextAnimatorStatus();
       }
+
+      window.TypeDeformerTextAnimatorRuntime = {
+        play: function () { setTextAnimatorPlaying(true); },
+        pause: function () { setTextAnimatorPlaying(false); },
+        setPhase: function (phase) {
+          params.textAnimator.phase = ((Number(phase) || 0) % 1 + 1) % 1;
+          syncTextAnimatorPhaseUI();
+          applyTextAnimatorFrame(params.textAnimator.phase);
+          markAutosaveDirty();
+          return params.textAnimator.phase;
+        },
+        snapshot: function () {
+          var active = mutableActiveTextAnimator();
+          return {
+            enabled: !!params.textAnimator.enabled,
+            playing: textAnimatorPlayRaf !== null,
+            phase: Number(params.textAnimator.phase) || 0,
+            lastTime: Number(textAnimatorLastTime) || 0,
+            timerHandle: textAnimatorPlayRaf,
+            speed: Number(active.motion.speed) || 0,
+            motionEnabled: !!active.motion.enabled,
+            visibility: document.visibilityState
+          };
+        }
+      };
 `;
 
 const index = source.indexOf(before);
