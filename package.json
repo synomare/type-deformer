@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/validate.mjs",
-    "test": "npm run check"
+    "test": "npm run check && npm run test:unit",
+    "test:unit": "node --test tests/text-animator.unit.mjs",
+    "test:e2e": "playwright test"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
   }
 }

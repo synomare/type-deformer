@@ -89,6 +89,12 @@ if (html) {
       const asset = localAssetPath(srcMatch[2]);
       if (asset && !fs.existsSync(asset)) {
         noteFailure(`Missing local script referenced by index.html: ${path.relative(root, asset)}`);
+      } else if (asset && path.basename(asset) !== 'confuse-dictionary.js') {
+        const externalSource = readRequired(asset);
+        if (externalSource) {
+          try { new vm.Script(externalSource, { filename: path.relative(root, asset) }); }
+          catch (error) { noteFailure(`JavaScript syntax error in ${path.relative(root, asset)}: ${error.message}`); }
+        }
       }
       continue;
     }
