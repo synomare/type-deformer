@@ -66,7 +66,11 @@ const after = `      function scheduleTextAnimatorTick(tick, delay) {
             // delta cap prevents a later callback from jumping the animation.
             var delta = Math.min(0.1, Math.max(0, (now - textAnimatorLastTime) / 1000));
             textAnimatorLastTime = now;
-            params.textAnimator.phase = (params.textAnimator.phase + delta * textAnimatorPlaybackSpeed() + 1) % 1;
+            // mutableActiveTextAnimator() normalizes and replaces the state
+            // object. Resolve speed first, then write phase through the current
+            // reference; otherwise the assignment lands on the discarded state.
+            var playbackSpeed = textAnimatorPlaybackSpeed();
+            params.textAnimator.phase = (params.textAnimator.phase + delta * playbackSpeed + 1) % 1;
             syncTextAnimatorPhaseUI();
             applyTextAnimatorFrame(params.textAnimator.phase);
             scheduleTextAnimatorTick(tick, 16);
