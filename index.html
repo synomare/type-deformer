@@ -3476,18 +3476,22 @@ type deformer</textarea>
         <p class="note">字形を侵食／膨張できる連続した量塊へ鋳造し、水平courseの断層ずれ、実counterの掘り戻し、型枠溝を露出します。網点・破片・glitchではなく構築そのものが形になります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="rasterPress" hidden>
-        <div class="row"><label for="pRasterCell">Screen cell</label><input type="range" id="pRasterCell" min="2" max="72" step="1" value="8"><span class="val" id="vRasterCell">8px</span></div>
+        <div class="row"><label for="pRasterScreen">Screen grammar</label><select id="pRasterScreen"><option value="legacy">Legacy dots</option><option value="adaptive" selected>Adaptive AM</option><option value="stochastic">Stochastic FM</option><option value="line">Line screen</option><option value="mezzotint">Mezzotint</option></select></div>
+        <div class="row"><label for="pRasterModulation">Tone modulation</label><input type="range" id="pRasterModulation" min="0" max="4" step="0.02" value="1.56"><span class="val" id="vRasterModulation">1.56</span></div>
+        <div class="row"><label for="pRasterCell">Screen cell</label><input type="range" id="pRasterCell" min="2" max="72" step="1" value="6"><span class="val" id="vRasterCell">6px</span></div>
         <div class="row"><label for="pRasterGain">Dot gain</label><input type="range" id="pRasterGain" min="0.05" max="3" step="0.01" value="1.16"><span class="val" id="vRasterGain">1.16</span></div>
         <div class="row"><label for="pRasterAngle">Screen angle</label><input type="range" id="pRasterAngle" min="-90" max="90" step="1" value="24"><span class="val" id="vRasterAngle">24°</span></div>
         <div class="row"><label for="pRasterNoise">Press noise</label><input type="range" id="pRasterNoise" min="0" max="2" step="0.02" value="0.18"><span class="val" id="vRasterNoise">0.18</span></div>
-        <p class="note">文字を連続面ではなく印刷スクリーンへ変換。低値は精密な網点、高値は潰れた大粒・欠け・角形セルまで振れます。</p>
+        <p class="note">固定網点、局所濃度で形が変わるAM screen、非周期FM粒子、太いline screen、短いmezzotint markを別文法として生成します。Tone modulationは粒径だけでなく、分布・方向・mark形状を極端域まで変えます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="hatchEngrave" hidden>
+        <div class="row"><label for="pHatchGrammar">Cut grammar</label><select id="pHatchGrammar"><option value="legacy">Legacy hatch</option><option value="tonal" selected>Tonal engraving</option><option value="crosscut">Cross-cut plate</option><option value="burin">Burin fan</option><option value="woodcut">Woodcut fracture</option></select></div>
+        <div class="row"><label for="pHatchDepth">Plate depth</label><input type="range" id="pHatchDepth" min="0" max="4" step="0.02" value="1.36"><span class="val" id="vHatchDepth">1.36</span></div>
         <div class="row"><label for="pHatchSpacing">Line spacing</label><input type="range" id="pHatchSpacing" min="1" max="80" step="1" value="5"><span class="val" id="vHatchSpacing">5px</span></div>
         <div class="row"><label for="pHatchAngle">Cut angle</label><input type="range" id="pHatchAngle" min="-180" max="180" step="1" value="-24"><span class="val" id="vHatchAngle">-24°</span></div>
         <div class="row"><label for="pHatchWarp">Fiber warp</label><input type="range" id="pHatchWarp" min="0" max="5" step="0.02" value="0.82"><span class="val" id="vHatchWarp">0.82</span></div>
         <div class="row"><label for="pHatchStroke">Cut width</label><input type="range" id="pHatchStroke" min="0.1" max="12" step="0.1" value="1.2"><span class="val" id="vHatchStroke">1.2px</span></div>
-        <p class="note">平行彫版線と交差線で字面を削り出します。ネットワークを作らず、方向・密度・断線だけで印刷的な陰影を構成します。</p>
+        <p class="note">字形内部の境界距離を版のtoneとして読み、深部ほどcut familyを増やします。Tonal、Cross-cut、放射するBurin、断線するWoodcutは、等高線や文字間networkではなくstroke textureとして形と素材を同時に示します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="contourEtch" hidden>
         <div class="row"><label for="pContourEtchBands">Contour bands</label><input type="range" id="pContourEtchBands" min="1" max="64" step="1" value="10"><span class="val" id="vContourEtchBands">10</span></div>
@@ -3508,18 +3512,22 @@ type deformer</textarea>
         <p class="note">太細・侵食・膨張、始筆から終筆へのtaper、乾いた擦れ、周期的な呼吸を同じ方向場から生成します。書のbone／flesh／sinewを、線粒ではなく連続した身体エネルギーとして扱います。</p>
       </div>
       <div class="operator-panel" data-operator-panel="cellFracture" hidden>
+        <div class="row"><label for="pFractureTopology">Fracture topology</label><select id="pFractureTopology"><option value="triangles">Legacy triangles</option><option value="impact" selected>Impact map</option><option value="fault">Directional fault</option><option value="crystal">Crystal facets</option><option value="spall">Concentric spall</option></select></div>
+        <div class="row"><label for="pFractureEnergy">Propagation energy</label><input type="range" id="pFractureEnergy" min="0" max="4" step="0.02" value="1.5"><span class="val" id="vFractureEnergy">1.50</span></div>
         <div class="row"><label for="pFractureCell">Cell scale</label><input type="range" id="pFractureCell" min="4" max="140" step="2" value="18"><span class="val" id="vFractureCell">18px</span></div>
         <div class="row"><label for="pFractureScatter">Scatter</label><input type="range" id="pFractureScatter" min="0" max="520" step="2" value="26"><span class="val" id="vFractureScatter">26px</span></div>
         <div class="row"><label for="pFractureGap">Cell gap</label><input type="range" id="pFractureGap" min="0" max="28" step="0.5" value="2"><span class="val" id="vFractureGap">2.0px</span></div>
         <div class="row"><label for="pFractureSpin">Spin</label><input type="range" id="pFractureSpin" min="-720" max="720" step="2" value="18"><span class="val" id="vFractureSpin">18°</span></div>
-        <p class="note">字形を不規則な三角セルへ分解し、元の位置から破片として放射。網点や線画ではなく、面の断裂と余白が主役です。</p>
+        <p class="note">均一な三角散乱ではなく、文字ごとのimpact、方向性fault、facet密度、同心spallへ破壊の伝播則を切り替えます。Energyは亀裂の到達距離、破片の変位、剥離ringを同時に増幅します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="ribbonEcho" hidden>
+        <div class="row"><label for="pRibbonPath">Depth path</label><select id="pRibbonPath"><option value="legacy">Legacy ray</option><option value="extrude">Architectural extrusion</option><option value="helix" selected>Helical ribbon</option><option value="fan">Radial fan</option><option value="braid">Alternating braid</option></select></div>
+        <div class="row"><label for="pRibbonWeave">Path weave</label><input type="range" id="pRibbonWeave" min="0" max="4" step="0.02" value="1.4"><span class="val" id="vRibbonWeave">1.40</span></div>
         <div class="row"><label for="pRibbonDepth">Extrusion depth</label><input type="range" id="pRibbonDepth" min="-520" max="520" step="2" value="86"><span class="val" id="vRibbonDepth">86px</span></div>
         <div class="row"><label for="pRibbonSteps">Slices</label><input type="range" id="pRibbonSteps" min="1" max="96" step="1" value="22"><span class="val" id="vRibbonSteps">22</span></div>
         <div class="row"><label for="pRibbonTwist">Twist</label><input type="range" id="pRibbonTwist" min="-540" max="540" step="2" value="12"><span class="val" id="vRibbonTwist">12°</span></div>
         <div class="row"><label for="pRibbonFade">Depth fade</label><input type="range" id="pRibbonFade" min="0" max="1" step="0.02" value="0.62"><span class="val" id="vRibbonFade">0.62</span></div>
-        <p class="note">文字面を多数の時間断面として押し出し、帯・トンネル・ねじれた厚みへ変換。ComposeではPhaseが奥行き方向を回転させます。</p>
+        <p class="note">同じ直線へ複製するだけでなく、押出、helix、扇状軌道、二重braidへ時間断面を配列します。Path weaveは横振幅と周回数を増やし、Compose Phaseは軌道を一周して完全に戻ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="risoSeparation" hidden>
         <div class="row"><label for="pRisoSplit">Plate balance</label><input type="range" id="pRisoSplit" min="-1" max="1" step="0.02" value="-0.12"><span class="val" id="vRisoSplit">-0.12</span></div>
@@ -5292,12 +5300,12 @@ type deformer</textarea>
         morphProcession: '隣接する二文字の距離場を補間し、文字間へ連続した中間字形を並べます。',
         chimeraGraft: '隣接文字の字形断片を移植し、接続組織と切開痕を持つ混成身体へ変えます。',
         monolithCast: '字形を量塊化し、構築course・断層・counter・型枠痕を露出します。',
-        rasterPress: '字面を網点や角形セルへ量子化し、dot gainと版ノイズを持つ印刷面へ変えます。',
-        hatchEngrave: '平行線と交差線を字形へ刻み、方向性を持つ彫版状の陰影を作ります。',
+        rasterPress: 'AM網点・FM散布・line screen・mezzotintを切り替え、局所toneで印刷セルの量と形を変えます。',
+        hatchEngrave: '字面の境界深度へ線密度を対応させ、tonal・crosscut・burin・woodcutの別々な線刻文法を作ります。',
         contourEtch: '字形の内外距離から等高線を成長させ、地形図のような線層を作ります。',
         pressureStroke: '字形へ方向性のある圧力を与え、局所的な太り・侵食・膨張を作ります。',
-        cellFracture: '文字を不規則な面セルへ分割し、散乱・回転・隙間で破片化します。',
-        ribbonEcho: '文字を時間方向の断面として複製し、捻りと減衰を持つ帯状の奥行を作ります。',
+        cellFracture: '衝撃放射・断層strip・結晶facet・同心剥離を選び、破断energyで亀裂の伝播と破片移動を制御します。',
+        ribbonEcho: '文字の時間断面をextrude・helix・fan・braidの軌道へ流し、weaveで振幅と交差密度を変えます。',
         risoSeparation: '字形を内容の異なる二つのspot-ink版へ分け、重なりと版ズレを作ります。',
         copyDecay: '複写世代・露光・摩耗・トナー拡散を重ね、単色コピー像として劣化させます。',
         slitSweep: '空間スリットごとに異なる時刻の字形を蓄積し、時間を引き延ばします。',
@@ -6463,12 +6471,16 @@ type deformer</textarea>
         monolithFormwork: 0.45,
         monolithColor: '#5a544a',
         monolithSourceMode: 'keep',
-        rasterCell: 8,
+        rasterScreen: 'adaptive',
+        rasterModulation: 1.56,
+        rasterCell: 6,
         rasterGain: 1.16,
         rasterAngle: 24,
         rasterNoise: 0.18,
         rasterColor: '#6d3fc0',
         rasterSourceMode: 'keep',
+        hatchGrammar: 'tonal',
+        hatchDepth: 1.36,
         hatchSpacing: 5,
         hatchAngle: -24,
         hatchWarp: 0.82,
@@ -6498,12 +6510,16 @@ type deformer</textarea>
         sinewAxis: -18,
         sinewColor: '#ba2054',
         sinewSourceMode: 'keep',
+        fractureTopology: 'impact',
+        fractureEnergy: 1.5,
         fractureCell: 18,
         fractureScatter: 26,
         fractureGap: 2,
         fractureSpin: 18,
         fractureColor: '#d1a20d',
         fractureSourceMode: 'keep',
+        ribbonPath: 'helix',
+        ribbonWeave: 1.4,
         ribbonDepth: 86,
         ribbonSteps: 22,
         ribbonTwist: 12,
@@ -6624,13 +6640,13 @@ type deformer</textarea>
         'morphInbetweens', 'morphSpan', 'morphMelt', 'morphTwist', 'morphHalo',
         'chimeraGrafts', 'chimeraSpan', 'chimeraAssimilation', 'chimeraForeignness', 'chimeraSeam',
         'monolithMass', 'monolithModule', 'monolithFault', 'monolithCounter', 'monolithFormwork',
-        'rasterCell', 'rasterGain', 'rasterAngle', 'rasterNoise',
-        'hatchSpacing', 'hatchAngle', 'hatchWarp', 'hatchStroke',
+        'rasterScreen', 'rasterModulation', 'rasterCell', 'rasterGain', 'rasterAngle', 'rasterNoise',
+        'hatchGrammar', 'hatchDepth', 'hatchSpacing', 'hatchAngle', 'hatchWarp', 'hatchStroke',
         'contourBands', 'contourSpacing', 'contourStroke', 'contourDrift',
         'pressureWeight', 'pressureContrast', 'pressureAngle', 'pressureFrequency', 'pressureSoftness', 'pressureBreath', 'pressureDryness', 'pressureTaper',
         'sinewPull', 'sinewTorque', 'sinewTension', 'sinewWaist', 'sinewAxis',
-        'fractureCell', 'fractureScatter', 'fractureGap', 'fractureSpin',
-        'ribbonDepth', 'ribbonSteps', 'ribbonTwist', 'ribbonFade',
+        'fractureTopology', 'fractureEnergy', 'fractureCell', 'fractureScatter', 'fractureGap', 'fractureSpin',
+        'ribbonPath', 'ribbonWeave', 'ribbonDepth', 'ribbonSteps', 'ribbonTwist', 'ribbonFade',
         'risoSplit', 'risoOverlap', 'risoRegister', 'risoGrain',
         'copyGenerations', 'copyExposure', 'copyMotion', 'copyErosion', 'copyToner', 'copyDust',
         'slitWidth', 'slitTravel', 'slitFrequency', 'slitMemory', 'slitSpeed',
@@ -6669,14 +6685,14 @@ type deformer</textarea>
         morphInbetweens: [1, 24], morphSpan: [0.1, 2.5], morphMelt: [-2, 2], morphTwist: [-360, 360], morphHalo: [0, 160],
         chimeraGrafts: [1, 32], chimeraSpan: [4, 320], chimeraAssimilation: [0, 1], chimeraForeignness: [0, 4], chimeraSeam: [0, 20],
         monolithMass: [-120, 360], monolithModule: [2, 120], monolithFault: [-480, 480], monolithCounter: [0, 1], monolithFormwork: [0, 4],
-        rasterCell: [2, 72], rasterGain: [0.05, 3], rasterAngle: [-90, 90], rasterNoise: [0, 2],
-        hatchSpacing: [1, 80], hatchAngle: [-180, 180], hatchWarp: [0, 5], hatchStroke: [0.1, 12],
+        rasterModulation: [0, 4], rasterCell: [2, 72], rasterGain: [0.05, 3], rasterAngle: [-90, 90], rasterNoise: [0, 2],
+        hatchDepth: [0, 4], hatchSpacing: [1, 80], hatchAngle: [-180, 180], hatchWarp: [0, 5], hatchStroke: [0.1, 12],
         contourBands: [1, 64], contourSpacing: [1, 40], contourStroke: [0.25, 14], contourDrift: [0, 6],
         pressureWeight: [-120, 260], pressureContrast: [0, 4], pressureAngle: [-180, 180], pressureFrequency: [0.1, 32], pressureSoftness: [0.1, 24],
         pressureBreath: [0, 4], pressureDryness: [0, 1], pressureTaper: [-2, 2],
         sinewPull: [-640, 640], sinewTorque: [-540, 540], sinewTension: [0.1, 8], sinewWaist: [-2, 4], sinewAxis: [-180, 180],
-        fractureCell: [4, 140], fractureScatter: [0, 520], fractureGap: [0, 28], fractureSpin: [-720, 720],
-        ribbonDepth: [-520, 520], ribbonSteps: [1, 96], ribbonTwist: [-540, 540], ribbonFade: [0, 1],
+        fractureEnergy: [0, 4], fractureCell: [4, 140], fractureScatter: [0, 520], fractureGap: [0, 28], fractureSpin: [-720, 720],
+        ribbonWeave: [0, 4], ribbonDepth: [-520, 520], ribbonSteps: [1, 96], ribbonTwist: [-540, 540], ribbonFade: [0, 1],
         risoSplit: [-1, 1], risoOverlap: [0, 1.5], risoRegister: [0, 160], risoGrain: [0, 2],
         copyGenerations: [1, 48], copyExposure: [-1.5, 1.5], copyMotion: [-640, 640], copyErosion: [0, 24], copyToner: [0, 5], copyDust: [0, 4],
         slitWidth: [1, 96], slitTravel: [-720, 720], slitFrequency: [0.25, 16], slitMemory: [1, 64], slitSpeed: [0, 4],
@@ -6696,7 +6712,11 @@ type deformer</textarea>
         navePlan: ['arcade', 'ribbed', 'fan', 'loop', 'clerestory'],
         cloisterTessellation: ['strips', 'miura', 'accordion', 'diamond', 'fan'],
         prismOptics: ['legacy', 'crystal', 'fresnel', 'spectral', 'lenticular'],
-        texturaGrammar: ['stems', 'textura', 'fraktur', 'bastarda', 'lattice']
+        texturaGrammar: ['stems', 'textura', 'fraktur', 'bastarda', 'lattice'],
+        rasterScreen: ['legacy', 'adaptive', 'stochastic', 'line', 'mezzotint'],
+        hatchGrammar: ['legacy', 'tonal', 'crosscut', 'burin', 'woodcut'],
+        fractureTopology: ['triangles', 'impact', 'fault', 'crystal', 'spall'],
+        ribbonPath: ['legacy', 'extrude', 'helix', 'fan', 'braid']
       };
       var PROOF_AXIS_DEFS = {
         plotterTrace: [{ key: 'traceDensity', label: 'Density', span: 0.42 }, { key: 'traceJitter', label: 'Drift', span: 0.22, unit: 'px' }],
@@ -6720,13 +6740,13 @@ type deformer</textarea>
         morphProcession: [{ key: 'morphInbetweens', label: 'Inbetweens', span: 0.42, integer: true }, { key: 'morphMelt', label: 'Melt', span: 0.46 }],
         chimeraGraft: [{ key: 'chimeraGrafts', label: 'Grafts', span: 0.42, integer: true }, { key: 'chimeraForeignness', label: 'Foreignness', span: 0.38 }],
         monolithCast: [{ key: 'monolithMass', label: 'Mass', span: 0.18, unit: 'px' }, { key: 'monolithFault', label: 'Fault', span: 0.14, unit: 'px' }],
-        rasterPress: [{ key: 'rasterCell', label: 'Cell', span: 0.32, unit: 'px' }, { key: 'rasterGain', label: 'Gain', span: 0.38 }],
-        hatchEngrave: [{ key: 'hatchSpacing', label: 'Spacing', span: 0.32, unit: 'px' }, { key: 'hatchWarp', label: 'Warp', span: 0.38 }],
+        rasterPress: [{ key: 'rasterCell', label: 'Cell', span: 0.32, unit: 'px' }, { key: 'rasterModulation', label: 'Modulation', span: 0.42 }],
+        hatchEngrave: [{ key: 'hatchSpacing', label: 'Spacing', span: 0.32, unit: 'px' }, { key: 'hatchDepth', label: 'Plate depth', span: 0.42 }],
         contourEtch: [{ key: 'contourBands', label: 'Bands', span: 0.32, integer: true }, { key: 'contourDrift', label: 'Drift', span: 0.42 }],
         pressureStroke: [{ key: 'pressureBreath', label: 'Breath', span: 0.38 }, { key: 'pressureDryness', label: 'Dryness', span: 0.46 }],
         sinewTorque: [{ key: 'sinewPull', label: 'Pull', span: 0.16, unit: 'px' }, { key: 'sinewTorque', label: 'Torque', span: 0.28, unit: 'deg' }],
-        cellFracture: [{ key: 'fractureScatter', label: 'Scatter', span: 0.18, unit: 'px' }, { key: 'fractureGap', label: 'Gap', span: 0.34, unit: 'px' }],
-        ribbonEcho: [{ key: 'ribbonDepth', label: 'Depth', span: 0.18, unit: 'px' }, { key: 'ribbonTwist', label: 'Twist', span: 0.32, unit: 'deg' }],
+        cellFracture: [{ key: 'fractureScatter', label: 'Scatter', span: 0.18, unit: 'px' }, { key: 'fractureEnergy', label: 'Energy', span: 0.42 }],
+        ribbonEcho: [{ key: 'ribbonDepth', label: 'Depth', span: 0.18, unit: 'px' }, { key: 'ribbonWeave', label: 'Weave', span: 0.42 }],
         copyDecay: [{ key: 'copyGenerations', label: 'Generations', span: 0.42, integer: true }, { key: 'copyMotion', label: 'Drum drag', span: 0.12, unit: 'px' }],
         risoSeparation: [{ key: 'risoSplit', label: 'Plate balance', span: 0.36 }, { key: 'risoRegister', label: 'Register', span: 0.18, unit: 'px' }],
         slitSweep: [{ key: 'slitTravel', label: 'Time travel', span: 0.14, unit: 'px' }, { key: 'slitMemory', label: 'Memory', span: 0.38, integer: true }]
@@ -6971,10 +6991,14 @@ type deformer</textarea>
         clampParam('monolithFault', -480, 480, false);
         clampParam('monolithCounter', 0, 1, false);
         clampParam('monolithFormwork', 0, 4, false);
+        chooseParam('rasterScreen', BATCH_PARAM_OPTIONS.rasterScreen);
+        clampParam('rasterModulation', 0, 4, false);
         clampParam('rasterCell', 2, 72, false);
         clampParam('rasterGain', 0.05, 3, false);
         clampParam('rasterAngle', -90, 90, false);
         clampParam('rasterNoise', 0, 2, false);
+        chooseParam('hatchGrammar', BATCH_PARAM_OPTIONS.hatchGrammar);
+        clampParam('hatchDepth', 0, 4, false);
         clampParam('hatchSpacing', 1, 80, false);
         clampParam('hatchAngle', -180, 180, false);
         clampParam('hatchWarp', 0, 5, false);
@@ -6996,10 +7020,14 @@ type deformer</textarea>
         clampParam('sinewTension', 0.1, 8, false);
         clampParam('sinewWaist', -2, 4, false);
         clampParam('sinewAxis', -180, 180, false);
+        chooseParam('fractureTopology', BATCH_PARAM_OPTIONS.fractureTopology);
+        clampParam('fractureEnergy', 0, 4, false);
         clampParam('fractureCell', 4, 140, false);
         clampParam('fractureScatter', 0, 520, false);
         clampParam('fractureGap', 0, 28, false);
         clampParam('fractureSpin', -720, 720, false);
+        chooseParam('ribbonPath', BATCH_PARAM_OPTIONS.ribbonPath);
+        clampParam('ribbonWeave', 0, 4, false);
         clampParam('ribbonDepth', -520, 520, false);
         clampParam('ribbonSteps', 1, 96, true);
         clampParam('ribbonTwist', -540, 540, false);
@@ -10368,10 +10396,14 @@ type deformer</textarea>
             monolithFault: deform.monolithFault,
             monolithCounter: deform.monolithCounter,
             monolithFormwork: deform.monolithFormwork,
+            rasterScreen: deform.rasterScreen,
+            rasterModulation: deform.rasterModulation,
             rasterCell: deform.rasterCell,
             rasterGain: deform.rasterGain,
             rasterAngle: deform.rasterAngle,
             rasterNoise: deform.rasterNoise,
+            hatchGrammar: deform.hatchGrammar,
+            hatchDepth: deform.hatchDepth,
             hatchSpacing: deform.hatchSpacing,
             hatchAngle: deform.hatchAngle,
             hatchWarp: deform.hatchWarp,
@@ -10393,10 +10425,14 @@ type deformer</textarea>
             sinewTension: deform.sinewTension,
             sinewWaist: deform.sinewWaist,
             sinewAxis: deform.sinewAxis,
+            fractureTopology: deform.fractureTopology,
+            fractureEnergy: deform.fractureEnergy,
             fractureCell: deform.fractureCell,
             fractureScatter: deform.fractureScatter,
             fractureGap: deform.fractureGap,
             fractureSpin: deform.fractureSpin,
+            ribbonPath: deform.ribbonPath,
+            ribbonWeave: deform.ribbonWeave,
             ribbonDepth: deform.ribbonDepth,
             ribbonSteps: deform.ribbonSteps,
             ribbonTwist: deform.ribbonTwist,
@@ -11531,7 +11567,7 @@ type deformer</textarea>
         }
       }
 
-      function renderRasterPress(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderRasterPressLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var cellAggregate = surfaceAggregate(glyphs, 'rasterPress', 'rasterCell', params.rasterCell);
         if (!cellAggregate.weight) return;
         var gain = surfaceAggregate(glyphs, 'rasterPress', 'rasterGain', params.rasterGain).value;
@@ -11623,7 +11659,7 @@ type deformer</textarea>
         ctx.setLineDash([]);
       }
 
-      function renderHatchEngrave(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderHatchEngraveLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var spacingAggregate = surfaceAggregate(glyphs, 'hatchEngrave', 'hatchSpacing', params.hatchSpacing);
         if (!spacingAggregate.weight) return;
         var angle = surfaceAggregate(glyphs, 'hatchEngrave', 'hatchAngle', params.hatchAngle).value * Math.PI / 180;
@@ -11647,6 +11683,285 @@ type deformer</textarea>
             Math.max(0.1, stroke * 0.72), -phase * 0.73, spacingAggregate.strength * Math.min(0.72, 0.12 + warp * 0.2), 751);
         }
         ctx.restore();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mask, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function rasterPressOutput(targetCtx, work, mask) {
+        work.ctx.globalAlpha = 1;
+        work.ctx.globalCompositeOperation = 'destination-in';
+        work.ctx.drawImage(mask, 0, 0);
+        work.ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      // Four screening grammars share only the glyph mask and color. Their
+      // spatial rules are intentionally separate so Raster Press does not
+      // collapse into Hatch Engrave, Moire Choir, or a generic noise filter.
+      function renderRasterPress(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var screen = surfaceChoice(glyphs, 'rasterPress', 'rasterScreen', params.rasterScreen, BATCH_PARAM_OPTIONS.rasterScreen);
+        if (screen === 'legacy') {
+          renderRasterPressLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var cellAggregate = surfaceAggregate(glyphs, 'rasterPress', 'rasterCell', params.rasterCell);
+        if (!cellAggregate.weight) return;
+        var gain = Math.max(0.02, surfaceAggregate(glyphs, 'rasterPress', 'rasterGain', params.rasterGain).value);
+        var angle = surfaceAggregate(glyphs, 'rasterPress', 'rasterAngle', params.rasterAngle).value * Math.PI / 180;
+        var noise = Math.max(0, surfaceAggregate(glyphs, 'rasterPress', 'rasterNoise', params.rasterNoise).value);
+        var modulation = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'rasterPress', 'rasterModulation', params.rasterModulation).value));
+        var mask = buildSurfaceMask(glyphs, 'rasterPress', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'rasterPress', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var boundary = surfaceBoundaryDistance(source.data, width, height);
+        if (!boundary.bounds) return;
+        var cell = Math.max(1.4, cellAggregate.value * pixelScale * L.s);
+        var densityScale = screen === 'mezzotint' ? 0.46 : 1;
+        var estimate = width * height / Math.max(1, cell * cell * densityScale * densityScale);
+        if (estimate > 10800) cell *= Math.sqrt(estimate / 10800) * densityScale;
+        var work = surfaceScratch('raster-press-v24', width, height, false);
+        var ctx = work.ctx;
+        var cx = width / 2, cy = height / 2;
+        var cos = Math.cos(angle), sin = Math.sin(angle);
+        var diagonal = Math.sqrt(width * width + height * height) + cell * 5;
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        ctx.fillStyle = surfaceEffectColor('rasterPress');
+        ctx.strokeStyle = surfaceEffectColor('rasterPress');
+
+        if (screen === 'line') {
+          var lineSpacing = Math.max(2, cell * (0.78 + modulation * 0.1));
+          var lineRows = Math.ceil(diagonal / lineSpacing);
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle);
+          ctx.lineCap = modulation > 2.4 ? 'square' : 'round';
+          for (var lineRow = -lineRows; lineRow <= lineRows; lineRow++) {
+            var baseY = lineRow * lineSpacing;
+            var lineSegments = Math.max(18, Math.min(96, Math.round(diagonal / Math.max(5, cell * 0.72))));
+            ctx.beginPath();
+            for (var lineSegment = 0; lineSegment <= lineSegments; lineSegment++) {
+              var lineT = lineSegment / lineSegments;
+              var lineX = -diagonal / 2 + lineT * diagonal;
+              var lineWave = Math.sin(lineT * Math.PI * (2 + modulation * 1.5) + lineRow * 0.67 + phase)
+                * cell * modulation * 0.18;
+              var lineFray = (hash(lineSegment, lineRow, params.seed + 1811) * 2 - 1) * cell * noise * 0.08;
+              if (!lineSegment) ctx.moveTo(lineX, baseY + lineWave + lineFray);
+              else ctx.lineTo(lineX, baseY + lineWave + lineFray);
+            }
+            ctx.globalAlpha = cellAggregate.strength * (0.78 + hash(lineRow, params.seed % 97, 1813) * 0.2);
+            ctx.lineWidth = Math.max(0.8, lineSpacing * gain * (0.42 + modulation * 0.075));
+            ctx.stroke();
+          }
+          ctx.restore();
+          rasterPressOutput(targetCtx, work, mask);
+          return;
+        }
+
+        var sampleCell = screen === 'mezzotint' ? Math.max(1.25, cell * 0.46) : cell;
+        var rows = Math.ceil(diagonal / sampleCell) + 2;
+        var cols = rows;
+        for (var row = -rows; row <= rows; row++) {
+          for (var col = -cols; col <= cols; col++) {
+            var localX = col * sampleCell;
+            var localY = row * sampleCell;
+            var jitterScale = screen === 'stochastic' ? 0.44 : (screen === 'mezzotint' ? 0.3 : 0.08 + noise * 0.05);
+            localX += (hash(col, row, params.seed + 1823) * 2 - 1) * sampleCell * jitterScale;
+            localY += (hash(col, row, params.seed + 1829) * 2 - 1) * sampleCell * jitterScale;
+            var px = Math.round(cx + localX * cos - localY * sin);
+            var py = Math.round(cy + localX * sin + localY * cos);
+            if (px < 0 || px >= width || py < 0 || py >= height) continue;
+            var index = py * width + px;
+            if (!boundary.inside[index]) continue;
+            var alpha = sampleMaskNeighborhoodAlpha(source.data, width, height, px, py, sampleCell * 0.3);
+            if (alpha < 0.02) continue;
+            var depth = boundary.distance[index];
+            var localTone = Math.max(0, Math.min(1, 0.26
+              + depth / Math.max(1, cell * (0.7 + modulation * 0.3)) * 0.9));
+            var grain = hash(col + 13, row + 29, params.seed + 1831);
+            var beat = 0.78 + Math.sin((col - row) * 0.43 + phase + depth * 0.06) * modulation * 0.1;
+            var radius;
+            if (screen === 'stochastic') {
+              var keep = Math.min(0.96, 0.18 + localTone * (0.56 + modulation * 0.12) + alpha * 0.24);
+              if (grain > keep) continue;
+              radius = sampleCell * gain * (0.12 + modulation * 0.035) * (0.72 + hash(col, row, params.seed + 1837) * 0.42);
+            } else if (screen === 'mezzotint') {
+              var bite = hash(col + 7, row + 11, params.seed + 1847);
+              if (bite > Math.min(0.98, 0.46 + localTone * 0.34 + modulation * 0.1)) continue;
+              radius = sampleCell * gain * (0.22 + localTone * 0.3) * (0.75 + bite * 0.56);
+            } else {
+              radius = cell * gain * (0.16 + localTone * (0.34 + modulation * 0.06)) * beat;
+            }
+            radius = Math.max(0.18, Math.min(sampleCell * (0.72 + gain * 0.12), radius));
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(angle + (grain * 2 - 1) * noise * 0.12);
+            ctx.globalAlpha = cellAggregate.strength * alpha * (0.82 + grain * 0.18);
+            if (screen === 'mezzotint') {
+              var scratchLength = radius * (2.2 + modulation * 0.85);
+              ctx.lineWidth = Math.max(0.32, radius * (0.55 + gain * 0.18));
+              ctx.beginPath();
+              ctx.moveTo(-scratchLength, 0);
+              ctx.lineTo(scratchLength, (grain * 2 - 1) * radius * 0.5);
+              ctx.stroke();
+              if (modulation > 2.15 && hash(col, row, params.seed + 1853) > 0.6) {
+                ctx.rotate(Math.PI * (0.34 + grain * 0.16));
+                ctx.beginPath();
+                ctx.moveTo(-scratchLength * 0.58, 0);
+                ctx.lineTo(scratchLength * 0.58, 0);
+                ctx.stroke();
+              }
+            } else if (screen === 'adaptive' && modulation > 2.35 && (row + col) % 3 === 0) {
+              ctx.beginPath();
+              ctx.moveTo(0, -radius * 1.18);
+              ctx.lineTo(radius, 0);
+              ctx.lineTo(0, radius * 1.18);
+              ctx.lineTo(-radius, 0);
+              ctx.closePath();
+              ctx.fill();
+            } else {
+              ctx.beginPath();
+              ctx.arc(0, 0, radius, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        }
+        rasterPressOutput(targetCtx, work, mask);
+      }
+
+      function drawAdaptiveHatchFamily(ctx, boundary, width, height, angle, spacing, warp, stroke,
+        phase, alpha, salt, threshold, style) {
+        var cx = width / 2, cy = height / 2;
+        var diagonal = Math.sqrt(width * width + height * height) + spacing * 5;
+        var cos = Math.cos(angle), sin = Math.sin(angle);
+        var rowCount = Math.ceil(diagonal / spacing) + 1;
+        var sampleStep = Math.max(1.1, spacing * (style === 'woodcut' ? 0.3 : 0.34));
+        var segments = Math.max(24, Math.min(640, Math.ceil(diagonal / sampleStep)));
+        ctx.lineWidth = stroke;
+        ctx.lineCap = style === 'woodcut' ? 'butt' : 'round';
+        ctx.lineJoin = 'round';
+        for (var row = -rowCount; row <= rowCount; row++) {
+          var v = row * spacing;
+          var drawing = false;
+          ctx.beginPath();
+          for (var segment = 0; segment <= segments; segment++) {
+            var t = segment / segments;
+            var u = -diagonal / 2 + t * diagonal;
+            var wave = Math.sin(t * Math.PI * (2.2 + warp * 1.3) + row * 0.69 + phase + salt)
+              * spacing * warp * 0.28;
+            var chatter = (hash(segment, row, params.seed + salt + 1861) * 2 - 1) * spacing * warp * 0.045;
+            var localV = v + wave + chatter;
+            var px = Math.round(cx + u * cos - localV * sin);
+            var py = Math.round(cy + u * sin + localV * cos);
+            var inside = px >= 0 && px < width && py >= 0 && py < height;
+            var index = inside ? py * width + px : 0;
+            var deepEnough = inside && boundary.inside[index] && boundary.distance[index] >= threshold;
+            if (deepEnough && style === 'woodcut') {
+              var breakSignal = hash(Math.floor(segment / 3), row, params.seed + salt + 1871);
+              deepEnough = breakSignal > Math.min(0.46, 0.08 + warp * 0.06);
+            }
+            if (!deepEnough) {
+              drawing = false;
+              continue;
+            }
+            if (!drawing) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            drawing = true;
+          }
+          ctx.globalAlpha = alpha * (0.7 + hash(row, salt, params.seed + 1873) * 0.3);
+          ctx.stroke();
+        }
+      }
+
+      function renderHatchEngrave(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var grammar = surfaceChoice(glyphs, 'hatchEngrave', 'hatchGrammar', params.hatchGrammar, BATCH_PARAM_OPTIONS.hatchGrammar);
+        if (grammar === 'legacy') {
+          renderHatchEngraveLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var spacingAggregate = surfaceAggregate(glyphs, 'hatchEngrave', 'hatchSpacing', params.hatchSpacing);
+        if (!spacingAggregate.weight) return;
+        var angle = surfaceAggregate(glyphs, 'hatchEngrave', 'hatchAngle', params.hatchAngle).value * Math.PI / 180;
+        var warp = Math.max(0, surfaceAggregate(glyphs, 'hatchEngrave', 'hatchWarp', params.hatchWarp).value);
+        var stroke = Math.max(0.12, surfaceAggregate(glyphs, 'hatchEngrave', 'hatchStroke', params.hatchStroke).value * pixelScale * L.s);
+        var depth = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'hatchEngrave', 'hatchDepth', params.hatchDepth).value));
+        var spacing = Math.max(2.1, spacingAggregate.value * pixelScale * L.s);
+        var estimatedLines = (width + height) / spacing;
+        if (estimatedLines > 620) spacing *= estimatedLines / 620;
+        var mask = buildSurfaceMask(glyphs, 'hatchEngrave', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'hatchEngrave', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var boundary = surfaceBoundaryDistance(source.data, width, height);
+        if (!boundary.bounds) return;
+        var work = surfaceScratch('hatch-engrave-v24', width, height, false);
+        var ctx = work.ctx;
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        ctx.strokeStyle = surfaceEffectColor('hatchEngrave');
+
+        if (grammar === 'burin') {
+          var nodes = surfaceNodesForGlyphs(glyphs, 'hatchEngrave', 96, pixelScale, L, 0, 0, 0);
+          ctx.lineCap = 'round';
+          for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+            var node = nodes[nodeIndex];
+            var cuts = Math.min(42, 12 + Math.round(depth * 7 + node.r / Math.max(3, spacing) * 0.28));
+            for (var cut = 0; cut < cuts; cut++) {
+              var cutAngle = angle + cut / Math.max(1, cuts) * Math.PI * 2
+                + (hash(cut, nodeIndex, params.seed + 1889) * 2 - 1) * (0.08 + warp * 0.12);
+              var inner = node.r * (0.04 + hash(cut, 3, params.seed + 1891) * 0.22);
+              var reach = node.r * (0.72 + depth * 0.38 + hash(cut, 7, params.seed + 1901) * 0.55);
+              var bend = Math.sin(cut * 1.7 + phase) * node.r * warp * 0.13;
+              var sx = node.x + Math.cos(cutAngle) * inner;
+              var sy = node.y + Math.sin(cutAngle) * inner;
+              var ex = node.x + Math.cos(cutAngle) * reach;
+              var ey = node.y + Math.sin(cutAngle) * reach;
+              ctx.globalAlpha = spacingAggregate.strength * (0.3 + hash(cut, nodeIndex, params.seed + 1907) * 0.62);
+              ctx.lineWidth = stroke * (0.58 + depth * 0.16 + hash(cut, 11, params.seed + 1913) * 0.65);
+              ctx.beginPath();
+              ctx.moveTo(sx, sy);
+              ctx.quadraticCurveTo((sx + ex) / 2 - Math.sin(cutAngle) * bend,
+                (sy + ey) / 2 + Math.cos(cutAngle) * bend, ex, ey);
+              ctx.stroke();
+            }
+          }
+        } else if (grammar === 'crosscut') {
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle, spacing, warp, stroke,
+            phase, spacingAggregate.strength, 1919, 0, 'crosscut');
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle + Math.PI * (0.31 + depth * 0.025),
+            spacing * (1.04 + depth * 0.09), warp * 0.74, stroke * 0.82, -phase,
+            spacingAggregate.strength * Math.min(0.92, 0.36 + depth * 0.18), 1931,
+            0, 'crosscut');
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle - Math.PI * (0.27 + depth * 0.018),
+            spacing * (1.34 + depth * 0.08), warp * 0.52, stroke * 0.62, phase * 0.73,
+            spacingAggregate.strength * Math.min(0.72, 0.12 + depth * 0.15), 1933,
+            spacing * Math.max(0.08, 0.5 - depth * 0.1), 'crosscut');
+        } else if (grammar === 'woodcut') {
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle, spacing * 1.18, warp + depth * 0.18,
+            stroke * (1.45 + depth * 0.18), phase, spacingAggregate.strength, 1949, 0, 'woodcut');
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle + Math.PI * 0.46, spacing * (1.85 - Math.min(0.5, depth * 0.08)),
+            warp * 0.48, stroke * 0.72, -phase * 0.82, spacingAggregate.strength * Math.min(0.66, 0.12 + depth * 0.14),
+            1951, spacing * Math.max(0.42, 1.55 - depth * 0.2), 'woodcut');
+        } else {
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle, spacing * 0.84, warp, stroke * 1.08,
+            phase, spacingAggregate.strength, 1973, 0, 'tonal');
+          drawAdaptiveHatchFamily(ctx, boundary, width, height, angle + Math.PI * (0.38 + warp * 0.018),
+            spacing * (1.45 + Math.max(0, 1.2 - depth) * 0.2), warp * 0.58, stroke * 0.68,
+            -phase * 0.64, spacingAggregate.strength * Math.min(0.76, 0.16 + depth * 0.18), 1979,
+            spacing * Math.max(0.12, 0.78 - depth * 0.17), 'tonal');
+        }
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(mask, 0, 0);
@@ -15207,7 +15522,7 @@ type deformer</textarea>
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('pressureStroke'), 1, 'pressure-stroke-color');
       }
 
-      function renderCellFracture(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderCellFractureLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var cellAggregate = surfaceAggregate(glyphs, 'cellFracture', 'fractureCell', params.fractureCell);
         if (!cellAggregate.weight) return;
         var scatter = surfaceAggregate(glyphs, 'cellFracture', 'fractureScatter', params.fractureScatter).value * pixelScale * L.s;
@@ -15298,7 +15613,7 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderRibbonEcho(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderRibbonEchoLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var depthAggregate = surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonDepth', params.ribbonDepth);
         if (!depthAggregate.weight) return;
         var steps = Math.max(1, Math.round(surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonSteps', params.ribbonSteps).value));
@@ -15328,6 +15643,321 @@ type deformer</textarea>
         }
         ctx.globalCompositeOperation = 'source-in';
         ctx.globalAlpha = 1;
+        ctx.fillStyle = surfaceEffectColor('ribbonEcho');
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function fractureColorizeAndOutput(targetCtx, work, color) {
+        work.ctx.globalCompositeOperation = 'source-in';
+        work.ctx.globalAlpha = 1;
+        work.ctx.fillStyle = color;
+        work.ctx.fillRect(0, 0, work.canvas.width, work.canvas.height);
+        work.ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function drawFractureCrackField(targetCtx, glyphs, mask, width, height, pixelScale, L, energy, cell, phase) {
+        var nodes = surfaceNodesForGlyphs(glyphs, 'cellFracture', 120, pixelScale, L, 0, 0, 0);
+        if (!nodes.length) return;
+        var cracks = surfaceScratch('fracture-crack-field', width, height, false);
+        var ctx = cracks.ctx;
+        ctx.strokeStyle = '#fff';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+          var node = nodes[nodeIndex];
+          var rays = Math.min(26, 5 + Math.round(energy * 4 + node.r / Math.max(5, cell) * 0.28));
+          for (var ray = 0; ray < rays; ray++) {
+            var angle = ray / Math.max(1, rays) * Math.PI * 2
+              + (hash(ray, nodeIndex, params.seed + 1993) * 2 - 1) * (0.16 + energy * 0.06);
+            var reach = node.r * (0.68 + energy * 0.42 + hash(ray, 5, params.seed + 1997) * 0.58);
+            var segments = 3 + Math.min(5, Math.round(energy));
+            ctx.beginPath();
+            ctx.moveTo(node.x, node.y);
+            var previousX = node.x, previousY = node.y;
+            for (var segment = 1; segment <= segments; segment++) {
+              var t = segment / segments;
+              var jitter = (hash(ray, segment, params.seed + 1999) * 2 - 1) * cell * (0.08 + energy * 0.05);
+              var px = node.x + Math.cos(angle) * reach * t - Math.sin(angle) * jitter;
+              var py = node.y + Math.sin(angle) * reach * t + Math.cos(angle) * jitter;
+              ctx.lineTo(px, py);
+              if (segment > 1 && energy > 1.2 && hash(ray, segment, params.seed + 2003) < Math.min(0.55, energy * 0.12)) {
+                var branchAngle = angle + (hash(segment, ray, params.seed + 2011) > 0.5 ? 1 : -1) * (0.45 + energy * 0.08);
+                ctx.moveTo(previousX, previousY);
+                ctx.lineTo(previousX + Math.cos(branchAngle) * reach * 0.22,
+                  previousY + Math.sin(branchAngle) * reach * 0.22);
+                ctx.moveTo(px, py);
+              }
+              previousX = px; previousY = py;
+            }
+            ctx.globalAlpha = node.strength * (0.38 + hash(ray, nodeIndex, params.seed + 2017) * 0.54);
+            ctx.lineWidth = Math.max(0.45, cell * (0.024 + energy * 0.012));
+            ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mask, 0, 0);
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.fillStyle = surfaceEffectColor('cellFracture');
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.globalAlpha = Math.min(1, 0.48 + energy * 0.13);
+        targetCtx.drawImage(cracks.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function renderCellFracture(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var topology = surfaceChoice(glyphs, 'cellFracture', 'fractureTopology', params.fractureTopology, BATCH_PARAM_OPTIONS.fractureTopology);
+        if (topology === 'triangles') {
+          renderCellFractureLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var cellAggregate = surfaceAggregate(glyphs, 'cellFracture', 'fractureCell', params.fractureCell);
+        if (!cellAggregate.weight) return;
+        var scatter = Math.max(0, surfaceAggregate(glyphs, 'cellFracture', 'fractureScatter', params.fractureScatter).value * pixelScale * L.s);
+        var gap = Math.max(0, surfaceAggregate(glyphs, 'cellFracture', 'fractureGap', params.fractureGap).value * pixelScale * L.s);
+        var spin = surfaceAggregate(glyphs, 'cellFracture', 'fractureSpin', params.fractureSpin).value * Math.PI / 180;
+        var energy = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'cellFracture', 'fractureEnergy', params.fractureEnergy).value));
+        var cell = Math.max(4, cellAggregate.value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'cellFracture', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'cellFracture', coverBase);
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+
+        if (topology === 'crystal') {
+          renderCellFractureLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, false);
+          drawFractureCrackField(targetCtx, glyphs, mask, width, height, pixelScale, L, energy, cell, phase);
+          return;
+        }
+
+        var work = surfaceScratch('cell-fracture-v24', width, height, false);
+        var ctx = work.ctx;
+        var glyphMask = surfaceScratch('cell-fracture-glyph', width, height, false);
+        var diagonal = Math.sqrt(width * width + height * height) * 1.35;
+        var fragmentScale = Math.max(0.42, 1 - gap / Math.max(3, cell * 1.45) * (0.32 + energy * 0.07));
+        for (var glyphIndex = 0; glyphIndex < glyphs.length; glyphIndex++) {
+          var glyph = glyphs[glyphIndex];
+          var strength = surfaceGlyphStrength(glyph, 'cellFracture');
+          if (strength <= 0.002 || (glyph.opacity != null && glyph.opacity <= 0.002)) continue;
+          glyphMask = surfaceScratch('cell-fracture-glyph', width, height, false);
+          drawSurfaceGlyph(glyphMask.ctx, glyph, pixelScale, L, fm, strength);
+          var node = surfaceGlyphNode(glyph, 'cellFracture', pixelScale, L, 0, 0, 0, glyphIndex);
+
+          if (topology === 'fault') {
+            var faultAngle = (hash(glyphIndex, params.seed % 101, 2027) * 0.64 - 0.32) * Math.PI
+              + Math.sin(phase) * 0.08;
+            var faultSpacing = Math.max(3, cell * (0.58 + Math.max(0, 1.2 - energy) * 0.14));
+            var stripCount = Math.min(42, Math.ceil((node.r * 3.2 + cell * 2) / faultSpacing));
+            for (var strip = -stripCount; strip <= stripCount; strip++) {
+              var stripCenter = strip * faultSpacing;
+              var stripWidth = Math.max(1.2, faultSpacing - gap * (0.46 + energy * 0.06));
+              var side = strip % 2 ? -1 : 1;
+              var pulse = compositionState.enabled ? 0.72 + Math.sin(phase + strip * 0.77) * 0.28 : 1;
+              var travel = scatter * (0.12 + energy * 0.2) * side
+                * (0.34 + hash(strip, glyphIndex, params.seed + 2029) * 0.66) * pulse;
+              var normalX = -Math.sin(faultAngle), normalY = Math.cos(faultAngle);
+              ctx.save();
+              ctx.translate(node.x, node.y);
+              ctx.rotate(faultAngle);
+              ctx.beginPath();
+              ctx.rect(-diagonal, stripCenter - stripWidth / 2, diagonal * 2, stripWidth);
+              ctx.clip();
+              ctx.setTransform(1, 0, 0, 1, 0, 0);
+              ctx.translate(node.x + normalX * travel, node.y + normalY * travel);
+              ctx.rotate(spin * side * (0.08 + energy * 0.08));
+              ctx.scale(fragmentScale, fragmentScale);
+              ctx.translate(-node.x, -node.y);
+              ctx.drawImage(glyphMask.canvas, 0, 0);
+              ctx.restore();
+            }
+          } else if (topology === 'spall') {
+            var rings = Math.min(12, 3 + Math.round(energy * 1.6 + node.r / Math.max(12, cell) * 0.3));
+            var maxRadius = node.r * (1.45 + energy * 0.18);
+            for (var ring = 0; ring < rings; ring++) {
+              var innerRadius = ring / rings * maxRadius;
+              var outerRadius = (ring + 1) / rings * maxRadius;
+              var ringSegments = Math.min(22, 4 + ring + Math.round(energy * 1.8));
+              for (var ringSegment = 0; ringSegment < ringSegments; ringSegment++) {
+                var start = ringSegment / ringSegments * Math.PI * 2
+                  + hash(ring, glyphIndex, params.seed + 2039) * 0.34;
+                var end = (ringSegment + 0.86 - Math.min(0.36, gap / Math.max(3, cell) * 0.12)) / ringSegments * Math.PI * 2
+                  + hash(ring, glyphIndex, params.seed + 2039) * 0.34;
+                var mid = (start + end) / 2;
+                var pulseSpall = compositionState.enabled ? 0.7 + Math.sin(phase + ring * 0.84 + ringSegment * 0.31) * 0.3 : 1;
+                var spallTravel = scatter * (0.08 + energy * 0.16) * (ring + 1) / rings
+                  * (0.38 + hash(ringSegment, ring, params.seed + 2053) * 0.62) * pulseSpall;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(node.x + Math.cos(start) * outerRadius, node.y + Math.sin(start) * outerRadius);
+                ctx.arc(node.x, node.y, outerRadius, start, end, false);
+                if (innerRadius > 0.01) {
+                  ctx.lineTo(node.x + Math.cos(end) * innerRadius, node.y + Math.sin(end) * innerRadius);
+                  ctx.arc(node.x, node.y, innerRadius, end, start, true);
+                } else ctx.lineTo(node.x, node.y);
+                ctx.closePath();
+                ctx.clip();
+                ctx.translate(node.x + Math.cos(mid) * spallTravel, node.y + Math.sin(mid) * spallTravel);
+                ctx.rotate(spin * (hash(ringSegment, ring, params.seed + 2063) * 2 - 1) * (0.16 + energy * 0.12));
+                ctx.scale(fragmentScale, fragmentScale);
+                ctx.translate(-node.x, -node.y);
+                ctx.drawImage(glyphMask.canvas, 0, 0);
+                ctx.restore();
+              }
+            }
+          } else {
+            var sectors = Math.min(36, 9 + Math.round(energy * 5 + node.r / Math.max(8, cell) * 0.5));
+            var startOffset = hash(glyphIndex, params.seed % 89, 2069) * Math.PI * 2;
+            for (var sector = 0; sector < sectors; sector++) {
+              var startAngle = startOffset + sector / sectors * Math.PI * 2;
+              var endAngle = startOffset + (sector + 0.91 - Math.min(0.32, gap / Math.max(3, cell) * 0.1)) / sectors * Math.PI * 2;
+              var centerAngle = (startAngle + endAngle) / 2;
+              var pulseImpact = compositionState.enabled ? 0.7 + Math.sin(phase + sector * 0.53) * 0.3 : 1;
+              var impactTravel = scatter * (0.14 + energy * 0.22)
+                * (0.32 + hash(sector, glyphIndex, params.seed + 2081) * 0.68) * pulseImpact;
+              ctx.save();
+              ctx.beginPath();
+              ctx.moveTo(node.x, node.y);
+              ctx.lineTo(node.x + Math.cos(startAngle) * diagonal, node.y + Math.sin(startAngle) * diagonal);
+              ctx.arc(node.x, node.y, diagonal, startAngle, endAngle, false);
+              ctx.closePath();
+              ctx.clip();
+              ctx.translate(node.x + Math.cos(centerAngle) * impactTravel, node.y + Math.sin(centerAngle) * impactTravel);
+              ctx.rotate(spin * (hash(sector, 7, params.seed + 2083) * 2 - 1) * (0.22 + energy * 0.13));
+              ctx.scale(fragmentScale, fragmentScale);
+              ctx.translate(-node.x, -node.y);
+              ctx.drawImage(glyphMask.canvas, 0, 0);
+              ctx.restore();
+            }
+          }
+        }
+        fractureColorizeAndOutput(targetCtx, work, surfaceEffectColor('cellFracture'));
+        if (topology === 'impact' || energy > 1.7) {
+          drawFractureCrackField(targetCtx, glyphs, mask, width, height, pixelScale, L, energy, cell, phase);
+        }
+      }
+
+      function ribbonTrajectory(path, t, depth, weave, phase, baseDirection, width, height, strand) {
+        var eased = t * t * (3 - 2 * t);
+        var along = depth * eased;
+        var normalAmplitude = Math.min(Math.max(width, height) * 0.62,
+          Math.abs(depth) * (0.08 + weave * 0.16) + Math.min(width, height) * weave * 0.018);
+        var cycles = 0.72 + weave * 0.58;
+        var wave = Math.sin(t * Math.PI * 2 * cycles + phase + (strand || 0) * Math.PI);
+        var tangentX = Math.cos(baseDirection), tangentY = Math.sin(baseDirection);
+        var normalX = -tangentY, normalY = tangentX;
+        var x = tangentX * along, y = tangentY * along * 0.72;
+        var rotation = 0;
+        if (path === 'helix') {
+          x += normalX * normalAmplitude * wave;
+          y += normalY * normalAmplitude * wave;
+          rotation = Math.cos(t * Math.PI * 2 * cycles + phase) * (0.04 + weave * 0.12);
+        } else if (path === 'braid') {
+          x += normalX * normalAmplitude * wave;
+          y += normalY * normalAmplitude * wave;
+          rotation = wave * (0.025 + weave * 0.08);
+        } else if (path === 'fan') {
+          var fanAngle = (t - 0.08) * Math.PI * (0.18 + weave * 0.22) * (depth < 0 ? -1 : 1);
+          var fanRadius = Math.abs(depth) * eased;
+          x = Math.cos(baseDirection + fanAngle) * fanRadius;
+          y = Math.sin(baseDirection + fanAngle) * fanRadius;
+          rotation = fanAngle;
+        } else {
+          x += normalX * normalAmplitude * 0.12 * Math.sin(t * Math.PI * 2 + phase);
+          y += normalY * normalAmplitude * 0.12 * Math.sin(t * Math.PI * 2 + phase);
+        }
+        return { x: x, y: y, rotation: rotation };
+      }
+
+      function renderRibbonEcho(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var path = surfaceChoice(glyphs, 'ribbonEcho', 'ribbonPath', params.ribbonPath, BATCH_PARAM_OPTIONS.ribbonPath);
+        if (path === 'legacy') {
+          renderRibbonEchoLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var depthAggregate = surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonDepth', params.ribbonDepth);
+        if (!depthAggregate.weight) return;
+        var steps = Math.max(1, Math.min(96, Math.round(surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonSteps', params.ribbonSteps).value)));
+        var twist = surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonTwist', params.ribbonTwist).value * Math.PI / 180;
+        var fade = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonFade', params.ribbonFade).value));
+        var weave = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'ribbonEcho', 'ribbonWeave', params.ribbonWeave).value));
+        var depth = depthAggregate.value * pixelScale * L.s;
+        var mask = buildSurfaceMask(glyphs, 'ribbonEcho', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'ribbonEcho', coverBase);
+        var work = surfaceScratch('ribbon-echo-v24', width, height, false);
+        var ctx = work.ctx;
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var baseDirection = 0.36 + phase;
+        var ribbonNodes = surfaceNodesForGlyphs(glyphs, 'ribbonEcho', 180, pixelScale, L, 0, 0, 0);
+        var cx = width / 2, cy = height / 2;
+        if (ribbonNodes.length) {
+          cx = 0; cy = 0;
+          for (var ribbonNodeIndex = 0; ribbonNodeIndex < ribbonNodes.length; ribbonNodeIndex++) {
+            cx += ribbonNodes[ribbonNodeIndex].x;
+            cy += ribbonNodes[ribbonNodeIndex].y;
+          }
+          cx /= ribbonNodes.length;
+          cy /= ribbonNodes.length;
+        }
+        var strands = path === 'braid' ? 2 : 1;
+        for (var strand = 0; strand < strands; strand++) {
+          for (var slice = steps; slice >= 1; slice--) {
+            var t = slice / steps;
+            var trajectory = ribbonTrajectory(path, t, depth, weave, phase, baseDirection, width, height, strand);
+            var fadeCurve = Math.max(0.02, 1 - Math.min(0.98, fade * 0.24) * t);
+            var opacity = depthAggregate.strength * (0.09 + fadeCurve * 0.42)
+              / Math.max(1, Math.sqrt(steps / 7)) / strands;
+            var scalePulse = 1 + Math.abs(depth) / Math.max(width, height) * t * (0.05 + weave * 0.025);
+            ctx.save();
+            ctx.globalAlpha = Math.max(0.009, opacity);
+            if (path === 'braid') {
+              var braidBand = Math.max(7, Math.min(26, 7 + weave * 3.4));
+              ctx.beginPath();
+              for (var braidX = -braidBand; braidX <= width + braidBand; braidX += braidBand) {
+                if ((Math.floor(braidX / braidBand) & 1) === strand) ctx.rect(braidX, 0, braidBand + 0.7, height);
+              }
+              ctx.clip();
+            }
+            ctx.translate(cx + trajectory.x, cy + trajectory.y);
+            ctx.rotate(twist * t + trajectory.rotation);
+            ctx.scale(scalePulse, Math.max(0.52, 1 / scalePulse * (1 - weave * 0.015 * t)));
+            ctx.translate(-cx, -cy);
+            ctx.drawImage(mask, 0, 0);
+            ctx.restore();
+          }
+        }
+
+        // Sparse trajectory rails make the time-path legible at high weave
+        // without turning the effect into a generic full-canvas line network.
+        if (weave > 0.55 && Math.abs(depth) > 2) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = Math.max(0.45, Math.min(2.6, pixelScale * L.s * (0.55 + weave * 0.28)));
+          for (var rail = 0; rail < strands; rail++) {
+            ctx.beginPath();
+            var railSegments = Math.min(72, Math.max(18, steps));
+            for (var railIndex = 0; railIndex <= railSegments; railIndex++) {
+              var railT = railIndex / railSegments;
+              var railPoint = ribbonTrajectory(path, railT, depth, weave, phase, baseDirection, width, height, rail);
+              if (!railIndex) ctx.moveTo(cx + railPoint.x, cy + railPoint.y);
+              else ctx.lineTo(cx + railPoint.x, cy + railPoint.y);
+            }
+            ctx.globalAlpha = depthAggregate.strength * Math.min(0.48, 0.08 + weave * 0.08);
+            ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-in';
         ctx.fillStyle = surfaceEffectColor('ribbonEcho');
         ctx.fillRect(0, 0, width, height);
         ctx.globalCompositeOperation = 'source-over';
@@ -20259,8 +20889,10 @@ type deformer</textarea>
               Math.abs(profile.sinewPull || 0) + params.fontSize * (0.8
                 + Math.abs(profile.sinewTorque || 0) / 72
                 + Math.max(0, Math.exp(Math.max(0, profile.sinewWaist || 0) * 0.42) - 1))),
-            surfaceOperatorStrength(metrics[i], 'cellFracture') * ((profile.fractureScatter || 0) + (profile.fractureCell || 0)),
-            surfaceOperatorStrength(metrics[i], 'ribbonEcho') * (Math.abs(profile.ribbonDepth || 0) * 1.25 + params.fontSize * 0.5),
+            surfaceOperatorStrength(metrics[i], 'cellFracture') * ((profile.fractureScatter || 0)
+              * (1 + (profile.fractureEnergy || 0) * 0.32) + (profile.fractureCell || 0) * (1 + (profile.fractureEnergy || 0) * 0.15)),
+            surfaceOperatorStrength(metrics[i], 'ribbonEcho') * (Math.abs(profile.ribbonDepth || 0) * 1.25
+              + params.fontSize * (0.5 + (profile.ribbonWeave || 0) * 0.38)),
             surfaceOperatorStrength(metrics[i], 'copyDecay') * (Math.abs(profile.copyMotion || 0) + (profile.copyErosion || 0) * 3 + (profile.copyToner || 0) * 18),
             surfaceOperatorStrength(metrics[i], 'risoSeparation') * ((profile.risoRegister || 0) * 1.5 + 8),
             surfaceOperatorStrength(metrics[i], 'slitSweep') * (Math.abs(profile.slitTravel || 0) + (profile.slitWidth || 0) * 2));
@@ -20578,8 +21210,10 @@ type deformer</textarea>
           Math.abs(profile.sinewPull || 0) + params.fontSize * (0.8
             + Math.abs(profile.sinewTorque || 0) / 72
             + Math.max(0, Math.exp(Math.max(0, profile.sinewWaist || 0) * 0.42) - 1)));
-        if (operator === 'cellFracture') return 50 + (profile.fractureScatter || 0) + (profile.fractureCell || 0);
-        if (operator === 'ribbonEcho') return 50 + Math.abs(profile.ribbonDepth || 0) * 1.25;
+        if (operator === 'cellFracture') return 50 + (profile.fractureScatter || 0)
+          * (1 + (profile.fractureEnergy || 0) * 0.32) + (profile.fractureCell || 0) * (1 + (profile.fractureEnergy || 0) * 0.15);
+        if (operator === 'ribbonEcho') return 50 + Math.abs(profile.ribbonDepth || 0) * 1.25
+          + params.fontSize * (profile.ribbonWeave || 0) * 0.38;
         if (operator === 'copyDecay') return 50 + Math.abs(profile.copyMotion || 0) + (profile.copyErosion || 0) * 3 + (profile.copyToner || 0) * 18;
         if (operator === 'risoSeparation') return 50 + (profile.risoRegister || 0) * 1.5;
         if (operator === 'slitSweep') return 50 + Math.abs(profile.slitTravel || 0) + (profile.slitWidth || 0) * 2;
@@ -21496,7 +22130,7 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 23,
+          version: 24,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
           formCadence: {
@@ -21648,12 +22282,14 @@ type deformer</textarea>
             rasterPress: {
               color: params.rasterColor, sourceMode: params.rasterSourceMode, sourceOpacity: surfaceSourceOpacity('rasterPress'),
               opacity: surfaceOutputOpacity('rasterPress'), blend: surfaceBlendMode('rasterPress'),
+              screen: params.rasterScreen, modulation: params.rasterModulation,
               cell: params.rasterCell, gain: params.rasterGain,
               angle: params.rasterAngle, noise: params.rasterNoise
             },
             hatchEngrave: {
               color: params.hatchColor, sourceMode: params.hatchSourceMode, sourceOpacity: surfaceSourceOpacity('hatchEngrave'),
               opacity: surfaceOutputOpacity('hatchEngrave'), blend: surfaceBlendMode('hatchEngrave'),
+              grammar: params.hatchGrammar, depth: params.hatchDepth,
               spacing: params.hatchSpacing, angle: params.hatchAngle,
               warp: params.hatchWarp, stroke: params.hatchStroke
             },
@@ -21680,12 +22316,14 @@ type deformer</textarea>
             cellFracture: {
               color: params.fractureColor, sourceMode: params.fractureSourceMode, sourceOpacity: surfaceSourceOpacity('cellFracture'),
               opacity: surfaceOutputOpacity('cellFracture'), blend: surfaceBlendMode('cellFracture'),
+              topology: params.fractureTopology, energy: params.fractureEnergy,
               cell: params.fractureCell, scatter: params.fractureScatter,
               gap: params.fractureGap, spin: params.fractureSpin
             },
             ribbonEcho: {
               color: params.ribbonColor, sourceMode: params.ribbonSourceMode, sourceOpacity: surfaceSourceOpacity('ribbonEcho'),
               opacity: surfaceOutputOpacity('ribbonEcho'), blend: surfaceBlendMode('ribbonEcho'),
+              path: params.ribbonPath, weave: params.ribbonWeave,
               depth: params.ribbonDepth, steps: params.ribbonSteps,
               twist: params.ribbonTwist, fade: params.ribbonFade
             },
@@ -23248,10 +23886,14 @@ type deformer</textarea>
       bindRange('pMonolithFault', 'vMonolithFault', 'monolithFault', fPx, applyAllOperatorVisuals);
       bindRange('pMonolithCounter', 'vMonolithCounter', 'monolithCounter', f2, applyAllOperatorVisuals);
       bindRange('pMonolithFormwork', 'vMonolithFormwork', 'monolithFormwork', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pRasterScreen', 'rasterScreen', applyAllOperatorVisuals);
+      bindRange('pRasterModulation', 'vRasterModulation', 'rasterModulation', f2, applyAllOperatorVisuals);
       bindRange('pRasterCell', 'vRasterCell', 'rasterCell', fPx, applyAllOperatorVisuals);
       bindRange('pRasterGain', 'vRasterGain', 'rasterGain', f2, applyAllOperatorVisuals);
       bindRange('pRasterAngle', 'vRasterAngle', 'rasterAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pRasterNoise', 'vRasterNoise', 'rasterNoise', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pHatchGrammar', 'hatchGrammar', applyAllOperatorVisuals);
+      bindRange('pHatchDepth', 'vHatchDepth', 'hatchDepth', f2, applyAllOperatorVisuals);
       bindRange('pHatchSpacing', 'vHatchSpacing', 'hatchSpacing', fPx, applyAllOperatorVisuals);
       bindRange('pHatchAngle', 'vHatchAngle', 'hatchAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pHatchWarp', 'vHatchWarp', 'hatchWarp', f2, applyAllOperatorVisuals);
@@ -23273,10 +23915,14 @@ type deformer</textarea>
       bindRange('pSinewTension', 'vSinewTension', 'sinewTension', f2, applyAllOperatorVisuals);
       bindRange('pSinewWaist', 'vSinewWaist', 'sinewWaist', fSigned2, applyAllOperatorVisuals);
       bindRange('pSinewAxis', 'vSinewAxis', 'sinewAxis', fDeg, applyAllOperatorVisuals);
+      bindProfileSelect('pFractureTopology', 'fractureTopology', applyAllOperatorVisuals);
+      bindRange('pFractureEnergy', 'vFractureEnergy', 'fractureEnergy', f2, applyAllOperatorVisuals);
       bindRange('pFractureCell', 'vFractureCell', 'fractureCell', fPx, applyAllOperatorVisuals);
       bindRange('pFractureScatter', 'vFractureScatter', 'fractureScatter', fPx, applyAllOperatorVisuals);
       bindRange('pFractureGap', 'vFractureGap', 'fractureGap', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pFractureSpin', 'vFractureSpin', 'fractureSpin', fDeg, applyAllOperatorVisuals);
+      bindProfileSelect('pRibbonPath', 'ribbonPath', applyAllOperatorVisuals);
+      bindRange('pRibbonWeave', 'vRibbonWeave', 'ribbonWeave', f2, applyAllOperatorVisuals);
       bindRange('pRibbonDepth', 'vRibbonDepth', 'ribbonDepth', fPx, applyAllOperatorVisuals);
       bindRange('pRibbonSteps', 'vRibbonSteps', 'ribbonSteps', f0, applyAllOperatorVisuals);
       bindRange('pRibbonTwist', 'vRibbonTwist', 'ribbonTwist', fDeg, applyAllOperatorVisuals);
@@ -25467,7 +26113,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 23,
+          version: 24,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -25926,7 +26572,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 23,
+          version: 24,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -25979,7 +26625,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 23) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 24) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -26036,6 +26682,19 @@ type deformer</textarea>
           if (!Object.prototype.hasOwnProperty.call(data.params, 'prismIridescence')) params.prismIridescence = 0;
           if (!Object.prototype.hasOwnProperty.call(data.params, 'texturaGrammar')) params.texturaGrammar = 'stems';
           if (!Object.prototype.hasOwnProperty.call(data.params, 'texturaRhythm')) params.texturaRhythm = 0;
+        }
+        // v23 and earlier exposed only one visual law for each early material
+        // Operator. Preserve those exact renderers while new projects begin
+        // with adaptive screen, tonal cut, impact and helical path grammars.
+        if (Number(data.version || 0) < 24) {
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'rasterScreen')) params.rasterScreen = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'rasterModulation')) params.rasterModulation = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'hatchGrammar')) params.hatchGrammar = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'hatchDepth')) params.hatchDepth = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'fractureTopology')) params.fractureTopology = 'triangles';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'fractureEnergy')) params.fractureEnergy = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'ribbonPath')) params.ribbonPath = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'ribbonWeave')) params.ribbonWeave = 0;
         }
         // v12 and earlier stored only three source-text presets. Preserve the
         // exact old look while upgrading to the continuous 0–100% control.
@@ -26606,7 +27265,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 23, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 24, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
