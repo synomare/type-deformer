@@ -224,12 +224,12 @@ if (html) {
     ['pSoftBlobSporeReach', '2400'], ['pSoftBlobSporeDensity', '4'], ['pSoftBlobSpeed', '8'],
     ['pEtchantPattern', '1'], ['pEtchantCell', '72'], ['pEtchantGrowth', '192'], ['pEtchantPolarity', '1'], ['pEtchantSpill', '640'],
     ['pSigilComplexity', '24'], ['pSigilReach', '640'], ['pSigilSymmetry', '4'], ['pSigilStroke', '20'], ['pSigilBarbs', '6'],
-    ['pThornLength', '360'], ['pThornDensity', '6'], ['pThornCurl', '3'], ['pThornStroke', '16'], ['pThornBranches', '4'],
-    ['pCipherScale', '36'], ['pCipherDensity', '4'], ['pCipherOrbit', '360'], ['pCipherDrift', '160'], ['pCipherCallouts', '4'],
-    ['pBoneCell', '40'], ['pBoneBranching', '4'], ['pBoneWeight', '16'], ['pBoneJoint', '28'], ['pBoneWarp', '4'],
-    ['pRosePetals', '32'], ['pRoseRings', '8'], ['pRoseRadius', '560'], ['pRoseWarp', '2'], ['pRoseStroke', '18'],
-    ['pChromeBevel', '96'], ['pChromeAngle', '180'], ['pChromeBands', '24'], ['pChromeContrast', '4'], ['pChromeWarp', '4'],
-    ['pLigatureReach', '1800'], ['pLigatureBand', '180'], ['pLigatureRise', '4'], ['pLigatureCounter', '1.5'], ['pLigatureKnot', '64'],
+    ['pThornArmor', '4'], ['pThornLength', '360'], ['pThornDensity', '6'], ['pThornCurl', '3'], ['pThornStroke', '16'], ['pThornBranches', '4'],
+    ['pCipherRegisters', '4'], ['pCipherScale', '36'], ['pCipherDensity', '4'], ['pCipherOrbit', '360'], ['pCipherDrift', '160'], ['pCipherCallouts', '4'],
+    ['pBoneMarrow', '4'], ['pBoneCell', '40'], ['pBoneBranching', '4'], ['pBoneWeight', '16'], ['pBoneJoint', '28'], ['pBoneWarp', '4'],
+    ['pRoseInterlace', '4'], ['pRosePetals', '32'], ['pRoseRings', '8'], ['pRoseRadius', '560'], ['pRoseWarp', '2'], ['pRoseStroke', '18'],
+    ['pChromeVoltage', '6'], ['pChromeBevel', '96'], ['pChromeAngle', '180'], ['pChromeBands', '24'], ['pChromeContrast', '4'], ['pChromeWarp', '4'],
+    ['pLigatureWeave', '4'], ['pLigatureReach', '1800'], ['pLigatureBand', '180'], ['pLigatureRise', '4'], ['pLigatureCounter', '1.5'], ['pLigatureKnot', '64'],
     ['pMoirePitch', '160'], ['pMoireDetune', '0.95'], ['pMoireAngle', '180'], ['pMoireDepth', '8'], ['pMoireReach', '1200'],
     ['pNaveColumns', '24'], ['pNaveRise', '4'], ['pNaveVoid', '1'], ['pNaveButtress', '80'], ['pNaveWarp', '2'],
     ['pCloisterPlanes', '32'], ['pCloisterFold', '2'], ['pCloisterAxis', '180'], ['pCloisterPerspective', '4'], ['pCloisterCrease', '64'],
@@ -270,12 +270,12 @@ if (html) {
     ['pSoftBlobSporeReach', '0'], ['pSoftBlobSporeDensity', '0'], ['pSoftBlobSpeed', '0'],
     ['pEtchantPattern', '0'], ['pEtchantCell', '2'], ['pEtchantGrowth', '8'], ['pEtchantPolarity', '-1'], ['pEtchantSpill', '0'],
     ['pSigilComplexity', '1'], ['pSigilReach', '0'], ['pSigilSymmetry', '0'], ['pSigilStroke', '0.2'], ['pSigilBarbs', '0'],
-    ['pThornLength', '0'], ['pThornDensity', '0.05'], ['pThornCurl', '-3'], ['pThornStroke', '0.2'], ['pThornBranches', '0'],
-    ['pCipherScale', '3'], ['pCipherDensity', '0.1'], ['pCipherOrbit', '0'], ['pCipherDrift', '0'], ['pCipherCallouts', '0'],
-    ['pBoneCell', '2'], ['pBoneBranching', '0'], ['pBoneWeight', '0.2'], ['pBoneJoint', '0'], ['pBoneWarp', '0'],
-    ['pRosePetals', '3'], ['pRoseRings', '1'], ['pRoseRadius', '8'], ['pRoseWarp', '-2'], ['pRoseStroke', '0.2'],
-    ['pChromeBevel', '1'], ['pChromeAngle', '-180'], ['pChromeBands', '2'], ['pChromeContrast', '0'], ['pChromeWarp', '0'],
-    ['pLigatureReach', '0'], ['pLigatureBand', '1'], ['pLigatureRise', '-4'], ['pLigatureCounter', '0'], ['pLigatureKnot', '0'],
+    ['pThornArmor', '0'], ['pThornLength', '0'], ['pThornDensity', '0.05'], ['pThornCurl', '-3'], ['pThornStroke', '0.2'], ['pThornBranches', '0'],
+    ['pCipherRegisters', '0'], ['pCipherScale', '3'], ['pCipherDensity', '0.1'], ['pCipherOrbit', '0'], ['pCipherDrift', '0'], ['pCipherCallouts', '0'],
+    ['pBoneMarrow', '0'], ['pBoneCell', '2'], ['pBoneBranching', '0'], ['pBoneWeight', '0.2'], ['pBoneJoint', '0'], ['pBoneWarp', '0'],
+    ['pRoseInterlace', '0'], ['pRosePetals', '3'], ['pRoseRings', '1'], ['pRoseRadius', '8'], ['pRoseWarp', '-2'], ['pRoseStroke', '0.2'],
+    ['pChromeVoltage', '0'], ['pChromeBevel', '1'], ['pChromeAngle', '-180'], ['pChromeBands', '2'], ['pChromeContrast', '0'], ['pChromeWarp', '0'],
+    ['pLigatureWeave', '0'], ['pLigatureReach', '0'], ['pLigatureBand', '1'], ['pLigatureRise', '-4'], ['pLigatureCounter', '0'], ['pLigatureKnot', '0'],
     ['pMoirePitch', '2'], ['pMoireDetune', '-0.95'], ['pMoireAngle', '-180'], ['pMoireDepth', '0'], ['pMoireReach', '0'],
     ['pNaveColumns', '1'], ['pNaveRise', '0.25'], ['pNaveVoid', '0'], ['pNaveButtress', '0'], ['pNaveWarp', '-2'],
     ['pCloisterPlanes', '1'], ['pCloisterFold', '-2'], ['pCloisterAxis', '-180'], ['pCloisterPerspective', '0'], ['pCloisterCrease', '0'],
@@ -315,11 +315,32 @@ if (html) {
       noteFailure(`${id} is missing one or more foundational FORM cadence modes.`);
     }
   }
+  const legacyOperatorGrammarSelects = {
+    pThornGrammar: ['hybrid', 'lancet', 'hook', 'vine', 'trident'],
+    pCipherDialect: ['mixed', 'unicode', 'machine', 'ledger', 'ritual'],
+    pBoneArchitecture: ['adaptive', 'spine', 'ribcage', 'truss'],
+    pRoseCore: ['auto', 'oculus', 'foil', 'compass', 'knot', 'rosette'],
+    pLigatureGrammar: ['ribbon', 'joinery', 'blackletter', 'suture']
+  };
+  for (const [id, values] of Object.entries(legacyOperatorGrammarSelects)) {
+    const select = markupOnly.match(new RegExp(`<select\\b[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]*?)<\\/select>`, 'i'));
+    if (!select || values.some((value) => !new RegExp(`value=["']${value}["']`).test(select[1]))) {
+      noteFailure(`${id} is missing one or more legacy Operator grammar modes.`);
+    }
+  }
   for (const marker of ['function formFieldContext(', 'function formFieldSignal(', 'function mirrorGrammarMask(',
     "bindProfileSelect('pRotatePattern'", "bindProfileSelect('pSkewPattern'",
     "bindProfileSelect('pBaselinePattern'", "bindProfileSelect('pMirrorPattern'",
     "params.rotatePattern = 'uniform'", "params.mirrorPattern = 'all'"]) {
     if (!html.includes(marker)) noteFailure(`Foundational FORM cadence integration is missing ${marker}.`);
+  }
+  for (const marker of ['function surfaceChoice(',
+    "bindProfileSelect('pThornGrammar'", "bindProfileSelect('pCipherDialect'",
+    "bindProfileSelect('pBoneArchitecture'", "bindProfileSelect('pRoseCore'",
+    "bindProfileSelect('pLigatureGrammar'", "bindRange('pChromeVoltage'",
+    "params.thornGrammar = 'hybrid'", "params.boneArchitecture = 'adaptive'",
+    "params.ligatureGrammar = 'ribbon'", 'if (Number(data.version || 0) < 22)']) {
+    if (!html.includes(marker)) noteFailure(`Legacy Operator grammar state integration is missing ${marker}.`);
   }
   for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderEtchantBloom', 'renderSinewTorque', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
@@ -335,7 +356,9 @@ if (html) {
     noteFailure('Digital Gothic Operator geometry, contour growth, or source-derived inscriptions are incomplete.');
   }
   for (const refinement of ['function drawLancet(', 'function drawHook(', 'function drawBud(',
-    'function cipherSecondaryToken(', "return 'B' + binary.slice(-8)"]) {
+    'function cipherSecondaryToken(', "return 'B' + binary.slice(-8)",
+    "surfaceChoice(glyphs, 'thornCrown'", "surfaceChoice(glyphs, 'cipherLiturgy'",
+    'var registerKind =', 'var armorStrength =']) {
     if (!html.includes(refinement)) noteFailure(`Digital Gothic ornament or inscription variation is missing ${refinement}.`);
   }
   if (!html.includes("surfaceBoundaryDistance(source.data, width, height)")
@@ -346,7 +369,8 @@ if (html) {
   }
   for (const refinement of ['function addPoint(x, y, distance, tangentX, tangentY, ridge)',
     'function drawRoseHub(hubRadius)', 'function chromeOffsetShell(name, shiftX, shiftY, color, opacity)',
-    "chrome-reliquary-magenta-rim", 'var acidAmount =']) {
+    "chrome-reliquary-magenta-rim", "chrome-reliquary-white-rim", 'var acidAmount =',
+    'function strokeBoneEdge(', 'var ringTipSets =', 'var posterSteps =']) {
     if (!html.includes(refinement)) noteFailure(`Cathedral Topology refinement is missing ${refinement}.`);
   }
   for (const key of ['boneOpacity', 'roseOpacity', 'chromeOpacity',
@@ -361,6 +385,10 @@ if (html) {
     || !html.includes('function ligatureCryptCurve(')
     || !html.includes('cryptHalfWidth * 0.46')) {
     noteFailure('Ligature Crypt source-order, bounded-band, or counter geometry is incomplete.');
+  }
+  for (const refinement of ['function traceLigatureConstructionBand(', 'function ligatureConstructionPoint(',
+    "grammar !== 'ribbon'", 'constructionPairs.length < 96', 'Construction detail']) {
+    if (!html.includes(refinement)) noteFailure(`Ligature Crypt construction refinement is missing ${refinement}.`);
   }
   if (!html.includes("surfaceBoundaryDistance(source.data, width, height)")
     || !html.includes('secondFrequency = frequency') || !html.includes('phaseA - phaseB')
@@ -982,8 +1010,8 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*21/g) || []).length < 2 || !html.includes('data.version > 21') || !html.includes("a: 'td', v: 21")) {
-    noteFailure('Project/SVG/share schema version 21 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*22/g) || []).length < 2 || !html.includes('data.version > 22') || !html.includes("a: 'td', v: 22")) {
+    noteFailure('Project/SVG/share schema version 22 or its forward-version guard is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',

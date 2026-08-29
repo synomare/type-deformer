@@ -3327,52 +3327,63 @@ type deformer</textarea>
         <p class="note">適用された文字群を一つの左右対称な紋章へ再構成します。文字間の近接網ではなく、共有軸・枝・菱形ノード・フィニアルで集団の印章を作ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="thornCrown" hidden>
+        <div class="row"><label for="pThornGrammar">Ornament grammar</label><select id="pThornGrammar"><option value="hybrid" selected>Hybrid crown</option><option value="lancet">Lancet armor</option><option value="hook">Barbed hooks</option><option value="vine">Living vine</option><option value="trident">Trident finials</option></select></div>
+        <div class="row"><label for="pThornArmor">Root armor</label><input type="range" id="pThornArmor" min="0" max="4" step="0.02" value="1.8"><span class="val" id="vThornArmor">1.80</span></div>
         <div class="row"><label for="pThornLength">Thorn length</label><input type="range" id="pThornLength" min="0" max="360" step="1" value="48"><span class="val" id="vThornLength">48px</span></div>
         <div class="row"><label for="pThornDensity">Crown density</label><input type="range" id="pThornDensity" min="0.05" max="6" step="0.05" value="0.8"><span class="val" id="vThornDensity">0.80</span></div>
         <div class="row"><label for="pThornCurl">Hook</label><input type="range" id="pThornCurl" min="-3" max="3" step="0.01" value="0.35"><span class="val" id="vThornCurl">+0.35</span></div>
         <div class="row"><label for="pThornStroke">Needle weight</label><input type="range" id="pThornStroke" min="0.2" max="16" step="0.1" value="1.1"><span class="val" id="vThornStroke">1.1px</span></div>
         <div class="row"><label for="pThornBranches">Branching</label><input type="range" id="pThornBranches" min="0" max="4" step="0.02" value="0.8"><span class="val" id="vThornBranches">0.80</span></div>
-        <p class="note">実際の字形輪郭から外向き法線を読み、曲がる鉤、葉状の槍先、芽を持つ枝、三叉フィニアルを混在させます。同じV字先端の反復ではなく、輪郭ごとに装飾文法を変えます。</p>
+        <p class="note">字形輪郭から外向き法線を読み、根元の装甲、二重の茎、鉤、葉状槍、芽、三叉を育てます。Grammarで装飾体系を固定し、Hybridだけが輪郭ごとに文法を混在させます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="cipherLiturgy" hidden>
+        <div class="row"><label for="pCipherDialect">Inscription dialect</label><select id="pCipherDialect"><option value="mixed" selected>Mixed archive</option><option value="unicode">Unicode codex</option><option value="machine">Machine register</option><option value="ledger">Index ledger</option><option value="ritual">Ritual checksum</option></select></div>
+        <div class="row"><label for="pCipherRegisters">Register layers</label><input type="range" id="pCipherRegisters" min="0" max="4" step="0.02" value="1.2"><span class="val" id="vCipherRegisters">1.20</span></div>
         <div class="row"><label for="pCipherScale">Inscription size</label><input type="range" id="pCipherScale" min="3" max="36" step="0.5" value="9"><span class="val" id="vCipherScale">9.0px</span></div>
         <div class="row"><label for="pCipherDensity">Code density</label><input type="range" id="pCipherDensity" min="0.1" max="4" step="0.02" value="1"><span class="val" id="vCipherDensity">1.00</span></div>
         <div class="row"><label for="pCipherOrbit">Annotation orbit</label><input type="range" id="pCipherOrbit" min="0" max="360" step="2" value="48"><span class="val" id="vCipherOrbit">48px</span></div>
         <div class="row"><label for="pCipherDrift">Register drift</label><input type="range" id="pCipherDrift" min="0" max="160" step="1" value="12"><span class="val" id="vCipherDrift">12px</span></div>
         <div class="row"><label for="pCipherCallouts">Callout system</label><input type="range" id="pCipherCallouts" min="0" max="4" step="0.02" value="1.2"><span class="val" id="vCipherCallouts">1.20</span></div>
-        <p class="note">元文字のUnicode、10／16／8／2進表記、文字順、文字種、行列座標、checksumを微細な碑文と5種の外部注釈へ変換します。内容は必ずソース文字から導出されます。</p>
+        <p class="note">Unicode、2／8／10／16進、文字順、文字種、座標、checksumを、碑文・bit strip・台帳・sealへ変換します。Dialectで記録体系を選べますが、内容は必ずソース文字から導出されます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="boneScaffold" hidden>
-        <div class="row"><label for="pBoneCell">Bone spacing</label><input type="range" id="pBoneCell" min="2" max="40" step="1" value="7"><span class="val" id="vBoneCell">7px</span></div>
-        <div class="row"><label for="pBoneBranching">Branching</label><input type="range" id="pBoneBranching" min="0" max="4" step="0.01" value="1.25"><span class="val" id="vBoneBranching">1.25</span></div>
-        <div class="row"><label for="pBoneWeight">Rib weight</label><input type="range" id="pBoneWeight" min="0.2" max="16" step="0.1" value="1.2"><span class="val" id="vBoneWeight">1.2px</span></div>
-        <div class="row"><label for="pBoneJoint">Joint size</label><input type="range" id="pBoneJoint" min="0" max="28" step="0.1" value="3.5"><span class="val" id="vBoneJoint">3.5px</span></div>
+        <div class="row"><label for="pBoneArchitecture">Skeleton plan</label><select id="pBoneArchitecture"><option value="adaptive">Adaptive ridge</option><option value="spine">Central spine</option><option value="ribcage" selected>Rib cage</option><option value="truss">Bone truss</option></select></div>
+        <div class="row"><label for="pBoneMarrow">Marrow separation</label><input type="range" id="pBoneMarrow" min="0" max="4" step="0.02" value="2"><span class="val" id="vBoneMarrow">2.00</span></div>
+        <div class="row"><label for="pBoneCell">Bone spacing</label><input type="range" id="pBoneCell" min="2" max="40" step="1" value="13"><span class="val" id="vBoneCell">13px</span></div>
+        <div class="row"><label for="pBoneBranching">Branching</label><input type="range" id="pBoneBranching" min="0" max="4" step="0.01" value="0.55"><span class="val" id="vBoneBranching">0.55</span></div>
+        <div class="row"><label for="pBoneWeight">Rib weight</label><input type="range" id="pBoneWeight" min="0.2" max="16" step="0.1" value="2"><span class="val" id="vBoneWeight">2.0px</span></div>
+        <div class="row"><label for="pBoneJoint">Joint size</label><input type="range" id="pBoneJoint" min="0" max="28" step="0.1" value="6"><span class="val" id="vBoneJoint">6.0px</span></div>
         <div class="row"><label for="pBoneWarp">Bone warp</label><input type="range" id="pBoneWarp" min="0" max="4" step="0.02" value="0.28"><span class="val" id="vBoneWarp">0.28</span></div>
-        <p class="note">字形内部を縦横に走査し、各strokeの最深部を脊柱と関節へ接続します。細い字形でも格子の隙間へ消えないため、TEXTをHide／Ghostにすると内部骨格を単独で確認できます。</p>
+        <p class="note">字形内部の最深部を走査し、脊柱・肋骨・梁・関節へ再構成します。Marrow separationは紙色の髄を挟み、元文字をKeepにしたままでも骨格を明瞭に分離します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="roseEngine" hidden>
+        <div class="row"><label for="pRoseCore">Rose core</label><select id="pRoseCore"><option value="auto" selected>Auto ensemble</option><option value="oculus">Oculus</option><option value="foil">Foil</option><option value="compass">Compass star</option><option value="knot">Spiral knot</option><option value="rosette">Mini rosette</option></select></div>
+        <div class="row"><label for="pRoseInterlace">Tracery interlace</label><input type="range" id="pRoseInterlace" min="0" max="4" step="0.02" value="1.1"><span class="val" id="vRoseInterlace">1.10</span></div>
         <div class="row"><label for="pRosePetals">Petals</label><input type="range" id="pRosePetals" min="3" max="32" step="1" value="8"><span class="val" id="vRosePetals">8</span></div>
         <div class="row"><label for="pRoseRings">Tracery rings</label><input type="range" id="pRoseRings" min="1" max="8" step="1" value="3"><span class="val" id="vRoseRings">3</span></div>
         <div class="row"><label for="pRoseRadius">Window radius</label><input type="range" id="pRoseRadius" min="8" max="560" step="2" value="110"><span class="val" id="vRoseRadius">110px</span></div>
         <div class="row"><label for="pRoseWarp">Source warp</label><input type="range" id="pRoseWarp" min="-2" max="2" step="0.02" value="0.18"><span class="val" id="vRoseWarp">+0.18</span></div>
         <div class="row"><label for="pRoseStroke">Tracery weight</label><input type="range" id="pRoseStroke" min="0.2" max="18" step="0.1" value="1.2"><span class="val" id="vRoseStroke">1.2px</span></div>
-        <p class="note">適用文字群を一枚のrose windowとして組み、尖頭アーチ、同心tracery、support ribを生成します。Petals／Rings／Warp／Shuffleにより、oculus、foil、compass、spiral knot、mini rosetteの中心文法が切り替わります。</p>
+        <p class="note">適用文字群を一枚のrose windowとして組み、尖頭アーチ、同心環、交差tracery、support ribを一つの構造へ統合します。Coreを固定するか、Autoでソース由来の中心文法を選べます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="chromeReliquary" hidden>
+        <div class="row"><label for="pChromeVoltage">Acid voltage</label><input type="range" id="pChromeVoltage" min="0" max="6" step="0.02" value="3.2"><span class="val" id="vChromeVoltage">3.20</span></div>
         <div class="row"><label for="pChromeBevel">Bevel width</label><input type="range" id="pChromeBevel" min="1" max="96" step="1" value="18"><span class="val" id="vChromeBevel">18px</span></div>
         <div class="row"><label for="pChromeAngle">Light angle</label><input type="range" id="pChromeAngle" min="-180" max="180" step="1" value="-35"><span class="val" id="vChromeAngle">-35°</span></div>
         <div class="row"><label for="pChromeBands">Metal bands</label><input type="range" id="pChromeBands" min="2" max="24" step="1" value="7"><span class="val" id="vChromeBands">7</span></div>
         <div class="row"><label for="pChromeContrast">Reflect contrast</label><input type="range" id="pChromeContrast" min="0" max="4" step="0.01" value="1.35"><span class="val" id="vChromeContrast">1.35</span></div>
         <div class="row"><label for="pChromeWarp">Mercury warp</label><input type="range" id="pChromeWarp" min="0" max="4" step="0.02" value="0.3"><span class="val" id="vChromeWarp">0.30</span></div>
-        <p class="note">実際の字形距離と法線へ光源を当て、黒い鏡面溝、白いhotline、airbrush、押し出し影、cyan／magenta／limeの分光rimを生成します。ReflectとMercury Warpを上げるほどacid chromeへ移行します。</p>
+        <p class="note">字形距離と法線から黒鏡・白hotline・押し出し影・硬いcyan／magenta／lime rimを生成します。Voltageは材質を銀からポスタライズされたacid chromeへ一気に過電圧化します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="ligatureCrypt" hidden>
+        <div class="row"><label for="pLigatureGrammar">Joinery grammar</label><select id="pLigatureGrammar"><option value="ribbon">Legacy ribbon</option><option value="joinery" selected>Edge joinery</option><option value="blackletter">Blackletter bridge</option><option value="suture">Suture seam</option></select></div>
+        <div class="row"><label for="pLigatureWeave">Construction detail</label><input type="range" id="pLigatureWeave" min="0" max="4" step="0.02" value="1.2"><span class="val" id="vLigatureWeave">1.20</span></div>
         <div class="row"><label for="pLigatureReach">Join reach</label><input type="range" id="pLigatureReach" min="0" max="1800" step="2" value="520"><span class="val" id="vLigatureReach">520px</span></div>
         <div class="row"><label for="pLigatureBand">Band width</label><input type="range" id="pLigatureBand" min="1" max="180" step="1" value="28"><span class="val" id="vLigatureBand">28px</span></div>
         <div class="row"><label for="pLigatureRise">Arch rise</label><input type="range" id="pLigatureRise" min="-4" max="4" step="0.02" value="0.9"><span class="val" id="vLigatureRise">+0.90</span></div>
         <div class="row"><label for="pLigatureCounter">Inner counter</label><input type="range" id="pLigatureCounter" min="0" max="1.5" step="0.01" value="0.42"><span class="val" id="vLigatureCounter">0.42</span></div>
         <div class="row"><label for="pLigatureKnot">Terminal knot</label><input type="range" id="pLigatureKnot" min="0" max="64" step="0.5" value="7"><span class="val" id="vLigatureKnot">7.0px</span></div>
-        <p class="note">適用文字を原文順にだけ接続し、上下に編み替わる曲面arcade、二重rail、疎な尖頭counter、縫合線、terminal knotで一語を構築します。近い点を細線で結ぶWebbingとは別のword-formです。</p>
+        <p class="note">原文順で隣接する字形の実際の端を、継手・blackletter梁・縫合線として接続します。反復する波リボンではなく、文字間の距離と向きに合わせた一語の構造を作ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="moireChoir" hidden>
         <div class="row"><label for="pMoirePitch">Field pitch</label><input type="range" id="pMoirePitch" min="2" max="160" step="1" value="18"><span class="val" id="vMoirePitch">18px</span></div>
@@ -6308,6 +6319,8 @@ type deformer</textarea>
         sigilBarbs: 1.2,
         sigilColor: '#7f2cff',
         sigilSourceMode: 'keep',
+        thornGrammar: 'hybrid',
+        thornArmor: 1.8,
         thornLength: 48,
         thornDensity: 0.8,
         thornCurl: 0.35,
@@ -6315,6 +6328,8 @@ type deformer</textarea>
         thornBranches: 0.8,
         thornColor: '#a30d32',
         thornSourceMode: 'keep',
+        cipherDialect: 'mixed',
+        cipherRegisters: 1.2,
         cipherScale: 9,
         cipherDensity: 1,
         cipherOrbit: 48,
@@ -6322,13 +6337,17 @@ type deformer</textarea>
         cipherCallouts: 1.2,
         cipherColor: '#008f72',
         cipherSourceMode: 'keep',
-        boneCell: 7,
-        boneBranching: 1.25,
-        boneWeight: 1.2,
-        boneJoint: 3.5,
+        boneArchitecture: 'ribcage',
+        boneMarrow: 2,
+        boneCell: 13,
+        boneBranching: 0.55,
+        boneWeight: 2,
+        boneJoint: 6,
         boneWarp: 0.28,
         boneColor: '#d09a18',
         boneSourceMode: 'keep',
+        roseCore: 'auto',
+        roseInterlace: 1.1,
         rosePetals: 8,
         roseRings: 3,
         roseRadius: 110,
@@ -6336,6 +6355,7 @@ type deformer</textarea>
         roseStroke: 1.2,
         roseColor: '#375bd2',
         roseSourceMode: 'keep',
+        chromeVoltage: 3.2,
         chromeBevel: 18,
         chromeAngle: -35,
         chromeBands: 7,
@@ -6343,6 +6363,8 @@ type deformer</textarea>
         chromeWarp: 0.3,
         chromeColor: '#7e8fa6',
         chromeSourceMode: 'keep',
+        ligatureGrammar: 'joinery',
+        ligatureWeave: 1.2,
         ligatureReach: 520,
         ligatureBand: 28,
         ligatureRise: 0.9,
@@ -6566,12 +6588,12 @@ type deformer</textarea>
         'softBlobInflation', 'softBlobStiffness', 'softBlobChaos', 'softBlobMembrane', 'softBlobSporeReach', 'softBlobSporeDensity', 'softBlobSpeed',
         'etchantPattern', 'etchantCell', 'etchantGrowth', 'etchantPolarity', 'etchantSpill',
         'sigilComplexity', 'sigilReach', 'sigilSymmetry', 'sigilStroke', 'sigilBarbs',
-        'thornLength', 'thornDensity', 'thornCurl', 'thornStroke', 'thornBranches',
-        'cipherScale', 'cipherDensity', 'cipherOrbit', 'cipherDrift', 'cipherCallouts',
-        'boneCell', 'boneBranching', 'boneWeight', 'boneJoint', 'boneWarp',
-        'rosePetals', 'roseRings', 'roseRadius', 'roseWarp', 'roseStroke',
-        'chromeBevel', 'chromeAngle', 'chromeBands', 'chromeContrast', 'chromeWarp',
-        'ligatureReach', 'ligatureBand', 'ligatureRise', 'ligatureCounter', 'ligatureKnot',
+        'thornGrammar', 'thornArmor', 'thornLength', 'thornDensity', 'thornCurl', 'thornStroke', 'thornBranches',
+        'cipherDialect', 'cipherRegisters', 'cipherScale', 'cipherDensity', 'cipherOrbit', 'cipherDrift', 'cipherCallouts',
+        'boneArchitecture', 'boneMarrow', 'boneCell', 'boneBranching', 'boneWeight', 'boneJoint', 'boneWarp',
+        'roseCore', 'roseInterlace', 'rosePetals', 'roseRings', 'roseRadius', 'roseWarp', 'roseStroke',
+        'chromeVoltage', 'chromeBevel', 'chromeAngle', 'chromeBands', 'chromeContrast', 'chromeWarp',
+        'ligatureGrammar', 'ligatureWeave', 'ligatureReach', 'ligatureBand', 'ligatureRise', 'ligatureCounter', 'ligatureKnot',
         'moirePitch', 'moireDetune', 'moireAngle', 'moireDepth', 'moireReach',
         'naveColumns', 'naveRise', 'naveVoid', 'naveButtress', 'naveWarp',
         'cloisterPlanes', 'cloisterFold', 'cloisterAxis', 'cloisterPerspective', 'cloisterCrease',
@@ -6611,12 +6633,12 @@ type deformer</textarea>
         softBlobSporeReach: [0, 2400], softBlobSporeDensity: [0, 4], softBlobSpeed: [0, 8],
         etchantPattern: [0, 1], etchantCell: [2, 72], etchantGrowth: [8, 192], etchantPolarity: [-1, 1], etchantSpill: [0, 640],
         sigilComplexity: [1, 24], sigilReach: [0, 640], sigilSymmetry: [0, 4], sigilStroke: [0.2, 20], sigilBarbs: [0, 6],
-        thornLength: [0, 360], thornDensity: [0.05, 6], thornCurl: [-3, 3], thornStroke: [0.2, 16], thornBranches: [0, 4],
-        cipherScale: [3, 36], cipherDensity: [0.1, 4], cipherOrbit: [0, 360], cipherDrift: [0, 160], cipherCallouts: [0, 4],
-        boneCell: [2, 40], boneBranching: [0, 4], boneWeight: [0.2, 16], boneJoint: [0, 28], boneWarp: [0, 4],
-        rosePetals: [3, 32], roseRings: [1, 8], roseRadius: [8, 560], roseWarp: [-2, 2], roseStroke: [0.2, 18],
-        chromeBevel: [1, 96], chromeAngle: [-180, 180], chromeBands: [2, 24], chromeContrast: [0, 4], chromeWarp: [0, 4],
-        ligatureReach: [0, 1800], ligatureBand: [1, 180], ligatureRise: [-4, 4], ligatureCounter: [0, 1.5], ligatureKnot: [0, 64],
+        thornArmor: [0, 4], thornLength: [0, 360], thornDensity: [0.05, 6], thornCurl: [-3, 3], thornStroke: [0.2, 16], thornBranches: [0, 4],
+        cipherRegisters: [0, 4], cipherScale: [3, 36], cipherDensity: [0.1, 4], cipherOrbit: [0, 360], cipherDrift: [0, 160], cipherCallouts: [0, 4],
+        boneMarrow: [0, 4], boneCell: [2, 40], boneBranching: [0, 4], boneWeight: [0.2, 16], boneJoint: [0, 28], boneWarp: [0, 4],
+        roseInterlace: [0, 4], rosePetals: [3, 32], roseRings: [1, 8], roseRadius: [8, 560], roseWarp: [-2, 2], roseStroke: [0.2, 18],
+        chromeVoltage: [0, 6], chromeBevel: [1, 96], chromeAngle: [-180, 180], chromeBands: [2, 24], chromeContrast: [0, 4], chromeWarp: [0, 4],
+        ligatureWeave: [0, 4], ligatureReach: [0, 1800], ligatureBand: [1, 180], ligatureRise: [-4, 4], ligatureCounter: [0, 1.5], ligatureKnot: [0, 64],
         moirePitch: [2, 160], moireDetune: [-0.95, 0.95], moireAngle: [-180, 180], moireDepth: [0, 8], moireReach: [0, 1200],
         naveColumns: [1, 24], naveRise: [0.25, 4], naveVoid: [0, 1], naveButtress: [0, 80], naveWarp: [-2, 2],
         cloisterPlanes: [1, 32], cloisterFold: [-2, 2], cloisterAxis: [-180, 180], cloisterPerspective: [0, 4], cloisterCrease: [0, 64],
@@ -6644,7 +6666,12 @@ type deformer</textarea>
         rotatePattern: ['uniform', 'alternate', 'wave', 'unicode'],
         skewPattern: ['uniform', 'alternate', 'wave', 'unicode'],
         baselinePattern: ['uniform', 'wave', 'triangle', 'unicode'],
-        mirrorPattern: ['all', 'alternate', 'blocks', 'words', 'unicode']
+        mirrorPattern: ['all', 'alternate', 'blocks', 'words', 'unicode'],
+        thornGrammar: ['hybrid', 'lancet', 'hook', 'vine', 'trident'],
+        cipherDialect: ['mixed', 'unicode', 'machine', 'ledger', 'ritual'],
+        boneArchitecture: ['adaptive', 'spine', 'ribcage', 'truss'],
+        roseCore: ['auto', 'oculus', 'foil', 'compass', 'knot', 'rosette'],
+        ligatureGrammar: ['ribbon', 'joinery', 'blackletter', 'suture']
       };
       var PROOF_AXIS_DEFS = {
         plotterTrace: [{ key: 'traceDensity', label: 'Density', span: 0.42 }, { key: 'traceJitter', label: 'Drift', span: 0.22, unit: 'px' }],
@@ -6818,31 +6845,42 @@ type deformer</textarea>
         clampParam('sigilSymmetry', 0, 4, false);
         clampParam('sigilStroke', 0.2, 20, false);
         clampParam('sigilBarbs', 0, 6, false);
+        chooseParam('thornGrammar', BATCH_PARAM_OPTIONS.thornGrammar);
+        clampParam('thornArmor', 0, 4, false);
         clampParam('thornLength', 0, 360, false);
         clampParam('thornDensity', 0.05, 6, false);
         clampParam('thornCurl', -3, 3, false);
         clampParam('thornStroke', 0.2, 16, false);
         clampParam('thornBranches', 0, 4, false);
+        chooseParam('cipherDialect', BATCH_PARAM_OPTIONS.cipherDialect);
+        clampParam('cipherRegisters', 0, 4, false);
         clampParam('cipherScale', 3, 36, false);
         clampParam('cipherDensity', 0.1, 4, false);
         clampParam('cipherOrbit', 0, 360, false);
         clampParam('cipherDrift', 0, 160, false);
         clampParam('cipherCallouts', 0, 4, false);
+        chooseParam('boneArchitecture', BATCH_PARAM_OPTIONS.boneArchitecture);
+        clampParam('boneMarrow', 0, 4, false);
         clampParam('boneCell', 2, 40, false);
         clampParam('boneBranching', 0, 4, false);
         clampParam('boneWeight', 0.2, 16, false);
         clampParam('boneJoint', 0, 28, false);
         clampParam('boneWarp', 0, 4, false);
+        chooseParam('roseCore', BATCH_PARAM_OPTIONS.roseCore);
+        clampParam('roseInterlace', 0, 4, false);
         clampParam('rosePetals', 3, 32, true);
         clampParam('roseRings', 1, 8, true);
         clampParam('roseRadius', 8, 560, false);
         clampParam('roseWarp', -2, 2, false);
         clampParam('roseStroke', 0.2, 18, false);
+        clampParam('chromeVoltage', 0, 6, false);
         clampParam('chromeBevel', 1, 96, false);
         clampParam('chromeAngle', -180, 180, false);
         clampParam('chromeBands', 2, 24, true);
         clampParam('chromeContrast', 0, 4, false);
         clampParam('chromeWarp', 0, 4, false);
+        chooseParam('ligatureGrammar', BATCH_PARAM_OPTIONS.ligatureGrammar);
+        clampParam('ligatureWeave', 0, 4, false);
         clampParam('ligatureReach', 0, 1800, false);
         clampParam('ligatureBand', 1, 180, false);
         clampParam('ligatureRise', -4, 4, false);
@@ -10190,31 +10228,42 @@ type deformer</textarea>
             sigilSymmetry: deform.sigilSymmetry,
             sigilStroke: deform.sigilStroke,
             sigilBarbs: deform.sigilBarbs,
+            thornGrammar: deform.thornGrammar,
+            thornArmor: deform.thornArmor,
             thornLength: deform.thornLength,
             thornDensity: deform.thornDensity,
             thornCurl: deform.thornCurl,
             thornStroke: deform.thornStroke,
             thornBranches: deform.thornBranches,
+            cipherDialect: deform.cipherDialect,
+            cipherRegisters: deform.cipherRegisters,
             cipherScale: deform.cipherScale,
             cipherDensity: deform.cipherDensity,
             cipherOrbit: deform.cipherOrbit,
             cipherDrift: deform.cipherDrift,
             cipherCallouts: deform.cipherCallouts,
+            boneArchitecture: deform.boneArchitecture,
+            boneMarrow: deform.boneMarrow,
             boneCell: deform.boneCell,
             boneBranching: deform.boneBranching,
             boneWeight: deform.boneWeight,
             boneJoint: deform.boneJoint,
             boneWarp: deform.boneWarp,
+            roseCore: deform.roseCore,
+            roseInterlace: deform.roseInterlace,
             rosePetals: deform.rosePetals,
             roseRings: deform.roseRings,
             roseRadius: deform.roseRadius,
             roseWarp: deform.roseWarp,
             roseStroke: deform.roseStroke,
+            chromeVoltage: deform.chromeVoltage,
             chromeBevel: deform.chromeBevel,
             chromeAngle: deform.chromeAngle,
             chromeBands: deform.chromeBands,
             chromeContrast: deform.chromeContrast,
             chromeWarp: deform.chromeWarp,
+            ligatureGrammar: deform.ligatureGrammar,
+            ligatureWeave: deform.ligatureWeave,
             ligatureReach: deform.ligatureReach,
             ligatureBand: deform.ligatureBand,
             ligatureRise: deform.ligatureRise,
@@ -10531,6 +10580,22 @@ type deformer</textarea>
           maximum = Math.max(maximum, strength);
         }
         return { value: weight ? total / weight : fallback, strength: maximum, weight: weight };
+      }
+
+      function surfaceChoice(glyphs, id, key, fallback, options) {
+        var scores = Object.create(null), maximum = 0, choice = fallback;
+        for (var i = 0; i < glyphs.length; i++) {
+          var strength = surfaceGlyphStrength(glyphs[i], id);
+          if (strength <= 0.002) continue;
+          var value = glyphs[i].surface && glyphs[i].surface[key];
+          if (options.indexOf(value) === -1) value = fallback;
+          scores[value] = (scores[value] || 0) + strength;
+          if (scores[value] > maximum) {
+            maximum = scores[value];
+            choice = value;
+          }
+        }
+        return choice;
       }
 
       function surfaceScratch(name, width, height, readFrequently) {
@@ -11838,6 +11903,8 @@ type deformer</textarea>
       function renderBoneScaffold(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var cellAggregate = surfaceAggregate(glyphs, 'boneScaffold', 'boneCell', params.boneCell);
         if (!cellAggregate.weight) return;
+        var architecture = surfaceChoice(glyphs, 'boneScaffold', 'boneArchitecture', params.boneArchitecture, BATCH_PARAM_OPTIONS.boneArchitecture);
+        var marrow = surfaceAggregate(glyphs, 'boneScaffold', 'boneMarrow', params.boneMarrow).value;
         var branching = surfaceAggregate(glyphs, 'boneScaffold', 'boneBranching', params.boneBranching).value;
         var weight = Math.max(0.2, surfaceAggregate(glyphs, 'boneScaffold', 'boneWeight', params.boneWeight).value * pixelScale * L.s);
         var joint = Math.max(0, surfaceAggregate(glyphs, 'boneScaffold', 'boneJoint', params.boneJoint).value * pixelScale * L.s);
@@ -11995,7 +12062,60 @@ type deformer</textarea>
         var linkReach = cell * (2.85 + branching * 0.82);
         var linkReachSq = linkReach * linkReach;
         var gridReach = Math.max(1, Math.min(8, Math.ceil(linkReach / bucketSize)));
-        var connectionLimit = Math.max(2, Math.min(5, 2 + Math.floor(branching * 0.72)));
+        var connectionLimit = architecture === 'spine' ? Math.max(1, Math.min(3, 1 + Math.floor(branching * 0.55)))
+          : Math.max(2, Math.min(5, 2 + Math.floor(branching * 0.72)));
+
+        function traceBoneEdgePath(a, b, normalX, normalY, bend, offset) {
+          offset = offset || 0;
+          ctx.beginPath();
+          ctx.moveTo(a.x + normalX * offset, a.y + normalY * offset);
+          if (architecture === 'truss') {
+            ctx.lineTo((a.x + b.x) * 0.5 + normalX * (bend + offset),
+              (a.y + b.y) * 0.5 + normalY * (bend + offset));
+            ctx.lineTo(b.x + normalX * offset, b.y + normalY * offset);
+          } else {
+            var architectureBend = architecture === 'spine' ? bend * 0.32 : bend;
+            ctx.quadraticCurveTo((a.x + b.x) * 0.5 + normalX * (architectureBend + offset),
+              (a.y + b.y) * 0.5 + normalY * (architectureBend + offset),
+              b.x + normalX * offset, b.y + normalY * offset);
+          }
+        }
+
+        function strokeBoneEdge(a, b, normalX, normalY, bend, lineWidth, alpha) {
+          var marrowWidth = lineWidth + Math.max(0.8 * pixelScale * L.s,
+            cell * (0.06 + Math.min(4, marrow) * 0.052));
+          if (marrow > 0.005) {
+            ctx.strokeStyle = params.paper;
+            ctx.globalAlpha = alpha * Math.min(0.96, 0.54 + marrow * 0.14);
+            ctx.lineWidth = marrowWidth;
+            traceBoneEdgePath(a, b, normalX, normalY, bend, 0);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = surfaceEffectColor('boneScaffold');
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = lineWidth;
+          traceBoneEdgePath(a, b, normalX, normalY, bend, 0);
+          ctx.stroke();
+          if (architecture === 'ribcage') {
+            var railOffset = Math.min(cell * 0.2, Math.max(lineWidth * 0.72, marrowWidth * 0.34));
+            ctx.globalAlpha = alpha * (0.46 + Math.min(1, marrow * 0.18));
+            ctx.lineWidth = Math.max(0.45, lineWidth * 0.42);
+            traceBoneEdgePath(a, b, normalX, normalY, bend, railOffset);
+            ctx.stroke();
+            traceBoneEdgePath(a, b, normalX, normalY, bend, -railOffset);
+            ctx.stroke();
+          } else if (architecture === 'truss') {
+            var midX = (a.x + b.x) * 0.5 + normalX * bend;
+            var midY = (a.y + b.y) * 0.5 + normalY * bend;
+            var brace = Math.min(cell * 0.26, Math.max(lineWidth, marrowWidth * 0.38));
+            ctx.globalAlpha = alpha * 0.74;
+            ctx.lineWidth = Math.max(0.45, lineWidth * 0.55);
+            ctx.beginPath();
+            ctx.moveTo(midX - normalX * brace, midY - normalY * brace);
+            ctx.lineTo(midX + normalX * brace, midY + normalY * brace);
+            ctx.stroke();
+          }
+        }
         var edgeCount = 0;
         for (var pointIndex = 0; pointIndex < points.length && edgeCount < 4200; pointIndex++) {
           var point = points[pointIndex];
@@ -12033,13 +12153,11 @@ type deformer</textarea>
             var normalX = -link.dy / length;
             var normalY = link.dx / length;
             var bend = (hash(point.index, link.point.index, params.seed + 1823) * 2 - 1) * cell * warp * 0.22;
-            ctx.globalAlpha = cellAggregate.strength * Math.min(1, 0.82 + Math.min(point.distance, link.point.distance) / Math.max(1, cell) * 0.12);
-            ctx.lineWidth = Math.max(0.5, weight * (1.72 + Math.min(3, Math.min(point.ridge, link.point.ridge)) * 0.18));
-            ctx.beginPath();
-            ctx.moveTo(point.x, point.y);
-            ctx.quadraticCurveTo((point.x + link.point.x) * 0.5 + normalX * bend,
-              (point.y + link.point.y) * 0.5 + normalY * bend, link.point.x, link.point.y);
-            ctx.stroke();
+            var edgeAlpha = cellAggregate.strength * Math.min(1,
+              0.82 + Math.min(point.distance, link.point.distance) / Math.max(1, cell) * 0.12);
+            var edgeWidth = Math.max(0.5,
+              weight * (1.72 + Math.min(3, Math.min(point.ridge, link.point.ridge)) * 0.18));
+            strokeBoneEdge(point, link.point, normalX, normalY, bend, edgeWidth, edgeAlpha);
             point.degree++;
             link.point.degree++;
             edgeCount++;
@@ -12052,6 +12170,14 @@ type deformer</textarea>
           if (!showJoint || joint <= 0.05) continue;
           var radius = joint * (0.35 + Math.min(4, node.degree) * 0.16) * (0.72 + hash(jointIndex, 11, 1837) * 0.45);
           ctx.globalAlpha = cellAggregate.strength * Math.min(1, 0.78 + node.degree * 0.08);
+          if (marrow > 0.005) {
+            ctx.fillStyle = params.paper;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius * (0.9 + Math.min(4, marrow) * 0.12), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = surfaceEffectColor('boneScaffold');
+            ctx.strokeStyle = surfaceEffectColor('boneScaffold');
+          }
           if (node.degree >= 4) {
             ctx.save();
             ctx.translate(node.x, node.y);
@@ -12088,6 +12214,8 @@ type deformer</textarea>
       function renderRoseEngine(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var petalAggregate = surfaceAggregate(glyphs, 'roseEngine', 'rosePetals', params.rosePetals);
         if (!petalAggregate.weight) return;
+        var core = surfaceChoice(glyphs, 'roseEngine', 'roseCore', params.roseCore, BATCH_PARAM_OPTIONS.roseCore);
+        var interlace = surfaceAggregate(glyphs, 'roseEngine', 'roseInterlace', params.roseInterlace).value;
         var petals = Math.max(3, Math.min(32, Math.round(petalAggregate.value)));
         var rings = Math.max(1, Math.min(8, Math.round(surfaceAggregate(glyphs, 'roseEngine', 'roseRings', params.roseRings).value)));
         var radius = Math.max(1, surfaceAggregate(glyphs, 'roseEngine', 'roseRadius', params.roseRadius).value * pixelScale * L.s);
@@ -12117,8 +12245,10 @@ type deformer</textarea>
         // Petals, rings, source warp and the project seed select a coherent
         // tracery grammar. This keeps the centre generative without adding
         // another opaque mode selector to the already dense panel.
-        var topology = Math.floor(hash(petals + Math.round(Math.abs(warp) * 7), rings + nodes.length,
-          params.seed + 1841) * 5);
+        var topology = core === 'oculus' ? 0 : core === 'foil' ? 1 : core === 'compass' ? 2
+          : core === 'knot' ? 3 : core === 'rosette' ? 4
+            : Math.floor(hash(petals + Math.round(Math.abs(warp) * 7), rings + nodes.length,
+              params.seed + 1841) * 5);
         var work = surfaceScratch('rose-engine', width, height, false);
         var ctx = work.ctx;
         ctx.strokeStyle = surfaceEffectColor('roseEngine');
@@ -12129,6 +12259,7 @@ type deformer</textarea>
         ctx.globalAlpha = petalAggregate.strength;
         var sector = Math.PI * 2 / petals;
         var tipPoints = [];
+        var ringTipSets = [];
 
         function tracePolarStar(pointCount, innerRadius, outerStarRadius, rotation) {
           ctx.beginPath();
@@ -12239,6 +12370,98 @@ type deformer</textarea>
           ctx.restore();
         }
 
+        if (interlace > 0.005) {
+          // The evolved path is one articulated rose-window ensemble: clear
+          // concentric stone rings plus braided radial ribs. It deliberately
+          // bypasses the legacy tip-polygons and glyph-to-tip starburst below.
+          var evolvedPreviousRadius = Math.max(stroke * 3.2,
+            outerRadius / Math.max(7, petals * 1.08));
+          for (var evolvedRing = 0; evolvedRing < rings; evolvedRing++) {
+            var evolvedOuter = outerRadius * (evolvedRing + 1) / rings;
+            var evolvedPhase = phase + (evolvedRing % 2 ? sector * 0.5 : 0)
+              + evolvedRing * sector * (topology === 3 ? 0.14 : 0.055) * (warp < 0 ? -1 : 1);
+            var evolvedGap = Math.max(stroke * 1.35,
+              (evolvedOuter - evolvedPreviousRadius) * Math.min(0.16, 0.055 + interlace * 0.018));
+            ctx.globalAlpha = petalAggregate.strength * Math.min(0.96, 0.58 + evolvedRing / Math.max(1, rings) * 0.28);
+            ctx.lineWidth = stroke * (0.82 + evolvedRing / Math.max(1, rings) * 0.32);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, evolvedOuter, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = petalAggregate.strength * Math.min(0.76, 0.3 + interlace * 0.12);
+            ctx.lineWidth = Math.max(0.2, stroke * 0.46);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, Math.max(evolvedPreviousRadius + evolvedGap, evolvedOuter - evolvedGap), 0, Math.PI * 2);
+            ctx.stroke();
+
+            var evolvedTips = [];
+            for (var evolvedPetal = 0; evolvedPetal < petals; evolvedPetal++) {
+              var evolvedSource = nodes[(evolvedPetal + evolvedRing * 3) % nodes.length];
+              var evolvedBaseAngle = evolvedPhase + evolvedPetal * sector;
+              var evolvedSourceAngle = Math.atan2(evolvedSource.y - centerY, evolvedSource.x - centerX);
+              var evolvedDelta = Math.atan2(Math.sin(evolvedSourceAngle - evolvedBaseAngle),
+                Math.cos(evolvedSourceAngle - evolvedBaseAngle));
+              var evolvedTipAngle = evolvedBaseAngle
+                + evolvedDelta * Math.max(-0.16, Math.min(0.16, warp * 0.075));
+              var evolvedTwist = sector * (0.12 + Math.min(4, interlace) * 0.035)
+                * ((evolvedPetal + evolvedRing) % 2 ? -1 : 1);
+              var evolvedStartRadius = evolvedRing ? evolvedPreviousRadius + evolvedGap : evolvedPreviousRadius * 0.72;
+              var evolvedStartX = centerX + Math.cos(evolvedBaseAngle - evolvedTwist) * evolvedStartRadius;
+              var evolvedStartY = centerY + Math.sin(evolvedBaseAngle - evolvedTwist) * evolvedStartRadius;
+              var evolvedEndX = centerX + Math.cos(evolvedTipAngle + evolvedTwist * 0.35) * evolvedOuter;
+              var evolvedEndY = centerY + Math.sin(evolvedTipAngle + evolvedTwist * 0.35) * evolvedOuter;
+              var evolvedMidRadius = (evolvedStartRadius + evolvedOuter) * 0.5;
+              var evolvedControlAngle = evolvedBaseAngle + evolvedTwist * (0.9 + Math.min(2, interlace) * 0.16);
+              ctx.globalAlpha = petalAggregate.strength * Math.min(0.9,
+                0.46 + evolvedRing / Math.max(1, rings) * 0.22 + interlace * 0.06);
+              ctx.lineWidth = stroke * (0.62 + (evolvedRing + 1) / rings * 0.3);
+              ctx.beginPath();
+              ctx.moveTo(evolvedStartX, evolvedStartY);
+              ctx.quadraticCurveTo(centerX + Math.cos(evolvedControlAngle) * evolvedMidRadius,
+                centerY + Math.sin(evolvedControlAngle) * evolvedMidRadius, evolvedEndX, evolvedEndY);
+              ctx.stroke();
+
+              // A counter-running rib creates the woven crossing while staying
+              // inside the same annular cell.
+              var evolvedCounterStartX = centerX + Math.cos(evolvedBaseAngle + evolvedTwist) * evolvedStartRadius;
+              var evolvedCounterStartY = centerY + Math.sin(evolvedBaseAngle + evolvedTwist) * evolvedStartRadius;
+              var evolvedCounterEndX = centerX + Math.cos(evolvedTipAngle - evolvedTwist * 0.35) * evolvedOuter;
+              var evolvedCounterEndY = centerY + Math.sin(evolvedTipAngle - evolvedTwist * 0.35) * evolvedOuter;
+              ctx.globalAlpha *= 0.76;
+              ctx.lineWidth = Math.max(0.2, ctx.lineWidth * 0.62);
+              ctx.beginPath();
+              ctx.moveTo(evolvedCounterStartX, evolvedCounterStartY);
+              ctx.quadraticCurveTo(centerX + Math.cos(evolvedBaseAngle - evolvedTwist * 0.9) * evolvedMidRadius,
+                centerY + Math.sin(evolvedBaseAngle - evolvedTwist * 0.9) * evolvedMidRadius,
+                evolvedCounterEndX, evolvedCounterEndY);
+              ctx.stroke();
+              evolvedTips.push({
+                x: (evolvedEndX + evolvedCounterEndX) * 0.5,
+                y: (evolvedEndY + evolvedCounterEndY) * 0.5,
+                angle: evolvedTipAngle
+              });
+            }
+            ringTipSets.push(evolvedTips);
+            evolvedPreviousRadius = evolvedOuter;
+          }
+          tipPoints = ringTipSets[ringTipSets.length - 1] || [];
+          var evolvedHub = Math.max(stroke * 3.4, outerRadius / Math.max(6, petals));
+          drawRoseHub(evolvedHub);
+          for (var evolvedMarkIndex = 0; evolvedMarkIndex < tipPoints.length; evolvedMarkIndex++) {
+            var evolvedMark = stroke * (1.1 + Math.min(4, interlace) * 0.16);
+            ctx.save();
+            ctx.translate(tipPoints[evolvedMarkIndex].x, tipPoints[evolvedMarkIndex].y);
+            ctx.rotate(Math.PI / 4 + tipPoints[evolvedMarkIndex].angle);
+            ctx.globalAlpha = petalAggregate.strength * 0.72;
+            ctx.strokeRect(-evolvedMark, -evolvedMark, evolvedMark * 2, evolvedMark * 2);
+            ctx.restore();
+          }
+          targetCtx.save();
+          targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+          targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+          targetCtx.restore();
+          return;
+        }
+
         for (var ring = 0; ring < rings; ring++) {
           var ringOuter = outerRadius * (ring + 1) / rings;
           var ringInner = ring ? outerRadius * (ring + 0.18) / rings : Math.max(stroke * 2.4, ringOuter * 0.12);
@@ -12278,25 +12501,83 @@ type deformer</textarea>
           }
           ctx.globalAlpha = petalAggregate.strength * (0.26 + (ring + 1) / rings * 0.24);
           ctx.lineWidth = Math.max(0.2, stroke * 0.62);
-          ctx.beginPath();
-          for (var tipIndex = 0; tipIndex < ringTips.length; tipIndex++) {
-            var tipPoint = ringTips[tipIndex];
-            if (!tipIndex) ctx.moveTo(tipPoint.x, tipPoint.y); else ctx.lineTo(tipPoint.x, tipPoint.y);
+          if (interlace > 0.005) {
+            // Curved stone tracery closes every ring without the straight
+            // star-polygons that used to overwhelm the central rose.
+            for (var arcIndex = 0; arcIndex < ringTips.length; arcIndex++) {
+              var arcA = ringTips[arcIndex];
+              var arcB = ringTips[(arcIndex + 1) % ringTips.length];
+              var arcAngle = Math.atan2(Math.sin(arcA.angle) + Math.sin(arcB.angle),
+                Math.cos(arcA.angle) + Math.cos(arcB.angle));
+              var arcRadius = ringOuter * Math.max(0.38, 0.82 - Math.min(4, interlace) * 0.035);
+              ctx.beginPath();
+              ctx.moveTo(arcA.x, arcA.y);
+              ctx.quadraticCurveTo(centerX + Math.cos(arcAngle) * arcRadius,
+                centerY + Math.sin(arcAngle) * arcRadius, arcB.x, arcB.y);
+              ctx.stroke();
+            }
+            ctx.globalAlpha = petalAggregate.strength * Math.min(0.72, 0.26 + interlace * 0.12);
+            ctx.lineWidth = Math.max(0.2, stroke * (0.38 + Math.min(4, interlace) * 0.08));
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ringOuter, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            for (var tipIndex = 0; tipIndex < ringTips.length; tipIndex++) {
+              var tipPoint = ringTips[tipIndex];
+              if (!tipIndex) ctx.moveTo(tipPoint.x, tipPoint.y); else ctx.lineTo(tipPoint.x, tipPoint.y);
+            }
+            ctx.closePath();
+            ctx.stroke();
           }
-          ctx.closePath();
-          ctx.stroke();
+          ringTipSets.push(ringTips);
           if (ring === rings - 1) tipPoints = ringTips;
         }
-        var supportCount = Math.min(nodes.length, Math.max(petals, 32));
+
+        if (interlace > 0.005 && ringTipSets.length > 1) {
+          // Adjacent rings weave as alternating curved ribs; all rings remain
+          // part of one articulated ensemble instead of independent stars.
+          for (var laceRing = 1; laceRing < ringTipSets.length; laceRing++) {
+            var innerTips = ringTipSets[laceRing - 1];
+            var outerTips = ringTipSets[laceRing];
+            for (var lace = 0; lace < petals; lace++) {
+              var innerTip = innerTips[(lace + (laceRing % 2)) % innerTips.length];
+              var outerTip = outerTips[lace % outerTips.length];
+              var alternateOuter = outerTips[(lace + 1) % outerTips.length];
+              var laceTarget = lace % 2 ? alternateOuter : outerTip;
+              var laceMidX = (innerTip.x + laceTarget.x) * 0.5;
+              var laceMidY = (innerTip.y + laceTarget.y) * 0.5;
+              var laceAngle = Math.atan2(laceMidY - centerY, laceMidX - centerX)
+                + (lace % 2 ? 1 : -1) * sector * 0.18 * Math.min(2, interlace);
+              var laceRadius = Math.sqrt((laceMidX - centerX) * (laceMidX - centerX)
+                + (laceMidY - centerY) * (laceMidY - centerY));
+              ctx.globalAlpha = petalAggregate.strength * Math.min(0.82, 0.34 + interlace * 0.13);
+              ctx.lineWidth = Math.max(0.2, stroke * (0.42 + interlace * 0.1));
+              ctx.beginPath();
+              ctx.moveTo(innerTip.x, innerTip.y);
+              ctx.quadraticCurveTo(centerX + Math.cos(laceAngle) * laceRadius,
+                centerY + Math.sin(laceAngle) * laceRadius, laceTarget.x, laceTarget.y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        var supportCount = interlace > 0.005
+          ? Math.min(nodes.length, Math.max(3, petals))
+          : Math.min(nodes.length, Math.max(petals, 32));
         for (var support = 0; support < supportCount; support++) {
-          var supportNode = nodes[support];
+          var supportNode = interlace > 0.005
+            ? nodes[Math.min(nodes.length - 1, Math.floor(support * nodes.length / supportCount))]
+            : nodes[support];
           var targetTip = tipPoints[support % tipPoints.length];
           var controlMix = 0.42 + hash(support, params.seed % 83, 1861) * 0.2;
-          var tangent = (support % 2 ? -1 : 1) * warp * stroke * 3.2;
+          var tangent = (support % 2 ? -1 : 1) * (warp * stroke * 3.2
+            + (interlace > 0.005 ? sector * outerRadius * 0.08 * Math.min(2, interlace) : 0));
           var targetDx = targetTip.x - supportNode.x;
           var targetDy = targetTip.y - supportNode.y;
           var targetLength = Math.sqrt(targetDx * targetDx + targetDy * targetDy) || 1;
-          ctx.globalAlpha = petalAggregate.strength * Math.min(0.72, 0.2 + supportNode.strength * 0.42);
+          ctx.globalAlpha = petalAggregate.strength * Math.min(0.72,
+            (interlace > 0.005 ? 0.14 : 0.2) + supportNode.strength * (interlace > 0.005 ? 0.3 : 0.42));
           ctx.lineWidth = Math.max(0.2, stroke * (0.44 + supportNode.strength * 0.42));
           ctx.beginPath();
           ctx.moveTo(supportNode.x, supportNode.y);
@@ -12329,6 +12610,8 @@ type deformer</textarea>
       function renderChromeReliquary(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var bevelAggregate = surfaceAggregate(glyphs, 'chromeReliquary', 'chromeBevel', params.chromeBevel);
         if (!bevelAggregate.weight) return;
+        var voltage = surfaceAggregate(glyphs, 'chromeReliquary', 'chromeVoltage', params.chromeVoltage).value;
+        var voltageNormalized = Math.min(1, Math.max(0, voltage) / 4);
         var bevel = Math.max(1, bevelAggregate.value * pixelScale * L.s);
         var lightAngle = surfaceAggregate(glyphs, 'chromeReliquary', 'chromeAngle', params.chromeAngle).value * Math.PI / 180;
         var bands = Math.max(2, Math.min(24, Math.round(surfaceAggregate(glyphs, 'chromeReliquary', 'chromeBands', params.chromeBands).value)));
@@ -12347,8 +12630,9 @@ type deformer</textarea>
         var rgb = surfaceHexRgb(surfaceEffectColor('chromeReliquary'));
         var lightX = Math.cos(lightAngle);
         var lightY = Math.sin(lightAngle);
-        var acidAmount = Math.max(0, Math.min(1, contrast * 0.17 + warp * 0.14));
-        var outerShell = Math.max(1, Math.min(bevel * (0.34 + warp * 0.07), 38 * pixelScale * L.s));
+        var acidAmount = Math.max(0, Math.min(1, contrast * 0.17 + warp * 0.14 + voltage * 0.16));
+        var outerShell = Math.max(1, Math.min(bevel * (0.34 + warp * 0.07 + voltage * 0.025),
+          (38 + voltage * 6) * pixelScale * L.s));
         var minX = Math.max(0, Math.floor(field.bounds[0] - outerShell - 2));
         var minY = Math.max(0, Math.floor(field.bounds[1] - outerShell - 2));
         var maxX = Math.min(width - 1, Math.ceil(field.bounds[2] + outerShell + 2));
@@ -12381,11 +12665,18 @@ type deformer</textarea>
           var directional = 0.5 + facing * 0.5;
           var tone = 0.1 + mirrorBand * 0.5 + directional * 0.28 + fineNoise * warp * 0.028;
           tone = Math.max(0, Math.min(1, 0.5 + (tone - 0.5) * (1 + contrast * 1.05)));
+          if (voltage > 0.005) {
+            var posterSteps = Math.max(2, Math.round(8 - Math.min(6, voltage) * 0.78));
+            var posterTone = Math.round(tone * (posterSteps - 1)) / Math.max(1, posterSteps - 1);
+            var posterMix = Math.min(0.92, voltage * 0.2);
+            tone = tone * (1 - posterMix) + posterTone * posterMix;
+          }
           var specular = Math.pow(Math.max(0, facing), Math.max(2.5, 9 - contrast * 1.2));
           specular *= 0.35 + mirrorBand * 0.65;
           var shellFade = inside ? 1 : Math.max(0, 1 - distance / outerShell);
           var edgeGlint = Math.max(0, 1 - distance / Math.max(1, bevel * 0.16));
-          var blackMirror = Math.pow(Math.max(0, 1 - mirrorBand), 1.6) * Math.min(0.86, 0.28 + contrast * 0.13);
+          var blackMirror = Math.pow(Math.max(0, 1 - mirrorBand), Math.max(0.72, 1.6 - voltage * 0.1))
+            * Math.min(0.96, 0.28 + contrast * 0.13 + voltage * 0.075);
           var airbrush = Math.pow(Math.max(0, 1 - Math.abs(facing - 0.42) * 1.42), 2)
             * (0.08 + Math.min(0.58, warp * 0.11 + contrast * 0.055));
           var hotLine = Math.pow(Math.max(0, Math.cos(wavePhase * 0.5 + coarseNoise * 0.28)),
@@ -12398,11 +12689,17 @@ type deformer</textarea>
           var acidR = 0.12 + (0.5 + Math.sin(chromaPhase) * 0.5) * 0.88;
           var acidG = 0.12 + (0.5 + Math.sin(chromaPhase + Math.PI * 2 / 3) * 0.5) * 0.88;
           var acidB = 0.12 + (0.5 + Math.sin(chromaPhase + Math.PI * 4 / 3) * 0.5) * 0.88;
-          var chromaWeight = Math.min(0.92, acidAmount * (0.32 + Math.abs(mirrorBand - 0.5) * 0.72)
-            + (!inside ? acidAmount * 0.22 : 0));
+          var chromaWeight = Math.min(0.98, acidAmount * (0.32 + Math.abs(mirrorBand - 0.5) * 0.72)
+            + voltageNormalized * (0.08 + Math.abs(facing) * 0.16)
+            + (!inside ? acidAmount * (0.22 + voltageNormalized * 0.18) : 0));
           var baseScale = Math.max(0.025, (0.1 + tone * 1.04) * (1 - blackMirror));
-          var highlight = Math.min(0.96, specular * (0.48 + contrast * 0.15)
-            + edgeGlint * directional * (0.24 + acidAmount * 0.28) + hotLine * (0.08 + acidAmount * 0.38) + airbrush);
+          if (voltage > 0.005) {
+            var midTone = Math.max(0, 1 - Math.abs(tone - 0.5) * 2);
+            baseScale *= Math.max(0.32, 1 - voltageNormalized * midTone * 0.58);
+          }
+          var highlight = Math.min(0.99, specular * (0.48 + contrast * 0.15 + voltage * 0.035)
+            + edgeGlint * directional * (0.24 + acidAmount * 0.28 + voltageNormalized * 0.22)
+            + hotLine * (0.08 + acidAmount * 0.38 + voltageNormalized * 0.28) + airbrush);
           var offset = index * 4;
           var metalR = rgb[0] * baseScale;
           var metalG = rgb[1] * baseScale;
@@ -12421,7 +12718,7 @@ type deformer</textarea>
           output.data[offset + 2] = Math.max(0, Math.min(255, Math.round(finalB * (1 - highlight) + highlightB * highlight)));
           var sourceAlpha = source.data[offset + 3] / 255;
           var alpha = inside ? Math.max(sourceAlpha, 0.76 + edgeGlint * 0.24)
-            : shellFade * (0.34 + directional * 0.28 + acidAmount * 0.22);
+            : shellFade * (0.34 + directional * 0.28 + acidAmount * 0.22 + voltageNormalized * 0.14);
           output.data[offset + 3] = Math.round(255 * Math.min(1, alpha) * bevelAggregate.strength);
         }
         work.ctx.putImageData(output, 0, 0);
@@ -12438,9 +12735,10 @@ type deformer</textarea>
           shell.ctx.globalCompositeOperation = 'source-over';
           return shell.canvas;
         }
-        var chromaticShift = Math.max(0.5, Math.min(22 * pixelScale * L.s,
-          bevel * (0.06 + acidAmount * 0.2)));
-        var extrusionShift = Math.max(1, Math.min(outerShell * 1.1, chromaticShift * 1.9));
+        var chromaticShift = Math.max(0.5, Math.min((22 + voltage * 8) * pixelScale * L.s,
+          bevel * (0.06 + acidAmount * 0.2 + voltage * 0.035)));
+        var extrusionShift = Math.max(1, Math.min(outerShell * (1.1 + voltageNormalized * 0.42),
+          chromaticShift * (1.9 + voltageNormalized * 0.8)));
         var extrusion = chromeOffsetShell('chrome-reliquary-extrusion',
           -lightX * extrusionShift, -lightY * extrusionShift,
           'rgba(18, 2, 35, 1)', Math.min(0.94, 0.5 + contrast * 0.1));
@@ -12455,12 +12753,16 @@ type deformer</textarea>
         var limeRim = chromeOffsetShell('chrome-reliquary-lime-rim',
           lightX * chromaticShift * 0.82, lightY * chromaticShift * 0.82,
           'rgba(186, 255, 22, 1)', Math.min(0.72, acidAmount * 0.46));
+        var whiteRim = chromeOffsetShell('chrome-reliquary-white-rim',
+          lightX * chromaticShift * 0.26, lightY * chromaticShift * 0.26,
+          'rgba(255, 255, 255, 1)', Math.min(0.9, voltageNormalized * 0.72));
         var bloom = surfaceScratch('chrome-reliquary-bloom', width, height, false);
         var bloomRadius = Math.max(0, Math.min(22 * pixelScale * L.s,
-          bevel * (0.08 + warp * 0.045 + contrast * 0.018)));
+          bevel * (0.08 + warp * 0.045 + contrast * 0.018 + voltage * 0.012)));
         if (bloomRadius > 0.65 && acidAmount > 0.08) {
           bloom.ctx.save();
-          bloom.ctx.globalAlpha = Math.min(0.46, acidAmount * 0.34);
+          bloom.ctx.globalAlpha = Math.min(0.46, acidAmount * 0.34)
+            * Math.max(0.34, 1 - voltageNormalized * 0.58);
           bloom.ctx.globalCompositeOperation = 'screen';
           bloom.ctx.filter = 'blur(' + bloomRadius.toFixed(2) + 'px) saturate(' + (1.2 + acidAmount * 1.8).toFixed(2) + ')';
           bloom.ctx.drawImage(work.canvas, 0, 0);
@@ -12475,6 +12777,7 @@ type deformer</textarea>
           targetCtx.drawImage(cyanRim, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
           targetCtx.drawImage(magentaRim, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
           targetCtx.drawImage(limeRim, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+          if (voltage > 0.05) targetCtx.drawImage(whiteRim, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
         }
         if (bloomRadius > 0.65 && acidAmount > 0.08) {
           targetCtx.globalCompositeOperation = 'screen';
@@ -12584,9 +12887,87 @@ type deformer</textarea>
         ctx.restore();
       }
 
+      function ligatureConstructionGeometry(pair, riseOffset) {
+        var dx = pair.b.x - pair.a.x, dy = pair.b.y - pair.a.y;
+        var distance = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+        var nx = -dy / distance, ny = dx / distance;
+        return {
+          dx: dx, dy: dy, distance: distance, nx: nx, ny: ny,
+          midX: (pair.a.x + pair.b.x) * 0.5 + nx * riseOffset,
+          midY: (pair.a.y + pair.b.y) * 0.5 + ny * riseOffset
+        };
+      }
+
+      function traceLigatureConstructionBand(ctx, pair, halfWidth, riseOffset, waist, angular) {
+        var geometry = ligatureConstructionGeometry(pair, riseOffset);
+        var nx = geometry.nx, ny = geometry.ny;
+        var midHalf = halfWidth * waist;
+        ctx.beginPath();
+        ctx.moveTo(pair.a.x + nx * halfWidth, pair.a.y + ny * halfWidth);
+        if (angular) {
+          ctx.lineTo(pair.a.x + geometry.dx * 0.34 + nx * (riseOffset * 0.58 + halfWidth * 0.78),
+            pair.a.y + geometry.dy * 0.34 + ny * (riseOffset * 0.58 + halfWidth * 0.78));
+          ctx.lineTo(geometry.midX + nx * midHalf, geometry.midY + ny * midHalf);
+          ctx.lineTo(pair.a.x + geometry.dx * 0.68 + nx * (riseOffset * 0.72 + halfWidth * 0.78),
+            pair.a.y + geometry.dy * 0.68 + ny * (riseOffset * 0.72 + halfWidth * 0.78));
+          ctx.lineTo(pair.b.x + nx * halfWidth, pair.b.y + ny * halfWidth);
+        } else {
+          ctx.quadraticCurveTo(pair.a.x + geometry.dx * 0.26 + nx * (riseOffset * 0.42 + halfWidth),
+            pair.a.y + geometry.dy * 0.26 + ny * (riseOffset * 0.42 + halfWidth),
+            geometry.midX + nx * midHalf, geometry.midY + ny * midHalf);
+          ctx.quadraticCurveTo(pair.a.x + geometry.dx * 0.74 + nx * (riseOffset * 0.42 + halfWidth),
+            pair.a.y + geometry.dy * 0.74 + ny * (riseOffset * 0.42 + halfWidth),
+            pair.b.x + nx * halfWidth, pair.b.y + ny * halfWidth);
+        }
+        ctx.lineTo(pair.b.x - nx * halfWidth, pair.b.y - ny * halfWidth);
+        if (angular) {
+          ctx.lineTo(pair.a.x + geometry.dx * 0.68 + nx * (riseOffset * 0.72 - halfWidth * 0.78),
+            pair.a.y + geometry.dy * 0.68 + ny * (riseOffset * 0.72 - halfWidth * 0.78));
+          ctx.lineTo(geometry.midX - nx * midHalf, geometry.midY - ny * midHalf);
+          ctx.lineTo(pair.a.x + geometry.dx * 0.34 + nx * (riseOffset * 0.58 - halfWidth * 0.78),
+            pair.a.y + geometry.dy * 0.34 + ny * (riseOffset * 0.58 - halfWidth * 0.78));
+          ctx.lineTo(pair.a.x - nx * halfWidth, pair.a.y - ny * halfWidth);
+        } else {
+          ctx.quadraticCurveTo(pair.a.x + geometry.dx * 0.74 + nx * (riseOffset * 0.42 - halfWidth),
+            pair.a.y + geometry.dy * 0.74 + ny * (riseOffset * 0.42 - halfWidth),
+            geometry.midX - nx * midHalf, geometry.midY - ny * midHalf);
+          ctx.quadraticCurveTo(pair.a.x + geometry.dx * 0.26 + nx * (riseOffset * 0.42 - halfWidth),
+            pair.a.y + geometry.dy * 0.26 + ny * (riseOffset * 0.42 - halfWidth),
+            pair.a.x - nx * halfWidth, pair.a.y - ny * halfWidth);
+        }
+        ctx.closePath();
+      }
+
+      function strokeLigatureConstructionRail(ctx, pair, riseOffset, offset, angular) {
+        var geometry = ligatureConstructionGeometry(pair, riseOffset);
+        ctx.beginPath();
+        ctx.moveTo(pair.a.x + geometry.nx * offset, pair.a.y + geometry.ny * offset);
+        if (angular) {
+          ctx.lineTo(geometry.midX + geometry.nx * offset, geometry.midY + geometry.ny * offset);
+          ctx.lineTo(pair.b.x + geometry.nx * offset, pair.b.y + geometry.ny * offset);
+        } else {
+          ctx.quadraticCurveTo(geometry.midX + geometry.nx * offset,
+            geometry.midY + geometry.ny * offset,
+            pair.b.x + geometry.nx * offset, pair.b.y + geometry.ny * offset);
+        }
+        ctx.stroke();
+      }
+
+      function ligatureConstructionPoint(pair, riseOffset, t) {
+        var geometry = ligatureConstructionGeometry(pair, riseOffset);
+        var inverse = 1 - t;
+        return {
+          x: inverse * inverse * pair.a.x + 2 * inverse * t * geometry.midX + t * t * pair.b.x,
+          y: inverse * inverse * pair.a.y + 2 * inverse * t * geometry.midY + t * t * pair.b.y,
+          nx: geometry.nx, ny: geometry.ny
+        };
+      }
+
       function renderLigatureCrypt(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var reachAggregate = surfaceAggregate(glyphs, 'ligatureCrypt', 'ligatureReach', params.ligatureReach);
         if (!reachAggregate.weight || reachAggregate.value <= 0.001) return;
+        var grammar = surfaceChoice(glyphs, 'ligatureCrypt', 'ligatureGrammar', params.ligatureGrammar, BATCH_PARAM_OPTIONS.ligatureGrammar);
+        var weave = surfaceAggregate(glyphs, 'ligatureCrypt', 'ligatureWeave', params.ligatureWeave).value;
         var reach = Math.max(0, reachAggregate.value * pixelScale * L.s);
         var band = Math.max(1, surfaceAggregate(glyphs, 'ligatureCrypt', 'ligatureBand', params.ligatureBand).value * pixelScale * L.s);
         var rise = surfaceAggregate(glyphs, 'ligatureCrypt', 'ligatureRise', params.ligatureRise).value;
@@ -12596,6 +12977,154 @@ type deformer</textarea>
         compositeSurfaceSource(targetCtx, mask, 'ligatureCrypt', coverBase);
         var nodes = surfaceNodesForGlyphs(glyphs, 'ligatureCrypt', 97, pixelScale, L, 0, 0, 0);
         if (!nodes.length) return;
+        if (grammar !== 'ribbon') {
+          var constructionPairs = [];
+          for (var constructionIndex = 0; constructionIndex < nodes.length - 1 && constructionPairs.length < 96; constructionIndex++) {
+            var constructionA = nodes[constructionIndex];
+            var constructionB = nodes[constructionIndex + 1];
+            var centerDx = constructionB.x - constructionA.x;
+            var centerDy = constructionB.y - constructionA.y;
+            var horizontal = Math.abs(centerDx) >= Math.abs(centerDy) * 0.72;
+            var directionPositive = horizontal ? centerDx >= 0 : centerDy >= 0;
+            var anchorVariance = (hash(constructionIndex, params.seed % 89, 2147) * 2 - 1) * 0.12;
+            var anchorA = surfaceGlyphNode(constructionA.glyph, 'ligatureCrypt', pixelScale, L, 0, 0, 0,
+              constructionA.glyphIndex, horizontal ? (directionPositive ? 0.78 : 0.22) : 0.5 + anchorVariance,
+              horizontal ? 0.5 + anchorVariance : (directionPositive ? 0.78 : 0.22), 0.62);
+            var anchorB = surfaceGlyphNode(constructionB.glyph, 'ligatureCrypt', pixelScale, L, 0, 0, 0,
+              constructionB.glyphIndex, horizontal ? (directionPositive ? 0.22 : 0.78) : 0.5 - anchorVariance,
+              horizontal ? 0.5 - anchorVariance : (directionPositive ? 0.22 : 0.78), 0.62);
+            var anchorDx = anchorB.x - anchorA.x, anchorDy = anchorB.y - anchorA.y;
+            var anchorDistance = Math.sqrt(anchorDx * anchorDx + anchorDy * anchorDy);
+            if (anchorDistance < 1 || anchorDistance > reach) continue;
+            constructionPairs.push({
+              a: anchorA, b: anchorB, distance: anchorDistance,
+              strength: Math.min(constructionA.strength, constructionB.strength),
+              glyphA: constructionA, glyphB: constructionB
+            });
+          }
+          var constructionWork = surfaceScratch('ligature-crypt-construction', width, height, false);
+          var constructionCtx = constructionWork.ctx;
+          constructionCtx.fillStyle = surfaceEffectColor('ligatureCrypt');
+          constructionCtx.strokeStyle = surfaceEffectColor('ligatureCrypt');
+          constructionCtx.lineCap = grammar === 'blackletter' ? 'square' : 'round';
+          constructionCtx.lineJoin = grammar === 'blackletter' ? 'miter' : 'round';
+
+          if (!constructionPairs.length && nodes.length === 1) {
+            var constructionSolitary = nodes[0];
+            var constructionSeal = Math.max(knot * 1.8, Math.min(constructionSolitary.r, band * 1.25));
+            constructionCtx.globalAlpha = constructionSolitary.strength;
+            constructionCtx.lineWidth = Math.max(0.8, band * 0.1);
+            traceLigatureCryptSeal(constructionCtx, constructionSolitary.x, constructionSolitary.y,
+              -Math.PI / 2, constructionSeal);
+          }
+
+          for (var constructionPairIndex = 0; constructionPairIndex < constructionPairs.length; constructionPairIndex++) {
+            var constructionPair = constructionPairs[constructionPairIndex];
+            var constructionDirection = constructionPairIndex % 2 ? -1 : 1;
+            var constructionRiseVariation = 0.55
+              + hash(constructionPairIndex, params.seed % 101, 2151) * 0.9;
+            var constructionRise = constructionDirection * Math.min(constructionPair.distance * 0.35,
+              Math.abs(rise) * band * (0.42 + Math.min(4, weave) * 0.14) * constructionRiseVariation);
+            if (grammar === 'joinery' && constructionPairIndex % 4 === 0) constructionRise *= 0.28;
+            if (rise < 0) constructionRise *= -1;
+            var constructionHalf = Math.min(constructionPair.distance * 0.26,
+              band * (grammar === 'suture' ? 0.16 : grammar === 'blackletter' ? 0.48 : 0.38));
+            var constructionWaist = Math.max(0.18, Math.min(0.88,
+              0.64 - counter * 0.22 + hash(constructionPairIndex, params.seed, 2153) * 0.16));
+            var constructionAngular = grammar === 'blackletter';
+            var constructionGeometry = ligatureConstructionGeometry(constructionPair, constructionRise);
+
+            if (grammar !== 'suture') {
+              constructionCtx.globalAlpha = constructionPair.strength * (grammar === 'blackletter' ? 0.86 : 0.72);
+              traceLigatureConstructionBand(constructionCtx, constructionPair, constructionHalf,
+                constructionRise, constructionWaist, constructionAngular);
+              constructionCtx.fill();
+              constructionCtx.globalAlpha = constructionPair.strength;
+              constructionCtx.lineWidth = Math.max(0.65, band * (grammar === 'blackletter' ? 0.095 : 0.065));
+              traceLigatureConstructionBand(constructionCtx, constructionPair, constructionHalf,
+                constructionRise, constructionWaist, constructionAngular);
+              constructionCtx.stroke();
+              constructionCtx.strokeStyle = params.paper;
+              constructionCtx.globalAlpha = constructionPair.strength * Math.min(0.88, 0.36 + counter * 0.34);
+              constructionCtx.lineWidth = Math.max(0.7, constructionHalf * Math.min(0.52, 0.16 + counter * 0.28));
+              strokeLigatureConstructionRail(constructionCtx, constructionPair, constructionRise, 0, constructionAngular);
+              constructionCtx.strokeStyle = surfaceEffectColor('ligatureCrypt');
+            } else {
+              var sutureSpread = Math.max(1.2 * pixelScale * L.s,
+                Math.min(constructionHalf, band * (0.12 + weave * 0.06)));
+              constructionCtx.globalAlpha = constructionPair.strength * 0.86;
+              constructionCtx.lineWidth = Math.max(0.55, band * 0.045);
+              strokeLigatureConstructionRail(constructionCtx, constructionPair, constructionRise,
+                sutureSpread, false);
+              strokeLigatureConstructionRail(constructionCtx, constructionPair, constructionRise,
+                -sutureSpread, false);
+            }
+
+            // Edge plates and diamonds make the bridge terminate in the glyph
+            // rather than floating from centre point to centre point.
+            constructionCtx.globalAlpha = constructionPair.strength * 0.82;
+            constructionCtx.lineWidth = Math.max(0.55, band * 0.055);
+            var capHalf = Math.max(constructionHalf * 0.86, knot * 0.45);
+            for (var capIndex = 0; capIndex < 2; capIndex++) {
+              var capNode = capIndex ? constructionPair.b : constructionPair.a;
+              constructionCtx.beginPath();
+              constructionCtx.moveTo(capNode.x - constructionGeometry.nx * capHalf,
+                capNode.y - constructionGeometry.ny * capHalf);
+              constructionCtx.lineTo(capNode.x + constructionGeometry.nx * capHalf,
+                capNode.y + constructionGeometry.ny * capHalf);
+              constructionCtx.stroke();
+            }
+            if (grammar === 'blackletter') {
+              var diamond = Math.max(1, Math.min(band * 0.22, knot + band * 0.08));
+              constructionCtx.save();
+              constructionCtx.translate(constructionGeometry.midX, constructionGeometry.midY);
+              constructionCtx.rotate(Math.atan2(constructionGeometry.dy, constructionGeometry.dx) + Math.PI / 4);
+              constructionCtx.fillRect(-diamond * 0.5, -diamond * 0.5, diamond, diamond);
+              constructionCtx.restore();
+            } else if (grammar === 'joinery' && constructionPairIndex % 3 === 1) {
+              var joineryRivet = Math.max(1.2 * pixelScale * L.s,
+                Math.min(knot * 0.62 + band * 0.06, constructionHalf * 0.42));
+              constructionCtx.beginPath();
+              constructionCtx.arc(constructionGeometry.midX, constructionGeometry.midY,
+                joineryRivet, 0, Math.PI * 2);
+              constructionCtx.fill();
+              constructionCtx.strokeStyle = params.paper;
+              constructionCtx.globalAlpha = constructionPair.strength * 0.76;
+              constructionCtx.lineWidth = Math.max(0.45, joineryRivet * 0.22);
+              constructionCtx.beginPath();
+              constructionCtx.arc(constructionGeometry.midX, constructionGeometry.midY,
+                joineryRivet * 0.45, 0, Math.PI * 2);
+              constructionCtx.stroke();
+              constructionCtx.strokeStyle = surfaceEffectColor('ligatureCrypt');
+            }
+
+            var stitchCount = Math.min(18, Math.max(2, Math.round(2 + weave * 3.2
+              + constructionPair.distance / Math.max(18, band * 2.4))));
+            for (var stitchIndex = 1; stitchIndex < stitchCount; stitchIndex++) {
+              if (grammar === 'joinery' && stitchIndex % 2 === 0 && weave < 2) continue;
+              var stitchPoint = ligatureConstructionPoint(constructionPair, constructionRise,
+                stitchIndex / stitchCount);
+              var stitchHalf = grammar === 'suture'
+                ? Math.max(2 * pixelScale * L.s, constructionHalf * 1.5)
+                : Math.max(1, constructionHalf * (0.34 + Math.min(4, weave) * 0.08));
+              constructionCtx.globalAlpha = constructionPair.strength * (grammar === 'suture' ? 0.78 : 0.42);
+              constructionCtx.lineWidth = Math.max(0.45, band * (grammar === 'suture' ? 0.032 : 0.024));
+              constructionCtx.beginPath();
+              constructionCtx.moveTo(stitchPoint.x - stitchPoint.nx * stitchHalf,
+                stitchPoint.y - stitchPoint.ny * stitchHalf);
+              constructionCtx.lineTo(stitchPoint.x + stitchPoint.nx * stitchHalf,
+                stitchPoint.y + stitchPoint.ny * stitchHalf);
+              constructionCtx.stroke();
+            }
+          }
+          constructionCtx.globalAlpha = 1;
+          constructionCtx.globalCompositeOperation = 'source-over';
+          targetCtx.save();
+          targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+          targetCtx.drawImage(constructionWork.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+          targetCtx.restore();
+          return;
+        }
         var pairs = [];
         for (var i = 0; i < nodes.length - 1 && pairs.length < 96; i++) {
           var a = nodes[i], b = nodes[i + 1];
@@ -14249,6 +14778,8 @@ type deformer</textarea>
       function renderThornCrown(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var lengthAggregate = surfaceAggregate(glyphs, 'thornCrown', 'thornLength', params.thornLength);
         if (!lengthAggregate.weight) return;
+        var grammar = surfaceChoice(glyphs, 'thornCrown', 'thornGrammar', params.thornGrammar, BATCH_PARAM_OPTIONS.thornGrammar);
+        var armor = surfaceAggregate(glyphs, 'thornCrown', 'thornArmor', params.thornArmor).value;
         var length = Math.max(0, lengthAggregate.value * pixelScale * L.s);
         var density = surfaceAggregate(glyphs, 'thornCrown', 'thornDensity', params.thornDensity).value;
         var curl = surfaceAggregate(glyphs, 'thornCrown', 'thornCurl', params.thornCurl).value;
@@ -14397,7 +14928,8 @@ type deformer</textarea>
           var tipX = originX + nx * thornLength + tangentX * curve * 0.32;
           var tipY = originY + ny * thornLength + tangentY * curve * 0.32;
           var ornamentAlpha = Math.min(1, 0.3 + point.alpha * 0.68) * lengthAggregate.strength;
-          var family = Math.floor(hash(i, params.seed % 131, 1731) * 4);
+          var family = grammar === 'lancet' ? 0 : grammar === 'hook' ? 1 : grammar === 'vine' ? 2
+            : grammar === 'trident' ? 3 : Math.floor(hash(i, params.seed % 131, 1731) * 4);
           var handedness = hash(i, 13, 1721) > 0.5 ? 1 : -1;
           ctx.globalAlpha = ornamentAlpha;
           ctx.lineWidth = Math.max(0.2, stroke * (0.5 + hash(i, 19, 1723) * 0.9));
@@ -14411,6 +14943,68 @@ type deformer</textarea>
           ctx.moveTo(originX, originY);
           ctx.quadraticCurveTo(controlX, controlY, tipX, tipY);
           ctx.stroke();
+
+          if (armor > 0.005) {
+            var armorStrength = Math.min(1, armor * 0.52);
+            var rootSize = Math.min(thornLength * 0.24, collar * (1.3 + armor * 0.34));
+            ctx.save();
+            ctx.globalAlpha = ornamentAlpha * (0.5 + armorStrength * 0.42);
+            ctx.lineWidth = Math.max(0.25, stroke * (0.58 + armor * 0.16));
+            // A nested, swept root plate makes each growth read as attached
+            // ornament rather than an arrow dropped onto the contour.
+            for (var rootBand = 0; rootBand < Math.min(3, 1 + Math.floor(armor)); rootBand++) {
+              var rootOffset = rootBand * stroke * 1.18;
+              ctx.beginPath();
+              ctx.moveTo(originX - tangentX * (rootSize + rootOffset), originY - tangentY * (rootSize + rootOffset));
+              ctx.quadraticCurveTo(originX - nx * (rootSize * 0.54 + rootOffset), originY - ny * (rootSize * 0.54 + rootOffset),
+                originX + tangentX * (rootSize + rootOffset), originY + tangentY * (rootSize + rootOffset));
+              ctx.stroke();
+            }
+            ctx.translate(originX + nx * rootSize * 0.08, originY + ny * rootSize * 0.08);
+            ctx.rotate(Math.atan2(ny, nx) + Math.PI / 4);
+            var rivet = Math.max(stroke * 0.9, rootSize * (0.1 + armorStrength * 0.07));
+            ctx.fillRect(-rivet * 0.5, -rivet * 0.5, rivet, rivet);
+            ctx.restore();
+
+            // Parallel armature and alternating scales give the crown a
+            // crafted metal/botanical body before the terminal ornament.
+            var railOffset = Math.min(rootSize * 0.2, stroke * (0.75 + armor * 0.38));
+            var railCount = armor > 2.4 ? 2 : 1;
+            for (var rail = 0; rail < railCount; rail++) {
+              var railSign = rail ? -1 : 1;
+              ctx.globalAlpha = ornamentAlpha * (0.35 + armorStrength * 0.35);
+              ctx.lineWidth = Math.max(0.2, stroke * 0.36);
+              ctx.beginPath();
+              ctx.moveTo(originX + tangentX * railOffset * railSign, originY + tangentY * railOffset * railSign);
+              ctx.quadraticCurveTo(controlX + tangentX * railOffset * railSign,
+                controlY + tangentY * railOffset * railSign,
+                tipX + tangentX * railOffset * railSign * 0.28,
+                tipY + tangentY * railOffset * railSign * 0.28);
+              ctx.stroke();
+            }
+            var scaleCount = Math.min(6, 1 + Math.floor(armor * 1.35));
+            for (var scaleIndex = 0; scaleIndex < scaleCount; scaleIndex++) {
+              var scaleT = 0.2 + scaleIndex / Math.max(1, scaleCount - 1) * 0.56;
+              var scaleBase = quadraticPoint(originX, originY, controlX, controlY, tipX, tipY, scaleT);
+              var scaleDirection = quadraticDirection(originX, originY, controlX, controlY, tipX, tipY, scaleT);
+              var scaleSideX = -scaleDirection.y, scaleSideY = scaleDirection.x;
+              var scaleSign = (scaleIndex + i) % 2 ? -1 : 1;
+              var scaleSize = Math.min(thornLength * 0.13, stroke * (2.8 + armor * 1.5));
+              ctx.globalAlpha = ornamentAlpha * (0.36 + armorStrength * 0.42);
+              ctx.beginPath();
+              ctx.moveTo(scaleBase.x, scaleBase.y);
+              ctx.quadraticCurveTo(scaleBase.x + scaleSideX * scaleSize * scaleSign * 0.68
+                - scaleDirection.x * scaleSize * 0.14,
+                scaleBase.y + scaleSideY * scaleSize * scaleSign * 0.68
+                - scaleDirection.y * scaleSize * 0.14,
+                scaleBase.x + scaleDirection.x * scaleSize * 0.26,
+                scaleBase.y + scaleDirection.y * scaleSize * 0.26);
+              ctx.quadraticCurveTo(scaleBase.x + scaleSideX * scaleSize * scaleSign * 0.24,
+                scaleBase.y + scaleSideY * scaleSize * scaleSign * 0.24,
+                scaleBase.x, scaleBase.y);
+              ctx.fill();
+            }
+          }
 
           var branchCount = Math.min(4, Math.floor(branching) + (hash(i, 23, 1733) < branching % 1 ? 1 : 0));
           if (family === 2 && branchCount < 2 && branching > 0.1) branchCount = 2;
@@ -14444,9 +15038,13 @@ type deformer</textarea>
 
           if (thornLength > stroke * 5) {
             var tipDirection = quadraticDirection(originX, originY, controlX, controlY, tipX, tipY, 1);
-            var terminalSize = Math.min(thornLength * (family === 3 ? 0.28 : 0.22), stroke * 11 + 8 * pixelScale);
+            var terminalSize = Math.min(thornLength * (family === 3 ? 0.34 : 0.26),
+              stroke * (11 + armor * 2.4) + (8 + armor * 2) * pixelScale);
             if (family === 1) {
               drawHook(tipX, tipY, tipDirection.x, tipDirection.y, terminalSize * 1.45, handedness, ornamentAlpha);
+              if (armor > 1.2) drawHook(tipX - tipDirection.x * terminalSize * 0.2,
+                tipY - tipDirection.y * terminalSize * 0.2,
+                tipDirection.x, tipDirection.y, terminalSize, -handedness, ornamentAlpha * 0.64);
             } else {
               drawLancet(tipX, tipY, tipDirection.x, tipDirection.y, terminalSize,
                 family === 3 ? 0.42 : 0.28, ornamentAlpha);
@@ -14473,6 +15071,8 @@ type deformer</textarea>
       function renderCipherLiturgy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var scaleAggregate = surfaceAggregate(glyphs, 'cipherLiturgy', 'cipherScale', params.cipherScale);
         if (!scaleAggregate.weight) return;
+        var dialect = surfaceChoice(glyphs, 'cipherLiturgy', 'cipherDialect', params.cipherDialect, BATCH_PARAM_OPTIONS.cipherDialect);
+        var registers = surfaceAggregate(glyphs, 'cipherLiturgy', 'cipherRegisters', params.cipherRegisters).value;
         var density = surfaceAggregate(glyphs, 'cipherLiturgy', 'cipherDensity', params.cipherDensity).value;
         var orbit = surfaceAggregate(glyphs, 'cipherLiturgy', 'cipherOrbit', params.cipherOrbit).value * pixelScale * L.s;
         var drift = surfaceAggregate(glyphs, 'cipherLiturgy', 'cipherDrift', params.cipherDrift).value * pixelScale * L.s;
@@ -14532,6 +15132,42 @@ type deformer</textarea>
           var lowByte = codepoint & 0xFF;
           var binary = lowByte.toString(2);
           while (binary.length < 8) binary = '0' + binary;
+          if (dialect === 'unicode') {
+            var unicodeVariant = (row + column + index) % 6;
+            if (unicodeVariant === 0) return 'U+' + hex;
+            if (unicodeVariant === 1) return 'PL' + Math.floor(codepoint / 65536) + '·' + hex.slice(-4);
+            if (unicodeVariant === 2) return kind + '/CP' + paddedNumber(codepoint % 100000, 5);
+            if (unicodeVariant === 3) return 'HEX ' + hex.slice(0, 2) + ':' + hex.slice(-2);
+            if (unicodeVariant === 4) return '[' + kind + ' ' + indexText + ']';
+            return 'SCALAR/' + checksum.slice(-3);
+          }
+          if (dialect === 'machine') {
+            var machineVariant = (row * 5 + column * 3 + index) % 6;
+            if (machineVariant === 0) return binary.slice(0, 4) + ' ' + binary.slice(4);
+            if (machineVariant === 1) return '0x' + hex;
+            if (machineVariant === 2) return 'O' + (codepoint & 511).toString(8).toUpperCase();
+            if (machineVariant === 3) return 'CHK/' + checksum;
+            if (machineVariant === 4) return 'ADR ' + indexText + ':' + hex.slice(-2);
+            return 'BIT ' + paddedNumber(lowByte, 3);
+          }
+          if (dialect === 'ledger') {
+            var ledgerVariant = (row * 2 + column + index) % 6;
+            if (ledgerVariant === 0) return 'ROW ' + paddedNumber(row, 2) + ' / ' + kind;
+            if (ledgerVariant === 1) return 'COL ' + paddedNumber(column, 2) + ' / ' + indexText;
+            if (ledgerVariant === 2) return indexText + '—' + paddedNumber(index + 1, 3);
+            if (ledgerVariant === 3) return 'FOL.' + paddedNumber(index + row, 3);
+            if (ledgerVariant === 4) return kind + ' ENTRY ' + hex.slice(-2);
+            return 'SUM ' + checksum.slice(-4);
+          }
+          if (dialect === 'ritual') {
+            var ritualVariant = (row * 7 + column * 3 + index) % 6;
+            if (ritualVariant === 0) return 'SIG:' + checksum.slice(-4);
+            if (ritualVariant === 1) return '◈' + kind + '·' + hex.slice(-3);
+            if (ritualVariant === 2) return 'R' + paddedNumber(row, 2) + '✶' + paddedNumber(column, 2);
+            if (ritualVariant === 3) return 'SEAL/' + indexText;
+            if (ritualVariant === 4) return 'Ⅰ' + hex.slice(0, 2) + 'Ⅱ' + hex.slice(-2);
+            return '†' + checksum.slice(-3) + '†';
+          }
           var variant = (row * 3 + column * 5 + Math.floor(hash(index + row, column, params.seed + 1753) * 17)) % 14;
           if (variant === 0) return 'U+' + hex;
           if (variant === 1) return kind + '#' + indexText;
@@ -14556,6 +15192,10 @@ type deformer</textarea>
           var index = Math.max(0, node.glyphIndex || 0);
           var kind = cipherScriptTag(glyph);
           var checksum = fixedHex(cipherChecksum(codepoint, index, row + 11, column + 17));
+          if (dialect === 'unicode') return 'SCALAR ' + fixedHex(codepoint) + ' / ' + kind;
+          if (dialect === 'machine') return 'BIN ' + (codepoint & 255).toString(2).padStart(8, '0') + ' / ' + checksum.slice(-2);
+          if (dialect === 'ledger') return 'FOLIO ' + paddedNumber(index, 3) + ' · ' + paddedNumber(row, 2) + ':' + paddedNumber(column, 2);
+          if (dialect === 'ritual') return 'SEAL ' + checksum + ' · ' + kind;
           var variant = Math.floor(hash(index, row + column, params.seed + 1761) * 5);
           if (variant === 0) return 'SRC ' + kind + ' / ' + paddedNumber(index, 3);
           if (variant === 1) return 'CP ' + fixedHex(codepoint) + ' / ' + checksum.slice(-2);
@@ -14589,6 +15229,92 @@ type deformer</textarea>
         ctx.globalAlpha = 1;
         ctx.drawImage(mask, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
+
+        if (registers > 0.005) {
+          var fullRegisters = Math.min(4, Math.floor(registers));
+          var fractionalRegister = registers % 1;
+          for (var registerNodeIndex = 0; registerNodeIndex < nodes.length; registerNodeIndex++) {
+            var registerNode = nodes[registerNodeIndex];
+            var registerGlyph = registerNode.glyph || {};
+            var registerSource = String(registerGlyph.ch || '');
+            var registerCodepoint = registerSource ? registerSource.codePointAt(0) : 0;
+            var registerCount = fullRegisters
+              + (hash(registerNodeIndex, params.seed % 97, 1769) < fractionalRegister ? 1 : 0);
+            for (var registerLayer = 0; registerLayer < registerCount; registerLayer++) {
+              var registerKind = dialect === 'machine' ? 0 : dialect === 'ledger' ? 1 : dialect === 'ritual' ? 2
+                : dialect === 'unicode' ? 3 : Math.floor(hash(registerNodeIndex, registerLayer, params.seed + 1771) * 4);
+              var registerAngle = hash(registerNodeIndex, registerLayer, 1773) * Math.PI * 2 + turn * 0.08;
+              var registerRadius = Math.max(registerNode.r * (0.72 + registerLayer * 0.16), fontSize * (2.2 + registerLayer * 0.8));
+              var registerX = registerNode.x + Math.cos(registerAngle) * registerRadius;
+              var registerY = registerNode.y + Math.sin(registerAngle) * registerRadius;
+              ctx.save();
+              ctx.translate(registerX, registerY);
+              ctx.rotate(registerAngle + Math.PI * 0.5);
+              ctx.globalAlpha = Math.min(0.92, registerNode.strength * (0.42 + registers * 0.1));
+              ctx.lineWidth = Math.max(0.5, fontSize * 0.07);
+              if (registerKind === 0) {
+                // Machine register: the low byte becomes an eight-cell strip.
+                var bitText = (registerCodepoint & 255).toString(2);
+                while (bitText.length < 8) bitText = '0' + bitText;
+                var bitCell = fontSize * 0.48;
+                for (var bit = 0; bit < 8; bit++) {
+                  ctx.strokeRect((bit - 4) * bitCell, -bitCell * 0.5, bitCell * 0.78, bitCell);
+                  if (bitText.charAt(bit) === '1') ctx.fillRect((bit - 4) * bitCell + bitCell * 0.18,
+                    -bitCell * 0.32, bitCell * 0.42, bitCell * 0.64);
+                }
+              } else if (registerKind === 1) {
+                // Ledger register: a source-indexed ruled entry, not another
+                // floating HUD label.
+                var ledgerWidth = fontSize * (4.2 + Math.min(2, density));
+                var ledgerHeight = fontSize * 1.8;
+                ctx.strokeRect(-ledgerWidth * 0.5, -ledgerHeight * 0.5, ledgerWidth, ledgerHeight);
+                for (var ledgerRule = 1; ledgerRule < 3; ledgerRule++) {
+                  var ledgerRuleY = -ledgerHeight * 0.5 + ledgerRule * ledgerHeight / 3;
+                  ctx.beginPath();
+                  ctx.moveTo(-ledgerWidth * 0.5, ledgerRuleY);
+                  ctx.lineTo(ledgerWidth * 0.5, ledgerRuleY);
+                  ctx.stroke();
+                }
+                var ledgerMark = ((registerNode.glyphIndex || 0) % 7 + 1) / 8;
+                ctx.fillRect(-ledgerWidth * 0.46, -ledgerHeight * 0.37,
+                  ledgerWidth * ledgerMark * 0.86, Math.max(1, fontSize * 0.12));
+              } else if (registerKind === 2) {
+                // Ritual register: checksum notches orbit a double seal.
+                var sealRadius = fontSize * (0.82 + registerLayer * 0.16);
+                ctx.beginPath();
+                ctx.arc(0, 0, sealRadius, 0, Math.PI * 2);
+                ctx.arc(0, 0, sealRadius * 0.46, 0, Math.PI * 2);
+                ctx.stroke();
+                var checksumValue = cipherChecksum(registerCodepoint, registerNode.glyphIndex || 0,
+                  registerLayer, registerNodeIndex);
+                for (var notch = 0; notch < 12; notch++) if ((checksumValue >> (notch % 8)) & 1) {
+                  var notchAngle = notch * Math.PI * 2 / 12;
+                  ctx.beginPath();
+                  ctx.moveTo(Math.cos(notchAngle) * sealRadius * 1.08, Math.sin(notchAngle) * sealRadius * 1.08);
+                  ctx.lineTo(Math.cos(notchAngle) * sealRadius * 1.42, Math.sin(notchAngle) * sealRadius * 1.42);
+                  ctx.stroke();
+                }
+              } else {
+                // Unicode register: plane/block brackets derived from the
+                // scalar value form an indexed manuscript tab.
+                var tabWidth = fontSize * 3.8;
+                var tabHeight = fontSize * 1.15;
+                ctx.beginPath();
+                ctx.moveTo(-tabWidth * 0.5, tabHeight * 0.5);
+                ctx.lineTo(-tabWidth * 0.5, -tabHeight * 0.5);
+                ctx.lineTo(tabWidth * 0.22, -tabHeight * 0.5);
+                ctx.lineTo(tabWidth * 0.5, 0);
+                ctx.lineTo(tabWidth * 0.22, tabHeight * 0.5);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.textAlign = 'center';
+                ctx.fillText('U+' + fixedHex(registerCodepoint), -tabWidth * 0.08, 0);
+                ctx.textAlign = 'left';
+              }
+              ctx.restore();
+            }
+          }
+        }
 
         var clusterX = 0, clusterY = 0;
         for (var c = 0; c < nodes.length; c++) { clusterX += nodes[c].x; clusterY += nodes[c].y; }
@@ -19872,7 +20598,7 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 21,
+          version: 22,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
           formCadence: {
@@ -19917,36 +20643,41 @@ type deformer</textarea>
             thornCrown: {
               color: params.thornColor, sourceMode: params.thornSourceMode, sourceOpacity: surfaceSourceOpacity('thornCrown'),
               opacity: surfaceOutputOpacity('thornCrown'), blend: surfaceBlendMode('thornCrown'),
+              grammar: params.thornGrammar, armor: params.thornArmor,
               length: params.thornLength, density: params.thornDensity, curl: params.thornCurl,
               stroke: params.thornStroke, branches: params.thornBranches
             },
             cipherLiturgy: {
               color: params.cipherColor, sourceMode: params.cipherSourceMode, sourceOpacity: surfaceSourceOpacity('cipherLiturgy'),
               opacity: surfaceOutputOpacity('cipherLiturgy'), blend: surfaceBlendMode('cipherLiturgy'),
+              dialect: params.cipherDialect, registers: params.cipherRegisters,
               scale: params.cipherScale, density: params.cipherDensity, orbit: params.cipherOrbit,
               drift: params.cipherDrift, callouts: params.cipherCallouts
             },
             boneScaffold: {
               color: params.boneColor, sourceMode: params.boneSourceMode, sourceOpacity: surfaceSourceOpacity('boneScaffold'),
               opacity: surfaceOutputOpacity('boneScaffold'), blend: surfaceBlendMode('boneScaffold'),
+              architecture: params.boneArchitecture, marrow: params.boneMarrow,
               spacing: params.boneCell, branching: params.boneBranching, weight: params.boneWeight,
               joint: params.boneJoint, warp: params.boneWarp
             },
             roseEngine: {
               color: params.roseColor, sourceMode: params.roseSourceMode, sourceOpacity: surfaceSourceOpacity('roseEngine'),
               opacity: surfaceOutputOpacity('roseEngine'), blend: surfaceBlendMode('roseEngine'),
+              core: params.roseCore, interlace: params.roseInterlace,
               petals: params.rosePetals, rings: params.roseRings, radius: params.roseRadius,
               warp: params.roseWarp, stroke: params.roseStroke
             },
             chromeReliquary: {
               color: params.chromeColor, sourceMode: params.chromeSourceMode, sourceOpacity: surfaceSourceOpacity('chromeReliquary'),
               opacity: surfaceOutputOpacity('chromeReliquary'), blend: surfaceBlendMode('chromeReliquary'),
-              bevel: params.chromeBevel, lightAngle: params.chromeAngle, bands: params.chromeBands,
+              voltage: params.chromeVoltage, bevel: params.chromeBevel, lightAngle: params.chromeAngle, bands: params.chromeBands,
               contrast: params.chromeContrast, warp: params.chromeWarp
             },
             ligatureCrypt: {
               color: params.ligatureColor, sourceMode: params.ligatureSourceMode, sourceOpacity: surfaceSourceOpacity('ligatureCrypt'),
               opacity: surfaceOutputOpacity('ligatureCrypt'), blend: surfaceBlendMode('ligatureCrypt'),
+              grammar: params.ligatureGrammar, constructionDetail: params.ligatureWeave,
               reach: params.ligatureReach, band: params.ligatureBand, rise: params.ligatureRise,
               counter: params.ligatureCounter, knot: params.ligatureKnot
             },
@@ -21513,31 +22244,42 @@ type deformer</textarea>
       bindRange('pSigilSymmetry', 'vSigilSymmetry', 'sigilSymmetry', f2, applyAllOperatorVisuals);
       bindRange('pSigilStroke', 'vSigilStroke', 'sigilStroke', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pSigilBarbs', 'vSigilBarbs', 'sigilBarbs', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pThornGrammar', 'thornGrammar', applyAllOperatorVisuals);
+      bindRange('pThornArmor', 'vThornArmor', 'thornArmor', f2, applyAllOperatorVisuals);
       bindRange('pThornLength', 'vThornLength', 'thornLength', fPx, applyAllOperatorVisuals);
       bindRange('pThornDensity', 'vThornDensity', 'thornDensity', f2, applyAllOperatorVisuals);
       bindRange('pThornCurl', 'vThornCurl', 'thornCurl', fSigned2, applyAllOperatorVisuals);
       bindRange('pThornStroke', 'vThornStroke', 'thornStroke', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pThornBranches', 'vThornBranches', 'thornBranches', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pCipherDialect', 'cipherDialect', applyAllOperatorVisuals);
+      bindRange('pCipherRegisters', 'vCipherRegisters', 'cipherRegisters', f2, applyAllOperatorVisuals);
       bindRange('pCipherScale', 'vCipherScale', 'cipherScale', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pCipherDensity', 'vCipherDensity', 'cipherDensity', f2, applyAllOperatorVisuals);
       bindRange('pCipherOrbit', 'vCipherOrbit', 'cipherOrbit', fPx, applyAllOperatorVisuals);
       bindRange('pCipherDrift', 'vCipherDrift', 'cipherDrift', fPx, applyAllOperatorVisuals);
       bindRange('pCipherCallouts', 'vCipherCallouts', 'cipherCallouts', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pBoneArchitecture', 'boneArchitecture', applyAllOperatorVisuals);
+      bindRange('pBoneMarrow', 'vBoneMarrow', 'boneMarrow', f2, applyAllOperatorVisuals);
       bindRange('pBoneCell', 'vBoneCell', 'boneCell', fPx, applyAllOperatorVisuals);
       bindRange('pBoneBranching', 'vBoneBranching', 'boneBranching', f2, applyAllOperatorVisuals);
       bindRange('pBoneWeight', 'vBoneWeight', 'boneWeight', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pBoneJoint', 'vBoneJoint', 'boneJoint', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pBoneWarp', 'vBoneWarp', 'boneWarp', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pRoseCore', 'roseCore', applyAllOperatorVisuals);
+      bindRange('pRoseInterlace', 'vRoseInterlace', 'roseInterlace', f2, applyAllOperatorVisuals);
       bindRange('pRosePetals', 'vRosePetals', 'rosePetals', f0, applyAllOperatorVisuals);
       bindRange('pRoseRings', 'vRoseRings', 'roseRings', f0, applyAllOperatorVisuals);
       bindRange('pRoseRadius', 'vRoseRadius', 'roseRadius', fPx, applyAllOperatorVisuals);
       bindRange('pRoseWarp', 'vRoseWarp', 'roseWarp', fSigned2, applyAllOperatorVisuals);
       bindRange('pRoseStroke', 'vRoseStroke', 'roseStroke', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
+      bindRange('pChromeVoltage', 'vChromeVoltage', 'chromeVoltage', f2, applyAllOperatorVisuals);
       bindRange('pChromeBevel', 'vChromeBevel', 'chromeBevel', fPx, applyAllOperatorVisuals);
       bindRange('pChromeAngle', 'vChromeAngle', 'chromeAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pChromeBands', 'vChromeBands', 'chromeBands', f0, applyAllOperatorVisuals);
       bindRange('pChromeContrast', 'vChromeContrast', 'chromeContrast', f2, applyAllOperatorVisuals);
       bindRange('pChromeWarp', 'vChromeWarp', 'chromeWarp', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pLigatureGrammar', 'ligatureGrammar', applyAllOperatorVisuals);
+      bindRange('pLigatureWeave', 'vLigatureWeave', 'ligatureWeave', f2, applyAllOperatorVisuals);
       bindRange('pLigatureReach', 'vLigatureReach', 'ligatureReach', fPx, applyAllOperatorVisuals);
       bindRange('pLigatureBand', 'vLigatureBand', 'ligatureBand', fPx, applyAllOperatorVisuals);
       bindRange('pLigatureRise', 'vLigatureRise', 'ligatureRise', fSigned2, applyAllOperatorVisuals);
@@ -23758,7 +24500,7 @@ type deformer</textarea>
         if (raw.letters != null && !Array.isArray(raw.letters)) return null;
         if ((raw.letters || []).length > 200000) return null;
         return {
-          version: Math.min(15, Math.max(1, Math.round(Number(raw.version) || 15))),
+          version: Math.min(22, Math.max(1, Math.round(Number(raw.version) || 22))),
           text: raw.text,
           params: cloneKnownParams(raw.params),
           batchProfiles: raw.batchProfiles && typeof raw.batchProfiles === 'object'
@@ -23812,7 +24554,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 21,
+          version: 22,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -24113,7 +24855,7 @@ type deformer</textarea>
         var preservedMemory = cloneLookMemory();
         preservedMemory.active = activeIndex;
         var loaded = loadProject({
-          app: 'type-deformer', version: 21,
+          app: 'type-deformer', version: state.version,
           text: state.text, params: state.params,
           batchProfiles: state.batchProfiles,
           composition: state.composition,
@@ -24271,7 +25013,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 21,
+          version: 22,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -24324,7 +25066,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 21) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 22) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -24349,6 +25091,22 @@ type deformer</textarea>
           if (!Object.prototype.hasOwnProperty.call(data.params, 'skewPattern')) params.skewPattern = 'uniform';
           if (!Object.prototype.hasOwnProperty.call(data.params, 'baselinePattern')) params.baselinePattern = 'uniform';
           if (!Object.prototype.hasOwnProperty.call(data.params, 'mirrorPattern')) params.mirrorPattern = 'all';
+        }
+        // v21 and earlier did not expose the six legacy Operator grammars.
+        // Preserve their exact restrained/ribbon render paths while new work
+        // starts with structurally distinct defaults.
+        if (Number(data.version || 0) < 22) {
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'thornGrammar')) params.thornGrammar = 'hybrid';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'thornArmor')) params.thornArmor = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'cipherDialect')) params.cipherDialect = 'mixed';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'cipherRegisters')) params.cipherRegisters = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'boneArchitecture')) params.boneArchitecture = 'adaptive';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'boneMarrow')) params.boneMarrow = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'roseCore')) params.roseCore = 'auto';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'roseInterlace')) params.roseInterlace = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'chromeVoltage')) params.chromeVoltage = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'ligatureGrammar')) params.ligatureGrammar = 'ribbon';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'ligatureWeave')) params.ligatureWeave = 0;
         }
         // v12 and earlier stored only three source-text presets. Preserve the
         // exact old look while upgrading to the continuous 0–100% control.
@@ -24919,7 +25677,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 21, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 22, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
