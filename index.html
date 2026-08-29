@@ -3251,18 +3251,33 @@ type deformer</textarea>
         <p class="note">字形を切片や複製へ分けず、一枚の弾性膜として引き、捩り、中央を収縮／膨張させます。TEXTをHideにすると連続変形した輪郭だけを置換字形として使えます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="rotate" hidden>
-        <div class="row"><label for="pRotateAngle">Target angle</label><input type="range" id="pRotateAngle" min="-180" max="180" step="1" value="60"><span class="val" id="vRotateAngle">60°</span></div>
+        <div class="row"><label for="pRotateAngle">Turn</label><input type="range" id="pRotateAngle" min="-720" max="720" step="2" value="60"><span class="val" id="vRotateAngle">60°</span></div>
+        <div class="row"><label for="pRotatePattern">Cadence</label><select id="pRotatePattern"><option value="uniform">Uniform</option><option value="alternate">Alternating</option><option value="wave" selected>Wave</option><option value="unicode">Unicode</option></select></div>
+        <div class="row"><label for="pRotateCycles">Cycles / line</label><input type="range" id="pRotateCycles" min="0.25" max="16" step="0.25" value="1.5"><span class="val" id="vRotateCycles">1.50×</span></div>
+        <div class="row"><label for="pRotatePhase">Phase</label><input type="range" id="pRotatePhase" min="-1" max="1" step="0.01" value="0"><span class="val" id="vRotatePhase">0.00</span></div>
+        <p class="note">一様回転だけでなく、行全体を横切る交互・波・Unicode由来の回転リズムを作ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="skew" hidden>
-        <div class="row"><label for="pSkewX">Skew X</label><input type="range" id="pSkewX" min="-70" max="70" step="1" value="32"><span class="val" id="vSkewX">32°</span></div>
-        <div class="row"><label for="pSkewY">Skew Y</label><input type="range" id="pSkewY" min="-70" max="70" step="1" value="0"><span class="val" id="vSkewY">0°</span></div>
+        <div class="row"><label for="pSkewX">Shear X</label><input type="range" id="pSkewX" min="-85" max="85" step="1" value="32"><span class="val" id="vSkewX">32°</span></div>
+        <div class="row"><label for="pSkewY">Shear Y</label><input type="range" id="pSkewY" min="-85" max="85" step="1" value="0"><span class="val" id="vSkewY">0°</span></div>
+        <div class="row"><label for="pSkewPattern">Shear field</label><select id="pSkewPattern"><option value="uniform">Uniform</option><option value="alternate" selected>Counter-shear</option><option value="wave">Wave</option><option value="unicode">Unicode</option></select></div>
+        <div class="row"><label for="pSkewCycles">Cycles / line</label><input type="range" id="pSkewCycles" min="0.25" max="16" step="0.25" value="1.25"><span class="val" id="vSkewCycles">1.25×</span></div>
+        <div class="row"><label for="pSkewPhase">Phase</label><input type="range" id="pSkewPhase" min="-1" max="1" step="0.01" value="0"><span class="val" id="vSkewPhase">0.00</span></div>
+        <p class="note">XとYを同じ斜体へ揃えず、文字ごとに反対方向または位相差を持つshear fieldへ変えます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="baselineShift" hidden>
-        <div class="row"><label for="pBaselineShift">Shift</label><input type="range" id="pBaselineShift" min="-3" max="3" step="0.05" value="1"><span class="val" id="vBaselineShift">1.00em</span></div>
+        <div class="row"><label for="pBaselineShift">Travel</label><input type="range" id="pBaselineShift" min="-12" max="12" step="0.05" value="1"><span class="val" id="vBaselineShift">1.00em</span></div>
+        <div class="row"><label for="pBaselinePattern">Baseline path</label><select id="pBaselinePattern"><option value="uniform">Uniform</option><option value="wave" selected>Wave</option><option value="triangle">Zigzag</option><option value="unicode">Unicode</option></select></div>
+        <div class="row"><label for="pBaselineCycles">Cycles / line</label><input type="range" id="pBaselineCycles" min="0.25" max="16" step="0.25" value="1"><span class="val" id="vBaselineCycles">1.00×</span></div>
+        <div class="row"><label for="pBaselinePhase">Phase</label><input type="range" id="pBaselinePhase" min="-1" max="1" step="0.01" value="0"><span class="val" id="vBaselinePhase">0.00</span></div>
+        <p class="note">全体移動ではなく、横組みは上下、縦組みは左右へ文字列の基線そのものを曲げます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="mirror" hidden>
         <div class="row"><label for="pMirrorX">Mirror X</label><input type="checkbox" id="pMirrorX" checked><label for="pMirrorY">Mirror Y</label><input type="checkbox" id="pMirrorY"></div>
-        <p class="note">強度0.5で一度ゼロ幅／高さに潰れ、1.0で完全に反転します。</p>
+        <div class="row"><label for="pMirrorPattern">Grammar</label><select id="pMirrorPattern"><option value="all">All glyphs</option><option value="alternate" selected>Alternate glyphs</option><option value="blocks">Alternating blocks</option><option value="words">Alternate words</option><option value="unicode">Unicode</option></select></div>
+        <div class="row"><label for="pMirrorSpan">Block span</label><input type="range" id="pMirrorSpan" min="1" max="16" step="1" value="2"><span class="val" id="vMirrorSpan">2</span></div>
+        <div class="row"><label for="pMirrorPhase">Offset</label><input type="range" id="pMirrorPhase" min="0" max="15" step="1" value="0"><span class="val" id="vMirrorPhase">0</span></div>
+        <p class="note">反転する文字群を文法として選びます。対象文字だけが強度0.5で潰れ、1.0で完全に反転します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="misregistration" hidden>
         <div class="row"><label for="pMisregX">Offset X</label><input type="range" id="pMisregX" min="-40" max="40" step="1" value="8"><span class="val" id="vMisregX">8px</span></div>
@@ -5231,10 +5246,10 @@ type deformer</textarea>
         confuse: '元の文字種を手掛かりに別の字形へ置換し、読める状態から文字化けまで段階的に変えます。',
         stretch: '文字の横幅と縦幅を独立に伸縮し、基本的なプロポーションを変えます。',
         sinewTorque: '字形を一枚の弾性膜として引き・捩り・収縮させ、切れ目のない置換輪郭を作ります。',
-        rotate: '文字ごとの回転量を変え、整列から不規則な傾きまで作ります。',
-        skew: '字形を水平・垂直方向へ傾け、斜体やせん断した形を作ります。',
-        baselineShift: '文字を基準線から上下へ動かし、行のリズムや跳ねを作ります。',
-        mirror: '文字を左右・上下へ反転し、鏡像や対称的な文字列を作ります。',
+        rotate: '一様・交互・波・Unicodeのcadenceで、文字列を横切る回転リズムを作ります。',
+        skew: 'X／Yのshearを文字ごとの反対方向や位相差へ配り、斜体ではない変形場を作ります。',
+        baselineShift: '横組みは上下、縦組みは左右へ基線を波・zigzag・Unicode経路として曲げます。',
+        mirror: '全字・交互・block・word・Unicodeから反転対象を選び、鏡像の文法を組みます。',
         plotterTrace: '輪郭を一続きの描画経路へ変換し、実線とペン移動の軌跡を重ねます。',
         webbing: '適用した複数文字の間へ重力を持つ繊維を張り、文字間ネットワークを作ります。',
         softBlob: '文字群を栄養核として、粘菌状の膜・輸送管・遠方へ広がる胞子場を生成します。',
@@ -6217,11 +6232,23 @@ type deformer</textarea>
         randomness: 0,
         rotation: 0,
         rotateAngle: 60,
+        rotatePattern: 'wave',
+        rotateCycles: 1.5,
+        rotatePhase: 0,
         skewX: 32,
         skewY: 0,
+        skewPattern: 'alternate',
+        skewCycles: 1.25,
+        skewPhase: 0,
         baselineShift: 1,
+        baselinePattern: 'wave',
+        baselineCycles: 1,
+        baselinePhase: 0,
         mirrorX: 1,
         mirrorY: 0,
+        mirrorPattern: 'alternate',
+        mirrorSpan: 2,
+        mirrorPhase: 0,
         misregX: 8,
         misregY: -5,
         misregColorA: '#c41f1f',
@@ -6528,7 +6555,10 @@ type deformer</textarea>
       };
       var BATCH_PARAM_KEYS = [
         'stretchX', 'stretchY', 'radius', 'ease', 'geoRatio', 'randomness', 'rotation',
-        'rotateAngle', 'skewX', 'skewY', 'baselineShift', 'mirrorX', 'mirrorY',
+        'rotateAngle', 'rotatePattern', 'rotateCycles', 'rotatePhase',
+        'skewX', 'skewY', 'skewPattern', 'skewCycles', 'skewPhase',
+        'baselineShift', 'baselinePattern', 'baselineCycles', 'baselinePhase',
+        'mirrorX', 'mirrorY', 'mirrorPattern', 'mirrorSpan', 'mirrorPhase',
         'misregX', 'misregY', 'moshShift', 'moshBlock', 'moshChroma', 'moshCrush', 'moshSmear', 'moshTear', 'moshHold',
         'blobPull', 'blobScale',
         'traceDensity', 'traceDefinition', 'traceStroke', 'traceJitter', 'traceLift',
@@ -6567,8 +6597,10 @@ type deformer</textarea>
       var BATCH_PARAM_LIMITS = {
         stretchX: [-2, 8], stretchY: [-2, 8], radius: [15, 180], ease: [0.02, 0.3],
         geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45],
-        rotateAngle: [-180, 180], skewX: [-70, 70], skewY: [-70, 70],
-        baselineShift: [-3, 3], mirrorX: [0, 1], mirrorY: [0, 1],
+        rotateAngle: [-720, 720], rotateCycles: [0.25, 16], rotatePhase: [-1, 1],
+        skewX: [-85, 85], skewY: [-85, 85], skewCycles: [0.25, 16], skewPhase: [-1, 1],
+        baselineShift: [-12, 12], baselineCycles: [0.25, 16], baselinePhase: [-1, 1],
+        mirrorX: [0, 1], mirrorY: [0, 1], mirrorSpan: [1, 16], mirrorPhase: [0, 15],
         misregX: [-40, 40], misregY: [-40, 40],
         moshShift: [0, 320], moshBlock: [1, 8], moshChroma: [0, 90], moshCrush: [0, 1],
         moshSmear: [0, 6], moshTear: [0, 1], moshHold: [1, 12],
@@ -6607,6 +6639,12 @@ type deformer</textarea>
         copyGenerations: [1, 48], copyExposure: [-1.5, 1.5], copyMotion: [-640, 640], copyErosion: [0, 24], copyToner: [0, 5], copyDust: [0, 4],
         slitWidth: [1, 96], slitTravel: [-720, 720], slitFrequency: [0.25, 16], slitMemory: [1, 64], slitSpeed: [0, 4],
         confuseDepth: [0, 1]
+      };
+      var BATCH_PARAM_OPTIONS = {
+        rotatePattern: ['uniform', 'alternate', 'wave', 'unicode'],
+        skewPattern: ['uniform', 'alternate', 'wave', 'unicode'],
+        baselinePattern: ['uniform', 'wave', 'triangle', 'unicode'],
+        mirrorPattern: ['all', 'alternate', 'blocks', 'words', 'unicode']
       };
       var PROOF_AXIS_DEFS = {
         plotterTrace: [{ key: 'traceDensity', label: 'Density', span: 0.42 }, { key: 'traceJitter', label: 'Drift', span: 0.22, unit: 'px' }],
@@ -6673,6 +6711,11 @@ type deformer</textarea>
           var profile = {};
           for (var j = 0; j < BATCH_PARAM_KEYS.length; j++) {
             var key = BATCH_PARAM_KEYS[j];
+            var options = BATCH_PARAM_OPTIONS[key];
+            if (options) {
+              profile[key] = options.indexOf(source[key]) !== -1 ? source[key] : params[key];
+              continue;
+            }
             var limits = BATCH_PARAM_LIMITS[key];
             var value = Number(source[key]);
             if (!isFinite(value)) value = params[key];
@@ -6711,12 +6754,24 @@ type deformer</textarea>
         clampParam('geoRatio', 0, 1, false);
         clampParam('randomness', 0, 2, false);
         clampParam('rotation', 0, 45, false);
-        clampParam('rotateAngle', -180, 180, false);
-        clampParam('skewX', -70, 70, false);
-        clampParam('skewY', -70, 70, false);
-        clampParam('baselineShift', -3, 3, false);
+        clampParam('rotateAngle', -720, 720, false);
+        chooseParam('rotatePattern', BATCH_PARAM_OPTIONS.rotatePattern);
+        clampParam('rotateCycles', 0.25, 16, false);
+        clampParam('rotatePhase', -1, 1, false);
+        clampParam('skewX', -85, 85, false);
+        clampParam('skewY', -85, 85, false);
+        chooseParam('skewPattern', BATCH_PARAM_OPTIONS.skewPattern);
+        clampParam('skewCycles', 0.25, 16, false);
+        clampParam('skewPhase', -1, 1, false);
+        clampParam('baselineShift', -12, 12, false);
+        chooseParam('baselinePattern', BATCH_PARAM_OPTIONS.baselinePattern);
+        clampParam('baselineCycles', 0.25, 16, false);
+        clampParam('baselinePhase', -1, 1, false);
         clampParam('mirrorX', 0, 1, true);
         clampParam('mirrorY', 0, 1, true);
+        chooseParam('mirrorPattern', BATCH_PARAM_OPTIONS.mirrorPattern);
+        clampParam('mirrorSpan', 1, 16, true);
+        clampParam('mirrorPhase', 0, 15, true);
         clampParam('misregX', -40, 40, false);
         clampParam('misregY', -40, 40, false);
         clampParam('moshShift', 0, 320, false);
@@ -7543,16 +7598,24 @@ type deformer</textarea>
         lineEnds = [];
         var lines = text.replace(/\r\n?/g, '\n').split('\n');
         var globalIndex = 0;
+        var globalWordIndex = 0;
         var frag = document.createDocumentFragment();
         for (var li = 0; li < lines.length; li++) {
           var p = document.createElement('p');
           var tokens = tokenizeLine(lines[li]);
           for (var j = 0; j < tokens.length; j++) {
             var tok = tokens[j];
-            if (tok.space) { p.appendChild(document.createTextNode(tok.text)); continue; }
+            if (tok.space) {
+              p.appendChild(document.createTextNode(tok.text));
+              globalWordIndex++;
+              continue;
+            }
             var span = document.createElement('span');
             span.className = 'c' + (charInfo(tok.text, tok.text.codePointAt(0)).punct ? ' punct' : '');
             span.dataset.j = j;
+            span.dataset.line = li;
+            span.dataset.lineLength = tokens.length;
+            span.dataset.word = globalWordIndex;
             span.dataset.cp = tok.text.codePointAt(0);
             span.dataset.renderText = tok.text;
             span.dataset.sourceText = tok.text;
@@ -7564,6 +7627,7 @@ type deformer</textarea>
           if (!tokens.length) p.appendChild(document.createElement('br'));
           frag.appendChild(p);
           lineEnds.push(letters.length);
+          globalWordIndex++;
         }
         stageWorld.appendChild(frag);
         if (gridLinesEl) stageWorld.insertBefore(gridLinesEl, stageWorld.firstChild);
@@ -7680,9 +7744,11 @@ type deformer</textarea>
 
       function rebuildMetrics() {
         metricByElement = new WeakMap();
-        metrics = letters.map(function (el) {
+        metrics = letters.map(function (el, sourceIndex) {
           var metric = {
             el: el,
+            sourceIndex: sourceIndex,
+            sourceCount: letters.length,
             relX: 0, relY: 0,
             seedX: 0, seedY: 0, mode: 'organic', stepX: 0.28, stepY: 0.34, blend: 0.32,
             batchKey: el.dataset.batch || '',
@@ -8194,6 +8260,51 @@ type deformer</textarea>
           : { x: x, y: y };
       }
 
+      // FORM operators share a deterministic selector field while retaining
+      // different output grammars. The field is evaluated from source order,
+      // line position and Unicode — never from the currently substituted glyph.
+      function formFieldContext(info) {
+        var el = info.el;
+        var index = Math.max(0, parseInt(el.dataset.j, 10) || 0);
+        var total = Math.max(1, parseInt(el.dataset.lineLength, 10) || info.sourceCount || 1);
+        return {
+          index: index,
+          position: total > 1 ? index / (total - 1) : 0,
+          line: Math.max(0, parseInt(el.dataset.line, 10) || 0),
+          word: Math.max(0, parseInt(el.dataset.word, 10) || 0),
+          codepoint: Math.max(1, parseInt(el.dataset.cp, 10) || 1)
+        };
+      }
+
+      function formFieldSignal(info, pattern, cycles, phase) {
+        if (pattern === 'uniform') return 1;
+        var context = formFieldContext(info);
+        cycles = Math.max(0.25, Math.min(16, Number(cycles) || 1));
+        phase = isFinite(Number(phase)) ? Number(phase) : 0;
+        var travel = context.position * cycles + phase;
+        if (pattern === 'alternate') {
+          var alternateOffset = Math.round(phase * 8);
+          return (context.index + alternateOffset) % 2 === 0 ? 1 : -1;
+        }
+        if (pattern === 'triangle') return 1 - 4 * Math.abs(Math.round(travel) - travel);
+        if (pattern === 'unicode') {
+          return Math.sin(((context.codepoint % 4096) * 0.017 + context.line * 0.37) * cycles + phase * Math.PI * 2);
+        }
+        return Math.cos(travel * Math.PI * 2);
+      }
+
+      function mirrorGrammarMask(info, pattern, span, phase) {
+        if (pattern === 'all') return 1;
+        var context = formFieldContext(info);
+        span = Math.max(1, Math.min(16, Math.round(Number(span) || 1)));
+        phase = Math.max(0, Math.min(15, Math.round(Number(phase) || 0)));
+        if (pattern === 'alternate') return (context.index + phase) % 2 === 0 ? 1 : 0;
+        if (pattern === 'blocks') return Math.floor((context.index + phase) / span) % 2 === 0 ? 1 : 0;
+        if (pattern === 'words') return (context.word + phase) % 2 === 0 ? 1 : 0;
+        if (pattern === 'unicode') return hash(context.index + phase, context.codepoint % 997, params.seed + span * 37 + 2549) >= 0.5 ? 1 : 0;
+        return 1;
+      }
+
       function glyphLinearMatrix(el) {
         var st = el.style;
         function ownNumber(name, fallback) { var value = parseFloat(st.getPropertyValue(name)); return isFinite(value) ? value : fallback; }
@@ -8464,23 +8575,30 @@ type deformer</textarea>
         }
 
         var rotate = operatorState(info, 'rotate');
-        var rotateValue = numericManual(rotate, deform.rotateAngle * rotate.current);
+        var rotateSignal = rotate.manual != null ? 1 : formFieldSignal(info, deform.rotatePattern, deform.rotateCycles, deform.rotatePhase);
+        var rotateValue = numericManual(rotate, deform.rotateAngle * rotate.current * rotateSignal);
         style.setProperty('--op-rotate', rotateValue.toFixed(3) + 'deg');
 
         var skew = operatorState(info, 'skew');
-        var skewValue = pairManual(skew, deform.skewX * skew.current, deform.skewY * skew.current);
+        var skewSignalX = skew.manual != null ? 1 : formFieldSignal(info, deform.skewPattern, deform.skewCycles, deform.skewPhase);
+        var skewSignalY = skew.manual != null || deform.skewPattern === 'uniform'
+          ? skewSignalX
+          : formFieldSignal(info, deform.skewPattern, deform.skewCycles, deform.skewPhase + 0.25);
+        var skewValue = pairManual(skew, deform.skewX * skew.current * skewSignalX, deform.skewY * skew.current * skewSignalY);
         style.setProperty('--op-skew-x', skewValue.x.toFixed(3) + 'deg');
         style.setProperty('--op-skew-y', skewValue.y.toFixed(3) + 'deg');
 
         var baseline = operatorState(info, 'baselineShift');
-        var baselineValue = numericManual(baseline, deform.baselineShift * baseline.current);
+        var baselineSignal = baseline.manual != null ? 1 : formFieldSignal(info, deform.baselinePattern, deform.baselineCycles, deform.baselinePhase);
+        var baselineValue = numericManual(baseline, deform.baselineShift * baseline.current * baselineSignal);
         style.setProperty('--op-baseline-x', (params.vertical ? baselineValue : 0).toFixed(3) + 'em');
         style.setProperty('--op-baseline-y', (params.vertical ? 0 : -baselineValue).toFixed(3) + 'em');
 
         var mirror = operatorState(info, 'mirror');
+        var mirrorMask = mirror.manual != null ? 1 : mirrorGrammarMask(info, deform.mirrorPattern, deform.mirrorSpan, deform.mirrorPhase);
         var mirrorValue = pairManual(mirror,
-          deform.mirrorX ? 1 - 2 * mirror.current : 1,
-          deform.mirrorY ? 1 - 2 * mirror.current : 1);
+          deform.mirrorX ? 1 - 2 * mirror.current * mirrorMask : 1,
+          deform.mirrorY ? 1 - 2 * mirror.current * mirrorMask : 1);
         style.setProperty('--op-mirror-x', Math.max(-1, Math.min(1, mirrorValue.x)).toFixed(4));
         style.setProperty('--op-mirror-y', Math.max(-1, Math.min(1, mirrorValue.y)).toFixed(4));
 
@@ -9262,12 +9380,12 @@ type deformer</textarea>
         } else if (id === 'confuse') {
           state.manual = Math.max(0, Math.min(1, editDrag.base + dx / 220));
         } else if (id === 'rotate') {
-          state.manual = Math.max(-360, Math.min(360, editDrag.base + dx));
+          state.manual = Math.max(-720, Math.min(720, editDrag.base + dx));
         } else if (id === 'skew') {
           state.manual = { x: Math.max(-85, Math.min(85, editDrag.base.x + dx * 0.5)), y: Math.max(-85, Math.min(85, editDrag.base.y - dy * 0.5)) };
         } else if (id === 'baselineShift') {
           var logicalDelta = (params.vertical ? dx : -dy) / Math.max(1, params.fontSize);
-          state.manual = Math.max(-5, Math.min(5, editDrag.base + logicalDelta));
+          state.manual = Math.max(-12, Math.min(12, editDrag.base + logicalDelta));
         } else if (id === 'mirror') {
           state.manual = { x: Math.max(-1, Math.min(1, editDrag.base.x - dx / 60)), y: Math.max(-1, Math.min(1, editDrag.base.y + dy / 60)) };
         } else if (id === 'dataMosh') {
@@ -9421,9 +9539,9 @@ type deformer</textarea>
           selectedM.manualX = Math.min(8, Math.max(0.25, base.x + dx));
           selectedM.manualY = Math.min(9, Math.max(0.25, base.y + dy));
         } else if (id === 'confuse') state.manual = Math.max(0, Math.min(1, base + dx + dy));
-        else if (id === 'rotate') state.manual = Math.max(-360, Math.min(360, base + dx * 20));
+        else if (id === 'rotate') state.manual = Math.max(-720, Math.min(720, base + dx * 20));
         else if (id === 'skew') state.manual = { x: Math.max(-85, Math.min(85, base.x + dx * 20)), y: Math.max(-85, Math.min(85, base.y + dy * 20)) };
-        else if (id === 'baselineShift') state.manual = Math.max(-5, Math.min(5, base + (params.vertical ? dx : dy)));
+        else if (id === 'baselineShift') state.manual = Math.max(-12, Math.min(12, base + (params.vertical ? dx : dy)));
         else if (id === 'mirror') state.manual = { x: Math.max(-1, Math.min(1, base.x - dx)), y: Math.max(-1, Math.min(1, base.y - dy)) };
         else if (id === 'dataMosh') state.manual = { x: Math.max(-640, Math.min(640, base.x + dx * 20)), y: Math.max(-640, Math.min(640, base.y - dy * 20)) };
         else if (id === 'blobTrack') state.manual = { x: Math.max(-2000, Math.min(2000, base.x + dx * 20)), y: Math.max(-2000, Math.min(2000, base.y - dy * 20)) };
@@ -9597,8 +9715,8 @@ type deformer</textarea>
       function normalizeOperatorManual(id, value) {
         if (id === 'confuse') return clampFinite(value, 0, 1, 0);
         if (isSurfaceOperator(id)) return clampFinite(value, 0, 1, 0);
-        if (id === 'rotate') return clampFinite(value, -360, 360, 0);
-        if (id === 'baselineShift') return clampFinite(value, -5, 5, 0);
+        if (id === 'rotate') return clampFinite(value, -720, 720, 0);
+        if (id === 'baselineShift') return clampFinite(value, -12, 12, 0);
         var pair = value && typeof value === 'object' ? value : {};
         if (id === 'skew') return { x: clampFinite(pair.x, -85, 85, 0), y: clampFinite(pair.y, -85, 85, 0) };
         if (id === 'mirror') return { x: clampFinite(pair.x, -1, 1, 1), y: clampFinite(pair.y, -1, 1, 1) };
@@ -19754,9 +19872,15 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 20,
+          version: 21,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
+          formCadence: {
+            rotate: { pattern: params.rotatePattern, cycles: params.rotateCycles, phase: params.rotatePhase },
+            skew: { pattern: params.skewPattern, cycles: params.skewCycles, phase: params.skewPhase },
+            baseline: { pattern: params.baselinePattern, cycles: params.baselineCycles, phase: params.baselinePhase },
+            mirror: { pattern: params.mirrorPattern, span: params.mirrorSpan, offset: params.mirrorPhase }
+          },
           surfaceMixer: { order: surfaceRenderOrder(), direction: 'back-to-front' },
           surfaceEffects: {
             plotterTrace: {
@@ -20024,6 +20148,7 @@ type deformer</textarea>
 
       /* ---------------- UI wiring ---------------- */
       var rangeControls = [];
+      var profileSelectControls = [];
       var batchProfileSelect = document.getElementById('pBatchProfile');
       var batchProfileStatus = document.getElementById('batchProfileStatus');
       var btnBatchProfileReset = document.getElementById('btnBatchProfileReset');
@@ -21133,6 +21258,10 @@ type deformer</textarea>
           control.input.value = source[control.key];
           control.val.textContent = control.fmt(source[control.key]);
         }
+        for (var selectIndex = 0; selectIndex < profileSelectControls.length; selectIndex++) {
+          var selectControl = profileSelectControls[selectIndex];
+          selectControl.input.value = source[selectControl.key];
+        }
         mirrorXInput.checked = !!source.mirrorX;
         mirrorYInput.checked = !!source.mirrorY;
         var inherited = activeBatchProfile !== 'all' && !batchProfiles[activeBatchProfile];
@@ -21270,6 +21399,16 @@ type deformer</textarea>
         rangeControls.push({ input: input, val: val, key: key, fmt: fmt, profiled: profiled });
       }
 
+      function bindProfileSelect(id, key, onChange) {
+        var input = document.getElementById(id);
+        input.addEventListener('change', function () {
+          editableBatchProfile()[key] = input.value;
+          refreshBatchProfileControls();
+          if (onChange) onChange();
+        });
+        profileSelectControls.push({ input: input, key: key });
+      }
+
       var f2 = function (v) { return v.toFixed(2); };
       var f1 = function (v) { return v.toFixed(1); };
       var f0 = function (v) { return String(Math.round(v)); };
@@ -21277,6 +21416,7 @@ type deformer</textarea>
       var fEm = function (v) { return v.toFixed(2) + 'em'; };
       var fPx = function (v) { return Math.round(v) + 'px'; };
       var fSigned2 = function (v) { return (v > 0 ? '+' : '') + v.toFixed(2); };
+      var fCycles = function (v) { return v.toFixed(2) + '×'; };
 
       // rAF-throttled full recompute for slider drags (one pass per frame,
       // not one per input event)
@@ -21315,9 +21455,21 @@ type deformer</textarea>
       bindRange('pRandom', 'vRandom', 'randomness', f2, queueApplyRandom);
       bindRange('pRot', 'vRot', 'rotation', f1, queueApplyRandom);
       bindRange('pRotateAngle', 'vRotateAngle', 'rotateAngle', fDeg, applyAllOperatorVisuals);
+      bindProfileSelect('pRotatePattern', 'rotatePattern', applyAllOperatorVisuals);
+      bindRange('pRotateCycles', 'vRotateCycles', 'rotateCycles', fCycles, applyAllOperatorVisuals);
+      bindRange('pRotatePhase', 'vRotatePhase', 'rotatePhase', fSigned2, applyAllOperatorVisuals);
       bindRange('pSkewX', 'vSkewX', 'skewX', fDeg, applyAllOperatorVisuals);
       bindRange('pSkewY', 'vSkewY', 'skewY', fDeg, applyAllOperatorVisuals);
+      bindProfileSelect('pSkewPattern', 'skewPattern', applyAllOperatorVisuals);
+      bindRange('pSkewCycles', 'vSkewCycles', 'skewCycles', fCycles, applyAllOperatorVisuals);
+      bindRange('pSkewPhase', 'vSkewPhase', 'skewPhase', fSigned2, applyAllOperatorVisuals);
       bindRange('pBaselineShift', 'vBaselineShift', 'baselineShift', fEm, applyAllOperatorVisuals);
+      bindProfileSelect('pBaselinePattern', 'baselinePattern', applyAllOperatorVisuals);
+      bindRange('pBaselineCycles', 'vBaselineCycles', 'baselineCycles', fCycles, applyAllOperatorVisuals);
+      bindRange('pBaselinePhase', 'vBaselinePhase', 'baselinePhase', fSigned2, applyAllOperatorVisuals);
+      bindProfileSelect('pMirrorPattern', 'mirrorPattern', applyAllOperatorVisuals);
+      bindRange('pMirrorSpan', 'vMirrorSpan', 'mirrorSpan', f0, applyAllOperatorVisuals);
+      bindRange('pMirrorPhase', 'vMirrorPhase', 'mirrorPhase', f0, applyAllOperatorVisuals);
       bindRange('pMisregX', 'vMisregX', 'misregX', fPx, applyAllOperatorVisuals);
       bindRange('pMisregY', 'vMisregY', 'misregY', fPx, applyAllOperatorVisuals);
       bindRange('pMoshShift', 'vMoshShift', 'moshShift', fPx, applyAllOperatorVisuals);
@@ -23505,6 +23657,10 @@ type deformer</textarea>
           c.input.value = source[c.key];
           c.val.textContent = c.fmt(source[c.key]);
         }
+        for (var selectIndex = 0; selectIndex < profileSelectControls.length; selectIndex++) {
+          var selectControl = profileSelectControls[selectIndex];
+          selectControl.input.value = batchProfileForKey(activeBatchProfile)[selectControl.key];
+        }
         var isPreset = false;
         for (var j = 0; j < fontSelect.options.length; j++) {
           if (fontSelect.options[j].value === params.fontFamily) { isPreset = true; break; }
@@ -23656,7 +23812,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 20,
+          version: 21,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -23957,7 +24113,7 @@ type deformer</textarea>
         var preservedMemory = cloneLookMemory();
         preservedMemory.active = activeIndex;
         var loaded = loadProject({
-          app: 'type-deformer', version: 20,
+          app: 'type-deformer', version: 21,
           text: state.text, params: state.params,
           batchProfiles: state.batchProfiles,
           composition: state.composition,
@@ -24115,7 +24271,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 20,
+          version: 21,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -24168,7 +24324,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 20) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 21) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -24184,6 +24340,15 @@ type deformer</textarea>
         for (var defaultParam in params) params[defaultParam] = PARAM_DEFAULTS[defaultParam];
         for (var k in params) {
           if (Object.prototype.hasOwnProperty.call(data.params, k)) params[k] = data.params[k];
+        }
+        // v20 and earlier used one uniform value for each foundational FORM
+        // transform. Preserve that exact look while new projects start with
+        // source-driven cadence defaults.
+        if (Number(data.version || 0) < 21) {
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'rotatePattern')) params.rotatePattern = 'uniform';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'skewPattern')) params.skewPattern = 'uniform';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'baselinePattern')) params.baselinePattern = 'uniform';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'mirrorPattern')) params.mirrorPattern = 'all';
         }
         // v12 and earlier stored only three source-text presets. Preserve the
         // exact old look while upgrading to the continuous 0–100% control.
@@ -24754,7 +24919,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 20, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 21, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);

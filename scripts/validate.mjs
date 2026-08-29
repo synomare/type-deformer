@@ -214,6 +214,10 @@ if (html) {
   }
   const extremeRangeChecks = [
     ['pStretchX', '8'], ['pStretchY', '8'],
+    ['pRotateAngle', '720'], ['pRotateCycles', '16'], ['pRotatePhase', '1'],
+    ['pSkewX', '85'], ['pSkewY', '85'], ['pSkewCycles', '16'], ['pSkewPhase', '1'],
+    ['pBaselineShift', '12'], ['pBaselineCycles', '16'], ['pBaselinePhase', '1'],
+    ['pMirrorSpan', '16'], ['pMirrorPhase', '15'],
     ['pTraceDensity', '4'], ['pTraceDefinition', '256'], ['pTraceStroke', '40'], ['pTraceJitter', '500'], ['pTraceLift', '1'],
     ['pWebDensity', '6'], ['pWebReach', '1800'], ['pWebChaos', '8'], ['pWebSag', '6'], ['pWebStroke', '48'],
     ['pSoftBlobInflation', '6'], ['pSoftBlobStiffness', '5'], ['pSoftBlobChaos', '8'], ['pSoftBlobMembrane', '4'],
@@ -256,6 +260,10 @@ if (html) {
   }
   const extremeMinChecks = [
     ['pStretchX', '-2'], ['pStretchY', '-2'],
+    ['pRotateAngle', '-720'], ['pRotateCycles', '0.25'], ['pRotatePhase', '-1'],
+    ['pSkewX', '-85'], ['pSkewY', '-85'], ['pSkewCycles', '0.25'], ['pSkewPhase', '-1'],
+    ['pBaselineShift', '-12'], ['pBaselineCycles', '0.25'], ['pBaselinePhase', '-1'],
+    ['pMirrorSpan', '1'], ['pMirrorPhase', '0'],
     ['pTraceDensity', '0.02'], ['pTraceDefinition', '1'], ['pTraceStroke', '0.1'], ['pTraceJitter', '0'], ['pTraceLift', '0'],
     ['pWebDensity', '0'], ['pWebReach', '4'], ['pWebChaos', '0'], ['pWebSag', '-6'], ['pWebStroke', '0.1'],
     ['pSoftBlobInflation', '0'], ['pSoftBlobStiffness', '0'], ['pSoftBlobChaos', '0'], ['pSoftBlobMembrane', '0'],
@@ -294,6 +302,24 @@ if (html) {
     if (!tag || !new RegExp(`\\bmin=["']${expectedMin.replace('.', '\\.') }["']`).test(tag[0])) {
       noteFailure(`${id} does not expose the expected extreme minimum (${expectedMin}).`);
     }
+  }
+  const formCadenceSelects = {
+    pRotatePattern: ['uniform', 'alternate', 'wave', 'unicode'],
+    pSkewPattern: ['uniform', 'alternate', 'wave', 'unicode'],
+    pBaselinePattern: ['uniform', 'wave', 'triangle', 'unicode'],
+    pMirrorPattern: ['all', 'alternate', 'blocks', 'words', 'unicode']
+  };
+  for (const [id, values] of Object.entries(formCadenceSelects)) {
+    const select = markupOnly.match(new RegExp(`<select\\b[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]*?)<\\/select>`, 'i'));
+    if (!select || values.some((value) => !new RegExp(`value=["']${value}["']`).test(select[1]))) {
+      noteFailure(`${id} is missing one or more foundational FORM cadence modes.`);
+    }
+  }
+  for (const marker of ['function formFieldContext(', 'function formFieldSignal(', 'function mirrorGrammarMask(',
+    "bindProfileSelect('pRotatePattern'", "bindProfileSelect('pSkewPattern'",
+    "bindProfileSelect('pBaselinePattern'", "bindProfileSelect('pMirrorPattern'",
+    "params.rotatePattern = 'uniform'", "params.mirrorPattern = 'all'"]) {
+    if (!html.includes(marker)) noteFailure(`Foundational FORM cadence integration is missing ${marker}.`);
   }
   for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderEtchantBloom', 'renderSinewTorque', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
@@ -956,8 +982,8 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*20/g) || []).length < 2 || !html.includes('data.version > 20') || !html.includes("a: 'td', v: 20")) {
-    noteFailure('Project/SVG/share schema version 20 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*21/g) || []).length < 2 || !html.includes('data.version > 21') || !html.includes("a: 'td', v: 21")) {
+    noteFailure('Project/SVG/share schema version 21 or its forward-version guard is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',
