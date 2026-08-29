@@ -3319,12 +3319,14 @@ type deformer</textarea>
         <p class="note">字形を化学反応の種と境界条件にし、spotsからlabyrinth、coralまで連続生成します。負のPolarityは孔食、正は増殖。Physarumの粒子・輸送管やContourの等距離線とは異なる面の相転移です。</p>
       </div>
       <div class="operator-panel" data-operator-panel="sigilForge" hidden>
+        <div class="row"><label for="pSigilTopology">Seal topology</label><select id="pSigilTopology"><option value="legacy">Legacy axis</option><option value="cartouche" selected>Cartouche circuit</option><option value="constellation">Constellation seal</option><option value="radial">Radial reliquary</option><option value="branching">Branching glyph</option></select></div>
+        <div class="row"><label for="pSigilBinding">Graph binding</label><input type="range" id="pSigilBinding" min="0" max="4" step="0.02" value="1.6"><span class="val" id="vSigilBinding">1.60</span></div>
         <div class="row"><label for="pSigilComplexity">Ritual nodes</label><input type="range" id="pSigilComplexity" min="1" max="24" step="1" value="8"><span class="val" id="vSigilComplexity">8</span></div>
         <div class="row"><label for="pSigilReach">Heraldic reach</label><input type="range" id="pSigilReach" min="0" max="640" step="2" value="72"><span class="val" id="vSigilReach">72px</span></div>
         <div class="row"><label for="pSigilSymmetry">Axis symmetry</label><input type="range" id="pSigilSymmetry" min="0" max="4" step="0.02" value="1"><span class="val" id="vSigilSymmetry">1.00</span></div>
         <div class="row"><label for="pSigilStroke">Seal weight</label><input type="range" id="pSigilStroke" min="0.2" max="20" step="0.1" value="1.4"><span class="val" id="vSigilStroke">1.4px</span></div>
         <div class="row"><label for="pSigilBarbs">Finials</label><input type="range" id="pSigilBarbs" min="0" max="6" step="0.02" value="1.2"><span class="val" id="vSigilBarbs">1.20</span></div>
-        <p class="note">適用された文字群を一つの左右対称な紋章へ再構成します。文字間の近接網ではなく、共有軸・枝・菱形ノード・フィニアルで集団の印章を作ります。</p>
+        <p class="note">文字ごとの核と衛星ノードから、閉じたcartouche、星座状のseal、放射reliquary、分岐するproduction graphを生成します。単一の共有軸へ潰さず、Topologyごとに接続則と印章の輪郭が変わります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="thornCrown" hidden>
         <div class="row"><label for="pThornGrammar">Ornament grammar</label><select id="pThornGrammar"><option value="hybrid" selected>Hybrid crown</option><option value="lancet">Lancet armor</option><option value="hook">Barbed hooks</option><option value="vine">Living vine</option><option value="trident">Trident finials</option></select></div>
@@ -3494,11 +3496,13 @@ type deformer</textarea>
         <p class="note">字形内部の境界距離を版のtoneとして読み、深部ほどcut familyを増やします。Tonal、Cross-cut、放射するBurin、断線するWoodcutは、等高線や文字間networkではなくstroke textureとして形と素材を同時に示します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="contourEtch" hidden>
+        <div class="row"><label for="pContourGrammar">Terrain grammar</label><select id="pContourGrammar"><option value="legacy">Legacy rings</option><option value="isobars">Continuous isobars</option><option value="index" selected>Index contours</option><option value="terraces">Cut terraces</option><option value="watershed">Watershed field</option></select></div>
+        <div class="row"><label for="pContourRelief">Relief force</label><input type="range" id="pContourRelief" min="0" max="4" step="0.02" value="1.4"><span class="val" id="vContourRelief">1.40</span></div>
         <div class="row"><label for="pContourEtchBands">Contour bands</label><input type="range" id="pContourEtchBands" min="1" max="64" step="1" value="10"><span class="val" id="vContourEtchBands">10</span></div>
         <div class="row"><label for="pContourEtchSpacing">Elevation step</label><input type="range" id="pContourEtchSpacing" min="1" max="40" step="0.5" value="7"><span class="val" id="vContourEtchSpacing">7.0px</span></div>
         <div class="row"><label for="pContourEtchStroke">Line weight</label><input type="range" id="pContourEtchStroke" min="0.25" max="14" step="0.05" value="1.15"><span class="val" id="vContourEtchStroke">1.15px</span></div>
         <div class="row"><label for="pContourEtchDrift">Terrain drift</label><input type="range" id="pContourEtchDrift" min="0" max="6" step="0.01" value="0.45"><span class="val" id="vContourEtchDrift">0.45</span></div>
-        <p class="note">字形の内外を距離場へ変換し、等高線として積層。輪郭線の複製ではなく、空白側にも地形が成長します。</p>
+        <p class="note">字形を標高源にし、均一等高線、太いindex contour、切削されたterrace、等高線を横断するwatershedへ分岐。Reliefは高低差・補助線・断層の強さを同時に増幅します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="pressureStroke" hidden>
         <div class="row"><label for="pPressureWeight">Base weight</label><input type="range" id="pPressureWeight" min="-120" max="260" step="1" value="16"><span class="val" id="vPressureWeight">16px</span></div>
@@ -3530,29 +3534,35 @@ type deformer</textarea>
         <p class="note">同じ直線へ複製するだけでなく、押出、helix、扇状軌道、二重braidへ時間断面を配列します。Path weaveは横振幅と周回数を増やし、Compose Phaseは軌道を一周して完全に戻ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="risoSeparation" hidden>
+        <div class="row"><label for="pRisoPlateMap">Master logic</label><select id="pRisoPlateMap"><option value="legacy">Legacy field</option><option value="field">Organic masters</option><option value="area" selected>Area selection</option><option value="edge">Key &amp; fill plates</option><option value="halftone">Dual halftone</option></select></div>
+        <div class="row"><label for="pRisoPressure">Drum pressure</label><input type="range" id="pRisoPressure" min="0" max="4" step="0.02" value="1.36"><span class="val" id="vRisoPressure">1.36</span></div>
         <div class="row"><label for="pRisoSplit">Plate balance</label><input type="range" id="pRisoSplit" min="-1" max="1" step="0.02" value="-0.12"><span class="val" id="vRisoSplit">-0.12</span></div>
         <div class="row"><label for="pRisoOverlap">Overprint</label><input type="range" id="pRisoOverlap" min="0" max="1.5" step="0.02" value="0.42"><span class="val" id="vRisoOverlap">0.42</span></div>
         <div class="row"><label for="pRisoRegister">Registration drift</label><input type="range" id="pRisoRegister" min="0" max="160" step="1" value="9"><span class="val" id="vRisoRegister">9px</span></div>
         <div class="row"><label for="pRisoGrain">Ink roughness</label><input type="range" id="pRisoGrain" min="0" max="2" step="0.02" value="0.22"><span class="val" id="vRisoGrain">0.22</span></div>
-        <p class="note">字形を二つのspot-ink版へ分解し、重なりを第三の色として生成。既存Misregistrationと違い、各版の内容自体が異なります。</p>
+        <p class="note">二本のdrumへ別々のmasterを製版します。面の選択、key版とfill版、角度の異なる二つのhalftoneを切り替え、spread／chokeと版ズレの重なりを第三の色として作ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="copyDecay" hidden>
+        <div class="row"><label for="pCopyFailure">Failure system</label><select id="pCopyFailure"><option value="legacy">Legacy decay</option><option value="generational">Generational loss</option><option value="banding">Scan banding</option><option value="ghosting" selected>Drum ghosting</option><option value="residual">Residual toner</option></select></div>
+        <div class="row"><label for="pCopyInstability">Machine instability</label><input type="range" id="pCopyInstability" min="0" max="4" step="0.02" value="1.5"><span class="val" id="vCopyInstability">1.50</span></div>
         <div class="row"><label for="pCopyGenerations">Copy generations</label><input type="range" id="pCopyGenerations" min="1" max="48" step="1" value="8"><span class="val" id="vCopyGenerations">8</span></div>
         <div class="row"><label for="pCopyExposure">Exposure</label><input type="range" id="pCopyExposure" min="-1.5" max="1.5" step="0.02" value="0.12"><span class="val" id="vCopyExposure">+0.12</span></div>
         <div class="row"><label for="pCopyMotion">Drum drag</label><input type="range" id="pCopyMotion" min="-640" max="640" step="2" value="28"><span class="val" id="vCopyMotion">28px</span></div>
         <div class="row"><label for="pCopyErosion">Edge erosion</label><input type="range" id="pCopyErosion" min="0" max="24" step="0.1" value="1.8"><span class="val" id="vCopyErosion">1.8px</span></div>
         <div class="row"><label for="pCopyToner">Toner spread</label><input type="range" id="pCopyToner" min="0" max="5" step="0.01" value="0.65"><span class="val" id="vCopyToner">0.65</span></div>
         <div class="row"><label for="pCopyDust">Dust &amp; dropout</label><input type="range" id="pCopyDust" min="0" max="4" step="0.01" value="0.35"><span class="val" id="vCopyDust">0.35</span></div>
-        <p class="note">複写世代を重ね、露光・トナー・紙粉・走査ドラムの引きずりで字面を劣化。網点やRGB破断ではなく、単色の複写像として崩れます。</p>
+        <p class="note">世代劣化、周期的banding、感光ドラムの反復ghost、清掃されない残留tonerを別々の故障として再現します。Instabilityはjitter、残像周期、汚染域を極端域まで広げます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="slitSweep" hidden>
+        <div class="row"><label for="pSlitTimeMap">Time map</label><select id="pSlitTimeMap"><option value="legacy">Legacy sine</option><option value="wave">Compound wave</option><option value="staircase">Stepped time</option><option value="fold" selected>Temporal fold</option><option value="feedback">Recursive feedback</option></select></div>
+        <div class="row"><label for="pSlitNonlinearity">Nonlinear time</label><input type="range" id="pSlitNonlinearity" min="0" max="4" step="0.02" value="1.4"><span class="val" id="vSlitNonlinearity">1.40</span></div>
         <div class="row"><label for="pSlitAxis">Scan axis</label><select id="pSlitAxis"><option value="vertical" selected>Vertical / 縦走査</option><option value="horizontal">Horizontal / 横走査</option></select></div>
         <div class="row"><label for="pSlitWidth">Slit width</label><input type="range" id="pSlitWidth" min="1" max="96" step="1" value="10"><span class="val" id="vSlitWidth">10px</span></div>
         <div class="row"><label for="pSlitTravel">Time travel</label><input type="range" id="pSlitTravel" min="-720" max="720" step="2" value="180"><span class="val" id="vSlitTravel">180px</span></div>
         <div class="row"><label for="pSlitFrequency">Wave cycles</label><input type="range" id="pSlitFrequency" min="0.25" max="16" step="0.05" value="2.4"><span class="val" id="vSlitFrequency">2.40</span></div>
         <div class="row"><label for="pSlitMemory">Time memory</label><input type="range" id="pSlitMemory" min="1" max="64" step="1" value="18"><span class="val" id="vSlitMemory">18</span></div>
         <div class="row"><label for="pSlitSpeed">Sweep speed</label><input type="range" id="pSlitSpeed" min="0" max="4" step="0.01" value="0.55"><span class="val" id="vSlitSpeed">0.55</span></div>
-        <p class="note">細い空間スリットごとに別時刻の字形を蓄積。Data Moshのブロック破断ではなく、連続した時間の引き延ばしを描きます。</p>
+        <p class="note">空間スリットごとに異なる時刻を割り当てます。連続波、階段状の時間、折り返して衝突するfold、自己参照feedbackは、Compose中も同じ正弦運動へ収束しません。</p>
       </div>
       <div class="operator-panel" data-operator-panel="dataMosh" hidden>
         <div class="row"><label for="pMoshShift">Block rupture</label><input type="range" id="pMoshShift" min="0" max="320" step="2" value="150"><span class="val" id="vMoshShift">150px</span></div>
@@ -6330,6 +6340,8 @@ type deformer</textarea>
         etchantSpill: 72,
         etchantColor: '#82b912',
         etchantSourceMode: 'keep',
+        sigilTopology: 'cartouche',
+        sigilBinding: 1.6,
         sigilComplexity: 8,
         sigilReach: 72,
         sigilSymmetry: 1,
@@ -6487,6 +6499,8 @@ type deformer</textarea>
         hatchStroke: 1.2,
         hatchColor: '#a24b2f',
         hatchSourceMode: 'keep',
+        contourGrammar: 'index',
+        contourRelief: 1.4,
         contourBands: 10,
         contourSpacing: 7,
         contourStroke: 1.15,
@@ -6526,6 +6540,8 @@ type deformer</textarea>
         ribbonFade: 0.62,
         ribbonColor: '#087f93',
         ribbonSourceMode: 'keep',
+        risoPlateMap: 'area',
+        risoPressure: 1.36,
         risoSplit: -0.12,
         risoOverlap: 0.42,
         risoRegister: 9,
@@ -6533,6 +6549,8 @@ type deformer</textarea>
         risoColorA: '#ff3f78',
         risoColorB: '#2468ff',
         risoSourceMode: 'keep',
+        copyFailure: 'ghosting',
+        copyInstability: 1.5,
         copyGenerations: 8,
         copyExposure: 0.12,
         copyMotion: 28,
@@ -6541,6 +6559,8 @@ type deformer</textarea>
         copyDust: 0.35,
         copyColor: '#20201d',
         copySourceMode: 'keep',
+        slitTimeMap: 'fold',
+        slitNonlinearity: 1.4,
         slitWidth: 10,
         slitTravel: 180,
         slitFrequency: 2.4,
@@ -6623,7 +6643,7 @@ type deformer</textarea>
         'webDensity', 'webReach', 'webChaos', 'webSag', 'webStroke',
         'softBlobInflation', 'softBlobStiffness', 'softBlobChaos', 'softBlobMembrane', 'softBlobSporeReach', 'softBlobSporeDensity', 'softBlobSpeed',
         'etchantPattern', 'etchantCell', 'etchantGrowth', 'etchantPolarity', 'etchantSpill',
-        'sigilComplexity', 'sigilReach', 'sigilSymmetry', 'sigilStroke', 'sigilBarbs',
+        'sigilTopology', 'sigilBinding', 'sigilComplexity', 'sigilReach', 'sigilSymmetry', 'sigilStroke', 'sigilBarbs',
         'thornGrammar', 'thornArmor', 'thornLength', 'thornDensity', 'thornCurl', 'thornStroke', 'thornBranches',
         'cipherDialect', 'cipherRegisters', 'cipherScale', 'cipherDensity', 'cipherOrbit', 'cipherDrift', 'cipherCallouts',
         'boneArchitecture', 'boneMarrow', 'boneCell', 'boneBranching', 'boneWeight', 'boneJoint', 'boneWarp',
@@ -6642,14 +6662,14 @@ type deformer</textarea>
         'monolithMass', 'monolithModule', 'monolithFault', 'monolithCounter', 'monolithFormwork',
         'rasterScreen', 'rasterModulation', 'rasterCell', 'rasterGain', 'rasterAngle', 'rasterNoise',
         'hatchGrammar', 'hatchDepth', 'hatchSpacing', 'hatchAngle', 'hatchWarp', 'hatchStroke',
-        'contourBands', 'contourSpacing', 'contourStroke', 'contourDrift',
+        'contourGrammar', 'contourRelief', 'contourBands', 'contourSpacing', 'contourStroke', 'contourDrift',
         'pressureWeight', 'pressureContrast', 'pressureAngle', 'pressureFrequency', 'pressureSoftness', 'pressureBreath', 'pressureDryness', 'pressureTaper',
         'sinewPull', 'sinewTorque', 'sinewTension', 'sinewWaist', 'sinewAxis',
         'fractureTopology', 'fractureEnergy', 'fractureCell', 'fractureScatter', 'fractureGap', 'fractureSpin',
         'ribbonPath', 'ribbonWeave', 'ribbonDepth', 'ribbonSteps', 'ribbonTwist', 'ribbonFade',
-        'risoSplit', 'risoOverlap', 'risoRegister', 'risoGrain',
-        'copyGenerations', 'copyExposure', 'copyMotion', 'copyErosion', 'copyToner', 'copyDust',
-        'slitWidth', 'slitTravel', 'slitFrequency', 'slitMemory', 'slitSpeed',
+        'risoPlateMap', 'risoPressure', 'risoSplit', 'risoOverlap', 'risoRegister', 'risoGrain',
+        'copyFailure', 'copyInstability', 'copyGenerations', 'copyExposure', 'copyMotion', 'copyErosion', 'copyToner', 'copyDust',
+        'slitTimeMap', 'slitNonlinearity', 'slitWidth', 'slitTravel', 'slitFrequency', 'slitMemory', 'slitSpeed',
         'confuseDepth'
       ];
       var BATCH_PARAM_LIMITS = {
@@ -6668,7 +6688,7 @@ type deformer</textarea>
         softBlobInflation: [0, 6], softBlobStiffness: [0, 5], softBlobChaos: [0, 8], softBlobMembrane: [0, 4],
         softBlobSporeReach: [0, 2400], softBlobSporeDensity: [0, 4], softBlobSpeed: [0, 8],
         etchantPattern: [0, 1], etchantCell: [2, 72], etchantGrowth: [8, 192], etchantPolarity: [-1, 1], etchantSpill: [0, 640],
-        sigilComplexity: [1, 24], sigilReach: [0, 640], sigilSymmetry: [0, 4], sigilStroke: [0.2, 20], sigilBarbs: [0, 6],
+        sigilBinding: [0, 4], sigilComplexity: [1, 24], sigilReach: [0, 640], sigilSymmetry: [0, 4], sigilStroke: [0.2, 20], sigilBarbs: [0, 6],
         thornArmor: [0, 4], thornLength: [0, 360], thornDensity: [0.05, 6], thornCurl: [-3, 3], thornStroke: [0.2, 16], thornBranches: [0, 4],
         cipherRegisters: [0, 4], cipherScale: [3, 36], cipherDensity: [0.1, 4], cipherOrbit: [0, 360], cipherDrift: [0, 160], cipherCallouts: [0, 4],
         boneMarrow: [0, 4], boneCell: [2, 40], boneBranching: [0, 4], boneWeight: [0.2, 16], boneJoint: [0, 28], boneWarp: [0, 4],
@@ -6687,15 +6707,15 @@ type deformer</textarea>
         monolithMass: [-120, 360], monolithModule: [2, 120], monolithFault: [-480, 480], monolithCounter: [0, 1], monolithFormwork: [0, 4],
         rasterModulation: [0, 4], rasterCell: [2, 72], rasterGain: [0.05, 3], rasterAngle: [-90, 90], rasterNoise: [0, 2],
         hatchDepth: [0, 4], hatchSpacing: [1, 80], hatchAngle: [-180, 180], hatchWarp: [0, 5], hatchStroke: [0.1, 12],
-        contourBands: [1, 64], contourSpacing: [1, 40], contourStroke: [0.25, 14], contourDrift: [0, 6],
+        contourRelief: [0, 4], contourBands: [1, 64], contourSpacing: [1, 40], contourStroke: [0.25, 14], contourDrift: [0, 6],
         pressureWeight: [-120, 260], pressureContrast: [0, 4], pressureAngle: [-180, 180], pressureFrequency: [0.1, 32], pressureSoftness: [0.1, 24],
         pressureBreath: [0, 4], pressureDryness: [0, 1], pressureTaper: [-2, 2],
         sinewPull: [-640, 640], sinewTorque: [-540, 540], sinewTension: [0.1, 8], sinewWaist: [-2, 4], sinewAxis: [-180, 180],
         fractureEnergy: [0, 4], fractureCell: [4, 140], fractureScatter: [0, 520], fractureGap: [0, 28], fractureSpin: [-720, 720],
         ribbonWeave: [0, 4], ribbonDepth: [-520, 520], ribbonSteps: [1, 96], ribbonTwist: [-540, 540], ribbonFade: [0, 1],
-        risoSplit: [-1, 1], risoOverlap: [0, 1.5], risoRegister: [0, 160], risoGrain: [0, 2],
-        copyGenerations: [1, 48], copyExposure: [-1.5, 1.5], copyMotion: [-640, 640], copyErosion: [0, 24], copyToner: [0, 5], copyDust: [0, 4],
-        slitWidth: [1, 96], slitTravel: [-720, 720], slitFrequency: [0.25, 16], slitMemory: [1, 64], slitSpeed: [0, 4],
+        risoPressure: [0, 4], risoSplit: [-1, 1], risoOverlap: [0, 1.5], risoRegister: [0, 160], risoGrain: [0, 2],
+        copyInstability: [0, 4], copyGenerations: [1, 48], copyExposure: [-1.5, 1.5], copyMotion: [-640, 640], copyErosion: [0, 24], copyToner: [0, 5], copyDust: [0, 4],
+        slitNonlinearity: [0, 4], slitWidth: [1, 96], slitTravel: [-720, 720], slitFrequency: [0.25, 16], slitMemory: [1, 64], slitSpeed: [0, 4],
         confuseDepth: [0, 1]
       };
       var BATCH_PARAM_OPTIONS = {
@@ -6703,6 +6723,7 @@ type deformer</textarea>
         skewPattern: ['uniform', 'alternate', 'wave', 'unicode'],
         baselinePattern: ['uniform', 'wave', 'triangle', 'unicode'],
         mirrorPattern: ['all', 'alternate', 'blocks', 'words', 'unicode'],
+        sigilTopology: ['legacy', 'cartouche', 'constellation', 'radial', 'branching'],
         thornGrammar: ['hybrid', 'lancet', 'hook', 'vine', 'trident'],
         cipherDialect: ['mixed', 'unicode', 'machine', 'ledger', 'ritual'],
         boneArchitecture: ['adaptive', 'spine', 'ribcage', 'truss'],
@@ -6715,15 +6736,19 @@ type deformer</textarea>
         texturaGrammar: ['stems', 'textura', 'fraktur', 'bastarda', 'lattice'],
         rasterScreen: ['legacy', 'adaptive', 'stochastic', 'line', 'mezzotint'],
         hatchGrammar: ['legacy', 'tonal', 'crosscut', 'burin', 'woodcut'],
+        contourGrammar: ['legacy', 'isobars', 'index', 'terraces', 'watershed'],
         fractureTopology: ['triangles', 'impact', 'fault', 'crystal', 'spall'],
-        ribbonPath: ['legacy', 'extrude', 'helix', 'fan', 'braid']
+        ribbonPath: ['legacy', 'extrude', 'helix', 'fan', 'braid'],
+        risoPlateMap: ['legacy', 'field', 'area', 'edge', 'halftone'],
+        copyFailure: ['legacy', 'generational', 'banding', 'ghosting', 'residual'],
+        slitTimeMap: ['legacy', 'wave', 'staircase', 'fold', 'feedback']
       };
       var PROOF_AXIS_DEFS = {
         plotterTrace: [{ key: 'traceDensity', label: 'Density', span: 0.42 }, { key: 'traceJitter', label: 'Drift', span: 0.22, unit: 'px' }],
         webbing: [{ key: 'webDensity', label: 'Strands', span: 0.42 }, { key: 'webSag', label: 'Gravity', span: 0.34 }],
         softBlob: [{ key: 'softBlobInflation', label: 'Mass', span: 0.42 }, { key: 'softBlobSporeReach', label: 'Spore reach', span: 0.34, unit: 'px' }],
         etchantBloom: [{ key: 'etchantPattern', label: 'Morphology', span: 0.46 }, { key: 'etchantSpill', label: 'Spill', span: 0.28, unit: 'px' }],
-        sigilForge: [{ key: 'sigilReach', label: 'Reach', span: 0.34, unit: 'px' }, { key: 'sigilComplexity', label: 'Nodes', span: 0.42, integer: true }],
+        sigilForge: [{ key: 'sigilBinding', label: 'Binding', span: 0.42 }, { key: 'sigilComplexity', label: 'Nodes', span: 0.42, integer: true }],
         thornCrown: [{ key: 'thornLength', label: 'Length', span: 0.34, unit: 'px' }, { key: 'thornDensity', label: 'Density', span: 0.42 }],
         cipherLiturgy: [{ key: 'cipherDensity', label: 'Density', span: 0.42 }, { key: 'cipherOrbit', label: 'Orbit', span: 0.34, unit: 'px' }],
         boneScaffold: [{ key: 'boneCell', label: 'Spacing', span: 0.38, unit: 'px' }, { key: 'boneBranching', label: 'Branching', span: 0.42 }],
@@ -6742,14 +6767,14 @@ type deformer</textarea>
         monolithCast: [{ key: 'monolithMass', label: 'Mass', span: 0.18, unit: 'px' }, { key: 'monolithFault', label: 'Fault', span: 0.14, unit: 'px' }],
         rasterPress: [{ key: 'rasterCell', label: 'Cell', span: 0.32, unit: 'px' }, { key: 'rasterModulation', label: 'Modulation', span: 0.42 }],
         hatchEngrave: [{ key: 'hatchSpacing', label: 'Spacing', span: 0.32, unit: 'px' }, { key: 'hatchDepth', label: 'Plate depth', span: 0.42 }],
-        contourEtch: [{ key: 'contourBands', label: 'Bands', span: 0.32, integer: true }, { key: 'contourDrift', label: 'Drift', span: 0.42 }],
+        contourEtch: [{ key: 'contourBands', label: 'Bands', span: 0.32, integer: true }, { key: 'contourRelief', label: 'Relief', span: 0.42 }],
         pressureStroke: [{ key: 'pressureBreath', label: 'Breath', span: 0.38 }, { key: 'pressureDryness', label: 'Dryness', span: 0.46 }],
         sinewTorque: [{ key: 'sinewPull', label: 'Pull', span: 0.16, unit: 'px' }, { key: 'sinewTorque', label: 'Torque', span: 0.28, unit: 'deg' }],
         cellFracture: [{ key: 'fractureScatter', label: 'Scatter', span: 0.18, unit: 'px' }, { key: 'fractureEnergy', label: 'Energy', span: 0.42 }],
         ribbonEcho: [{ key: 'ribbonDepth', label: 'Depth', span: 0.18, unit: 'px' }, { key: 'ribbonWeave', label: 'Weave', span: 0.42 }],
-        copyDecay: [{ key: 'copyGenerations', label: 'Generations', span: 0.42, integer: true }, { key: 'copyMotion', label: 'Drum drag', span: 0.12, unit: 'px' }],
-        risoSeparation: [{ key: 'risoSplit', label: 'Plate balance', span: 0.36 }, { key: 'risoRegister', label: 'Register', span: 0.18, unit: 'px' }],
-        slitSweep: [{ key: 'slitTravel', label: 'Time travel', span: 0.14, unit: 'px' }, { key: 'slitMemory', label: 'Memory', span: 0.38, integer: true }]
+        copyDecay: [{ key: 'copyInstability', label: 'Instability', span: 0.42 }, { key: 'copyMotion', label: 'Drum drag', span: 0.12, unit: 'px' }],
+        risoSeparation: [{ key: 'risoPressure', label: 'Pressure', span: 0.42 }, { key: 'risoRegister', label: 'Register', span: 0.18, unit: 'px' }],
+        slitSweep: [{ key: 'slitNonlinearity', label: 'Nonlinear', span: 0.42 }, { key: 'slitMemory', label: 'Memory', span: 0.38, integer: true }]
       };
       var batchProfiles = {};
       var activeBatchProfile = 'all';
@@ -6885,6 +6910,8 @@ type deformer</textarea>
         clampParam('etchantGrowth', 8, 192, true);
         clampParam('etchantPolarity', -1, 1, false);
         clampParam('etchantSpill', 0, 640, false);
+        chooseParam('sigilTopology', BATCH_PARAM_OPTIONS.sigilTopology);
+        clampParam('sigilBinding', 0, 4, false);
         clampParam('sigilComplexity', 1, 24, true);
         clampParam('sigilReach', 0, 640, false);
         clampParam('sigilSymmetry', 0, 4, false);
@@ -7003,6 +7030,8 @@ type deformer</textarea>
         clampParam('hatchAngle', -180, 180, false);
         clampParam('hatchWarp', 0, 5, false);
         clampParam('hatchStroke', 0.1, 12, false);
+        chooseParam('contourGrammar', BATCH_PARAM_OPTIONS.contourGrammar);
+        clampParam('contourRelief', 0, 4, false);
         clampParam('contourBands', 1, 64, true);
         clampParam('contourSpacing', 1, 40, false);
         clampParam('contourStroke', 0.25, 14, false);
@@ -7032,16 +7061,22 @@ type deformer</textarea>
         clampParam('ribbonSteps', 1, 96, true);
         clampParam('ribbonTwist', -540, 540, false);
         clampParam('ribbonFade', 0, 1, false);
+        chooseParam('risoPlateMap', BATCH_PARAM_OPTIONS.risoPlateMap);
+        clampParam('risoPressure', 0, 4, false);
         clampParam('risoSplit', -1, 1, false);
         clampParam('risoOverlap', 0, 1.5, false);
         clampParam('risoRegister', 0, 160, false);
         clampParam('risoGrain', 0, 2, false);
+        chooseParam('copyFailure', BATCH_PARAM_OPTIONS.copyFailure);
+        clampParam('copyInstability', 0, 4, false);
         clampParam('copyGenerations', 1, 48, true);
         clampParam('copyExposure', -1.5, 1.5, false);
         clampParam('copyMotion', -640, 640, false);
         clampParam('copyErosion', 0, 24, false);
         clampParam('copyToner', 0, 5, false);
         clampParam('copyDust', 0, 4, false);
+        chooseParam('slitTimeMap', BATCH_PARAM_OPTIONS.slitTimeMap);
+        clampParam('slitNonlinearity', 0, 4, false);
         clampParam('slitWidth', 1, 96, false);
         clampParam('slitTravel', -720, 720, false);
         clampParam('slitFrequency', 0.25, 16, false);
@@ -10286,6 +10321,8 @@ type deformer</textarea>
             etchantGrowth: deform.etchantGrowth,
             etchantPolarity: deform.etchantPolarity,
             etchantSpill: deform.etchantSpill,
+            sigilTopology: deform.sigilTopology,
+            sigilBinding: deform.sigilBinding,
             sigilComplexity: deform.sigilComplexity,
             sigilReach: deform.sigilReach,
             sigilSymmetry: deform.sigilSymmetry,
@@ -10408,6 +10445,8 @@ type deformer</textarea>
             hatchAngle: deform.hatchAngle,
             hatchWarp: deform.hatchWarp,
             hatchStroke: deform.hatchStroke,
+            contourGrammar: deform.contourGrammar,
+            contourRelief: deform.contourRelief,
             contourBands: deform.contourBands,
             contourSpacing: deform.contourSpacing,
             contourStroke: deform.contourStroke,
@@ -10437,16 +10476,22 @@ type deformer</textarea>
             ribbonSteps: deform.ribbonSteps,
             ribbonTwist: deform.ribbonTwist,
             ribbonFade: deform.ribbonFade,
+            risoPlateMap: deform.risoPlateMap,
+            risoPressure: deform.risoPressure,
             risoSplit: deform.risoSplit,
             risoOverlap: deform.risoOverlap,
             risoRegister: deform.risoRegister,
             risoGrain: deform.risoGrain,
+            copyFailure: deform.copyFailure,
+            copyInstability: deform.copyInstability,
             copyGenerations: deform.copyGenerations,
             copyExposure: deform.copyExposure,
             copyMotion: deform.copyMotion,
             copyErosion: deform.copyErosion,
             copyToner: deform.copyToner,
             copyDust: deform.copyDust,
+            slitTimeMap: deform.slitTimeMap,
+            slitNonlinearity: deform.slitNonlinearity,
             slitWidth: deform.slitWidth,
             slitTravel: deform.slitTravel,
             slitFrequency: deform.slitFrequency,
@@ -15221,7 +15266,7 @@ type deformer</textarea>
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('morphProcession'), 1, 'morph-procession-color');
       }
 
-      function renderContourEtch(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderContourEtchLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var bandsAggregate = surfaceAggregate(glyphs, 'contourEtch', 'contourBands', params.contourBands);
         if (!bandsAggregate.weight) return;
         var bands = Math.max(1, Math.round(bandsAggregate.value));
@@ -15263,6 +15308,121 @@ type deformer</textarea>
         }
         work.ctx.putImageData(output, 0, 0);
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('contourEtch'), 1, 'contour-etch-color');
+      }
+
+      // A terrain is more than a repeated outline. These grammars share the
+      // same signed glyph-distance field, then diverge into cartographic laws:
+      // equal isobars, weighted index contours, filled terraces, or drainage
+      // cuts. No map artwork or source data is embedded in the renderer.
+      function renderContourEtch(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var grammar = surfaceChoice(glyphs, 'contourEtch', 'contourGrammar', params.contourGrammar, BATCH_PARAM_OPTIONS.contourGrammar);
+        if (grammar === 'legacy') {
+          renderContourEtchLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var bandsAggregate = surfaceAggregate(glyphs, 'contourEtch', 'contourBands', params.contourBands);
+        if (!bandsAggregate.weight) return;
+        var bands = Math.max(1, Math.round(bandsAggregate.value));
+        var spacing = Math.max(1, surfaceAggregate(glyphs, 'contourEtch', 'contourSpacing', params.contourSpacing).value * pixelScale * L.s);
+        var stroke = Math.max(0.25, surfaceAggregate(glyphs, 'contourEtch', 'contourStroke', params.contourStroke).value * pixelScale * L.s);
+        var drift = Math.max(0, surfaceAggregate(glyphs, 'contourEtch', 'contourDrift', params.contourDrift).value);
+        var relief = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'contourEtch', 'contourRelief', params.contourRelief).value));
+        var mask = buildSurfaceMask(glyphs, 'contourEtch', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'contourEtch', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var work = surfaceScratch('contour-etch-v25', width, height, false);
+        var output = work.ctx.createImageData(width, height);
+        var reach = Math.min(Math.sqrt(width * width + height * height), bands * spacing * (1 + relief * 0.055));
+        var baseHalfStroke = Math.min(spacing * 0.46, stroke * 0.5);
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * spacing : 0;
+        var seedPhase = params.seed * 0.137;
+        for (var y = 0; y < height; y++) {
+          var rowFold = Math.sin(y * (0.006 + drift * 0.0017) - seedPhase * 0.73);
+          for (var x = 0; x < width; x++) {
+            var index = y * width + x;
+            var distance = field.distance[index];
+            if (distance > reach) continue;
+            var terrain = drift ? (Math.sin(x * 0.027 + y * 0.016 + seedPhase) * 0.42
+              + Math.sin(x * 0.008 - y * 0.023 - seedPhase * 0.61) * 0.22
+              + rowFold * Math.sin(x * 0.004 + seedPhase * 0.37) * 0.24) * spacing * drift : 0;
+            var reliefFold = relief ? Math.sin((x + y * 0.37) * 0.011 + seedPhase) * spacing * relief * 0.12 : 0;
+            var stepped = Math.max(0, distance + terrain + reliefFold + phase);
+            var modulo = ((stepped % spacing) + spacing) % spacing;
+            var edgeDistance = Math.min(modulo, spacing - modulo);
+            var contourIndex = Math.floor(stepped / spacing);
+            var fade = 1 - Math.min(0.78, contourIndex / Math.max(1, bands) * (0.46 + relief * 0.055));
+            var interiorGain = field.inside[index] ? 1 : 0.78;
+            var alpha = 0;
+
+            if (grammar === 'terraces') {
+              var terraceWidth = spacing * Math.min(0.78, 0.18 + relief * 0.12);
+              var plateau = modulo < terraceWidth;
+              var wall = edgeDistance <= Math.min(spacing * 0.48, baseHalfStroke * (1.4 + relief * 0.32));
+              if (plateau || wall) {
+                var plateauTone = (contourIndex % 2 ? 0.19 : 0.34) + relief * 0.065;
+                alpha = wall ? Math.min(1, 0.68 + relief * 0.12) : Math.min(0.82, plateauTone);
+              }
+            } else {
+              var halfStroke = baseHalfStroke;
+              if (grammar === 'index' && contourIndex % 5 === 0) halfStroke *= 1.9 + relief * 0.28;
+              var supplementary = grammar === 'index' && relief > 1.65 && contourIndex % 5 === 2
+                && edgeDistance < baseHalfStroke * 0.72;
+              var lineHit = edgeDistance <= halfStroke || supplementary;
+              if (grammar === 'watershed' && lineHit) {
+                var drainage = Math.abs(Math.sin(x * 0.014 + rowFold * 1.7 + seedPhase)
+                  + Math.sin(y * 0.021 - x * 0.003 + seedPhase * 0.41) * 0.52);
+                if (drainage < 0.09 + relief * 0.035) lineHit = false;
+              }
+              if (lineHit) {
+                alpha = grammar === 'index' && contourIndex % 5 === 0 ? 1 : (supplementary ? 0.42 : 0.76);
+                if (supplementary && ((x + y + contourIndex * 7) % Math.max(4, Math.round(spacing * 1.7))) > spacing * 0.72) alpha = 0;
+              }
+            }
+            if (alpha <= 0.002) continue;
+            var pixel = index * 4;
+            output.data[pixel] = output.data[pixel + 1] = output.data[pixel + 2] = 255;
+            output.data[pixel + 3] = Math.round(255 * Math.min(1, alpha * bandsAggregate.strength * fade * interiorGain));
+          }
+        }
+        work.ctx.putImageData(output, 0, 0);
+
+        if (grammar === 'watershed' && relief > 0.02) {
+          var nodes = surfaceNodesForGlyphs(glyphs, 'contourEtch', 52, pixelScale, L, 0, 0, 0);
+          var streamCount = Math.min(6, Math.max(1, Math.round(1 + relief * 1.15)));
+          work.ctx.save();
+          work.ctx.strokeStyle = '#fff';
+          work.ctx.lineCap = 'round';
+          work.ctx.lineJoin = 'round';
+          for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+            for (var stream = 0; stream < streamCount; stream++) {
+              var salt = nodeIndex * 37 + stream * 11;
+              var angle = hash(salt, params.seed % 101, 2131) * Math.PI * 2;
+              var length = reach * (0.28 + hash(stream, nodeIndex, 2137) * 0.58);
+              var steps = Math.max(5, Math.min(34, Math.round(length / Math.max(5, spacing * 0.85))));
+              var px = nodes[nodeIndex].x, py = nodes[nodeIndex].y;
+              work.ctx.beginPath();
+              work.ctx.moveTo(px, py);
+              for (var step = 1; step <= steps; step++) {
+                var t = step / steps;
+                angle += Math.sin(step * 0.73 + salt + seedPhase) * (0.035 + relief * 0.012)
+                  + (hash(step, salt, 2141) * 2 - 1) * 0.06;
+                px += Math.cos(angle) * length / steps;
+                py += Math.sin(angle) * length / steps;
+                work.ctx.lineTo(px, py);
+              }
+              work.ctx.globalAlpha = nodes[nodeIndex].strength * (0.18 + relief * 0.12) * (1 - stream / (streamCount + 1) * 0.45);
+              work.ctx.lineWidth = Math.max(0.45, stroke * (0.48 + (streamCount - stream) * 0.1));
+              work.ctx.stroke();
+            }
+          }
+          work.ctx.restore();
+        }
+        paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('contourEtch'), 1, 'contour-etch-v25-color');
       }
 
       function renderMonolithCast(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
@@ -15983,7 +16143,7 @@ type deformer</textarea>
         return painted.canvas;
       }
 
-      function renderCopyDecay(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderCopyDecayLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var generationAggregate = surfaceAggregate(glyphs, 'copyDecay', 'copyGenerations', params.copyGenerations);
         if (!generationAggregate.weight) return;
         var generations = Math.max(1, Math.round(generationAggregate.value));
@@ -16059,7 +16219,132 @@ type deformer</textarea>
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('copyDecay'), 1, 'copy-decay-color');
       }
 
-      function renderRisoSeparation(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      // Electrophotographic failures are kept as separate machine behaviours.
+      // Generation loss changes edge fidelity, banding changes scan density,
+      // ghosting repeats a drum image, and residual mode deposits toner that
+      // the cleaning stage failed to remove.
+      function renderCopyDecay(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var failure = surfaceChoice(glyphs, 'copyDecay', 'copyFailure', params.copyFailure, BATCH_PARAM_OPTIONS.copyFailure);
+        if (failure === 'legacy') {
+          renderCopyDecayLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var generationAggregate = surfaceAggregate(glyphs, 'copyDecay', 'copyGenerations', params.copyGenerations);
+        if (!generationAggregate.weight) return;
+        var generations = Math.max(1, Math.round(generationAggregate.value));
+        var exposure = surfaceAggregate(glyphs, 'copyDecay', 'copyExposure', params.copyExposure).value;
+        var motion = surfaceAggregate(glyphs, 'copyDecay', 'copyMotion', params.copyMotion).value * pixelScale * L.s;
+        var erosion = surfaceAggregate(glyphs, 'copyDecay', 'copyErosion', params.copyErosion).value * pixelScale * L.s;
+        var toner = Math.max(0, surfaceAggregate(glyphs, 'copyDecay', 'copyToner', params.copyToner).value);
+        var dust = Math.max(0, surfaceAggregate(glyphs, 'copyDecay', 'copyDust', params.copyDust).value);
+        var instability = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'copyDecay', 'copyInstability', params.copyInstability).value));
+        var mask = buildSurfaceMask(glyphs, 'copyDecay', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'copyDecay', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var sourceData = source.data;
+        var boundary = failure === 'residual' ? surfaceBoundaryDistance(sourceData, width, height) : null;
+        var work = surfaceScratch('copy-decay-v25', width, height, false);
+        var output = work.ctx.createImageData(width, height);
+        var severity = Math.min(1, (generations - 1) / 32);
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var erosionRadius = Math.max(0, Math.min(30, Math.round(erosion * (0.22 + severity * 0.62 + instability * 0.08))));
+        var tonerRadius = Math.max(1, Math.min(36, Math.round((1 + toner * 3.8 + instability) * pixelScale * L.s)));
+        var threshold = Math.max(0.04, Math.min(0.93, 0.46 - exposure * 0.23 - toner * 0.028 + severity * 0.03));
+        var gain = 2.15 + generations * 0.074 + Math.abs(exposure) * 0.76 + instability * 0.09;
+        var bandHeight = Math.max(1, Math.round(18 - severity * 9 - instability * 1.8));
+        var motionSign = motion < 0 ? -1 : 1;
+        var motionMagnitude = Math.abs(motion);
+        var ghostCount = Math.max(2, Math.min(10, Math.round(2 + generations * 0.09 + instability * 1.35)));
+
+        function alphaAt(x, y) {
+          x = Math.round(x); y = Math.round(y);
+          if (x < 0 || x >= width || y < 0 || y >= height) return 0;
+          return sourceData[(y * width + x) * 4 + 3] / 255;
+        }
+
+        for (var y = 0; y < height; y++) {
+          var band = Math.floor(y / bandHeight);
+          var bandRandom = surfaceNoise01(band, generations, params.seed + 2203);
+          var bandWave = Math.sin(y * (0.012 + instability * 0.018) + phase + params.seed * 0.17);
+          var rowJitter = (bandRandom * 2 - 1) * instability * (0.8 + severity * 3.2);
+          for (var x = 0; x < width; x++) {
+            var alpha = 0;
+            var sourceX = x, sourceY = y;
+            if (failure === 'generational') {
+              var drift = motion * (0.06 + severity * 0.28) * (0.25 + bandRandom * 0.75);
+              sourceX -= drift + rowJitter;
+              sourceY -= Math.sin(y * 0.019 + phase) * instability * (0.6 + severity * 1.8);
+              alpha = alphaAt(sourceX, sourceY);
+              var copies = Math.min(5, 1 + Math.floor(generations / 9));
+              for (var copy = 1; copy <= copies; copy++) {
+                var copyT = copy / (copies + 1);
+                var copyAlpha = alphaAt(sourceX - motion * copyT * 0.2,
+                  sourceY + (surfaceNoise01(copy, band, params.seed + 2213) * 2 - 1) * instability * 2.5);
+                alpha = Math.max(alpha, copyAlpha * (0.34 - copyT * 0.18));
+              }
+            } else if (failure === 'banding') {
+              sourceX -= rowJitter + motion * bandWave * (0.015 + instability * 0.012);
+              alpha = alphaAt(sourceX, y);
+              var hardBand = Math.sin((y / Math.max(1, bandHeight)) * Math.PI + phase * 0.32);
+              var density = 0.56 + bandWave * (0.12 + instability * 0.09) + hardBand * (0.08 + instability * 0.055);
+              if (band % Math.max(2, Math.round(8 - instability)) === 0) density *= 0.42 + bandRandom * 0.38;
+              alpha *= Math.max(0.04, Math.min(1.35, density + exposure * 0.12));
+            } else if (failure === 'ghosting') {
+              alpha = alphaAt(x - rowJitter * 0.22, y);
+              for (var ghost = 1; ghost <= ghostCount; ghost++) {
+                var ghostT = ghost / ghostCount;
+                var ghostDistance = motionMagnitude * ghostT;
+                var ghostX = x - motionSign * ghostDistance * (0.18 + instability * 0.035);
+                var ghostY = y - motionSign * ghostDistance * (0.82 - instability * 0.035);
+                var ghostAlpha = alphaAt(ghostX, ghostY);
+                var ghostGain = (0.42 + instability * 0.12) * Math.pow(1 - ghostT, 0.7 + severity * 0.8) / Math.sqrt(ghostCount * 0.55);
+                alpha = Math.max(alpha, ghostAlpha * ghostGain);
+              }
+            } else {
+              alpha = alphaAt(x - rowJitter * 0.18, y);
+              var distance = boundary && boundary.bounds ? boundary.distance[y * width + x] : 100000;
+              var contaminationReach = tonerRadius * (2.2 + toner * 0.55 + instability * 0.7);
+              if (distance < contaminationReach) {
+                var smear = alphaAt(x - motion * 0.12, y - motionSign * Math.min(motionMagnitude, contaminationReach) * 0.22);
+                var residueNoise = surfaceNoise01(x >> 2, y >> 2, params.seed + 2221);
+                var streak = Math.max(0, Math.sin(y * (0.024 + instability * 0.012) + phase + params.seed * 0.11));
+                var fog = (1 - distance / contaminationReach) * (0.04 + toner * 0.055 + instability * 0.045)
+                  * (0.32 + residueNoise * 0.68) * (0.54 + streak * 0.46);
+                alpha = Math.max(alpha, smear * (0.16 + instability * 0.08), fog);
+              }
+            }
+
+            if (erosionRadius > 0 && alpha > 0.002) {
+              var eroded = Math.min(alpha, alphaAt(sourceX - erosionRadius, sourceY), alphaAt(sourceX + erosionRadius, sourceY),
+                alphaAt(sourceX, sourceY - erosionRadius), alphaAt(sourceX, sourceY + erosionRadius));
+              alpha += (eroded - alpha) * Math.min(0.94, erosion * 0.065 + severity * 0.25 + instability * 0.055);
+            }
+            if (toner > 0.01 && failure !== 'residual') {
+              var spread = Math.max(alpha, alphaAt(sourceX - tonerRadius, sourceY), alphaAt(sourceX + tonerRadius, sourceY),
+                alphaAt(sourceX, sourceY - tonerRadius), alphaAt(sourceX, sourceY + tonerRadius));
+              alpha += (spread - alpha) * Math.min(0.9, toner * 0.15 + instability * 0.045);
+            }
+            var fineNoise = surfaceNoise01(x, y, params.seed + generations * 19 + 2237);
+            var coarseNoise = surfaceNoise01(x >> 2, y >> 2, params.seed + generations * 31 + 2239);
+            var dropout = Math.min(0.88, dust * 0.052 + severity * 0.095 + instability * 0.035 + Math.max(0, -exposure) * 0.07);
+            if (alpha > 0.006 && fineNoise < dropout * (0.38 + coarseNoise * 0.62)) alpha *= 0.025 + coarseNoise * 0.18;
+            var level = (alpha - threshold) * gain + 0.5;
+            level = Math.max(0, Math.min(1, level));
+            level = level * level * (3 - 2 * level);
+            if (level <= 0.002) continue;
+            var pixel = (y * width + x) * 4;
+            output.data[pixel] = output.data[pixel + 1] = output.data[pixel + 2] = 255;
+            output.data[pixel + 3] = Math.round(255 * level * generationAggregate.strength);
+          }
+        }
+        work.ctx.putImageData(output, 0, 0);
+        paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('copyDecay'), 1, 'copy-decay-v25-color');
+      }
+
+      function renderRisoSeparationLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var splitAggregate = surfaceAggregate(glyphs, 'risoSeparation', 'risoSplit', params.risoSplit);
         if (!splitAggregate.weight) return;
         var overlap = surfaceAggregate(glyphs, 'risoSeparation', 'risoOverlap', params.risoOverlap).value;
@@ -16116,7 +16401,136 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderSlitSweep(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      // Each mode makes two genuinely different masters before registration.
+      // This preserves spot-ink logic: overlap is a printed third colour, not
+      // a post-process RGB channel offset.
+      function renderRisoSeparation(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var plateMap = surfaceChoice(glyphs, 'risoSeparation', 'risoPlateMap', params.risoPlateMap, BATCH_PARAM_OPTIONS.risoPlateMap);
+        if (plateMap === 'legacy') {
+          renderRisoSeparationLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var splitAggregate = surfaceAggregate(glyphs, 'risoSeparation', 'risoSplit', params.risoSplit);
+        if (!splitAggregate.weight) return;
+        var overlap = Math.max(0, surfaceAggregate(glyphs, 'risoSeparation', 'risoOverlap', params.risoOverlap).value);
+        var register = surfaceAggregate(glyphs, 'risoSeparation', 'risoRegister', params.risoRegister).value * pixelScale * L.s;
+        var grain = Math.max(0, surfaceAggregate(glyphs, 'risoSeparation', 'risoGrain', params.risoGrain).value);
+        var pressure = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'risoSeparation', 'risoPressure', params.risoPressure).value));
+        var mask = buildSurfaceMask(glyphs, 'risoSeparation', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'risoSeparation', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var boundary = surfaceBoundaryDistance(source.data, width, height);
+        if (!boundary.bounds) return;
+        var sourceData = source.data;
+        var plateA = surfaceScratch('riso-plate-a-v25', width, height, false);
+        var plateB = surfaceScratch('riso-plate-b-v25', width, height, false);
+        var imageA = plateA.ctx.createImageData(width, height);
+        var imageB = plateB.ctx.createImageData(width, height);
+        var threshold = 0.5 + splitAggregate.value * 0.32;
+        var overlapZone = 0.018 + overlap * (0.16 + pressure * 0.025);
+        var time = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var spreadRadius = Math.max(0, Math.min(10, Math.round(pressure * pixelScale * L.s * 1.35)));
+        var edgeWidth = Math.max(1, (2.2 + pressure * 2.6 + overlap * 3.5) * pixelScale * L.s);
+        var screenCell = Math.max(3, (10.5 - pressure * 1.15) * pixelScale * L.s);
+        var angleA = 22 * Math.PI / 180;
+        var angleB = 67 * Math.PI / 180;
+        var cosA = Math.cos(angleA), sinA = Math.sin(angleA);
+        var cosB = Math.cos(angleB), sinB = Math.sin(angleB);
+
+        function alphaAt(x, y) {
+          x = Math.round(x); y = Math.round(y);
+          if (x < 0 || x >= width || y < 0 || y >= height) return 0;
+          return sourceData[(y * width + x) * 4 + 3] / 255;
+        }
+
+        function screenDistance(u, v, cell, phaseOffset) {
+          var localU = ((u + phaseOffset) % cell + cell) % cell - cell * 0.5;
+          var localV = ((v + phaseOffset * 0.41) % cell + cell) % cell - cell * 0.5;
+          return Math.sqrt(localU * localU + localV * localV);
+        }
+
+        for (var y = 0; y < height; y++) for (var x = 0; x < width; x++) {
+          var index = y * width + x;
+          var sourceAlpha = sourceData[index * 4 + 3] / 255;
+          var expandedAlpha = sourceAlpha;
+          if (spreadRadius > 0 && sourceAlpha < 0.995) {
+            expandedAlpha = Math.max(expandedAlpha, alphaAt(x - spreadRadius, y), alphaAt(x + spreadRadius, y),
+              alphaAt(x, y - spreadRadius), alphaAt(x, y + spreadRadius));
+            expandedAlpha = sourceAlpha + (expandedAlpha - sourceAlpha) * Math.min(0.92, pressure * 0.18);
+          }
+          if (expandedAlpha <= 0.003) continue;
+          var roughness = surfaceNoise01(x, y, params.seed + 2267);
+          var coarse = surfaceNoise01(x >> 3, y >> 3, params.seed + 2269);
+          var dropout = grain > 0.01 && roughness < Math.min(0.48, grain * (0.055 + pressure * 0.012));
+          var pressureGain = Math.min(1.2, 0.84 + pressure * 0.085 + coarse * grain * 0.18);
+          var alpha = Math.round(255 * Math.min(1, expandedAlpha * pressureGain) * (dropout ? 0.035 + coarse * 0.09 : 1));
+          var putA = false, putB = false;
+
+          if (plateMap === 'edge') {
+            var edgeDistance = boundary.distance[index];
+            var keyPlate = edgeDistance <= edgeWidth * (1 + overlap * 0.28);
+            putA = expandedAlpha > 0.01;
+            putB = keyPlate || (overlap > 0.72 && boundary.inside[index] && edgeDistance < edgeWidth * (1.2 + overlap));
+            if (putA && boundary.inside[index] && edgeDistance < edgeWidth * Math.max(0, 0.62 - pressure * 0.08)) {
+              imageA.data[index * 4 + 3] = Math.round(alpha * Math.max(0.18, 0.82 - pressure * 0.08));
+              putA = false;
+            }
+          } else if (plateMap === 'halftone') {
+            var tone = Math.max(0.04, Math.min(1, expandedAlpha * (0.72 + pressure * 0.09)));
+            var radiusA = screenCell * Math.min(0.68, Math.sqrt(tone) * (0.23 + (1 - splitAggregate.value) * 0.09 + overlap * 0.035));
+            var radiusB = screenCell * Math.min(0.68, Math.sqrt(tone) * (0.23 + (1 + splitAggregate.value) * 0.09 + overlap * 0.035));
+            var uA = x * cosA + y * sinA, vA = -x * sinA + y * cosA;
+            var uB = x * cosB + y * sinB, vB = -x * sinB + y * cosB;
+            putA = screenDistance(uA, vA, screenCell, time * screenCell * 0.07) <= radiusA;
+            putB = screenDistance(uB, vB, screenCell, screenCell * 0.31 - time * screenCell * 0.05) <= radiusB;
+          } else {
+            var selection;
+            if (plateMap === 'area') {
+              var areaScale = Math.max(42, (96 - pressure * 9) * pixelScale * L.s);
+              var areaX = (x * 0.82 + y * 0.57) / areaScale;
+              var areaY = (y * 0.74 - x * 0.31) / (areaScale * 1.27);
+              selection = 0.5 + Math.sin(areaX + params.seed * 0.23 + time * 0.08) * 0.34
+                + Math.cos(areaY * 1.37 - params.seed * 0.17) * 0.19;
+            } else {
+              selection = 0.5 + Math.sin(x * 0.019 + y * 0.011 + params.seed * 0.31 + time * 0.23) * 0.23
+                + Math.cos(x * 0.006 - y * 0.023 - params.seed * 0.17) * 0.16
+                + (coarse - 0.5) * (0.14 + pressure * 0.035);
+            }
+            putA = selection <= threshold + overlapZone;
+            putB = selection >= threshold - overlapZone;
+          }
+
+          if (putA) {
+            imageA.data[index * 4] = imageA.data[index * 4 + 1] = imageA.data[index * 4 + 2] = 255;
+            imageA.data[index * 4 + 3] = alpha;
+          }
+          if (putB) {
+            imageB.data[index * 4] = imageB.data[index * 4 + 1] = imageB.data[index * 4 + 2] = 255;
+            imageB.data[index * 4 + 3] = alpha;
+          }
+        }
+        plateA.ctx.putImageData(imageA, 0, 0);
+        plateB.ctx.putImageData(imageB, 0, 0);
+        var coloredA = colorizeSurfaceCanvas(plateA.canvas, params.risoColorA, 'riso-color-a-v25');
+        var coloredB = colorizeSurfaceCanvas(plateB.canvas, params.risoColorB, 'riso-color-b-v25');
+        var direction = -0.58 + time * (0.04 + pressure * 0.015);
+        var offsetX = Math.cos(direction) * register;
+        var offsetY = Math.sin(direction) * register;
+        var scaleX = targetCtx.canvas.width / width;
+        var scaleY = targetCtx.canvas.height / height;
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.globalAlpha = Math.min(1, 0.82 + pressure * 0.055);
+        targetCtx.drawImage(coloredA, -offsetX * scaleX, -offsetY * scaleY, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.globalCompositeOperation = 'multiply';
+        targetCtx.drawImage(coloredB, offsetX * scaleX, offsetY * scaleY, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function renderSlitSweepLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var widthAggregate = surfaceAggregate(glyphs, 'slitSweep', 'slitWidth', params.slitWidth);
         if (!widthAggregate.weight) return;
         var travel = surfaceAggregate(glyphs, 'slitSweep', 'slitTravel', params.slitTravel).value * pixelScale * L.s;
@@ -16167,7 +16581,103 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderSigilForge(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function slitTimeCoordinate(mode, normalized, phase, frequency, nonlinearity, historyT, band) {
+        var cycle = normalized * frequency * Math.PI * 2;
+        var historyPhase = phase - historyT * Math.PI * (0.72 + frequency * 0.13 + nonlinearity * 0.38);
+        var value;
+        if (mode === 'staircase') {
+          var steps = Math.max(2, Math.min(32, Math.round(2 + frequency * 1.15 + nonlinearity * 2.4)));
+          var shifted = ((normalized + historyPhase / (Math.PI * 2) * (0.08 + nonlinearity * 0.035)) % 1 + 1) % 1;
+          var quantized = Math.floor(shifted * steps) / Math.max(1, steps - 1);
+          value = quantized * 2 - 1;
+          value += (band % 2 ? -1 : 1) * Math.sin(historyPhase * 0.57) * nonlinearity * 0.045;
+        } else if (mode === 'fold') {
+          var folded = 1 - 4 * Math.abs((((normalized * (0.7 + frequency * 0.18)
+            + historyPhase / (Math.PI * 2) * 0.16) % 1) + 1) % 1 - 0.5);
+          var foldCenter = 0.5 + Math.sin(historyPhase * 0.63) * 0.27;
+          var pinch = Math.tanh((normalized - foldCenter) * (4 + nonlinearity * 5.5));
+          value = folded * (0.52 + nonlinearity * 0.085) + pinch * (0.22 + nonlinearity * 0.12)
+            + Math.sin(cycle * 0.42 - historyPhase) * 0.16;
+        } else if (mode === 'feedback') {
+          value = Math.sin(cycle + historyPhase);
+          var iterations = Math.min(6, 2 + Math.floor(nonlinearity));
+          for (var iteration = 0; iteration < iterations; iteration++) {
+            value = Math.sin(value * Math.PI * (1.12 + nonlinearity * 0.28)
+              + cycle * (0.18 + iteration * 0.035) - historyPhase * (0.32 + iteration * 0.08));
+          }
+          value = value * 0.78 + Math.sin(cycle * 0.23 + band * 0.17 + historyPhase) * 0.22;
+        } else {
+          value = Math.sin(cycle + historyPhase) * 0.72
+            + Math.sin(cycle * (1.87 + nonlinearity * 0.08) - historyPhase * 0.64) * (0.18 + nonlinearity * 0.055)
+            + Math.cos(cycle * 0.31 + historyPhase * 1.3) * nonlinearity * 0.055;
+        }
+        return Math.max(-1, Math.min(1, value));
+      }
+
+      // A slit-scan image is a map from position to time. Each grammar below
+      // writes a different map instead of changing the decoration around one
+      // sine wave, so moving Compose layouts remain genuinely non-linear.
+      function renderSlitSweep(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var timeMap = surfaceChoice(glyphs, 'slitSweep', 'slitTimeMap', params.slitTimeMap, BATCH_PARAM_OPTIONS.slitTimeMap);
+        if (timeMap === 'legacy') {
+          renderSlitSweepLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var widthAggregate = surfaceAggregate(glyphs, 'slitSweep', 'slitWidth', params.slitWidth);
+        if (!widthAggregate.weight) return;
+        var travel = surfaceAggregate(glyphs, 'slitSweep', 'slitTravel', params.slitTravel).value * pixelScale * L.s;
+        var frequency = surfaceAggregate(glyphs, 'slitSweep', 'slitFrequency', params.slitFrequency).value;
+        var memory = Math.max(1, Math.round(surfaceAggregate(glyphs, 'slitSweep', 'slitMemory', params.slitMemory).value));
+        var speed = surfaceAggregate(glyphs, 'slitSweep', 'slitSpeed', params.slitSpeed).value;
+        var nonlinearity = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'slitSweep', 'slitNonlinearity', params.slitNonlinearity).value));
+        var slit = Math.max(1, widthAggregate.value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'slitSweep', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'slitSweep', coverBase);
+        var work = surfaceScratch('slit-sweep-v25', width, height, false);
+        var ctx = work.ctx;
+        var vertical = params.slitAxis === 'vertical';
+        var axisLength = vertical ? width : height;
+        var bandCount = Math.max(1, Math.ceil(axisLength / slit));
+        var historyStep = Math.max(1, Math.ceil(bandCount * memory / 6200));
+        var phaseBase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) : surfaceFxPhase * speed;
+        var phase = phaseBase * Math.PI * 2;
+        var travelScale = Math.min(0.92, 0.2 + nonlinearity * 0.17);
+        for (var band = 0, position = 0; position < axisLength; band++, position += slit) {
+          var size = Math.min(slit + 0.75, axisLength - position);
+          var normalized = (position + size * 0.5) / Math.max(1, axisLength);
+          var currentTime = slitTimeCoordinate(timeMap, normalized, phase, frequency, nonlinearity, 0, band);
+          var currentOffset = travel * currentTime * travelScale;
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = widthAggregate.strength * (0.56 + Math.min(0.28, nonlinearity * 0.07));
+          if (vertical) ctx.drawImage(mask, position, 0, size, height, position, currentOffset, size, height);
+          else ctx.drawImage(mask, 0, position, width, size, currentOffset, position, width, size);
+
+          ctx.globalCompositeOperation = 'lighter';
+          for (var history = historyStep; history < memory; history += historyStep) {
+            var t = memory <= 1 ? 0 : history / (memory - 1);
+            var historicTime = slitTimeCoordinate(timeMap, normalized, phase, frequency, nonlinearity, t, band);
+            var offset = travel * historicTime * travelScale;
+            var historyAlpha = (0.055 + (1 - t) * (0.27 + nonlinearity * 0.025))
+              / Math.max(1, Math.sqrt(memory / 5));
+            if (timeMap === 'feedback') historyAlpha *= 1.12 + Math.sin(t * Math.PI) * 0.38;
+            if (timeMap === 'staircase') historyAlpha *= history % 2 ? 0.72 : 1;
+            ctx.globalAlpha = widthAggregate.strength * historyAlpha;
+            if (vertical) ctx.drawImage(mask, position, 0, size, height, position, offset, size, height);
+            else ctx.drawImage(mask, 0, position, width, size, offset, position, width, size);
+          }
+        }
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = surfaceEffectColor('slitSweep');
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function renderSigilForgeLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var complexityAggregate = surfaceAggregate(glyphs, 'sigilForge', 'sigilComplexity', params.sigilComplexity);
         if (!complexityAggregate.weight) return;
         var reach = surfaceAggregate(glyphs, 'sigilForge', 'sigilReach', params.sigilReach).value * pixelScale * L.s;
@@ -16297,6 +16807,232 @@ type deformer</textarea>
         ctx.arc(axisX, bottom + crown * 0.18, crown * 0.34, 0, Math.PI * 2);
         ctx.stroke();
 
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      // Sigils are source-node systems, not an ornament pasted on one central
+      // axis. Cartouche, constellation, radial, and branching modes each use a
+      // distinct graph topology and preserve the spatial relation of glyphs.
+      function renderSigilForge(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var topology = surfaceChoice(glyphs, 'sigilForge', 'sigilTopology', params.sigilTopology, BATCH_PARAM_OPTIONS.sigilTopology);
+        if (topology === 'legacy') {
+          renderSigilForgeLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var complexityAggregate = surfaceAggregate(glyphs, 'sigilForge', 'sigilComplexity', params.sigilComplexity);
+        if (!complexityAggregate.weight) return;
+        var reach = Math.max(0, surfaceAggregate(glyphs, 'sigilForge', 'sigilReach', params.sigilReach).value * pixelScale * L.s);
+        var symmetry = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'sigilForge', 'sigilSymmetry', params.sigilSymmetry).value));
+        var stroke = Math.max(0.2, surfaceAggregate(glyphs, 'sigilForge', 'sigilStroke', params.sigilStroke).value * pixelScale * L.s);
+        var barbs = Math.max(0, Math.min(6, surfaceAggregate(glyphs, 'sigilForge', 'sigilBarbs', params.sigilBarbs).value));
+        var binding = Math.max(0, Math.min(4, surfaceAggregate(glyphs, 'sigilForge', 'sigilBinding', params.sigilBinding).value));
+        var complexity = Math.max(1, Math.round(complexityAggregate.value));
+        var mask = buildSurfaceMask(glyphs, 'sigilForge', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'sigilForge', coverBase);
+        var nuclei = surfaceNodesForGlyphs(glyphs, 'sigilForge', 64, pixelScale, L, 0, 0, 0);
+        if (!nuclei.length) return;
+        var maxNodes = Math.min(96, Math.max(complexity * 3, nuclei.length * 2));
+        var perGlyph = Math.max(2, Math.min(10, Math.ceil(complexity / Math.max(1, nuclei.length)) + 1));
+        var nodes = surfaceFieldNodesForGlyphs(glyphs, 'sigilForge', maxNodes, perGlyph, pixelScale, L, 0, 0, 0);
+        for (var nucleusIndex = 0; nucleusIndex < nuclei.length && nodes.length < 96; nucleusIndex++) nodes.push(nuclei[nucleusIndex]);
+        if (!nodes.length) nodes = nuclei.slice();
+
+        var centerX = 0, centerY = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        var averageRadius = 0;
+        for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+          centerX += nodes[nodeIndex].x;
+          centerY += nodes[nodeIndex].y;
+          averageRadius += nodes[nodeIndex].r;
+          minX = Math.min(minX, nodes[nodeIndex].x - nodes[nodeIndex].r);
+          maxX = Math.max(maxX, nodes[nodeIndex].x + nodes[nodeIndex].r);
+          minY = Math.min(minY, nodes[nodeIndex].y - nodes[nodeIndex].r);
+          maxY = Math.max(maxY, nodes[nodeIndex].y + nodes[nodeIndex].r);
+        }
+        centerX /= nodes.length;
+        centerY /= nodes.length;
+        averageRadius /= nodes.length;
+        var spanX = Math.max(12, maxX - minX), spanY = Math.max(12, maxY - minY);
+        var outerRadius = Math.max(averageRadius * 2.4, Math.sqrt(spanX * spanX + spanY * spanY) * 0.56 + reach * (0.12 + binding * 0.07));
+        var graphReach = Math.max(averageRadius * 3.2, reach * (0.58 + binding * 0.27));
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var work = surfaceScratch('sigil-forge-v25', width, height, false);
+        var ctx = work.ctx;
+        var color = surfaceEffectColor('sigilForge');
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = topology === 'branching' ? 'round' : 'miter';
+        ctx.lineWidth = stroke;
+
+        function drawNodeMark(node, index, scale, alpha) {
+          var size = Math.max(stroke * 2.2, Math.min(node.r * 0.58, (5 + binding * 2.4) * pixelScale * scale));
+          var mark = Math.floor(hash(index, params.seed % 97, 2309) * 4);
+          ctx.save();
+          ctx.translate(node.x, node.y);
+          ctx.rotate((hash(index, 5, 2311) * 2 - 1) * 0.42 + phase * 0.025);
+          ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+          ctx.lineWidth = stroke * (0.72 + scale * 0.28);
+          ctx.beginPath();
+          if (mark === 0) {
+            ctx.arc(0, 0, size * 0.58, 0, Math.PI * 2);
+          } else if (mark === 1) {
+            ctx.moveTo(0, -size); ctx.lineTo(size * 0.72, 0); ctx.lineTo(0, size); ctx.lineTo(-size * 0.72, 0); ctx.closePath();
+          } else if (mark === 2) {
+            ctx.rect(-size * 0.62, -size * 0.62, size * 1.24, size * 1.24);
+            ctx.moveTo(-size, 0); ctx.lineTo(size, 0); ctx.moveTo(0, -size); ctx.lineTo(0, size);
+          } else {
+            for (var ray = 0; ray < 6; ray++) {
+              var angle = ray / 6 * Math.PI * 2;
+              ctx.moveTo(Math.cos(angle) * size * 0.28, Math.sin(angle) * size * 0.28);
+              ctx.lineTo(Math.cos(angle) * size, Math.sin(angle) * size);
+            }
+          }
+          ctx.stroke();
+          if (binding > 2.35 && hash(index, 11, 2317) > 0.42) {
+            ctx.globalAlpha *= 0.72;
+            ctx.beginPath();
+            ctx.arc(0, 0, stroke * (0.65 + binding * 0.18), 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function drawCircuitEdge(a, b, index, alpha, lane) {
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var distance = Math.sqrt(dx * dx + dy * dy) || 1;
+          var nx = -dy / distance, ny = dx / distance;
+          var offset = lane || 0;
+          var elbowFirst = hash(index, params.seed % 83, 2323) > 0.5;
+          var midX = (a.x + b.x) * 0.5 + nx * offset;
+          var midY = (a.y + b.y) * 0.5 + ny * offset;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+          ctx.beginPath();
+          ctx.moveTo(a.x + nx * offset, a.y + ny * offset);
+          if (topology === 'branching') {
+            var bend = (hash(index, 7, 2333) * 2 - 1) * distance * (0.08 + binding * 0.025);
+            ctx.bezierCurveTo(a.x + dx * 0.34 + nx * bend, a.y + dy * 0.34 + ny * bend,
+              a.x + dx * 0.68 - nx * bend * 0.42, a.y + dy * 0.68 - ny * bend * 0.42, b.x, b.y);
+          } else if (elbowFirst) {
+            ctx.lineTo(midX, a.y + ny * offset);
+            ctx.lineTo(midX, b.y + ny * offset);
+          } else {
+            ctx.lineTo(a.x + nx * offset, midY);
+            ctx.lineTo(b.x + nx * offset, midY);
+          }
+          ctx.lineTo(b.x + nx * offset, b.y + ny * offset);
+          ctx.stroke();
+          var barbCount = Math.min(6, Math.floor(barbs) + (hash(index, 13, 2339) < barbs % 1 ? 1 : 0));
+          for (var barb = 0; barb < barbCount; barb++) {
+            var t = (barb + 1) / (barbCount + 1);
+            var px = a.x + dx * t + nx * offset;
+            var py = a.y + dy * t + ny * offset;
+            var barbLength = Math.min(distance * 0.09, stroke * (2.2 + binding * 1.3));
+            ctx.beginPath();
+            ctx.moveTo(px - nx * barbLength, py - ny * barbLength);
+            ctx.lineTo(px + nx * barbLength, py + ny * barbLength);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        if (topology === 'cartouche') {
+          var rim = nodes.slice().sort(function (a, b) {
+            return Math.atan2(a.y - centerY, a.x - centerX) - Math.atan2(b.y - centerY, b.x - centerX);
+          });
+          var rimPoints = [];
+          for (var rimIndex = 0; rimIndex < rim.length; rimIndex++) {
+            var rdx = rim[rimIndex].x - centerX, rdy = rim[rimIndex].y - centerY;
+            var rlength = Math.sqrt(rdx * rdx + rdy * rdy) || 1;
+            var expansion = reach * (0.08 + binding * 0.055) + averageRadius * (0.9 + symmetry * 0.18);
+            rimPoints.push({ x: rim[rimIndex].x + rdx / rlength * expansion, y: rim[rimIndex].y + rdy / rlength * expansion,
+              r: rim[rimIndex].r, strength: rim[rimIndex].strength, glyphIndex: rim[rimIndex].glyphIndex });
+          }
+          var rimLanes = Math.min(4, 1 + Math.floor(symmetry));
+          for (var rimLane = 0; rimLane < rimLanes; rimLane++) {
+            var scale = 1 + rimLane * (0.018 + binding * 0.01);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.scale(scale, scale);
+            ctx.translate(-centerX, -centerY);
+            ctx.globalAlpha = complexityAggregate.strength * (0.72 - rimLane * 0.12);
+            ctx.lineWidth = Math.max(0.35, stroke * (1 - rimLane * 0.12));
+            ctx.beginPath();
+            for (var outlineIndex = 0; outlineIndex < rimPoints.length; outlineIndex++) {
+              var point = rimPoints[outlineIndex];
+              if (!outlineIndex) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
+            }
+            if (rimPoints.length > 2) ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+          }
+          for (var cartoucheIndex = 0; cartoucheIndex < rimPoints.length; cartoucheIndex++) {
+            drawCircuitEdge(rim[cartoucheIndex], rimPoints[cartoucheIndex], cartoucheIndex + 2600,
+              rim[cartoucheIndex].strength * 0.54, 0);
+            if (binding > 0.35 && rimPoints.length > 2) {
+              var jump = 1 + Math.floor(binding);
+              drawCircuitEdge(rimPoints[cartoucheIndex], rimPoints[(cartoucheIndex + jump) % rimPoints.length],
+                cartoucheIndex + 2700, complexityAggregate.strength * (0.18 + binding * 0.09), 0);
+            }
+          }
+        } else if (topology === 'radial') {
+          var ringCount = Math.min(7, Math.max(2, 2 + Math.floor(symmetry + binding * 0.75)));
+          for (var ring = 0; ring < ringCount; ring++) {
+            var ringRadius = outerRadius * (0.22 + (ring + 1) / ringCount * 0.72);
+            ctx.globalAlpha = complexityAggregate.strength * (0.25 + (ring % 2 ? 0.16 : 0.34));
+            ctx.lineWidth = Math.max(0.35, stroke * (ring % 2 ? 0.66 : 1.08));
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ringRadius, phase * 0.018, Math.PI * 2 + phase * 0.018);
+            ctx.stroke();
+          }
+          var radialLimit = Math.min(nodes.length, Math.max(4, complexity * 2));
+          for (var radialIndex = 0; radialIndex < radialLimit; radialIndex++) {
+            var radialNode = nodes[radialIndex];
+            var radialAngle = Math.atan2(radialNode.y - centerY, radialNode.x - centerX);
+            var radialEnd = { x: centerX + Math.cos(radialAngle) * outerRadius, y: centerY + Math.sin(radialAngle) * outerRadius,
+              r: radialNode.r, strength: radialNode.strength };
+            drawCircuitEdge({ x: centerX, y: centerY }, radialNode, radialIndex + 2800, radialNode.strength * 0.62, 0);
+            drawCircuitEdge(radialNode, radialEnd, radialIndex + 2900, radialNode.strength * 0.42, 0);
+          }
+          drawNodeMark({ x: centerX, y: centerY, r: averageRadius * (1.4 + binding * 0.12), strength: complexityAggregate.strength },
+            2999, 1.6 + symmetry * 0.12, 0.88);
+        } else if (topology === 'branching') {
+          var tree = nodes.slice().sort(function (a, b) { return b.y - a.y; });
+          var connected = [tree[0]];
+          for (var treeIndex = 1; treeIndex < tree.length; treeIndex++) {
+            var child = tree[treeIndex], parent = connected[0], bestDistance = Infinity;
+            for (var parentIndex = 0; parentIndex < connected.length; parentIndex++) {
+              var pdx = child.x - connected[parentIndex].x, pdy = child.y - connected[parentIndex].y;
+              var parentDistance = pdx * pdx + pdy * pdy;
+              if (parentDistance < bestDistance) { bestDistance = parentDistance; parent = connected[parentIndex]; }
+            }
+            drawCircuitEdge(parent, child, treeIndex + 3000, child.strength * (0.45 + binding * 0.1), 0);
+            if (binding > 1.25) drawCircuitEdge(parent, child, treeIndex + 3100,
+              child.strength * Math.min(0.52, binding * 0.12), stroke * (1.8 + binding * 0.65));
+            connected.push(child);
+          }
+          var root = tree[0];
+          var rootLength = Math.min(reach, outerRadius * 0.7);
+          drawCircuitEdge(root, { x: root.x, y: root.y + rootLength, r: root.r, strength: root.strength }, 3199,
+            complexityAggregate.strength * 0.72, 0);
+        } else {
+          var edges = surfaceGraphEdges(nodes, graphReach, binding, 3203, 3.6 + binding * 0.45, false);
+          for (var edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+            var edge = edges[edgeIndex];
+            var edgeAlpha = Math.min(edge.a.strength, edge.b.strength) * (edge.kind === 'trunk' ? 0.66 : 0.38 + binding * 0.08);
+            drawCircuitEdge(edge.a, edge.b, edgeIndex + 3300, edgeAlpha, 0);
+            if (binding > 1.7 && edge.kind === 'trunk') drawCircuitEdge(edge.a, edge.b, edgeIndex + 3400,
+              edgeAlpha * 0.48, stroke * (1.6 + binding * 0.55));
+          }
+        }
+
+        for (var markIndex = 0; markIndex < nodes.length; markIndex++) {
+          var markAlpha = nodes[markIndex].strength * (0.38 + hash(markIndex, params.seed % 71, 2351) * 0.5);
+          drawNodeMark(nodes[markIndex], markIndex, topology === 'radial' ? 0.82 : 1, markAlpha);
+        }
         targetCtx.save();
         targetCtx.setTransform(1, 0, 0, 1, 0, 0);
         targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
@@ -22130,7 +22866,7 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 24,
+          version: 25,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
           formCadence: {
@@ -22169,6 +22905,7 @@ type deformer</textarea>
             sigilForge: {
               color: params.sigilColor, sourceMode: params.sigilSourceMode, sourceOpacity: surfaceSourceOpacity('sigilForge'),
               opacity: surfaceOutputOpacity('sigilForge'), blend: surfaceBlendMode('sigilForge'),
+              topology: params.sigilTopology, binding: params.sigilBinding,
               complexity: params.sigilComplexity, reach: params.sigilReach, symmetry: params.sigilSymmetry,
               stroke: params.sigilStroke, barbs: params.sigilBarbs
             },
@@ -22296,6 +23033,7 @@ type deformer</textarea>
             contourEtch: {
               color: params.contourColor, sourceMode: params.contourSourceMode, sourceOpacity: surfaceSourceOpacity('contourEtch'),
               opacity: surfaceOutputOpacity('contourEtch'), blend: surfaceBlendMode('contourEtch'),
+              grammar: params.contourGrammar, relief: params.contourRelief,
               bands: params.contourBands, spacing: params.contourSpacing,
               stroke: params.contourStroke, drift: params.contourDrift
             },
@@ -22330,6 +23068,7 @@ type deformer</textarea>
             copyDecay: {
               color: params.copyColor, sourceMode: params.copySourceMode, sourceOpacity: surfaceSourceOpacity('copyDecay'),
               opacity: surfaceOutputOpacity('copyDecay'), blend: surfaceBlendMode('copyDecay'),
+              failure: params.copyFailure, instability: params.copyInstability,
               generations: params.copyGenerations, exposure: params.copyExposure,
               motion: params.copyMotion, erosion: params.copyErosion,
               toner: params.copyToner, dust: params.copyDust
@@ -22337,12 +23076,14 @@ type deformer</textarea>
             risoSeparation: {
               colors: [params.risoColorA, params.risoColorB], sourceMode: params.risoSourceMode, sourceOpacity: surfaceSourceOpacity('risoSeparation'),
               opacity: surfaceOutputOpacity('risoSeparation'), blend: surfaceBlendMode('risoSeparation'),
+              master: params.risoPlateMap, pressure: params.risoPressure,
               split: params.risoSplit, overprint: params.risoOverlap,
               registration: params.risoRegister, grain: params.risoGrain
             },
             slitSweep: {
               color: params.slitColor, sourceMode: params.slitSourceMode, sourceOpacity: surfaceSourceOpacity('slitSweep'), axis: params.slitAxis,
               opacity: surfaceOutputOpacity('slitSweep'), blend: surfaceBlendMode('slitSweep'),
+              timeMap: params.slitTimeMap, nonlinearity: params.slitNonlinearity,
               width: params.slitWidth, travel: params.slitTravel, frequency: params.slitFrequency,
               memory: params.slitMemory, speed: params.slitSpeed
             }
@@ -23780,6 +24521,8 @@ type deformer</textarea>
       bindRange('pEtchantGrowth', 'vEtchantGrowth', 'etchantGrowth', f0, applyAllOperatorVisuals);
       bindRange('pEtchantPolarity', 'vEtchantPolarity', 'etchantPolarity', fSigned2, applyAllOperatorVisuals);
       bindRange('pEtchantSpill', 'vEtchantSpill', 'etchantSpill', fPx, applyAllOperatorVisuals);
+      bindProfileSelect('pSigilTopology', 'sigilTopology', applyAllOperatorVisuals);
+      bindRange('pSigilBinding', 'vSigilBinding', 'sigilBinding', f2, applyAllOperatorVisuals);
       bindRange('pSigilComplexity', 'vSigilComplexity', 'sigilComplexity', f0, applyAllOperatorVisuals);
       bindRange('pSigilReach', 'vSigilReach', 'sigilReach', fPx, applyAllOperatorVisuals);
       bindRange('pSigilSymmetry', 'vSigilSymmetry', 'sigilSymmetry', f2, applyAllOperatorVisuals);
@@ -23898,6 +24641,8 @@ type deformer</textarea>
       bindRange('pHatchAngle', 'vHatchAngle', 'hatchAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pHatchWarp', 'vHatchWarp', 'hatchWarp', f2, applyAllOperatorVisuals);
       bindRange('pHatchStroke', 'vHatchStroke', 'hatchStroke', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
+      bindProfileSelect('pContourGrammar', 'contourGrammar', applyAllOperatorVisuals);
+      bindRange('pContourRelief', 'vContourRelief', 'contourRelief', f2, applyAllOperatorVisuals);
       bindRange('pContourEtchBands', 'vContourEtchBands', 'contourBands', f0, applyAllOperatorVisuals);
       bindRange('pContourEtchSpacing', 'vContourEtchSpacing', 'contourSpacing', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pContourEtchStroke', 'vContourEtchStroke', 'contourStroke', function (v) { return v.toFixed(2) + 'px'; }, applyAllOperatorVisuals);
@@ -23927,16 +24672,22 @@ type deformer</textarea>
       bindRange('pRibbonSteps', 'vRibbonSteps', 'ribbonSteps', f0, applyAllOperatorVisuals);
       bindRange('pRibbonTwist', 'vRibbonTwist', 'ribbonTwist', fDeg, applyAllOperatorVisuals);
       bindRange('pRibbonFade', 'vRibbonFade', 'ribbonFade', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pRisoPlateMap', 'risoPlateMap', applyAllOperatorVisuals);
+      bindRange('pRisoPressure', 'vRisoPressure', 'risoPressure', f2, applyAllOperatorVisuals);
       bindRange('pRisoSplit', 'vRisoSplit', 'risoSplit', f2, applyAllOperatorVisuals);
       bindRange('pRisoOverlap', 'vRisoOverlap', 'risoOverlap', f2, applyAllOperatorVisuals);
       bindRange('pRisoRegister', 'vRisoRegister', 'risoRegister', fPx, applyAllOperatorVisuals);
       bindRange('pRisoGrain', 'vRisoGrain', 'risoGrain', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pCopyFailure', 'copyFailure', applyAllOperatorVisuals);
+      bindRange('pCopyInstability', 'vCopyInstability', 'copyInstability', f2, applyAllOperatorVisuals);
       bindRange('pCopyGenerations', 'vCopyGenerations', 'copyGenerations', f0, applyAllOperatorVisuals);
       bindRange('pCopyExposure', 'vCopyExposure', 'copyExposure', fSigned2, applyAllOperatorVisuals);
       bindRange('pCopyMotion', 'vCopyMotion', 'copyMotion', fPx, applyAllOperatorVisuals);
       bindRange('pCopyErosion', 'vCopyErosion', 'copyErosion', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pCopyToner', 'vCopyToner', 'copyToner', f2, applyAllOperatorVisuals);
       bindRange('pCopyDust', 'vCopyDust', 'copyDust', f2, applyAllOperatorVisuals);
+      bindProfileSelect('pSlitTimeMap', 'slitTimeMap', applyAllOperatorVisuals);
+      bindRange('pSlitNonlinearity', 'vSlitNonlinearity', 'slitNonlinearity', f2, applyAllOperatorVisuals);
       bindRange('pSlitWidth', 'vSlitWidth', 'slitWidth', fPx, applyAllOperatorVisuals);
       bindRange('pSlitTravel', 'vSlitTravel', 'slitTravel', fPx, applyAllOperatorVisuals);
       bindRange('pSlitFrequency', 'vSlitFrequency', 'slitFrequency', f2, applyAllOperatorVisuals);
@@ -26113,7 +26864,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 24,
+          version: 25,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -26572,7 +27323,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 24,
+          version: 25,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -26625,7 +27376,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 24) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 25) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -26695,6 +27446,22 @@ type deformer</textarea>
           if (!Object.prototype.hasOwnProperty.call(data.params, 'fractureEnergy')) params.fractureEnergy = 0;
           if (!Object.prototype.hasOwnProperty.call(data.params, 'ribbonPath')) params.ribbonPath = 'legacy';
           if (!Object.prototype.hasOwnProperty.call(data.params, 'ribbonWeave')) params.ribbonWeave = 0;
+        }
+        // v24 and earlier had only one renderer for each of these five
+        // process Operators. Preserve that exact visual result while v25
+        // starts new work with independent terrain, master, machine-failure,
+        // time-map, and source-node graph grammars.
+        if (Number(data.version || 0) < 25) {
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'sigilTopology')) params.sigilTopology = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'sigilBinding')) params.sigilBinding = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'contourGrammar')) params.contourGrammar = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'contourRelief')) params.contourRelief = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'risoPlateMap')) params.risoPlateMap = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'risoPressure')) params.risoPressure = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'copyFailure')) params.copyFailure = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'copyInstability')) params.copyInstability = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'slitTimeMap')) params.slitTimeMap = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'slitNonlinearity')) params.slitNonlinearity = 0;
         }
         // v12 and earlier stored only three source-text presets. Preserve the
         // exact old look while upgrading to the continuous 0–100% control.
@@ -27265,7 +28032,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 24, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 25, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);

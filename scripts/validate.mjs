@@ -223,7 +223,7 @@ if (html) {
     ['pSoftBlobInflation', '6'], ['pSoftBlobStiffness', '5'], ['pSoftBlobChaos', '8'], ['pSoftBlobMembrane', '4'],
     ['pSoftBlobSporeReach', '2400'], ['pSoftBlobSporeDensity', '4'], ['pSoftBlobSpeed', '8'],
     ['pEtchantPattern', '1'], ['pEtchantCell', '72'], ['pEtchantGrowth', '192'], ['pEtchantPolarity', '1'], ['pEtchantSpill', '640'],
-    ['pSigilComplexity', '24'], ['pSigilReach', '640'], ['pSigilSymmetry', '4'], ['pSigilStroke', '20'], ['pSigilBarbs', '6'],
+    ['pSigilBinding', '4'], ['pSigilComplexity', '24'], ['pSigilReach', '640'], ['pSigilSymmetry', '4'], ['pSigilStroke', '20'], ['pSigilBarbs', '6'],
     ['pThornArmor', '4'], ['pThornLength', '360'], ['pThornDensity', '6'], ['pThornCurl', '3'], ['pThornStroke', '16'], ['pThornBranches', '4'],
     ['pCipherRegisters', '4'], ['pCipherScale', '36'], ['pCipherDensity', '4'], ['pCipherOrbit', '360'], ['pCipherDrift', '160'], ['pCipherCallouts', '4'],
     ['pBoneMarrow', '4'], ['pBoneCell', '40'], ['pBoneBranching', '4'], ['pBoneWeight', '16'], ['pBoneJoint', '28'], ['pBoneWarp', '4'],
@@ -242,15 +242,15 @@ if (html) {
     ['pMonolithMass', '360'], ['pMonolithModule', '120'], ['pMonolithFault', '480'], ['pMonolithCounter', '1'], ['pMonolithFormwork', '4'],
     ['pRasterModulation', '4'], ['pRasterCell', '72'], ['pRasterGain', '3'], ['pRasterAngle', '90'], ['pRasterNoise', '2'],
     ['pHatchDepth', '4'], ['pHatchSpacing', '80'], ['pHatchAngle', '180'], ['pHatchWarp', '5'], ['pHatchStroke', '12'],
-    ['pContourEtchBands', '64'], ['pContourEtchSpacing', '40'], ['pContourEtchStroke', '14'], ['pContourEtchDrift', '6'],
+    ['pContourRelief', '4'], ['pContourEtchBands', '64'], ['pContourEtchSpacing', '40'], ['pContourEtchStroke', '14'], ['pContourEtchDrift', '6'],
     ['pPressureWeight', '260'], ['pPressureContrast', '4'], ['pPressureAngle', '180'], ['pPressureFrequency', '32'], ['pPressureSoftness', '24'],
     ['pPressureBreath', '4'], ['pPressureDryness', '1'], ['pPressureTaper', '2'],
     ['pSinewPull', '640'], ['pSinewTorque', '540'], ['pSinewTension', '8'], ['pSinewWaist', '4'], ['pSinewAxis', '180'],
     ['pFractureEnergy', '4'], ['pFractureCell', '140'], ['pFractureScatter', '520'], ['pFractureGap', '28'], ['pFractureSpin', '720'],
     ['pRibbonWeave', '4'], ['pRibbonDepth', '520'], ['pRibbonSteps', '96'], ['pRibbonTwist', '540'], ['pRibbonFade', '1'],
-    ['pCopyGenerations', '48'], ['pCopyExposure', '1.5'], ['pCopyMotion', '640'], ['pCopyErosion', '24'], ['pCopyToner', '5'], ['pCopyDust', '4'],
-    ['pRisoSplit', '1'], ['pRisoOverlap', '1.5'], ['pRisoRegister', '160'], ['pRisoGrain', '2'],
-    ['pSlitWidth', '96'], ['pSlitTravel', '720'], ['pSlitFrequency', '16'], ['pSlitMemory', '64'], ['pSlitSpeed', '4']
+    ['pCopyInstability', '4'], ['pCopyGenerations', '48'], ['pCopyExposure', '1.5'], ['pCopyMotion', '640'], ['pCopyErosion', '24'], ['pCopyToner', '5'], ['pCopyDust', '4'],
+    ['pRisoPressure', '4'], ['pRisoSplit', '1'], ['pRisoOverlap', '1.5'], ['pRisoRegister', '160'], ['pRisoGrain', '2'],
+    ['pSlitNonlinearity', '4'], ['pSlitWidth', '96'], ['pSlitTravel', '720'], ['pSlitFrequency', '16'], ['pSlitMemory', '64'], ['pSlitSpeed', '4']
   ];
   for (const [id, expectedMax] of extremeRangeChecks) {
     const tag = markupOnly.match(new RegExp(`<input\\b[^>]*\\bid=["']${id}["'][^>]*>`, 'i'));
@@ -269,7 +269,7 @@ if (html) {
     ['pSoftBlobInflation', '0'], ['pSoftBlobStiffness', '0'], ['pSoftBlobChaos', '0'], ['pSoftBlobMembrane', '0'],
     ['pSoftBlobSporeReach', '0'], ['pSoftBlobSporeDensity', '0'], ['pSoftBlobSpeed', '0'],
     ['pEtchantPattern', '0'], ['pEtchantCell', '2'], ['pEtchantGrowth', '8'], ['pEtchantPolarity', '-1'], ['pEtchantSpill', '0'],
-    ['pSigilComplexity', '1'], ['pSigilReach', '0'], ['pSigilSymmetry', '0'], ['pSigilStroke', '0.2'], ['pSigilBarbs', '0'],
+    ['pSigilBinding', '0'], ['pSigilComplexity', '1'], ['pSigilReach', '0'], ['pSigilSymmetry', '0'], ['pSigilStroke', '0.2'], ['pSigilBarbs', '0'],
     ['pThornArmor', '0'], ['pThornLength', '0'], ['pThornDensity', '0.05'], ['pThornCurl', '-3'], ['pThornStroke', '0.2'], ['pThornBranches', '0'],
     ['pCipherRegisters', '0'], ['pCipherScale', '3'], ['pCipherDensity', '0.1'], ['pCipherOrbit', '0'], ['pCipherDrift', '0'], ['pCipherCallouts', '0'],
     ['pBoneMarrow', '0'], ['pBoneCell', '2'], ['pBoneBranching', '0'], ['pBoneWeight', '0.2'], ['pBoneJoint', '0'], ['pBoneWarp', '0'],
@@ -288,14 +288,14 @@ if (html) {
     ['pMonolithMass', '-120'], ['pMonolithModule', '2'], ['pMonolithFault', '-480'], ['pMonolithCounter', '0'], ['pMonolithFormwork', '0'],
     ['pRasterModulation', '0'], ['pRasterCell', '2'], ['pRasterGain', '0.05'], ['pRasterAngle', '-90'],
     ['pHatchDepth', '0'], ['pHatchSpacing', '1'], ['pHatchAngle', '-180'], ['pHatchStroke', '0.1'],
-    ['pContourEtchBands', '1'], ['pContourEtchSpacing', '1'], ['pContourEtchStroke', '0.25'],
+    ['pContourRelief', '0'], ['pContourEtchBands', '1'], ['pContourEtchSpacing', '1'], ['pContourEtchStroke', '0.25'],
     ['pPressureWeight', '-120'], ['pPressureFrequency', '0.1'], ['pPressureSoftness', '0.1'],
     ['pPressureBreath', '0'], ['pPressureDryness', '0'], ['pPressureTaper', '-2'],
     ['pSinewPull', '-640'], ['pSinewTorque', '-540'], ['pSinewTension', '0.1'], ['pSinewWaist', '-2'], ['pSinewAxis', '-180'],
     ['pFractureEnergy', '0'], ['pFractureCell', '4'], ['pFractureSpin', '-720'],
     ['pRibbonWeave', '0'], ['pRibbonDepth', '-520'], ['pRibbonSteps', '1'], ['pRibbonTwist', '-540'],
-    ['pCopyGenerations', '1'], ['pCopyExposure', '-1.5'], ['pCopyMotion', '-640'],
-    ['pRisoSplit', '-1'], ['pSlitWidth', '1'], ['pSlitTravel', '-720'], ['pSlitFrequency', '0.25'], ['pSlitMemory', '1']
+    ['pCopyInstability', '0'], ['pCopyGenerations', '1'], ['pCopyExposure', '-1.5'], ['pCopyMotion', '-640'],
+    ['pRisoPressure', '0'], ['pRisoSplit', '-1'], ['pSlitNonlinearity', '0'], ['pSlitWidth', '1'], ['pSlitTravel', '-720'], ['pSlitFrequency', '0.25'], ['pSlitMemory', '1']
   ];
   for (const [id, expectedMin] of extremeMinChecks) {
     const tag = markupOnly.match(new RegExp(`<input\\b[^>]*\\bid=["']${id}["'][^>]*>`, 'i'));
@@ -351,6 +351,19 @@ if (html) {
     const select = markupOnly.match(new RegExp(`<select\\b[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]*?)<\\/select>`, 'i'));
     if (!select || values.some((value) => !new RegExp(`value=["']${value}["']`).test(select[1]))) {
       noteFailure(`${id} is missing one or more Adaptive Material grammar modes.`);
+    }
+  }
+  const processGrammarSelects = {
+    pSigilTopology: ['legacy', 'cartouche', 'constellation', 'radial', 'branching'],
+    pContourGrammar: ['legacy', 'isobars', 'index', 'terraces', 'watershed'],
+    pRisoPlateMap: ['legacy', 'field', 'area', 'edge', 'halftone'],
+    pCopyFailure: ['legacy', 'generational', 'banding', 'ghosting', 'residual'],
+    pSlitTimeMap: ['legacy', 'wave', 'staircase', 'fold', 'feedback']
+  };
+  for (const [id, values] of Object.entries(processGrammarSelects)) {
+    const select = markupOnly.match(new RegExp(`<select\\b[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]*?)<\\/select>`, 'i'));
+    if (!select || values.some((value) => !new RegExp(`value=["']${value}["']`).test(select[1]))) {
+      noteFailure(`${id} is missing one or more Five Process grammar modes.`);
     }
   }
   for (const marker of ['function formFieldContext(', 'function formFieldSignal(', 'function mirrorGrammarMask(',
@@ -433,6 +446,44 @@ if (html) {
     'path: params.ribbonPath, weave: params.ribbonWeave'
   ]) {
     if (!html.includes(marker)) noteFailure(`Adaptive Material SVG metadata is missing ${marker}.`);
+  }
+  for (const marker of [
+    "bindProfileSelect('pSigilTopology'", "bindRange('pSigilBinding'",
+    "bindProfileSelect('pContourGrammar'", "bindRange('pContourRelief'",
+    "bindProfileSelect('pRisoPlateMap'", "bindRange('pRisoPressure'",
+    "bindProfileSelect('pCopyFailure'", "bindRange('pCopyInstability'",
+    "bindProfileSelect('pSlitTimeMap'", "bindRange('pSlitNonlinearity'",
+    "surfaceChoice(glyphs, 'sigilForge', 'sigilTopology'",
+    "surfaceChoice(glyphs, 'contourEtch', 'contourGrammar'",
+    "surfaceChoice(glyphs, 'risoSeparation', 'risoPlateMap'",
+    "surfaceChoice(glyphs, 'copyDecay', 'copyFailure'",
+    "surfaceChoice(glyphs, 'slitSweep', 'slitTimeMap'",
+    "params.sigilTopology = 'legacy'", "params.contourGrammar = 'legacy'",
+    "params.risoPlateMap = 'legacy'", "params.copyFailure = 'legacy'",
+    "params.slitTimeMap = 'legacy'", 'if (Number(data.version || 0) < 25)'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Five Process state integration is missing ${marker}.`);
+  }
+  for (const marker of [
+    'function renderSigilForgeLegacy(', 'function renderContourEtchLegacy(',
+    'function renderRisoSeparationLegacy(', 'function renderCopyDecayLegacy(',
+    'function renderSlitSweepLegacy(', "topology === 'cartouche'",
+    "topology === 'radial'", "topology === 'branching'",
+    "grammar === 'terraces'", "grammar === 'watershed'",
+    "plateMap === 'edge'", "plateMap === 'halftone'",
+    "failure === 'banding'", "failure === 'ghosting'", "failure === 'residual'",
+    "timeMap === 'feedback'", "timeMap === 'staircase'", 'function slitTimeCoordinate('
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Five Process renderer is missing ${marker}.`);
+  }
+  for (const marker of [
+    'topology: params.sigilTopology, binding: params.sigilBinding',
+    'grammar: params.contourGrammar, relief: params.contourRelief',
+    'master: params.risoPlateMap, pressure: params.risoPressure',
+    'failure: params.copyFailure, instability: params.copyInstability',
+    'timeMap: params.slitTimeMap, nonlinearity: params.slitNonlinearity'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Five Process SVG metadata is missing ${marker}.`);
   }
   for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderEtchantBloom', 'renderSinewTorque', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
@@ -1102,8 +1153,8 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*24/g) || []).length < 2 || !html.includes('data.version > 24') || !html.includes("a: 'td', v: 24")) {
-    noteFailure('Project/SVG/share schema version 24 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*25/g) || []).length < 2 || !html.includes('data.version > 25') || !html.includes("a: 'td', v: 25")) {
+    noteFailure('Project/SVG/share schema version 25 or its forward-version guard is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',
