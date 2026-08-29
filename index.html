@@ -3386,44 +3386,54 @@ type deformer</textarea>
         <p class="note">原文順で隣接する字形の実際の端を、継手・blackletter梁・縫合線として接続します。反復する波リボンではなく、文字間の距離と向きに合わせた一語の構造を作ります。</p>
       </div>
       <div class="operator-panel" data-operator-panel="moireChoir" hidden>
+        <div class="row"><label for="pMoireLattice">Field topology</label><select id="pMoireLattice"><option value="linear">Legacy lines</option><option value="choral" selected>Choral nodes</option><option value="concentric">Concentric wells</option><option value="radial">Radial antiphon</option><option value="interlace">Interlace lattice</option></select></div>
+        <div class="row"><label for="pMoireResonance">Local resonance</label><input type="range" id="pMoireResonance" min="0" max="4" step="0.02" value="1.6"><span class="val" id="vMoireResonance">1.60</span></div>
         <div class="row"><label for="pMoirePitch">Field pitch</label><input type="range" id="pMoirePitch" min="2" max="160" step="1" value="18"><span class="val" id="vMoirePitch">18px</span></div>
         <div class="row"><label for="pMoireDetune">Detune</label><input type="range" id="pMoireDetune" min="-0.95" max="0.95" step="0.01" value="0.12"><span class="val" id="vMoireDetune">+0.12</span></div>
         <div class="row"><label for="pMoireAngle">Field angle</label><input type="range" id="pMoireAngle" min="-180" max="180" step="1" value="28"><span class="val" id="vMoireAngle">28°</span></div>
         <div class="row"><label for="pMoireDepth">Distance phase</label><input type="range" id="pMoireDepth" min="0" max="8" step="0.02" value="1.8"><span class="val" id="vMoireDepth">1.80</span></div>
         <div class="row"><label for="pMoireReach">Influence reach</label><input type="range" id="pMoireReach" min="0" max="1200" step="5" value="260"><span class="val" id="vMoireReach">260px</span></div>
-        <p class="note">二つの周波数と角度をわずかにずらし、字形距離で位相を曲げて干渉節を作ります。一本方向のHatchや等間隔Contourではなく、文字の内外で出現と消失が反復します。</p>
+        <p class="note">各文字を局所周波数の音源として、同心波・放射波・格子を互いに干渉させます。画面全体へ同じ縞を敷かず、文字間で周期・向き・節が連続的に変化します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="naveCutter" hidden>
+        <div class="row"><label for="pNavePlan">Vault plan</label><select id="pNavePlan"><option value="arcade">Legacy arcade</option><option value="ribbed" selected>Ribbed nave</option><option value="fan">Fan vault</option><option value="loop">Loop vault</option><option value="clerestory">Clerestory</option></select></div>
+        <div class="row"><label for="pNaveRibwork">Ribwork detail</label><input type="range" id="pNaveRibwork" min="0" max="4" step="0.02" value="1.64"><span class="val" id="vNaveRibwork">1.64</span></div>
         <div class="row"><label for="pNaveColumns">Nave columns</label><input type="range" id="pNaveColumns" min="1" max="24" step="1" value="5"><span class="val" id="vNaveColumns">5</span></div>
         <div class="row"><label for="pNaveRise">Arch rise</label><input type="range" id="pNaveRise" min="0.25" max="4" step="0.01" value="1.3"><span class="val" id="vNaveRise">1.30</span></div>
         <div class="row"><label for="pNaveVoid">Void amount</label><input type="range" id="pNaveVoid" min="0" max="1" step="0.01" value="0.58"><span class="val" id="vNaveVoid">0.58</span></div>
         <div class="row"><label for="pNaveButtress">Buttress</label><input type="range" id="pNaveButtress" min="0" max="80" step="0.5" value="8"><span class="val" id="vNaveButtress">8.0px</span></div>
         <div class="row"><label for="pNaveWarp">Facade warp</label><input type="range" id="pNaveWarp" min="-2" max="2" step="0.02" value="0.12"><span class="val" id="vNaveWarp">+0.12</span></div>
-        <p class="note">効果の字面を一度solid massにし、尖頭アーチを引き算してbuttressだけを戻します。骨格やtraceryを上から足すのではなく、負の空間で文字を建築化します。</p>
+        <p class="note">字面をsolid massへ変え、紙色の尖頭開口、bay、cross rib、boss、buttressを軸方向へ組みます。放射装飾ではなく、複数文字を貫く建築断面として負の空間を設計します。</p>
       </div>
       <div class="operator-panel" data-operator-panel="cloisterFold" hidden>
+        <div class="row"><label for="pCloisterTessellation">Fold topology</label><select id="pCloisterTessellation"><option value="strips">Legacy strips</option><option value="miura" selected>Miura field</option><option value="accordion">Accordion</option><option value="diamond">Diamond vault</option><option value="fan">Fan pleats</option></select></div>
+        <div class="row"><label for="pCloisterRelief">Surface relief</label><input type="range" id="pCloisterRelief" min="0" max="4" step="0.02" value="1.44"><span class="val" id="vCloisterRelief">1.44</span></div>
         <div class="row"><label for="pCloisterPlanes">Planes</label><input type="range" id="pCloisterPlanes" min="1" max="32" step="1" value="7"><span class="val" id="vCloisterPlanes">7</span></div>
         <div class="row"><label for="pCloisterFold">Fold</label><input type="range" id="pCloisterFold" min="-2" max="2" step="0.01" value="0.65"><span class="val" id="vCloisterFold">+0.65</span></div>
         <div class="row"><label for="pCloisterAxis">Axis</label><input type="range" id="pCloisterAxis" min="-180" max="180" step="1" value="-18"><span class="val" id="vCloisterAxis">-18°</span></div>
         <div class="row"><label for="pCloisterPerspective">Perspective</label><input type="range" id="pCloisterPerspective" min="0" max="4" step="0.02" value="1.1"><span class="val" id="vCloisterPerspective">1.10</span></div>
         <div class="row"><label for="pCloisterCrease">Crease</label><input type="range" id="pCloisterCrease" min="0" max="64" step="0.5" value="4"><span class="val" id="vCloisterCrease">4.0px</span></div>
-        <p class="note">一枚の字面を共有軸に沿う連続planeへ分け、交互の圧縮・ずれ・明暗で折り畳みます。複製を奥へ積むRibbon Echoや破片化するCell Fractureとは違うcoherent surfaceです。</p>
+        <p class="note">一枚の字面をmountain／valley creaseで連続する折面へ変えます。Miura・accordion・diamond・fanの位相が共有され、複製のずれや破片化ではない一枚のcoherent sheetを保ちます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="prismSacrament" hidden>
+        <div class="row"><label for="pPrismOptics">Optical body</label><select id="pPrismOptics"><option value="legacy">Legacy lens</option><option value="crystal" selected>Cut crystal</option><option value="fresnel">Fresnel shrine</option><option value="spectral">Spectral flare</option><option value="lenticular">Lenticular body</option></select></div>
+        <div class="row"><label for="pPrismIridescence">Iridescence</label><input type="range" id="pPrismIridescence" min="0" max="4" step="0.02" value="1.7"><span class="val" id="vPrismIridescence">1.70</span></div>
         <div class="row"><label for="pPrismRefraction">Refraction</label><input type="range" id="pPrismRefraction" min="-4" max="4" step="0.01" value="1.15"><span class="val" id="vPrismRefraction">+1.15</span></div>
         <div class="row"><label for="pPrismDispersion">Dispersion</label><input type="range" id="pPrismDispersion" min="0" max="320" step="1" value="28"><span class="val" id="vPrismDispersion">28px</span></div>
         <div class="row"><label for="pPrismFacets">Facets</label><input type="range" id="pPrismFacets" min="1" max="32" step="1" value="8"><span class="val" id="vPrismFacets">8</span></div>
         <div class="row"><label for="pPrismCaustic">Caustic</label><input type="range" id="pPrismCaustic" min="0" max="6" step="0.02" value="1.4"><span class="val" id="vPrismCaustic">1.40</span></div>
         <div class="row"><label for="pPrismBloom">Bloom</label><input type="range" id="pPrismBloom" min="0" max="640" step="2" value="80"><span class="val" id="vPrismBloom">80px</span></div>
-        <p class="note">字形の距離場からレンズ法線とfacetを作り、二色の分散像、内部ハイライト、外側のcausticを独立生成します。固定方向のRGBずれや印刷版ズレではありません。</p>
+        <p class="note">字形を透明なcut bodyへ変え、facet、Fresnel rim、分散像と外部へ投影されるcaustic rayを別々に生成します。金属反射や固定方向のRGB版ズレとは異なる光学体です。</p>
       </div>
       <div class="operator-panel" data-operator-panel="texturaMatrix" hidden>
+        <div class="row"><label for="pTexturaGrammar">Stroke grammar</label><select id="pTexturaGrammar"><option value="stems">Legacy stems</option><option value="textura" selected>Textura quadrata</option><option value="fraktur">Broken fraktur</option><option value="bastarda">Bastarda cursive</option><option value="lattice">Liturgical lattice</option></select></div>
+        <div class="row"><label for="pTexturaRhythm">Writing rhythm</label><input type="range" id="pTexturaRhythm" min="0" max="4" step="0.02" value="1.56"><span class="val" id="vTexturaRhythm">1.56</span></div>
         <div class="row"><label for="pTexturaPitch">Stem pitch</label><input type="range" id="pTexturaPitch" min="2" max="180" step="1" value="22"><span class="val" id="vTexturaPitch">22px</span></div>
         <div class="row"><label for="pTexturaAngle">Nib angle</label><input type="range" id="pTexturaAngle" min="-90" max="90" step="1" value="42"><span class="val" id="vTexturaAngle">42°</span></div>
         <div class="row"><label for="pTexturaWeight">Nib weight</label><input type="range" id="pTexturaWeight" min="0.1" max="4" step="0.02" value="1.5"><span class="val" id="vTexturaWeight">1.50</span></div>
         <div class="row"><label for="pTexturaSplit">Stem split</label><input type="range" id="pTexturaSplit" min="0" max="1" step="0.01" value="0.22"><span class="val" id="vTexturaSplit">0.22</span></div>
         <div class="row"><label for="pTexturaSpur">Spur</label><input type="range" id="pTexturaSpur" min="0" max="96" step="0.5" value="10"><span class="val" id="vTexturaSpur">10.0px</span></div>
-        <p class="note">各字形の連続alpha runから太いstem、菱形cap、split、斜めjoinを再構成します。セル密度のRaster Pressや細い平行線のHatchではなく、元字形由来のbroad-nib architectureです。</p>
+        <p class="note">各字形のalpha runを45°broad nibのstem、菱形cap、broken shoulder、cursive tail、lattice joinへ再記述します。元字形を越えてterminalが見える、書字由来の字画建築です。</p>
       </div>
       <div class="operator-panel" data-operator-panel="voidPortal" hidden>
         <div class="row"><label for="pVoidDepth">Portal depth</label><input type="range" id="pVoidDepth" min="0" max="1600" step="5" value="320"><span class="val" id="vVoidDepth">320px</span></div>
@@ -6372,6 +6382,8 @@ type deformer</textarea>
         ligatureKnot: 7,
         ligatureColor: '#7b1fa2',
         ligatureSourceMode: 'keep',
+        moireLattice: 'choral',
+        moireResonance: 1.6,
         moirePitch: 18,
         moireDetune: 0.12,
         moireAngle: 28,
@@ -6379,6 +6391,8 @@ type deformer</textarea>
         moireReach: 260,
         moireColor: '#00b8d9',
         moireSourceMode: 'keep',
+        navePlan: 'ribbed',
+        naveRibwork: 1.64,
         naveColumns: 5,
         naveRise: 1.3,
         naveVoid: 0.58,
@@ -6386,6 +6400,8 @@ type deformer</textarea>
         naveWarp: 0.12,
         naveColor: '#b6d51e',
         naveSourceMode: 'keep',
+        cloisterTessellation: 'miura',
+        cloisterRelief: 1.44,
         cloisterPlanes: 7,
         cloisterFold: 0.65,
         cloisterAxis: -18,
@@ -6393,6 +6409,8 @@ type deformer</textarea>
         cloisterCrease: 4,
         cloisterColor: '#7057ff',
         cloisterSourceMode: 'keep',
+        prismOptics: 'crystal',
+        prismIridescence: 1.7,
         prismRefraction: 1.15,
         prismDispersion: 28,
         prismFacets: 8,
@@ -6401,6 +6419,8 @@ type deformer</textarea>
         prismColorA: '#00e8ff',
         prismColorB: '#ff3f9f',
         prismSourceMode: 'keep',
+        texturaGrammar: 'textura',
+        texturaRhythm: 1.56,
         texturaPitch: 22,
         texturaAngle: 42,
         texturaWeight: 1.5,
@@ -6594,11 +6614,11 @@ type deformer</textarea>
         'roseCore', 'roseInterlace', 'rosePetals', 'roseRings', 'roseRadius', 'roseWarp', 'roseStroke',
         'chromeVoltage', 'chromeBevel', 'chromeAngle', 'chromeBands', 'chromeContrast', 'chromeWarp',
         'ligatureGrammar', 'ligatureWeave', 'ligatureReach', 'ligatureBand', 'ligatureRise', 'ligatureCounter', 'ligatureKnot',
-        'moirePitch', 'moireDetune', 'moireAngle', 'moireDepth', 'moireReach',
-        'naveColumns', 'naveRise', 'naveVoid', 'naveButtress', 'naveWarp',
-        'cloisterPlanes', 'cloisterFold', 'cloisterAxis', 'cloisterPerspective', 'cloisterCrease',
-        'prismRefraction', 'prismDispersion', 'prismFacets', 'prismCaustic', 'prismBloom',
-        'texturaPitch', 'texturaAngle', 'texturaWeight', 'texturaSplit', 'texturaSpur',
+        'moireLattice', 'moireResonance', 'moirePitch', 'moireDetune', 'moireAngle', 'moireDepth', 'moireReach',
+        'navePlan', 'naveRibwork', 'naveColumns', 'naveRise', 'naveVoid', 'naveButtress', 'naveWarp',
+        'cloisterTessellation', 'cloisterRelief', 'cloisterPlanes', 'cloisterFold', 'cloisterAxis', 'cloisterPerspective', 'cloisterCrease',
+        'prismOptics', 'prismIridescence', 'prismRefraction', 'prismDispersion', 'prismFacets', 'prismCaustic', 'prismBloom',
+        'texturaGrammar', 'texturaRhythm', 'texturaPitch', 'texturaAngle', 'texturaWeight', 'texturaSplit', 'texturaSpur',
         'voidDepth', 'voidAngle', 'voidAperture', 'voidTaper', 'voidRibs',
         'recursiveIterations', 'recursiveScale', 'recursiveTurn', 'recursiveOrbit', 'recursiveParity',
         'morphInbetweens', 'morphSpan', 'morphMelt', 'morphTwist', 'morphHalo',
@@ -6639,11 +6659,11 @@ type deformer</textarea>
         roseInterlace: [0, 4], rosePetals: [3, 32], roseRings: [1, 8], roseRadius: [8, 560], roseWarp: [-2, 2], roseStroke: [0.2, 18],
         chromeVoltage: [0, 6], chromeBevel: [1, 96], chromeAngle: [-180, 180], chromeBands: [2, 24], chromeContrast: [0, 4], chromeWarp: [0, 4],
         ligatureWeave: [0, 4], ligatureReach: [0, 1800], ligatureBand: [1, 180], ligatureRise: [-4, 4], ligatureCounter: [0, 1.5], ligatureKnot: [0, 64],
-        moirePitch: [2, 160], moireDetune: [-0.95, 0.95], moireAngle: [-180, 180], moireDepth: [0, 8], moireReach: [0, 1200],
-        naveColumns: [1, 24], naveRise: [0.25, 4], naveVoid: [0, 1], naveButtress: [0, 80], naveWarp: [-2, 2],
-        cloisterPlanes: [1, 32], cloisterFold: [-2, 2], cloisterAxis: [-180, 180], cloisterPerspective: [0, 4], cloisterCrease: [0, 64],
-        prismRefraction: [-4, 4], prismDispersion: [0, 320], prismFacets: [1, 32], prismCaustic: [0, 6], prismBloom: [0, 640],
-        texturaPitch: [2, 180], texturaAngle: [-90, 90], texturaWeight: [0.1, 4], texturaSplit: [0, 1], texturaSpur: [0, 96],
+        moireResonance: [0, 4], moirePitch: [2, 160], moireDetune: [-0.95, 0.95], moireAngle: [-180, 180], moireDepth: [0, 8], moireReach: [0, 1200],
+        naveRibwork: [0, 4], naveColumns: [1, 24], naveRise: [0.25, 4], naveVoid: [0, 1], naveButtress: [0, 80], naveWarp: [-2, 2],
+        cloisterRelief: [0, 4], cloisterPlanes: [1, 32], cloisterFold: [-2, 2], cloisterAxis: [-180, 180], cloisterPerspective: [0, 4], cloisterCrease: [0, 64],
+        prismIridescence: [0, 4], prismRefraction: [-4, 4], prismDispersion: [0, 320], prismFacets: [1, 32], prismCaustic: [0, 6], prismBloom: [0, 640],
+        texturaRhythm: [0, 4], texturaPitch: [2, 180], texturaAngle: [-90, 90], texturaWeight: [0.1, 4], texturaSplit: [0, 1], texturaSpur: [0, 96],
         voidDepth: [0, 1600], voidAngle: [-180, 180], voidAperture: [0, 1], voidTaper: [-2, 2], voidRibs: [1, 32],
         recursiveIterations: [1, 24], recursiveScale: [0.25, 1.5], recursiveTurn: [-180, 180], recursiveOrbit: [0, 1200], recursiveParity: [0, 1],
         morphInbetweens: [1, 24], morphSpan: [0.1, 2.5], morphMelt: [-2, 2], morphTwist: [-360, 360], morphHalo: [0, 160],
@@ -6671,7 +6691,12 @@ type deformer</textarea>
         cipherDialect: ['mixed', 'unicode', 'machine', 'ledger', 'ritual'],
         boneArchitecture: ['adaptive', 'spine', 'ribcage', 'truss'],
         roseCore: ['auto', 'oculus', 'foil', 'compass', 'knot', 'rosette'],
-        ligatureGrammar: ['ribbon', 'joinery', 'blackletter', 'suture']
+        ligatureGrammar: ['ribbon', 'joinery', 'blackletter', 'suture'],
+        moireLattice: ['linear', 'choral', 'concentric', 'radial', 'interlace'],
+        navePlan: ['arcade', 'ribbed', 'fan', 'loop', 'clerestory'],
+        cloisterTessellation: ['strips', 'miura', 'accordion', 'diamond', 'fan'],
+        prismOptics: ['legacy', 'crystal', 'fresnel', 'spectral', 'lenticular'],
+        texturaGrammar: ['stems', 'textura', 'fraktur', 'bastarda', 'lattice']
       };
       var PROOF_AXIS_DEFS = {
         plotterTrace: [{ key: 'traceDensity', label: 'Density', span: 0.42 }, { key: 'traceJitter', label: 'Drift', span: 0.22, unit: 'px' }],
@@ -6685,11 +6710,11 @@ type deformer</textarea>
         roseEngine: [{ key: 'rosePetals', label: 'Petals', span: 0.42, integer: true }, { key: 'roseRadius', label: 'Radius', span: 0.34, unit: 'px' }],
         chromeReliquary: [{ key: 'chromeBevel', label: 'Bevel', span: 0.36, unit: 'px' }, { key: 'chromeContrast', label: 'Reflect', span: 0.42 }],
         ligatureCrypt: [{ key: 'ligatureReach', label: 'Reach', span: 0.32, unit: 'px' }, { key: 'ligatureCounter', label: 'Counter', span: 0.42 }],
-        moireChoir: [{ key: 'moirePitch', label: 'Pitch', span: 0.34, unit: 'px' }, { key: 'moireDetune', label: 'Detune', span: 0.46 }],
-        naveCutter: [{ key: 'naveColumns', label: 'Columns', span: 0.42, integer: true }, { key: 'naveVoid', label: 'Void', span: 0.46 }],
-        cloisterFold: [{ key: 'cloisterPlanes', label: 'Planes', span: 0.42, integer: true }, { key: 'cloisterFold', label: 'Fold', span: 0.46 }],
-        prismSacrament: [{ key: 'prismRefraction', label: 'Refraction', span: 0.46 }, { key: 'prismDispersion', label: 'Dispersion', span: 0.24, unit: 'px' }],
-        texturaMatrix: [{ key: 'texturaPitch', label: 'Pitch', span: 0.34, unit: 'px' }, { key: 'texturaSplit', label: 'Split', span: 0.46 }],
+        moireChoir: [{ key: 'moirePitch', label: 'Pitch', span: 0.34, unit: 'px' }, { key: 'moireResonance', label: 'Resonance', span: 0.42 }],
+        naveCutter: [{ key: 'naveColumns', label: 'Bays', span: 0.42, integer: true }, { key: 'naveRibwork', label: 'Ribwork', span: 0.42 }],
+        cloisterFold: [{ key: 'cloisterPlanes', label: 'Planes', span: 0.42, integer: true }, { key: 'cloisterRelief', label: 'Relief', span: 0.42 }],
+        prismSacrament: [{ key: 'prismRefraction', label: 'Refraction', span: 0.46 }, { key: 'prismIridescence', label: 'Iridescence', span: 0.42 }],
+        texturaMatrix: [{ key: 'texturaPitch', label: 'Pitch', span: 0.34, unit: 'px' }, { key: 'texturaRhythm', label: 'Rhythm', span: 0.42 }],
         voidPortal: [{ key: 'voidDepth', label: 'Depth', span: 0.24, unit: 'px' }, { key: 'voidAperture', label: 'Aperture', span: 0.46 }],
         recursiveShrine: [{ key: 'recursiveScale', label: 'Scale', span: 0.34 }, { key: 'recursiveParity', label: 'Parity', span: 0.46 }],
         morphProcession: [{ key: 'morphInbetweens', label: 'Inbetweens', span: 0.42, integer: true }, { key: 'morphMelt', label: 'Melt', span: 0.46 }],
@@ -6886,26 +6911,36 @@ type deformer</textarea>
         clampParam('ligatureRise', -4, 4, false);
         clampParam('ligatureCounter', 0, 1.5, false);
         clampParam('ligatureKnot', 0, 64, false);
+        chooseParam('moireLattice', BATCH_PARAM_OPTIONS.moireLattice);
+        clampParam('moireResonance', 0, 4, false);
         clampParam('moirePitch', 2, 160, false);
         clampParam('moireDetune', -0.95, 0.95, false);
         clampParam('moireAngle', -180, 180, false);
         clampParam('moireDepth', 0, 8, false);
         clampParam('moireReach', 0, 1200, false);
+        chooseParam('navePlan', BATCH_PARAM_OPTIONS.navePlan);
+        clampParam('naveRibwork', 0, 4, false);
         clampParam('naveColumns', 1, 24, true);
         clampParam('naveRise', 0.25, 4, false);
         clampParam('naveVoid', 0, 1, false);
         clampParam('naveButtress', 0, 80, false);
         clampParam('naveWarp', -2, 2, false);
+        chooseParam('cloisterTessellation', BATCH_PARAM_OPTIONS.cloisterTessellation);
+        clampParam('cloisterRelief', 0, 4, false);
         clampParam('cloisterPlanes', 1, 32, true);
         clampParam('cloisterFold', -2, 2, false);
         clampParam('cloisterAxis', -180, 180, false);
         clampParam('cloisterPerspective', 0, 4, false);
         clampParam('cloisterCrease', 0, 64, false);
+        chooseParam('prismOptics', BATCH_PARAM_OPTIONS.prismOptics);
+        clampParam('prismIridescence', 0, 4, false);
         clampParam('prismRefraction', -4, 4, false);
         clampParam('prismDispersion', 0, 320, false);
         clampParam('prismFacets', 1, 32, true);
         clampParam('prismCaustic', 0, 6, false);
         clampParam('prismBloom', 0, 640, false);
+        chooseParam('texturaGrammar', BATCH_PARAM_OPTIONS.texturaGrammar);
+        clampParam('texturaRhythm', 0, 4, false);
         clampParam('texturaPitch', 2, 180, false);
         clampParam('texturaAngle', -90, 90, false);
         clampParam('texturaWeight', 0.1, 4, false);
@@ -10269,16 +10304,22 @@ type deformer</textarea>
             ligatureRise: deform.ligatureRise,
             ligatureCounter: deform.ligatureCounter,
             ligatureKnot: deform.ligatureKnot,
+            moireLattice: deform.moireLattice,
+            moireResonance: deform.moireResonance,
             moirePitch: deform.moirePitch,
             moireDetune: deform.moireDetune,
             moireAngle: deform.moireAngle,
             moireDepth: deform.moireDepth,
             moireReach: deform.moireReach,
+            navePlan: deform.navePlan,
+            naveRibwork: deform.naveRibwork,
             naveColumns: deform.naveColumns,
             naveRise: deform.naveRise,
             naveVoid: deform.naveVoid,
             naveButtress: deform.naveButtress,
             naveWarp: deform.naveWarp,
+            cloisterTessellation: deform.cloisterTessellation,
+            cloisterRelief: deform.cloisterRelief,
             cloisterPlanes: deform.cloisterPlanes,
             // Keep the Cloister Fold parameter separate from the Operator ID.
             // Reusing `cloisterFold` here overwrites the per-glyph strength
@@ -10288,11 +10329,15 @@ type deformer</textarea>
             cloisterAxis: deform.cloisterAxis,
             cloisterPerspective: deform.cloisterPerspective,
             cloisterCrease: deform.cloisterCrease,
+            prismOptics: deform.prismOptics,
+            prismIridescence: deform.prismIridescence,
             prismRefraction: deform.prismRefraction,
             prismDispersion: deform.prismDispersion,
             prismFacets: deform.prismFacets,
             prismCaustic: deform.prismCaustic,
             prismBloom: deform.prismBloom,
+            texturaGrammar: deform.texturaGrammar,
+            texturaRhythm: deform.texturaRhythm,
             texturaPitch: deform.texturaPitch,
             texturaAngle: deform.texturaAngle,
             texturaWeight: deform.texturaWeight,
@@ -13266,7 +13311,7 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderMoireChoir(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderMoireChoirLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var pitchAggregate = surfaceAggregate(glyphs, 'moireChoir', 'moirePitch', params.moirePitch);
         if (!pitchAggregate.weight) return;
         var pitch = Math.max(1, pitchAggregate.value * pixelScale * L.s);
@@ -13325,7 +13370,7 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderNaveCutter(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderNaveCutterLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var columnAggregate = surfaceAggregate(glyphs, 'naveCutter', 'naveColumns', params.naveColumns);
         if (!columnAggregate.weight) return;
         var columns = Math.max(1, Math.min(24, Math.round(columnAggregate.value)));
@@ -13406,7 +13451,7 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderCloisterFold(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderCloisterFoldLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var planeAggregate = surfaceAggregate(glyphs, 'cloisterFold', 'cloisterPlanes', params.cloisterPlanes);
         if (!planeAggregate.weight) return;
         var planes = Math.max(1, Math.min(32, Math.round(planeAggregate.value)));
@@ -13519,7 +13564,7 @@ type deformer</textarea>
         targetCtx.restore();
       }
 
-      function renderPrismSacrament(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderPrismSacramentLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var refractionAggregate = surfaceAggregate(glyphs, 'prismSacrament', 'prismRefraction', params.prismRefraction);
         if (!refractionAggregate.weight) return;
         var refraction = refractionAggregate.value;
@@ -13648,7 +13693,7 @@ type deformer</textarea>
         }
       }
 
-      function renderTexturaMatrix(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+      function renderTexturaMatrixLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var pitchAggregate = surfaceAggregate(glyphs, 'texturaMatrix', 'texturaPitch', params.texturaPitch);
         if (!pitchAggregate.weight) return;
         var pitch = Math.max(2, pitchAggregate.value * pixelScale * L.s);
@@ -13730,6 +13775,859 @@ type deformer</textarea>
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(mask, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function surfaceToneCss(rgb, tone) {
+        var amount = Math.max(-1, Math.min(1, tone));
+        var target = amount >= 0 ? 255 : 0;
+        amount = Math.abs(amount);
+        return 'rgb(' + Math.round(rgb[0] + (target - rgb[0]) * amount) + ','
+          + Math.round(rgb[1] + (target - rgb[1]) * amount) + ','
+          + Math.round(rgb[2] + (target - rgb[2]) * amount) + ')';
+      }
+
+      function renderMoireChoir(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var topology = surfaceChoice(glyphs, 'moireChoir', 'moireLattice', params.moireLattice, BATCH_PARAM_OPTIONS.moireLattice);
+        var resonanceAggregate = surfaceAggregate(glyphs, 'moireChoir', 'moireResonance', params.moireResonance);
+        var resonance = Math.max(0, resonanceAggregate.value);
+        if (topology === 'linear' && resonance <= 0.001) {
+          renderMoireChoirLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var pitchAggregate = surfaceAggregate(glyphs, 'moireChoir', 'moirePitch', params.moirePitch);
+        if (!pitchAggregate.weight) return;
+        var pitch = Math.max(1, pitchAggregate.value * pixelScale * L.s);
+        var detune = surfaceAggregate(glyphs, 'moireChoir', 'moireDetune', params.moireDetune).value;
+        var angle = surfaceAggregate(glyphs, 'moireChoir', 'moireAngle', params.moireAngle).value * Math.PI / 180;
+        var depth = surfaceAggregate(glyphs, 'moireChoir', 'moireDepth', params.moireDepth).value;
+        var reach = Math.max(0, surfaceAggregate(glyphs, 'moireChoir', 'moireReach', params.moireReach).value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'moireChoir', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'moireChoir', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var motionPhase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var nodes = surfaceNodesForGlyphs(glyphs, 'moireChoir', 8, pixelScale, L, motionPhase, 0, 0);
+        if (!nodes.length) {
+          renderMoireChoirLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var work = surfaceScratch('moire-choir-evolved', width, height, false);
+        var output = work.ctx.createImageData(width, height);
+        var rgb = surfaceHexRgb(surfaceEffectColor('moireChoir'));
+        var frequency = Math.PI * 2 / pitch;
+        var secondFrequency = frequency * Math.max(0.12, 1 + detune * 0.78);
+        var cosA = Math.cos(angle), sinA = Math.sin(angle);
+        var seedPhase = params.seed * 0.173;
+        var sharpness = 2.2 + resonance * 1.35;
+        var pad = Math.ceil(reach + pitch * 2.5);
+        var minX = Math.max(0, Math.floor(field.bounds[0] - pad));
+        var minY = Math.max(0, Math.floor(field.bounds[1] - pad));
+        var maxX = Math.min(width - 1, Math.ceil(field.bounds[2] + pad));
+        var maxY = Math.min(height - 1, Math.ceil(field.bounds[3] + pad));
+        for (var y = minY; y <= maxY; y++) for (var x = minX; x <= maxX; x++) {
+          var index = y * width + x;
+          var inside = !!field.inside[index];
+          var boundaryDistance = field.distance[index];
+          if (!inside && (reach <= 0 || boundaryDistance > reach)) continue;
+          var nearestIndex = 0, nearestDistance = Infinity, secondIndex = 0, secondDistance = Infinity;
+          for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+            var nodeDx = x - nodes[nodeIndex].x, nodeDy = y - nodes[nodeIndex].y;
+            var nodeDistance = nodeDx * nodeDx + nodeDy * nodeDy;
+            if (nodeDistance < nearestDistance) {
+              secondDistance = nearestDistance; secondIndex = nearestIndex;
+              nearestDistance = nodeDistance; nearestIndex = nodeIndex;
+            } else if (nodeDistance < secondDistance) {
+              secondDistance = nodeDistance; secondIndex = nodeIndex;
+            }
+          }
+          var node = nodes[nearestIndex];
+          var neighbour = nodes[secondIndex];
+          var dx = x - node.x, dy = y - node.y;
+          var radial = Math.sqrt(nearestDistance);
+          var polar = Math.atan2(dy, dx);
+          var ndx = neighbour.x - node.x, ndy = neighbour.y - node.y;
+          var bridgeAngle = Math.atan2(ndy, ndx);
+          var localX = dx * Math.cos(bridgeAngle) + dy * Math.sin(bridgeAngle);
+          var localY = -dx * Math.sin(bridgeAngle) + dy * Math.cos(bridgeAngle);
+          var distancePhase = boundaryDistance / pitch * depth;
+          var phaseA, phaseB;
+          if (topology === 'concentric') {
+            phaseA = radial * frequency + polar * (0.4 + resonance * 0.32) + distancePhase;
+            phaseB = radial * secondFrequency - polar * (0.75 + Math.abs(detune) * 2.2) - distancePhase * 0.64;
+          } else if (topology === 'radial') {
+            var spokes = Math.max(3, Math.round(5 + resonance * 3 + Math.abs(detune) * 8));
+            phaseA = polar * spokes + radial * frequency * 0.22 + distancePhase;
+            phaseB = (polar + detune * 0.7) * (spokes + 1.5) - radial * secondFrequency * 0.16;
+          } else if (topology === 'interlace') {
+            phaseA = localX * frequency + Math.sin(localY * frequency * 0.34) * resonance + distancePhase;
+            phaseB = localY * secondFrequency + Math.sin(localX * frequency * 0.31) * (0.7 + resonance) - distancePhase * 0.62;
+          } else if (topology === 'linear') {
+            phaseA = (x * cosA + y * sinA) * frequency + distancePhase;
+            phaseB = (x * Math.cos(angle + detune * 1.44) + y * Math.sin(angle + detune * 1.44)) * secondFrequency - distancePhase * 0.73;
+          } else {
+            phaseA = radial * frequency + localX * frequency * 0.34 + polar * resonance * 0.82 + distancePhase;
+            phaseB = localY * secondFrequency + radial * secondFrequency * 0.48 - polar * (1.1 + resonance * 0.45) - distancePhase * 0.71;
+          }
+          phaseA += motionPhase + seedPhase + nearestIndex * 0.73;
+          phaseB -= motionPhase * 0.61 + seedPhase * 0.47 + secondIndex * 0.41;
+          var lineA = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(phaseA))), sharpness);
+          var lineB = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(phaseB))), sharpness);
+          var beat = 0.5 + Math.cos(phaseA - phaseB) * 0.5;
+          var nodePulse = Math.pow(Math.max(0, Math.cos((radial / Math.max(1, pitch) - motionPhase * 0.08) * Math.PI)), 4);
+          var filament = Math.max(lineA, lineB) * (0.2 + beat * (0.68 + resonance * 0.08))
+            + Math.min(lineA, lineB) * (0.58 + resonance * 0.13) + nodePulse * beat * resonance * 0.12;
+          var influence = inside ? 1 : Math.pow(Math.max(0, 1 - boundaryDistance / Math.max(1, reach)), 1.1);
+          var sourceAlpha = source.data[index * 4 + 3] / 255;
+          var alpha = Math.min(1, filament * (0.72 + resonance * 0.16)) * influence * pitchAggregate.strength
+            * (inside ? 0.72 + sourceAlpha * 0.28 : 0.76);
+          if (alpha <= 0.008) continue;
+          var tone = (beat - 0.5) * Math.min(0.7, resonance * 0.19);
+          var toneTarget = tone >= 0 ? 255 : 0;
+          var toneMix = Math.abs(tone);
+          output.data[index * 4] = Math.round(rgb[0] + (toneTarget - rgb[0]) * toneMix);
+          output.data[index * 4 + 1] = Math.round(rgb[1] + (toneTarget - rgb[1]) * toneMix);
+          output.data[index * 4 + 2] = Math.round(rgb[2] + (toneTarget - rgb[2]) * toneMix);
+          output.data[index * 4 + 3] = Math.round(alpha * 255);
+        }
+        work.ctx.putImageData(output, 0, 0);
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function renderNaveCutter(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var plan = surfaceChoice(glyphs, 'naveCutter', 'navePlan', params.navePlan, BATCH_PARAM_OPTIONS.navePlan);
+        var ribworkAggregate = surfaceAggregate(glyphs, 'naveCutter', 'naveRibwork', params.naveRibwork);
+        var ribwork = Math.max(0, ribworkAggregate.value);
+        if (plan === 'arcade' && ribwork <= 0.001) {
+          renderNaveCutterLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var columnAggregate = surfaceAggregate(glyphs, 'naveCutter', 'naveColumns', params.naveColumns);
+        if (!columnAggregate.weight) return;
+        var columns = Math.max(1, Math.min(24, Math.round(columnAggregate.value)));
+        var rise = surfaceAggregate(glyphs, 'naveCutter', 'naveRise', params.naveRise).value;
+        var voidAmount = surfaceAggregate(glyphs, 'naveCutter', 'naveVoid', params.naveVoid).value;
+        var buttress = Math.max(0, surfaceAggregate(glyphs, 'naveCutter', 'naveButtress', params.naveButtress).value * pixelScale * L.s);
+        var warp = surfaceAggregate(glyphs, 'naveCutter', 'naveWarp', params.naveWarp).value;
+        var mask = buildSurfaceMask(glyphs, 'naveCutter', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'naveCutter', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var work = surfaceScratch('nave-cutter-evolved', width, height, false);
+        var ctx = work.ctx;
+        var color = surfaceEffectColor('naveCutter');
+        var rgb = surfaceHexRgb(color);
+        var dark = surfaceToneCss(rgb, -0.58);
+        var shadow = surfaceToneCss(rgb, -0.28);
+        var light = surfaceToneCss(rgb, 0.64);
+        ctx.drawImage(mask, 0, 0);
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+        var minX = field.bounds[0], minY = field.bounds[1], maxX = field.bounds[2], maxY = field.bounds[3];
+        var spanW = Math.max(1, maxX - minX + 1), spanH = Math.max(1, maxY - minY + 1);
+        columns = Math.min(24, Math.max(columns,
+          Math.ceil(spanW / Math.max(28 * pixelScale * L.s, spanH * 0.17))));
+        var cellWidth = spanW / columns;
+        var motion = compositionState.enabled ? Math.sin((((compositionState.phase % 1) + 1) % 1) * Math.PI * 2) : 0;
+        var apertures = surfaceScratch('nave-cutter-apertures', width, height, false);
+        var apertureCtx = apertures.ctx;
+        apertureCtx.fillStyle = params.paper;
+        apertureCtx.globalAlpha = columnAggregate.strength * Math.min(1, 0.3 + voidAmount * 0.9);
+        function pointedAperture(context, centerX, baseY, apertureWidth, archHeight, crownScale) {
+          var apexY = baseY - archHeight * rise * crownScale;
+          var shoulderY = baseY - archHeight * (plan === 'clerestory' ? 0.62 : 0.48);
+          context.beginPath();
+          context.moveTo(centerX - apertureWidth * 0.5, baseY);
+          context.lineTo(centerX - apertureWidth * 0.5, shoulderY);
+          context.quadraticCurveTo(centerX - apertureWidth * 0.47, apexY + archHeight * 0.11, centerX, apexY);
+          context.quadraticCurveTo(centerX + apertureWidth * 0.47, apexY + archHeight * 0.11, centerX + apertureWidth * 0.5, shoulderY);
+          context.lineTo(centerX + apertureWidth * 0.5, baseY);
+          context.closePath();
+          context.fill();
+        }
+        var centers = [];
+        for (var bay = 0; bay < columns; bay++) {
+          var centerX = minX + (bay + 0.5) * cellWidth
+            + Math.sin((bay + 1) * 1.731 + params.seed * 0.17 + motion * 0.7) * warp * cellWidth * 0.2;
+          centers.push(centerX);
+          var apertureWidth = Math.max(1, cellWidth * (plan === 'clerestory' ? 0.34 : 0.18 + voidAmount * 0.7));
+          var baseY = maxY + 2;
+          var archHeight = spanH * (plan === 'clerestory' ? 0.72 : 0.36 + voidAmount * 0.48);
+          pointedAperture(apertureCtx, centerX, baseY, apertureWidth, archHeight, plan === 'fan' ? 1.16 : 1);
+          if (plan === 'clerestory' && ribwork > 0.4) {
+            var oculus = Math.max(1, Math.min(cellWidth, spanH) * (0.055 + ribwork * 0.012));
+            apertureCtx.beginPath();
+            apertureCtx.arc(centerX, minY + spanH * 0.2, oculus, 0, Math.PI * 2);
+            apertureCtx.fill();
+          }
+        }
+        apertureCtx.globalAlpha = 1;
+        apertureCtx.globalCompositeOperation = 'destination-in';
+        apertureCtx.drawImage(mask, 0, 0);
+        apertureCtx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(apertures.canvas, 0, 0);
+        var ribs = surfaceScratch('nave-cutter-ribwork', width, height, false);
+        var ribsCtx = ribs.ctx;
+        var ribWidth = Math.max(0.55, buttress * (0.28 + ribwork * 0.09) + ribwork * pixelScale * L.s * 0.55);
+        ribsCtx.lineCap = 'square';
+        ribsCtx.lineJoin = 'miter';
+        ribsCtx.strokeStyle = dark;
+        ribsCtx.fillStyle = dark;
+        ribsCtx.globalAlpha = columnAggregate.strength * Math.min(1, 0.5 + ribwork * 0.18);
+        ribsCtx.lineWidth = ribWidth;
+        var crownY = minY + spanH * (plan === 'clerestory' ? 0.34 : 0.12);
+        var springY = maxY - spanH * (0.04 + Math.min(1, voidAmount) * 0.08);
+        for (var support = 0; support <= columns; support++) {
+          var supportX = minX + support * cellWidth;
+          ribsCtx.beginPath();
+          ribsCtx.moveTo(supportX, maxY + 1);
+          ribsCtx.lineTo(supportX, minY + spanH * (plan === 'fan' ? 0.42 : 0.16));
+          ribsCtx.stroke();
+          if (support < columns) {
+            var bayCenter = centers[support];
+            var apexY = minY + spanH * (plan === 'clerestory' ? 0.12 : 0.04 + 0.14 / Math.max(0.25, rise));
+            if (plan === 'fan') {
+              var rays = Math.max(2, Math.min(8, Math.round(2 + ribwork * 1.3)));
+              for (var fan = 0; fan < rays; fan++) {
+                var fanT = rays === 1 ? 0.5 : fan / (rays - 1);
+                ribsCtx.beginPath();
+                ribsCtx.moveTo(supportX + ribWidth * 0.5, springY);
+                ribsCtx.quadraticCurveTo(bayCenter, minY + spanH * 0.28, supportX + cellWidth * fanT, crownY);
+                ribsCtx.stroke();
+              }
+            } else if (plan === 'loop') {
+              ribsCtx.beginPath();
+              ribsCtx.moveTo(supportX, springY);
+              ribsCtx.bezierCurveTo(bayCenter - cellWidth * 0.42, minY, bayCenter + cellWidth * 0.42, minY, supportX + cellWidth, springY);
+              ribsCtx.stroke();
+              ribsCtx.beginPath();
+              ribsCtx.moveTo(supportX, crownY);
+              ribsCtx.bezierCurveTo(bayCenter - cellWidth * 0.18, maxY, bayCenter + cellWidth * 0.18, maxY, supportX + cellWidth, crownY);
+              ribsCtx.stroke();
+            } else {
+              ribsCtx.beginPath();
+              ribsCtx.moveTo(supportX, springY);
+              ribsCtx.quadraticCurveTo(bayCenter - cellWidth * 0.16, apexY + spanH * 0.04, bayCenter, apexY);
+              ribsCtx.quadraticCurveTo(bayCenter + cellWidth * 0.16, apexY + spanH * 0.04, supportX + cellWidth, springY);
+              ribsCtx.stroke();
+              if (ribwork > 2.2) {
+                ribsCtx.beginPath();
+                ribsCtx.moveTo(supportX, minY + spanH * 0.22);
+                ribsCtx.lineTo(supportX + cellWidth, springY);
+                ribsCtx.moveTo(supportX + cellWidth, minY + spanH * 0.22);
+                ribsCtx.lineTo(supportX, springY);
+                ribsCtx.stroke();
+              }
+            }
+            var bossRadius = Math.max(ribWidth * 0.72, Math.min(cellWidth, spanH) * (0.008 + ribwork * 0.006));
+            ribsCtx.save();
+            ribsCtx.translate(bayCenter, apexY);
+            ribsCtx.rotate(Math.PI / 4);
+            ribsCtx.fillRect(-bossRadius, -bossRadius, bossRadius * 2, bossRadius * 2);
+            ribsCtx.restore();
+          }
+        }
+        if (plan === 'clerestory' || ribwork > 1.8) {
+          ribsCtx.strokeStyle = light;
+          ribsCtx.globalAlpha = columnAggregate.strength * Math.min(0.82, 0.24 + ribwork * 0.15);
+          ribsCtx.lineWidth = Math.max(0.5, ribWidth * 0.36);
+          var galleryCount = plan === 'clerestory' ? 3 : 2;
+          for (var gallery = 1; gallery <= galleryCount; gallery++) {
+            var galleryY = minY + spanH * (0.16 + gallery * 0.13);
+            ribsCtx.beginPath();
+            ribsCtx.moveTo(minX, galleryY);
+            ribsCtx.lineTo(maxX, galleryY);
+            ribsCtx.stroke();
+          }
+        }
+        // Keep a quiet continuous vault drawing between letters, then retain
+        // a denser impression where the ribs cross the source glyph mass.
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.34, 0.08 + ribwork * 0.07);
+        ctx.drawImage(ribs.canvas, 0, 0);
+        ctx.restore();
+        ribsCtx.globalAlpha = 1;
+        ribsCtx.globalCompositeOperation = 'destination-in';
+        ribsCtx.drawImage(mask, 0, 0);
+        ribsCtx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(ribs.canvas, 0, 0);
+        var highlight = surfaceScratch('nave-cutter-highlight', width, height, false);
+        highlight.ctx.drawImage(ribs.canvas, -Math.max(0.5, ribWidth * 0.18), -Math.max(0.5, ribWidth * 0.18));
+        highlight.ctx.globalCompositeOperation = 'source-in';
+        highlight.ctx.fillStyle = light;
+        highlight.ctx.fillRect(0, 0, width, height);
+        highlight.ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = Math.min(0.55, 0.12 + ribwork * 0.1);
+        ctx.drawImage(highlight.canvas, 0, 0);
+        ctx.globalAlpha = 1;
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function renderCloisterFold(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var topology = surfaceChoice(glyphs, 'cloisterFold', 'cloisterTessellation', params.cloisterTessellation, BATCH_PARAM_OPTIONS.cloisterTessellation);
+        var reliefAggregate = surfaceAggregate(glyphs, 'cloisterFold', 'cloisterRelief', params.cloisterRelief);
+        var relief = Math.max(0, reliefAggregate.value);
+        if (topology === 'strips' && relief <= 0.001) {
+          renderCloisterFoldLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var planeAggregate = surfaceAggregate(glyphs, 'cloisterFold', 'cloisterPlanes', params.cloisterPlanes);
+        if (!planeAggregate.weight) return;
+        var planes = Math.max(1, Math.min(32, Math.round(planeAggregate.value)));
+        var fold = surfaceAggregate(glyphs, 'cloisterFold', 'cloisterFoldAmount', params.cloisterFold).value;
+        var axis = surfaceAggregate(glyphs, 'cloisterFold', 'cloisterAxis', params.cloisterAxis).value * Math.PI / 180;
+        var perspective = surfaceAggregate(glyphs, 'cloisterFold', 'cloisterPerspective', params.cloisterPerspective).value;
+        var crease = Math.max(0, surfaceAggregate(glyphs, 'cloisterFold', 'cloisterCrease', params.cloisterCrease).value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'cloisterFold', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'cloisterFold', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var work = surfaceScratch('cloister-fold-evolved', width, height, false);
+        var output = work.ctx.createImageData(width, height);
+        var rgb = surfaceHexRgb(surfaceEffectColor('cloisterFold'));
+        var minX = field.bounds[0], minY = field.bounds[1], maxX = field.bounds[2], maxY = field.bounds[3];
+        var centerX = (minX + maxX) * 0.5, centerY = (minY + maxY) * 0.5;
+        var spanW = Math.max(1, maxX - minX + 1), spanH = Math.max(1, maxY - minY + 1);
+        var ux = Math.cos(axis), uy = Math.sin(axis), nx = -uy, ny = ux;
+        var normalSpan = Math.max(1, Math.abs(nx) * spanW + Math.abs(ny) * spanH);
+        var axialSpan = Math.max(1, Math.abs(ux) * spanW + Math.abs(uy) * spanH);
+        var cell = normalSpan / Math.max(1, planes);
+        var axialCell = axialSpan / Math.max(2, Math.round(planes * (0.62 + perspective * 0.08)));
+        var motion = compositionState.enabled ? Math.sin((((compositionState.phase % 1) + 1) % 1) * Math.PI * 2) : 0;
+        var foldSign = fold < 0 ? -1 : 1;
+        var reliefStrength = Math.min(1.5, 0.34 + Math.abs(fold) * 0.29 + relief * 0.25 + perspective * 0.08);
+        for (var y = minY; y <= maxY; y++) for (var x = minX; x <= maxX; x++) {
+          var index = y * width + x;
+          var sourceAlpha = source.data[index * 4 + 3] / 255;
+          if (sourceAlpha <= 0.004) continue;
+          var dx = x - centerX, dy = y - centerY;
+          var u = dx * ux + dy * uy;
+          var v = dx * nx + dy * ny;
+          var shade = 0, ridge = 0;
+          if (topology === 'accordion' || topology === 'strips') {
+            var stripe = (v + normalSpan * 0.5) / Math.max(1, cell);
+            var stripeIndex = Math.floor(stripe);
+            var stripeLocal = stripe - stripeIndex;
+            shade = ((stripeIndex & 1) ? -1 : 1) * (0.32 + Math.abs(stripeLocal - 0.5) * 0.28) * foldSign;
+            ridge = Math.abs(stripeLocal - 0.5) * 2;
+          } else if (topology === 'diamond') {
+            var diagonalA = (u + v) / Math.max(1, cell * 1.15);
+            var diagonalB = (u - v) / Math.max(1, cell * 1.15);
+            var da = diagonalA - Math.floor(diagonalA), db = diagonalB - Math.floor(diagonalB);
+            shade = (((Math.floor(diagonalA) + Math.floor(diagonalB)) & 1) ? -1 : 1)
+              * (0.34 + Math.abs(da - db) * 0.34) * foldSign;
+            ridge = Math.max(Math.abs(da - 0.5), Math.abs(db - 0.5));
+          } else if (topology === 'fan') {
+            var fanAngle = Math.atan2(v, u + axialSpan * 0.16 * foldSign);
+            var fanPhase = fanAngle / (Math.PI * 2) * Math.max(4, planes * 1.7) + motion * 0.2;
+            var fanIndex = Math.floor(fanPhase);
+            var fanLocal = fanPhase - fanIndex;
+            shade = ((fanIndex & 1) ? -1 : 1) * (0.3 + Math.abs(fanLocal - 0.5) * 0.36) * foldSign;
+            ridge = Math.abs(fanLocal - 0.5) * 2;
+          } else {
+            var row = Math.floor((u + axialSpan * 0.5) / Math.max(1, axialCell));
+            var offsetV = v + (row & 1 ? cell * 0.5 : 0) + Math.sin(row * 1.7 + params.seed * 0.07) * cell * 0.08 * relief;
+            var column = Math.floor((offsetV + normalSpan * 0.5) / Math.max(1, cell));
+            var localU = (u + axialSpan * 0.5) / Math.max(1, axialCell) - row;
+            var localV = (offsetV + normalSpan * 0.5) / Math.max(1, cell) - column;
+            var triangle = localU + localV > 1 ? 1 : 0;
+            shade = (((row + column + triangle) & 1) ? -1 : 1)
+              * (0.28 + Math.abs(localU - localV) * 0.32) * foldSign;
+            ridge = Math.max(Math.abs(localU - localV), Math.abs(localU + localV - 1));
+          }
+          shade += Math.sin((u / Math.max(1, axialSpan) + v / Math.max(1, normalSpan)) * Math.PI * 2 + motion) * relief * 0.035;
+          shade = Math.max(-0.92, Math.min(0.92, shade * reliefStrength));
+          var target = shade >= 0 ? 255 : 0;
+          var mix = Math.abs(shade) * (0.72 + perspective * 0.055);
+          output.data[index * 4] = Math.round(rgb[0] + (target - rgb[0]) * mix);
+          output.data[index * 4 + 1] = Math.round(rgb[1] + (target - rgb[1]) * mix);
+          output.data[index * 4 + 2] = Math.round(rgb[2] + (target - rgb[2]) * mix);
+          output.data[index * 4 + 3] = Math.round(255 * planeAggregate.strength
+            * Math.min(1, 0.62 + relief * 0.11 + ridge * relief * 0.025));
+        }
+        work.ctx.putImageData(output, 0, 0);
+        if (crease > 0.05 && planes > 1) {
+          var seams = surfaceScratch('cloister-fold-evolved-seams', width, height, false);
+          var seamCtx = seams.ctx;
+          var extent = Math.sqrt(width * width + height * height) * 1.2;
+          seamCtx.lineCap = 'butt';
+          seamCtx.lineJoin = 'miter';
+          function creaseStroke(pathIndex, lightPass) {
+            seamCtx.strokeStyle = lightPass ? surfaceToneCss(rgb, 0.78) : surfaceToneCss(rgb, -0.7);
+            seamCtx.globalAlpha = planeAggregate.strength * Math.min(0.94,
+              (lightPass ? 0.16 : 0.32) + relief * (lightPass ? 0.12 : 0.18));
+            seamCtx.lineWidth = Math.max(0.45, crease * (lightPass ? 0.4 : 1));
+            seamCtx.stroke();
+          }
+          if (topology === 'fan') {
+            var rayCount = Math.max(4, Math.min(64, Math.round(planes * 1.7)));
+            for (var ray = 0; ray < rayCount; ray++) {
+              var rayAngle = axis + ray / rayCount * Math.PI * 2 + motion * 0.025;
+              seamCtx.beginPath();
+              seamCtx.moveTo(centerX, centerY);
+              seamCtx.lineTo(centerX + Math.cos(rayAngle) * extent, centerY + Math.sin(rayAngle) * extent);
+              creaseStroke(ray, false);
+              seamCtx.translate(-nx * crease * 0.2, -ny * crease * 0.2);
+              creaseStroke(ray, true);
+              seamCtx.setTransform(1, 0, 0, 1, 0, 0);
+            }
+          } else if (topology === 'diamond') {
+            var diagonalStep = Math.max(2, cell * 1.15);
+            for (var direction = -1; direction <= 1; direction += 2) {
+              for (var diagonal = -normalSpan; diagonal <= normalSpan; diagonal += diagonalStep) {
+                var dax = (ux + nx * direction) / Math.sqrt(2), day = (uy + ny * direction) / Math.sqrt(2);
+                var dbx = -day, dby = dax;
+                seamCtx.beginPath();
+                seamCtx.moveTo(centerX + dbx * diagonal - dax * extent, centerY + dby * diagonal - day * extent);
+                seamCtx.lineTo(centerX + dbx * diagonal + dax * extent, centerY + dby * diagonal + day * extent);
+                creaseStroke(diagonal, false);
+              }
+            }
+          } else if (topology === 'miura') {
+            var rows = Math.max(2, Math.round(axialSpan / Math.max(1, axialCell)));
+            for (var miura = 0; miura <= planes; miura++) {
+              var baseV = -normalSpan * 0.5 + miura * cell;
+              seamCtx.beginPath();
+              for (var rowIndex = 0; rowIndex <= rows; rowIndex++) {
+                var localAxial = -axialSpan * 0.5 + rowIndex / rows * axialSpan;
+                var localNormal = baseV + ((rowIndex & 1) ? cell * 0.5 : 0);
+                var px = centerX + ux * localAxial + nx * localNormal;
+                var py = centerY + uy * localAxial + ny * localNormal;
+                if (!rowIndex) seamCtx.moveTo(px, py); else seamCtx.lineTo(px, py);
+              }
+              creaseStroke(miura, false);
+            }
+          } else {
+            for (var seam = 1; seam < planes; seam++) {
+              var seamD = -normalSpan * 0.5 + seam * cell;
+              var seamX = centerX + nx * seamD;
+              var seamY = centerY + ny * seamD;
+              seamCtx.beginPath();
+              seamCtx.moveTo(seamX - ux * extent, seamY - uy * extent);
+              seamCtx.lineTo(seamX + ux * extent, seamY + uy * extent);
+              creaseStroke(seam, false);
+              seamCtx.beginPath();
+              seamCtx.moveTo(seamX - ux * extent - nx * crease * 0.22, seamY - uy * extent - ny * crease * 0.22);
+              seamCtx.lineTo(seamX + ux * extent - nx * crease * 0.22, seamY + uy * extent - ny * crease * 0.22);
+              creaseStroke(seam, true);
+            }
+          }
+          seamCtx.globalAlpha = 1;
+          seamCtx.globalCompositeOperation = 'destination-in';
+          seamCtx.drawImage(mask, 0, 0);
+          seamCtx.globalCompositeOperation = 'source-over';
+          work.ctx.drawImage(seams.canvas, 0, 0);
+        }
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function renderPrismSacrament(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var optics = surfaceChoice(glyphs, 'prismSacrament', 'prismOptics', params.prismOptics, BATCH_PARAM_OPTIONS.prismOptics);
+        var iridescenceAggregate = surfaceAggregate(glyphs, 'prismSacrament', 'prismIridescence', params.prismIridescence);
+        var iridescence = Math.max(0, iridescenceAggregate.value);
+        if (optics === 'legacy' && iridescence <= 0.001) {
+          renderPrismSacramentLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var refractionAggregate = surfaceAggregate(glyphs, 'prismSacrament', 'prismRefraction', params.prismRefraction);
+        if (!refractionAggregate.weight) return;
+        var refraction = refractionAggregate.value;
+        var dispersion = Math.max(0, surfaceAggregate(glyphs, 'prismSacrament', 'prismDispersion', params.prismDispersion).value * pixelScale * L.s);
+        var facets = Math.max(1, Math.min(32, Math.round(surfaceAggregate(glyphs, 'prismSacrament', 'prismFacets', params.prismFacets).value)));
+        var caustic = surfaceAggregate(glyphs, 'prismSacrament', 'prismCaustic', params.prismCaustic).value;
+        var bloom = Math.max(0, surfaceAggregate(glyphs, 'prismSacrament', 'prismBloom', params.prismBloom).value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'prismSacrament', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'prismSacrament', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var work = surfaceScratch('prism-sacrament-evolved', width, height, false);
+        var output = work.ctx.createImageData(width, height);
+        var rgbA = surfaceHexRgb(surfaceEffectColor('prismSacrament'));
+        var rgbB = surfaceHexRgb(params.prismColorB);
+        var minX = field.bounds[0], minY = field.bounds[1], maxX = field.bounds[2], maxY = field.bounds[3];
+        var centerX = (minX + maxX) * 0.5, centerY = (minY + maxY) * 0.5;
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var facetStep = Math.PI * 2 / facets;
+        var pad = Math.ceil(Math.max(bloom, dispersion * 0.86) + (8 + iridescence * 3) * pixelScale * L.s);
+        var scanMinX = Math.max(0, Math.floor(minX - pad));
+        var scanMinY = Math.max(0, Math.floor(minY - pad));
+        var scanMaxX = Math.min(width - 1, Math.ceil(maxX + pad));
+        var scanMaxY = Math.min(height - 1, Math.ceil(maxY + pad));
+        function signedDistanceAt(x, y) {
+          x = Math.max(0, Math.min(width - 1, Math.round(x)));
+          y = Math.max(0, Math.min(height - 1, Math.round(y)));
+          var index = y * width + x;
+          return field.inside[index] ? field.distance[index] : -field.distance[index];
+        }
+        function alphaAt(x, y) {
+          x = Math.max(0, Math.min(width - 1, Math.round(x)));
+          y = Math.max(0, Math.min(height - 1, Math.round(y)));
+          return source.data[(y * width + x) * 4 + 3] / 255;
+        }
+        for (var y = scanMinY; y <= scanMaxY; y++) for (var x = scanMinX; x <= scanMaxX; x++) {
+          var index = y * width + x;
+          var inside = !!field.inside[index];
+          var distance = field.distance[index];
+          if (!inside && (bloom <= 0.001 || distance > bloom)) continue;
+          var gx = signedDistanceAt(x + 1, y) - signedDistanceAt(x - 1, y);
+          var gy = signedDistanceAt(x, y + 1) - signedDistanceAt(x, y - 1);
+          var gradientLength = Math.sqrt(gx * gx + gy * gy);
+          var rawAngle = gradientLength > 0.001 ? Math.atan2(gy, gx) : Math.atan2(y - centerY, x - centerX);
+          var polar = Math.atan2(y - centerY, x - centerX);
+          var radial = Math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY));
+          var facetAngle;
+          if (optics === 'lenticular') facetAngle = Math.round((rawAngle + Math.sin((x + y) * 0.025 + phase) * 0.4) / facetStep) * facetStep;
+          else if (optics === 'fresnel') facetAngle = Math.round((polar + phase * 0.035) / facetStep) * facetStep;
+          else facetAngle = Math.round((rawAngle + polar * iridescence * 0.035 + phase * 0.025) / facetStep) * facetStep;
+          var normalX = Math.cos(facetAngle), normalY = Math.sin(facetAngle);
+          var baseShift = refraction * (5 + Math.min(72, distance * (0.14 + iridescence * 0.025))) * pixelScale * L.s;
+          var splitScale = optics === 'spectral' ? 0.82 : (optics === 'fresnel' ? 0.42 : 0.58);
+          var offsetA = baseShift + dispersion * splitScale;
+          var offsetB = baseShift - dispersion * splitScale;
+          var sampleA = alphaAt(x + normalX * offsetA, y + normalY * offsetA);
+          var sampleB = alphaAt(x + normalX * offsetB, y + normalY * offsetB);
+          var edgeWidth = Math.max(1, (3 + iridescence * 1.2) * pixelScale * L.s + dispersion * 0.032);
+          var edge = Math.exp(-distance / edgeWidth);
+          var sourceAlpha = source.data[index * 4 + 3] / 255;
+          var facetWave;
+          if (optics === 'fresnel') facetWave = Math.pow(Math.max(0,
+            Math.cos(distance / Math.max(2, edgeWidth * 1.6) * Math.PI * 2 - phase)), 8);
+          else if (optics === 'lenticular') facetWave = Math.pow(Math.max(0,
+            Math.cos((x * normalX + y * normalY) / Math.max(2, 5 * pixelScale * L.s + dispersion * 0.03) * Math.PI + phase)), 7);
+          else facetWave = Math.pow(Math.max(0, Math.cos((rawAngle - facetAngle) * facets * 0.5 + phase * 0.22)), 9);
+          var outsideFalloff = !inside && bloom > 0 ? Math.pow(Math.max(0, 1 - distance / bloom), 1.38) : 0;
+          var causticBand = outsideFalloff * Math.pow(Math.max(0,
+            Math.cos(distance / Math.max(2, (6 + iridescence * 2) * pixelScale * L.s + dispersion * 0.045)
+              * Math.PI * 2 + facetAngle * facets * 0.38 - phase)), 7) * Math.min(1.7, caustic * 0.34 + iridescence * 0.08);
+          var body = inside ? sourceAlpha * (0.24 + Math.min(0.34, Math.abs(refraction) * 0.08) + iridescence * 0.035) : 0;
+          if (optics === 'fresnel') body *= 0.54 + edge * 0.86;
+          var weightA = sampleA * (0.3 + edge * 0.7) + causticBand * (optics === 'spectral' ? 0.78 : 0.5);
+          var weightB = sampleB * (0.3 + edge * 0.7) + causticBand * (optics === 'spectral' ? 0.58 : 0.42);
+          var white = (inside ? facetWave * (0.12 + iridescence * 0.15) + edge * (0.18 + iridescence * 0.045) : 0)
+            + causticBand * (0.2 + iridescence * 0.06);
+          var dark = inside ? (1 - facetWave) * body * (optics === 'crystal' ? 0.22 : 0.1) : 0;
+          var total = weightA + weightB + body + white + dark;
+          if (total <= 0.005) continue;
+          var midR = (rgbA[0] + rgbB[0]) * 0.5, midG = (rgbA[1] + rgbB[1]) * 0.5, midB = (rgbA[2] + rgbB[2]) * 0.5;
+          output.data[index * 4] = Math.round((rgbA[0] * weightA + rgbB[0] * weightB + midR * body + 255 * white + 8 * dark) / total);
+          output.data[index * 4 + 1] = Math.round((rgbA[1] * weightA + rgbB[1] * weightB + midG * body + 10 * dark + 255 * white) / total);
+          output.data[index * 4 + 2] = Math.round((rgbA[2] * weightA + rgbB[2] * weightB + midB * body + 18 * dark + 255 * white) / total);
+          var alphaScale = optics === 'spectral' ? 0.86 : (optics === 'fresnel' ? 0.72 : 0.92);
+          output.data[index * 4 + 3] = Math.round(255 * refractionAggregate.strength * Math.min(1, total * alphaScale));
+        }
+        work.ctx.putImageData(output, 0, 0);
+        var facetLines = surfaceScratch('prism-sacrament-facets', width, height, false);
+        var facetCtx = facetLines.ctx;
+        var span = Math.sqrt(width * width + height * height);
+        facetCtx.lineCap = 'butt';
+        facetCtx.lineJoin = 'miter';
+        facetCtx.strokeStyle = surfaceToneCss(rgbA, 0.82);
+        facetCtx.globalAlpha = refractionAggregate.strength * Math.min(0.82, 0.18 + iridescence * 0.14);
+        facetCtx.lineWidth = Math.max(0.55, (0.65 + iridescence * 0.28) * pixelScale * L.s);
+        for (var facet = 0; facet < facets; facet++) {
+          var rayAngle = facet / facets * Math.PI * 2 + phase * 0.025;
+          facetCtx.beginPath();
+          facetCtx.moveTo(centerX, centerY);
+          facetCtx.lineTo(centerX + Math.cos(rayAngle) * span, centerY + Math.sin(rayAngle) * span);
+          facetCtx.stroke();
+        }
+        if (optics === 'fresnel' || optics === 'lenticular') {
+          facetCtx.strokeStyle = surfaceToneCss(rgbB, 0.72);
+          facetCtx.globalAlpha *= 0.76;
+          var ringStep = Math.max(3, (6 + dispersion * 0.06) * pixelScale * L.s);
+          var rings = Math.min(36, Math.ceil(Math.max(maxX - minX, maxY - minY) / Math.max(1, ringStep)));
+          for (var ring = 1; ring <= rings; ring++) {
+            facetCtx.beginPath();
+            facetCtx.ellipse(centerX, centerY, ring * ringStep, ring * ringStep * (optics === 'lenticular' ? 0.36 : 0.78), 0, 0, Math.PI * 2);
+            facetCtx.stroke();
+          }
+        }
+        facetCtx.globalAlpha = 1;
+        facetCtx.globalCompositeOperation = 'destination-in';
+        facetCtx.drawImage(mask, 0, 0);
+        facetCtx.globalCompositeOperation = 'source-over';
+        work.ctx.drawImage(facetLines.canvas, 0, 0);
+        if (bloom > 1 && (caustic > 0.02 || iridescence > 0.02)) {
+          var rays = surfaceScratch('prism-sacrament-rays', width, height, false);
+          var raysCtx = rays.ctx;
+          var nodes = surfaceNodesForGlyphs(glyphs, 'prismSacrament', 8, pixelScale, L, phase, 0, 0);
+          var raysPerNode = Math.max(1, Math.min(5, Math.round(1 + iridescence * 0.85 + caustic * 0.25)));
+          raysCtx.lineCap = 'round';
+          for (var nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+            for (var branch = 0; branch < raysPerNode; branch++) {
+              var salt = nodeIndex * 17 + branch * 29;
+              var direction = (hash(salt, params.seed % 97, 811) * 2 - 1) * Math.PI
+                + phase * (0.04 + branch * 0.012);
+              if (optics === 'lenticular') direction = phase * 0.08 + (branch - (raysPerNode - 1) * 0.5) * 0.12;
+              var length = bloom * (0.34 + hash(salt, branch, params.seed + 823) * 0.62);
+              var endX = nodes[nodeIndex].x + Math.cos(direction) * length;
+              var endY = nodes[nodeIndex].y + Math.sin(direction) * length;
+              var gradient = raysCtx.createLinearGradient(nodes[nodeIndex].x, nodes[nodeIndex].y, endX, endY);
+              gradient.addColorStop(0, branch % 2 ? surfaceToneCss(rgbA, 0.72) : surfaceToneCss(rgbB, 0.72));
+              gradient.addColorStop(0.36, branch % 2 ? surfaceToneCss(rgbB, 0.25) : surfaceToneCss(rgbA, 0.25));
+              gradient.addColorStop(1, 'rgba(255,255,255,0)');
+              raysCtx.strokeStyle = gradient;
+              raysCtx.globalAlpha = refractionAggregate.strength * Math.min(0.82, 0.12 + caustic * 0.09 + iridescence * 0.08);
+              raysCtx.lineWidth = Math.max(0.5, (0.6 + iridescence * 0.35 + (branch % 2) * 0.8) * pixelScale * L.s);
+              raysCtx.beginPath();
+              raysCtx.moveTo(nodes[nodeIndex].x, nodes[nodeIndex].y);
+              raysCtx.quadraticCurveTo((nodes[nodeIndex].x + endX) * 0.5 + Math.sin(direction) * length * 0.08,
+                (nodes[nodeIndex].y + endY) * 0.5 - Math.cos(direction) * length * 0.08, endX, endY);
+              raysCtx.stroke();
+            }
+          }
+          raysCtx.globalAlpha = 1;
+          work.ctx.drawImage(rays.canvas, 0, 0);
+        }
+        targetCtx.save();
+        targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+        targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
+        targetCtx.restore();
+      }
+
+      function traceTexturaGrammarStem(ctx, grammar, centerX, startY, endY, width, nibAngle, split, spur, alpha, rhythm, index) {
+        var runHeight = Math.max(1, endY - startY);
+        var pulse = 1 + Math.sin(index * 1.618 + params.seed * 0.071) * Math.min(0.34, rhythm * 0.075);
+        var rhythmicWidth = Math.max(0.45, width * pulse);
+        traceTexturaStem(ctx, centerX, startY, endY, rhythmicWidth, nibAngle,
+          Math.min(1, split * (grammar === 'fraktur' ? 1.18 : 1)), spur, alpha);
+        var half = rhythmicWidth * 0.5;
+        var slant = Math.sin(nibAngle) * Math.min(rhythmicWidth * 0.72, runHeight * 0.18);
+        ctx.save();
+        ctx.globalAlpha = alpha * Math.min(0.94, 0.34 + rhythm * 0.16);
+        ctx.lineCap = grammar === 'bastarda' ? 'round' : 'square';
+        ctx.lineJoin = 'miter';
+        if (grammar === 'fraktur') {
+          ctx.lineWidth = Math.max(0.5, rhythmicWidth * (0.16 + rhythm * 0.025));
+          ctx.beginPath();
+          ctx.moveTo(centerX - half - slant, startY + runHeight * 0.08);
+          ctx.lineTo(centerX + half * 0.2, startY + runHeight * 0.24);
+          ctx.lineTo(centerX - half * 0.65, startY + runHeight * 0.39);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(centerX - half * 0.15, endY - runHeight * 0.2);
+          ctx.lineTo(centerX + half + slant, endY - runHeight * 0.04);
+          ctx.lineTo(centerX + half * 0.25, endY + Math.min(spur, rhythmicWidth));
+          ctx.stroke();
+        } else if (grammar === 'bastarda') {
+          ctx.lineWidth = Math.max(0.5, rhythmicWidth * (0.13 + rhythm * 0.022));
+          var tail = Math.max(spur, rhythmicWidth * (0.8 + rhythm * 0.25));
+          ctx.beginPath();
+          ctx.moveTo(centerX - slant, endY - runHeight * 0.06);
+          ctx.bezierCurveTo(centerX + tail * 0.22, endY + tail * 0.14,
+            centerX + tail * 0.82, endY - tail * 0.38, centerX + tail, endY + tail * 0.12);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(centerX + slant, startY + runHeight * 0.08);
+          ctx.quadraticCurveTo(centerX - tail * 0.42, startY - tail * 0.18, centerX - tail * 0.68, startY + tail * 0.08);
+          ctx.stroke();
+        } else if (grammar === 'lattice') {
+          var diamond = Math.max(1, rhythmicWidth * (0.38 + rhythm * 0.055));
+          var middleY = (startY + endY) * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(centerX, middleY - diamond);
+          ctx.lineTo(centerX + diamond, middleY);
+          ctx.lineTo(centerX, middleY + diamond);
+          ctx.lineTo(centerX - diamond, middleY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.lineWidth = Math.max(0.5, rhythmicWidth * 0.14);
+          ctx.beginPath();
+          ctx.moveTo(centerX - half, startY + runHeight * 0.28);
+          ctx.lineTo(centerX + half, startY + runHeight * 0.72);
+          ctx.moveTo(centerX + half, startY + runHeight * 0.28);
+          ctx.lineTo(centerX - half, startY + runHeight * 0.72);
+          ctx.stroke();
+        } else {
+          ctx.lineWidth = Math.max(0.45, rhythmicWidth * (0.08 + rhythm * 0.018));
+          ctx.beginPath();
+          ctx.moveTo(centerX + half * 0.72 + slant, startY + rhythmicWidth * 0.3);
+          ctx.lineTo(centerX - half * 0.72 - slant, endY - rhythmicWidth * 0.3);
+          ctx.stroke();
+          if (rhythm > 1.2) {
+            var cap = Math.min(rhythmicWidth, runHeight * 0.18);
+            ctx.beginPath();
+            ctx.moveTo(centerX - half, startY);
+            ctx.lineTo(centerX, startY - cap * 1.35);
+            ctx.lineTo(centerX + half, startY);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function renderTexturaMatrix(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var grammar = surfaceChoice(glyphs, 'texturaMatrix', 'texturaGrammar', params.texturaGrammar, BATCH_PARAM_OPTIONS.texturaGrammar);
+        var rhythmAggregate = surfaceAggregate(glyphs, 'texturaMatrix', 'texturaRhythm', params.texturaRhythm);
+        var rhythm = Math.max(0, rhythmAggregate.value);
+        if (grammar === 'stems' && rhythm <= 0.001) {
+          renderTexturaMatrixLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase);
+          return;
+        }
+        var pitchAggregate = surfaceAggregate(glyphs, 'texturaMatrix', 'texturaPitch', params.texturaPitch);
+        if (!pitchAggregate.weight) return;
+        var pitch = Math.max(2, pitchAggregate.value * pixelScale * L.s);
+        var nibAngle = surfaceAggregate(glyphs, 'texturaMatrix', 'texturaAngle', params.texturaAngle).value * Math.PI / 180;
+        var weight = surfaceAggregate(glyphs, 'texturaMatrix', 'texturaWeight', params.texturaWeight).value;
+        var split = surfaceAggregate(glyphs, 'texturaMatrix', 'texturaSplit', params.texturaSplit).value;
+        var spur = Math.max(0, surfaceAggregate(glyphs, 'texturaMatrix', 'texturaSpur', params.texturaSpur).value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'texturaMatrix', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'texturaMatrix', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var spanW = Math.max(1, field.bounds[2] - field.bounds[0] + 1);
+        if (spanW / pitch > 180) pitch = spanW / 180;
+        var stemWidth = Math.max(0.5, Math.min(pitch * 2.15, pitch * weight * (grammar === 'bastarda' ? 0.46 : 0.62)));
+        var work = surfaceScratch('textura-matrix-evolved', width, height, false);
+        var ctx = work.ctx;
+        var color = surfaceEffectColor('texturaMatrix');
+        var rgb = surfaceHexRgb(color);
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) : 0;
+        var phaseOffset = phase * pitch;
+        var startX = field.bounds[0] + pitch * 0.5 + phaseOffset;
+        while (startX > field.bounds[0] + pitch) startX -= pitch;
+        var previous = [];
+        var columnIndex = 0;
+        for (var x = startX; x <= field.bounds[2] + pitch * 0.5; x += pitch, columnIndex++) {
+          var sampleX = Math.max(0, Math.min(width - 1, Math.round(x)));
+          var runs = [];
+          var runStart = -1, alphaTotal = 0, alphaCount = 0;
+          for (var y = field.bounds[1]; y <= field.bounds[3] + 1; y++) {
+            var active = false, sampleAlpha = 0;
+            if (y <= field.bounds[3]) {
+              for (var offset = -1; offset <= 1; offset++) {
+                var sx = Math.max(0, Math.min(width - 1, Math.round(sampleX + offset * Math.max(1, pitch * 0.2))));
+                sampleAlpha = Math.max(sampleAlpha, source.data[(y * width + sx) * 4 + 3] / 255);
+              }
+              active = sampleAlpha > 0.07;
+            }
+            if (active) {
+              if (runStart < 0) runStart = y;
+              alphaTotal += sampleAlpha;
+              alphaCount++;
+            } else if (runStart >= 0) {
+              var runEnd = y - 1;
+              if (runEnd - runStart >= 1) runs.push({ x: sampleX, start: runStart, end: runEnd, alpha: alphaTotal / Math.max(1, alphaCount) });
+              runStart = -1; alphaTotal = 0; alphaCount = 0;
+            }
+          }
+          for (var runIndex = 0; runIndex < runs.length; runIndex++) {
+            var run = runs[runIndex];
+            var cadence = 1 + Math.sin((columnIndex + runIndex * 0.43) * (1.2 + rhythm * 0.08) + phase * Math.PI * 2) * rhythm * 0.035;
+            traceTexturaGrammarStem(ctx, grammar, run.x, run.start, run.end, stemWidth * cadence,
+              nibAngle, split, spur, pitchAggregate.strength * (0.66 + run.alpha * 0.34), rhythm, columnIndex * 13 + runIndex);
+            var best = null, bestOverlap = 0;
+            for (var previousIndex = 0; previousIndex < previous.length; previousIndex++) {
+              var candidate = previous[previousIndex];
+              var overlapStart = Math.max(run.start, candidate.start);
+              var overlapEnd = Math.min(run.end, candidate.end);
+              var overlap = overlapEnd - overlapStart;
+              if (overlap > bestOverlap) {
+                bestOverlap = overlap;
+                best = { run: candidate, y: (overlapStart + overlapEnd) * 0.5 };
+              }
+            }
+            if (best && bestOverlap > stemWidth * 0.28) {
+              var joinTilt = Math.tan(nibAngle) * Math.min(pitch * 0.5, stemWidth * 0.75);
+              ctx.save();
+              ctx.globalAlpha = pitchAggregate.strength * Math.min(0.94, 0.34 + run.alpha * 0.42 + rhythm * 0.04);
+              ctx.lineWidth = Math.max(0.5, stemWidth * (grammar === 'bastarda' ? 0.13 : 0.2 + weight * 0.055));
+              ctx.lineCap = grammar === 'bastarda' ? 'round' : 'square';
+              ctx.lineJoin = 'miter';
+              ctx.beginPath();
+              if (grammar === 'fraktur') {
+                var fractureY = best.y + (hash(columnIndex, runIndex, params.seed + 877) * 2 - 1) * stemWidth;
+                ctx.moveTo(best.run.x, best.y - joinTilt);
+                ctx.lineTo((best.run.x + run.x) * 0.5, fractureY - stemWidth * 0.32);
+                ctx.lineTo(run.x, best.y + joinTilt);
+              } else if (grammar === 'bastarda') {
+                ctx.moveTo(best.run.x, best.y - joinTilt * 0.4);
+                ctx.bezierCurveTo(best.run.x + pitch * 0.45, best.y - stemWidth,
+                  run.x - pitch * 0.45, best.y + stemWidth, run.x, best.y + joinTilt * 0.4);
+              } else if (grammar === 'lattice') {
+                ctx.moveTo(best.run.x, best.y - joinTilt);
+                ctx.lineTo(run.x, best.y + joinTilt);
+                ctx.moveTo(best.run.x, best.y + joinTilt);
+                ctx.lineTo(run.x, best.y - joinTilt);
+              } else {
+                ctx.moveTo(best.run.x, best.y - joinTilt);
+                ctx.lineTo(run.x, best.y + joinTilt);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+          previous = runs;
+        }
+        var texturaBase = surfaceScratch('textura-matrix-evolved-base', width, height, false);
+        texturaBase.ctx.drawImage(mask, 0, 0);
+        texturaBase.ctx.globalCompositeOperation = 'source-in';
+        texturaBase.ctx.fillStyle = surfaceToneCss(rgb, grammar === 'fraktur' ? -0.2 : 0.16);
+        texturaBase.ctx.fillRect(0, 0, width, height);
+        texturaBase.ctx.globalCompositeOperation = 'source-over';
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.globalAlpha = pitchAggregate.strength * Math.min(0.34, 0.08 + rhythm * 0.055);
+        ctx.drawImage(texturaBase.canvas, 0, 0);
+        ctx.restore();
+        if (grammar === 'lattice' && rhythm > 0.1) {
+          var lattice = surfaceScratch('textura-matrix-lattice', width, height, false);
+          var latticeCtx = lattice.ctx;
+          latticeCtx.strokeStyle = surfaceToneCss(rgb, 0.62);
+          latticeCtx.globalAlpha = pitchAggregate.strength * Math.min(0.72, 0.14 + rhythm * 0.12);
+          latticeCtx.lineWidth = Math.max(0.5, stemWidth * 0.08);
+          for (var diagonal = -height; diagonal < width + height; diagonal += pitch * 2) {
+            latticeCtx.beginPath();
+            latticeCtx.moveTo(diagonal, field.bounds[1] - spur);
+            latticeCtx.lineTo(diagonal - (field.bounds[3] - field.bounds[1]) * 0.45, field.bounds[3] + spur);
+            latticeCtx.stroke();
+          }
+          latticeCtx.globalAlpha = 1;
+          latticeCtx.globalCompositeOperation = 'destination-in';
+          var expanded = surfaceScratch('textura-matrix-lattice-mask', width, height, false);
+          expanded.ctx.filter = 'blur(' + Math.max(0.5, Math.min(12, spur * 0.08)) + 'px)';
+          expanded.ctx.drawImage(mask, 0, 0);
+          expanded.ctx.filter = 'none';
+          latticeCtx.drawImage(expanded.canvas, 0, 0);
+          latticeCtx.globalCompositeOperation = 'source-over';
+          ctx.drawImage(lattice.canvas, 0, 0);
+        }
         targetCtx.save();
         targetCtx.setTransform(1, 0, 0, 1, 0, 0);
         targetCtx.drawImage(work.canvas, 0, 0, targetCtx.canvas.width, targetCtx.canvas.height);
@@ -20598,7 +21496,7 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 22,
+          version: 23,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
           formCadence: {
@@ -20684,24 +21582,28 @@ type deformer</textarea>
             moireChoir: {
               color: params.moireColor, sourceMode: params.moireSourceMode, sourceOpacity: surfaceSourceOpacity('moireChoir'),
               opacity: surfaceOutputOpacity('moireChoir'), blend: surfaceBlendMode('moireChoir'),
+              topology: params.moireLattice, resonance: params.moireResonance,
               pitch: params.moirePitch, detune: params.moireDetune, angle: params.moireAngle,
               depth: params.moireDepth, reach: params.moireReach
             },
             naveCutter: {
               color: params.naveColor, sourceMode: params.naveSourceMode, sourceOpacity: surfaceSourceOpacity('naveCutter'),
               opacity: surfaceOutputOpacity('naveCutter'), blend: surfaceBlendMode('naveCutter'),
+              plan: params.navePlan, ribwork: params.naveRibwork,
               columns: params.naveColumns, rise: params.naveRise, void: params.naveVoid,
               buttress: params.naveButtress, warp: params.naveWarp
             },
             cloisterFold: {
               color: params.cloisterColor, sourceMode: params.cloisterSourceMode, sourceOpacity: surfaceSourceOpacity('cloisterFold'),
               opacity: surfaceOutputOpacity('cloisterFold'), blend: surfaceBlendMode('cloisterFold'),
+              topology: params.cloisterTessellation, relief: params.cloisterRelief,
               planes: params.cloisterPlanes, fold: params.cloisterFold, axis: params.cloisterAxis,
               perspective: params.cloisterPerspective, crease: params.cloisterCrease
             },
             prismSacrament: {
               colorA: params.prismColorA, colorB: params.prismColorB, sourceMode: params.prismSourceMode,
               sourceOpacity: surfaceSourceOpacity('prismSacrament'), opacity: surfaceOutputOpacity('prismSacrament'),
+              optics: params.prismOptics, iridescence: params.prismIridescence,
               blend: surfaceBlendMode('prismSacrament'), refraction: params.prismRefraction,
               dispersion: params.prismDispersion, facets: params.prismFacets,
               caustic: params.prismCaustic, bloom: params.prismBloom
@@ -20709,6 +21611,7 @@ type deformer</textarea>
             texturaMatrix: {
               color: params.texturaColor, sourceMode: params.texturaSourceMode, sourceOpacity: surfaceSourceOpacity('texturaMatrix'),
               opacity: surfaceOutputOpacity('texturaMatrix'), blend: surfaceBlendMode('texturaMatrix'),
+              grammar: params.texturaGrammar, rhythm: params.texturaRhythm,
               pitch: params.texturaPitch, angle: params.texturaAngle, weight: params.texturaWeight,
               split: params.texturaSplit, spur: params.texturaSpur
             },
@@ -22285,26 +23188,36 @@ type deformer</textarea>
       bindRange('pLigatureRise', 'vLigatureRise', 'ligatureRise', fSigned2, applyAllOperatorVisuals);
       bindRange('pLigatureCounter', 'vLigatureCounter', 'ligatureCounter', f2, applyAllOperatorVisuals);
       bindRange('pLigatureKnot', 'vLigatureKnot', 'ligatureKnot', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
+      bindProfileSelect('pMoireLattice', 'moireLattice', applyAllOperatorVisuals);
+      bindRange('pMoireResonance', 'vMoireResonance', 'moireResonance', f2, applyAllOperatorVisuals);
       bindRange('pMoirePitch', 'vMoirePitch', 'moirePitch', fPx, applyAllOperatorVisuals);
       bindRange('pMoireDetune', 'vMoireDetune', 'moireDetune', fSigned2, applyAllOperatorVisuals);
       bindRange('pMoireAngle', 'vMoireAngle', 'moireAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pMoireDepth', 'vMoireDepth', 'moireDepth', f2, applyAllOperatorVisuals);
       bindRange('pMoireReach', 'vMoireReach', 'moireReach', fPx, applyAllOperatorVisuals);
+      bindProfileSelect('pNavePlan', 'navePlan', applyAllOperatorVisuals);
+      bindRange('pNaveRibwork', 'vNaveRibwork', 'naveRibwork', f2, applyAllOperatorVisuals);
       bindRange('pNaveColumns', 'vNaveColumns', 'naveColumns', f0, applyAllOperatorVisuals);
       bindRange('pNaveRise', 'vNaveRise', 'naveRise', f2, applyAllOperatorVisuals);
       bindRange('pNaveVoid', 'vNaveVoid', 'naveVoid', f2, applyAllOperatorVisuals);
       bindRange('pNaveButtress', 'vNaveButtress', 'naveButtress', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
       bindRange('pNaveWarp', 'vNaveWarp', 'naveWarp', fSigned2, applyAllOperatorVisuals);
+      bindProfileSelect('pCloisterTessellation', 'cloisterTessellation', applyAllOperatorVisuals);
+      bindRange('pCloisterRelief', 'vCloisterRelief', 'cloisterRelief', f2, applyAllOperatorVisuals);
       bindRange('pCloisterPlanes', 'vCloisterPlanes', 'cloisterPlanes', f0, applyAllOperatorVisuals);
       bindRange('pCloisterFold', 'vCloisterFold', 'cloisterFold', fSigned2, applyAllOperatorVisuals);
       bindRange('pCloisterAxis', 'vCloisterAxis', 'cloisterAxis', fDeg, applyAllOperatorVisuals);
       bindRange('pCloisterPerspective', 'vCloisterPerspective', 'cloisterPerspective', f2, applyAllOperatorVisuals);
       bindRange('pCloisterCrease', 'vCloisterCrease', 'cloisterCrease', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
+      bindProfileSelect('pPrismOptics', 'prismOptics', applyAllOperatorVisuals);
+      bindRange('pPrismIridescence', 'vPrismIridescence', 'prismIridescence', f2, applyAllOperatorVisuals);
       bindRange('pPrismRefraction', 'vPrismRefraction', 'prismRefraction', fSigned2, applyAllOperatorVisuals);
       bindRange('pPrismDispersion', 'vPrismDispersion', 'prismDispersion', fPx, applyAllOperatorVisuals);
       bindRange('pPrismFacets', 'vPrismFacets', 'prismFacets', f0, applyAllOperatorVisuals);
       bindRange('pPrismCaustic', 'vPrismCaustic', 'prismCaustic', f2, applyAllOperatorVisuals);
       bindRange('pPrismBloom', 'vPrismBloom', 'prismBloom', fPx, applyAllOperatorVisuals);
+      bindProfileSelect('pTexturaGrammar', 'texturaGrammar', applyAllOperatorVisuals);
+      bindRange('pTexturaRhythm', 'vTexturaRhythm', 'texturaRhythm', f2, applyAllOperatorVisuals);
       bindRange('pTexturaPitch', 'vTexturaPitch', 'texturaPitch', fPx, applyAllOperatorVisuals);
       bindRange('pTexturaAngle', 'vTexturaAngle', 'texturaAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pTexturaWeight', 'vTexturaWeight', 'texturaWeight', f2, applyAllOperatorVisuals);
@@ -24500,7 +25413,7 @@ type deformer</textarea>
         if (raw.letters != null && !Array.isArray(raw.letters)) return null;
         if ((raw.letters || []).length > 200000) return null;
         return {
-          version: Math.min(22, Math.max(1, Math.round(Number(raw.version) || 22))),
+          version: Math.min(23, Math.max(1, Math.round(Number(raw.version) || 23))),
           text: raw.text,
           params: cloneKnownParams(raw.params),
           batchProfiles: raw.batchProfiles && typeof raw.batchProfiles === 'object'
@@ -24554,7 +25467,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 22,
+          version: 23,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -25013,7 +25926,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 22,
+          version: 23,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -25066,7 +25979,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 22) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 23) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -25107,6 +26020,22 @@ type deformer</textarea>
           if (!Object.prototype.hasOwnProperty.call(data.params, 'chromeVoltage')) params.chromeVoltage = 0;
           if (!Object.prototype.hasOwnProperty.call(data.params, 'ligatureGrammar')) params.ligatureGrammar = 'ribbon';
           if (!Object.prototype.hasOwnProperty.call(data.params, 'ligatureWeave')) params.ligatureWeave = 0;
+        }
+        // v22 and earlier used one restrained global-mask treatment for each
+        // of these five Operators. Keep those render paths exact while new
+        // work starts from independent frequency, vault, fold, optical and
+        // broad-nib grammars.
+        if (Number(data.version || 0) < 23) {
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'moireLattice')) params.moireLattice = 'linear';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'moireResonance')) params.moireResonance = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'navePlan')) params.navePlan = 'arcade';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'naveRibwork')) params.naveRibwork = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'cloisterTessellation')) params.cloisterTessellation = 'strips';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'cloisterRelief')) params.cloisterRelief = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'prismOptics')) params.prismOptics = 'legacy';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'prismIridescence')) params.prismIridescence = 0;
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'texturaGrammar')) params.texturaGrammar = 'stems';
+          if (!Object.prototype.hasOwnProperty.call(data.params, 'texturaRhythm')) params.texturaRhythm = 0;
         }
         // v12 and earlier stored only three source-text presets. Preserve the
         // exact old look while upgrading to the continuous 0–100% control.
@@ -25677,7 +26606,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 22, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 23, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);

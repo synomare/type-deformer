@@ -328,6 +328,19 @@ if (html) {
       noteFailure(`${id} is missing one or more legacy Operator grammar modes.`);
     }
   }
+  const evolvedEarlyOperatorSelects = {
+    pMoireLattice: ['linear', 'choral', 'concentric', 'radial', 'interlace'],
+    pNavePlan: ['arcade', 'ribbed', 'fan', 'loop', 'clerestory'],
+    pCloisterTessellation: ['strips', 'miura', 'accordion', 'diamond', 'fan'],
+    pPrismOptics: ['legacy', 'crystal', 'fresnel', 'spectral', 'lenticular'],
+    pTexturaGrammar: ['stems', 'textura', 'fraktur', 'bastarda', 'lattice']
+  };
+  for (const [id, values] of Object.entries(evolvedEarlyOperatorSelects)) {
+    const select = markupOnly.match(new RegExp(`<select\\b[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]*?)<\\/select>`, 'i'));
+    if (!select || values.some((value) => !new RegExp(`value=["']${value}["']`).test(select[1]))) {
+      noteFailure(`${id} is missing one or more evolved early Operator grammar modes.`);
+    }
+  }
   for (const marker of ['function formFieldContext(', 'function formFieldSignal(', 'function mirrorGrammarMask(',
     "bindProfileSelect('pRotatePattern'", "bindProfileSelect('pSkewPattern'",
     "bindProfileSelect('pBaselinePattern'", "bindProfileSelect('pMirrorPattern'",
@@ -341,6 +354,39 @@ if (html) {
     "params.thornGrammar = 'hybrid'", "params.boneArchitecture = 'adaptive'",
     "params.ligatureGrammar = 'ribbon'", 'if (Number(data.version || 0) < 22)']) {
     if (!html.includes(marker)) noteFailure(`Legacy Operator grammar state integration is missing ${marker}.`);
+  }
+  for (const marker of [
+    "bindProfileSelect('pMoireLattice'", "bindRange('pMoireResonance'",
+    "bindProfileSelect('pNavePlan'", "bindRange('pNaveRibwork'",
+    "bindProfileSelect('pCloisterTessellation'", "bindRange('pCloisterRelief'",
+    "bindProfileSelect('pPrismOptics'", "bindRange('pPrismIridescence'",
+    "bindProfileSelect('pTexturaGrammar'", "bindRange('pTexturaRhythm'",
+    "surfaceChoice(glyphs, 'moireChoir', 'moireLattice'",
+    "surfaceChoice(glyphs, 'naveCutter', 'navePlan'",
+    "surfaceChoice(glyphs, 'cloisterFold', 'cloisterTessellation'",
+    "surfaceChoice(glyphs, 'prismSacrament', 'prismOptics'",
+    "surfaceChoice(glyphs, 'texturaMatrix', 'texturaGrammar'",
+    "params.moireLattice = 'linear'", "params.navePlan = 'arcade'",
+    "params.cloisterTessellation = 'strips'", "params.prismOptics = 'legacy'",
+    "params.texturaGrammar = 'stems'", 'if (Number(data.version || 0) < 23)'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Early Operator evolution state integration is missing ${marker}.`);
+  }
+  for (const marker of [
+    "surfaceNodesForGlyphs(glyphs, 'moireChoir', 8", "topology === 'concentric'",
+    "surfaceScratch('nave-cutter-apertures'", "plan === 'fan'", 'Ribwork detail',
+    "topology === 'miura'", "surfaceScratch('cloister-fold-evolved-seams'",
+    "surfaceScratch('prism-sacrament-rays'", "optics === 'fresnel'",
+    'function traceTexturaGrammarStem(', "grammar === 'bastarda'"
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Early Operator evolved renderer is missing ${marker}.`);
+  }
+  for (const marker of [
+    'topology: params.moireLattice', 'plan: params.navePlan',
+    'topology: params.cloisterTessellation', 'optics: params.prismOptics',
+    'grammar: params.texturaGrammar'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Early Operator SVG metadata is missing ${marker}.`);
   }
   for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderEtchantBloom', 'renderSinewTorque', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
@@ -1010,8 +1056,8 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*22/g) || []).length < 2 || !html.includes('data.version > 22') || !html.includes("a: 'td', v: 22")) {
-    noteFailure('Project/SVG/share schema version 22 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*23/g) || []).length < 2 || !html.includes('data.version > 23') || !html.includes("a: 'td', v: 23")) {
+    noteFailure('Project/SVG/share schema version 23 or its forward-version guard is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',
