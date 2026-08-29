@@ -6,7 +6,7 @@
 
 制作工程は **Text → Effect → Apply → Compose → Export** の一方向で、デスクトップとモバイルの現在地を共通保存します。モバイルで選んだ工程からデスクトップへ戻った場合も、選択表示と実際のパネルが一致します。Applyの冒頭では **選択Effect → 対象**、作用中の文字数、**Quick apply** をまとめて表示し、最初の画面から対象全体への適用・残りへの適用・解除を切り替えられます。解除時に視覚イージングの残像が消えるまでは **解除中…** と区別し、ボタンは次に実行される永続操作を表示します。GridがOFFのときにArrangeを選ぶとGrid設定へ移動し、ONにしたあとは同じ操作からArrangeへ入れます。設定シートは開いた工程名へフォーカスし、閉じると元の工程ボタンへ戻ります。モバイルのシート上部にある **Find** から全工程のパラメータを検索でき、結果を選ぶと該当工程・Operator・詳細欄を開いて値へ移動します。検索条件があるときのEscapeは条件だけを解除し、空の状態でもう一度押すとシートを閉じます。Composeは **Engine → Grid → Build / Apply → Perform** の順に並び、適用後は演奏コントロールへ直接移動できます。視差軽減時はUI内の自動スクロールも即時移動へ切り替わります。
 
-Effectの **Browse / 一覧** は36種類をカテゴリと短い説明付きで比較でき、名前・カテゴリ・特徴から検索できます。検索またはカテゴリ絞り込み中のEscapeは条件を解除し、もう一度押すと一覧を閉じます。選択したEffectは通常のセレクトと同期し、自動保存・再読み込み後にも維持されます。
+Effectの **Browse / 一覧** は38種類をカテゴリと短い説明付きで比較でき、名前・カテゴリ・特徴から検索できます。検索またはカテゴリ絞り込み中のEscapeは条件を解除し、もう一度押すと一覧を閉じます。選択したEffectは通常のセレクトと同期し、自動保存・再読み込み後にも維持されます。
 
 Data Moshは選択中でも、文字へ未適用または解除済みなら完全な恒等変換を返します。未適用の破断Seedが原文表示や通常のPreview / PNG / SVGへ反転・ずれを混入させることはありません。
 
@@ -54,19 +54,21 @@ EffectのPresetは、一覧で選んでから明示的にApplyするため、選
 - **Void Portal** — 字形に実在するcounterと内部の深い空白を検出し、最大1600px先まで続く遠近トンネルへ投影します。Nave Cutterの既成archではなく、文字固有の負の空間が入口になります。
 - **Recursive Shrine** — 字面を最大24回再帰的に縮尺・回転・周回させ、UnionとXORの混合で重なりの偶奇を空洞化します。Ribbon Echoの時間断面ではない論理合成です。
 - **Morph Procession** — 隣接文字のsigned-distance fieldを補間し、文字間へ最大24段階の中間字形を生成します。Ligature Cryptの接続線とは異なり、形そのものが連続変形します。
+- **Chimera Graft** — 原文順で隣接する文字をdonor／hostとして、実際の字形断片を太い接続組織で移植し、Assimilationと切開Seamを持つ混成silhouetteへ変えます。単独文字では自己移植し、Thornの外周装飾やMorphの中間字形とは異なるPosthumanな字形関係を作ります。
+- **Monolith Cast** — 字形距離場を侵食から最大360pxの膨張まで鋳造し、水平courseの量塊、最大±480pxの断層ずれ、実counterの掘り戻し、型枠溝とporeを生成します。Rasterの点網、Cellの破片、Data Moshの信号破壊とは異なる露出構築です。
 - **Raster Press** — 字面を回転可能な網点／角形セルへ変換。セル寸法、Dot gain、版ノイズを広く振り、精密な新聞網点から潰れた印刷片まで作れます。
 - **Hatch Engrave** — 平行線と交差線で文字を彫版化。線間、切削角、繊維のうねり、線幅だけで方向性のある陰影を作ります。
 - **Contour Etch** — 字形から距離場を計算し、文字の内外へ等高線を成長させます。Band、標高間隔、線幅、地形driftでtopographicな線層を作ります。
-- **Pressure Stroke** — 字形の距離場へ方向性のある圧力を与え、局所的な太細・侵食・膨張を連続面として生成します。Weightを負側へ振れば内部侵食、正側へ振れば大胆な質量化ができます。
+- **Pressure Stroke** — 字形の距離場へ方向性のある圧力を与え、局所的な太細・侵食・膨張に、始筆／終筆Taper、Dry brush、完全ループするBreathを統合します。Weightを負側へ振れば内部侵食、正側へ振れば大胆な質量化ができ、同じ方向場のbone／flesh／sinewとして編集できます。
 - **Cell Fracture** — 文字を不規則な三角セルへ分割し、字画から外へ散乱・回転・離隔させます。網点や線網ではない面の破断です。
 - **Ribbon Echo** — 文字を時間方向へ多数の断面として押し出し、奥行、段数、捻り、減衰で帯状の残響と空間ボリュームを作ります。
 - **Copy Decay** — 複写世代、露光、走査ドラムの引きずり、輪郭摩耗、トナー拡散、紙粉を組み合わせ、単色の複写像として字面を劣化させます。
 - **Riso Separation** — 字形を内容の異なる二つのspot-ink版へ分け、版の重なりを第三の色として生成します。版バランス、overprint、registration、ink roughnessを独立制御できます。
 - **Slit Sweep** — 縦／横の空間スリットごとに異なる時刻の字形を蓄積し、連続した時間の引き延ばしを作ります。Data Moshのブロック破断とは異なる時間走査です。
 
-27個のSurface Operatorすべてに、本文の **Text ink** と独立した **Effect ink** を用意しています。Riso SeparationとPrism Sacramentは二つのEffect inkを持ちます。**Text under effect** は0–100%の連続値で、Full 100% / Ghost 22% / Hide 0%の即時プリセットも利用できます。新規状態は本文100%から始まるため、効果を選んだだけで文字が勝手に薄くなりません。細線網、連続面、紋章、輪郭棘、コード碑文、内部骨格、放射tracery、金属面、順序依存band、光学干渉、建築的な空洞、連続面の折り、透明体屈折、broad-nib再構成、counter portal、再帰的parity、中間字形、網点、彫版線、等高線、破片、奥行、複写像、二色版、時間走査へ生成原理を分け、微細な状態から画面全体を横断する破壊的な極端値まで調整できます。
+29個のSurface Operatorすべてに、本文の **Text ink** と独立した **Effect ink** を用意しています。Riso SeparationとPrism Sacramentは二つのEffect inkを持ちます。**Text under effect** は0–100%の連続値で、Full 100% / Ghost 22% / Hide 0%の即時プリセットも利用できます。新規状態は本文100%から始まるため、効果を選んだだけで文字が勝手に薄くなりません。細線網、連続面、紋章、輪郭棘、コード碑文、内部骨格、放射tracery、金属面、順序依存band、光学干渉、建築的な空洞、連続面の折り、透明体屈折、broad-nib再構成、counter portal、再帰的parity、中間字形、異物移植、露出量塊、網点、彫版線、等高線、破片、奥行、複写像、二色版、時間走査へ生成原理を分け、微細な状態から画面全体を横断する破壊的な極端値まで調整できます。
 
-選択中のSurface Operatorには **Surface Mixer** が表示され、Text ink / Effect inkに加えて **TEXT（文字）** と **FX（効果）** の透明度を別々に調整できます。両方に0–100%スライダーと大きな即時プリセットがあり、FXを0%へ下げてもTEXTの設定値は変わりません。効果ごとのNormal / Multiply / Screen / Overlay / Difference / Add、Back / Frontの描画順も直接調整できます。出力値は27効果で独立し、旧ProjectのKeep / Ghost / Hideは100% / 22% / 0%へ移行されます。
+選択中のSurface Operatorには **Surface Mixer** が表示され、Text ink / Effect inkに加えて **TEXT（文字）** と **FX（効果）** の透明度を別々に調整できます。両方に0–100%スライダーと大きな即時プリセットがあり、FXを0%へ下げてもTEXTの設定値は変わりません。効果ごとのNormal / Multiply / Screen / Overlay / Difference / Add、Back / Frontの描画順も直接調整できます。出力値は29効果で独立し、旧ProjectのKeep / Ghost / Hideは100% / 22% / 0%へ移行されます。
 
 Export内の **Design Space Sheet** は、選択中のSurface Operatorで特徴を決める二つの主軸を6 / 9 / 12案へ展開します。比較PNG、ラベルとSeed付き校正、選択案のTargetへの採用に対応し、単発のランダム生成ではなく比較しながら詰められます。
 
@@ -80,7 +82,9 @@ Composeの **Glyph Vessel** は、入力文字・単語・句を、別の字形�
 
 Composeの **Glyph Signal Router** は、8つの生成エンジンすべてに共通する文字単位の変調層です。Source order / Instance order / Unicode hash / Character frequency / Character class / Ink width / X・Y / Radius / Pointer distanceを、Ramp / Sine / Triangle / Steps / Pulse / Loop noiseで整形し、X・Y移動、回転、全体・縦横スケール、Skew、Opacity gate、独立色へ3系統まで直列に配線できます。Depth ±4は画板幅の移動、720°回転、1/16〜16倍まで到達し、整数Loop cyclesはPhase 0と1が一致する完全ループを保ちます。Type Wave / Script Split / Pointer Lens / Loop Pulse / Entropy Ruptureは開始点であり、個々の配線へ分解して編集できます。
 
-文字データは変更せず、Lens / Edit / Type Batch、Composition、PNG / SVG / 動画の共通ワークフローで利用できます。SVGでは生成描画レイヤーを埋め込みPNGとして保持し、元の文字要素、各Surface Effectの色・元文字濃度・Opacity・Blend・描画順・パラメータとLook Memoryの索引をversion 18メタデータに残します。Glyph Signal Router、Type Matrix、Path Loom、Glyph Vesselを含むComposition v10の状態はProject JSON、自動保存、Share URL、Look Memory、SVGメタデータへ共通保存されます。
+文字データは変更せず、Lens / Edit / Type Batch、Composition、PNG / SVG / 動画の共通ワークフローで利用できます。SVGでは生成描画レイヤーを埋め込みPNGとして保持し、元の文字要素、各Surface Effectの色・元文字濃度・Opacity・Blend・描画順・パラメータとLook Memoryの索引をversion 19メタデータに残します。Glyph Signal Router、Type Matrix、Path Loom、Glyph Vesselを含むComposition v10の状態はProject JSON、自動保存、Share URL、Look Memory、SVGメタデータへ共通保存されます。
+
+Generative Body–Energy–Relationの追加調査では、[David Rudnick / Tomb Series](https://www.itsnicethat.com/articles/david-rudnick-tomb-series-graphic-design-161118)と[New Myths](https://tasteland.com/video/david-rudnick-new-myths/)を有限の視覚文法とsource-derived code、[RIBA / Brutalism](https://www.architecture.com/explore-architecture/brutalism)を量塊と露出構築、[AIGA / Acid Graphics](https://eyeondesign.aiga.org/the-second-coming-of-acid-graphics/)を反規範の境界、[The Metの日本の書](https://www.metmuseum.org/essays/brush-writing-in-the-arts-of-japan)と[中国書法](https://www.metmuseum.org/essays/chinese-calligraphy)を形態・精神・呼吸・乾湿、[Jacob Wamberg](https://pure.au.dk/portal/en/publications/trafficking-the-body-prolegomena-to-a-posthumanist-theory-of-orna/)と[Rosi Braidotti](https://rosibraidotti.com/publications/posthuman-critical-theory/)を装飾の侵入と関係的Posthumanの理論境界に限定しました。書体、glyph、symbol、ornament、画像、配色、shader、code、preset、固有UIや生成結果は転用せず、source mask、方向場、隣接文字のdonor断片から独立実装しています。
 
 Digital Gothic Operatorの継続調査では、[MEK.txt](https://www.mek.gallery/)を品質anchor、[StrokeStyles](https://doi.org/10.1145/3505246)を内部topology、[Gothic Diffusion](https://www.sabrigokmen.com/work/gothic-diffusion)を放射建築、[Fort Foundry](https://beta.fortfoundry.com/fonts)を立体書体とmaterialの分離、[Hiroshi Imaeda / PENETRATE](https://www.slanted.de/experimental-typography-by-hiroshi-imaeda-penetrate/)を日本語圏のstructure/collapse比較に限定しました。作品、書体、記号、配色、shader、固有UIやコードは転用せず、距離場・文字中心・光源から独立に生成しています。
 

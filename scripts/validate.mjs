@@ -159,14 +159,14 @@ if (html) {
   const proceduralOperators = [
     'plotterTrace', 'webbing', 'softBlob', 'sigilForge', 'thornCrown', 'cipherLiturgy',
     'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter',
-    'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession',
+    'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'chimeraGraft', 'monolithCast',
     'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'cellFracture', 'ribbonEcho',
     'copyDecay', 'risoSeparation', 'slitSweep'
   ];
   const proceduralLabels = [
     'Kinetic Trace', 'Field Webbing', 'Physarum Blob', 'Sigil Forge', 'Thorn Crown', 'Cipher Liturgy',
     'Bone Scaffold', 'Rose Engine', 'Chrome Reliquary', 'Ligature Crypt', 'Moiré Choir', 'Nave Cutter',
-    'Cloister Fold', 'Prism Sacrament', 'Textura Matrix', 'Void Portal', 'Recursive Shrine', 'Morph Procession',
+    'Cloister Fold', 'Prism Sacrament', 'Textura Matrix', 'Void Portal', 'Recursive Shrine', 'Morph Procession', 'Chimera Graft', 'Monolith Cast',
     'Raster Press', 'Hatch Engrave', 'Contour Etch', 'Pressure Stroke', 'Cell Fracture', 'Ribbon Echo',
     'Copy Decay', 'Riso Separation', 'Slit Sweep'
   ];
@@ -228,10 +228,13 @@ if (html) {
     ['pVoidDepth', '1600'], ['pVoidAngle', '180'], ['pVoidAperture', '1'], ['pVoidTaper', '2'], ['pVoidRibs', '32'],
     ['pRecursiveIterations', '24'], ['pRecursiveScale', '1.5'], ['pRecursiveTurn', '180'], ['pRecursiveOrbit', '1200'], ['pRecursiveParity', '1'],
     ['pMorphInbetweens', '24'], ['pMorphSpan', '2.5'], ['pMorphMelt', '2'], ['pMorphTwist', '360'], ['pMorphHalo', '160'],
+    ['pChimeraGrafts', '32'], ['pChimeraSpan', '320'], ['pChimeraAssimilation', '1'], ['pChimeraForeignness', '4'], ['pChimeraSeam', '20'],
+    ['pMonolithMass', '360'], ['pMonolithModule', '120'], ['pMonolithFault', '480'], ['pMonolithCounter', '1'], ['pMonolithFormwork', '4'],
     ['pRasterCell', '72'], ['pRasterGain', '3'], ['pRasterAngle', '90'], ['pRasterNoise', '2'],
     ['pHatchSpacing', '80'], ['pHatchAngle', '180'], ['pHatchWarp', '5'], ['pHatchStroke', '12'],
     ['pContourEtchBands', '64'], ['pContourEtchSpacing', '40'], ['pContourEtchStroke', '14'], ['pContourEtchDrift', '6'],
     ['pPressureWeight', '260'], ['pPressureContrast', '4'], ['pPressureAngle', '180'], ['pPressureFrequency', '32'], ['pPressureSoftness', '24'],
+    ['pPressureBreath', '4'], ['pPressureDryness', '1'], ['pPressureTaper', '2'],
     ['pFractureCell', '140'], ['pFractureScatter', '520'], ['pFractureGap', '28'], ['pFractureSpin', '720'],
     ['pRibbonDepth', '520'], ['pRibbonSteps', '96'], ['pRibbonTwist', '540'], ['pRibbonFade', '1'],
     ['pCopyGenerations', '48'], ['pCopyExposure', '1.5'], ['pCopyMotion', '640'], ['pCopyErosion', '24'], ['pCopyToner', '5'], ['pCopyDust', '4'],
@@ -264,10 +267,13 @@ if (html) {
     ['pVoidDepth', '0'], ['pVoidAngle', '-180'], ['pVoidAperture', '0'], ['pVoidTaper', '-2'], ['pVoidRibs', '1'],
     ['pRecursiveIterations', '1'], ['pRecursiveScale', '0.25'], ['pRecursiveTurn', '-180'], ['pRecursiveOrbit', '0'], ['pRecursiveParity', '0'],
     ['pMorphInbetweens', '1'], ['pMorphSpan', '0.1'], ['pMorphMelt', '-2'], ['pMorphTwist', '-360'], ['pMorphHalo', '0'],
+    ['pChimeraGrafts', '1'], ['pChimeraSpan', '4'], ['pChimeraAssimilation', '0'], ['pChimeraForeignness', '0'], ['pChimeraSeam', '0'],
+    ['pMonolithMass', '-120'], ['pMonolithModule', '2'], ['pMonolithFault', '-480'], ['pMonolithCounter', '0'], ['pMonolithFormwork', '0'],
     ['pRasterCell', '2'], ['pRasterGain', '0.05'], ['pRasterAngle', '-90'],
     ['pHatchSpacing', '1'], ['pHatchAngle', '-180'], ['pHatchStroke', '0.1'],
     ['pContourEtchBands', '1'], ['pContourEtchSpacing', '1'], ['pContourEtchStroke', '0.25'],
     ['pPressureWeight', '-120'], ['pPressureFrequency', '0.1'], ['pPressureSoftness', '0.1'],
+    ['pPressureBreath', '0'], ['pPressureDryness', '0'], ['pPressureTaper', '-2'],
     ['pFractureCell', '4'], ['pFractureSpin', '-720'],
     ['pRibbonDepth', '-520'], ['pRibbonSteps', '1'], ['pRibbonTwist', '-540'],
     ['pCopyGenerations', '1'], ['pCopyExposure', '-1.5'], ['pCopyMotion', '-640'],
@@ -279,7 +285,7 @@ if (html) {
       noteFailure(`${id} does not expose the expected extreme minimum (${expectedMin}).`);
     }
   }
-  for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderCellFracture',
+  for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
     if (!html.includes(`function ${renderer}(`)) noteFailure(`${renderer} is missing from the surface renderer.`);
   }
@@ -402,6 +408,38 @@ if (html) {
     "bindRange('pVoidDepth'", "bindRange('pRecursiveIterations'", "bindRange('pMorphInbetweens'",
     'depth: params.voidDepth', 'iterations: params.recursiveIterations', 'inbetweens: params.morphInbetweens']) {
     if (!html.includes(marker)) noteFailure(`Null-Space Logic Batch/Proof/binding/metadata integration is missing ${marker}.`);
+  }
+  if (!html.includes("buildSurfaceMask(glyphs, 'monolithCast'")
+    || !html.includes('var course = Math.floor((y - originY) / moduleSize)')
+    || !html.includes('surfaceVoidApertureMask(mask, 0)')
+    || !html.includes('var courseGroove = formwork')) {
+    noteFailure('Monolith Cast mass, construction-course, counter, or formwork rendering is incomplete.');
+  }
+  if (!html.includes("buildSurfaceMask(glyphs, 'chimeraGraft'")
+    || !html.includes('var donor = active[(hostIndex + 1) % active.length]')
+    || !html.includes('work.ctx.bezierCurveTo(')
+    || !html.includes('work.ctx.ellipse(targetX, targetY')
+    || !html.includes("work.ctx.globalCompositeOperation = 'destination-out'")) {
+    noteFailure('Chimera Graft donor, tissue, transplant, or incision rendering is incomplete.');
+  }
+  if (!html.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureBreath'")
+    || !html.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureDryness'")
+    || !html.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureTaper'")
+    || !html.includes('var respiration = Math.sin(phase')
+    || !html.includes('coverage *= retention')) {
+    noteFailure('Pressure Stroke breath, dry-brush, taper, or unified energy field is incomplete.');
+  }
+  for (const mapping of ['chimeraGraft: renderChimeraGraft', 'monolithCast: renderMonolithCast']) {
+    if (!html.includes(mapping)) noteFailure(`Body-Energy-Relation dispatch is missing ${mapping}.`);
+  }
+  for (const key of ['chimeraOpacity', 'monolithOpacity', 'chimeraSourceOpacity', 'monolithSourceOpacity',
+    'chimeraBlend', 'monolithBlend', 'chimeraColor', 'monolithColor']) {
+    if (!html.includes(key)) noteFailure(`Body-Energy-Relation Surface Mixer state is missing ${key}.`);
+  }
+  for (const marker of ["chimeraGraft: [{ key: 'chimeraGrafts'", "monolithCast: [{ key: 'monolithMass'", "pressureStroke: [{ key: 'pressureBreath'",
+    "bindRange('pChimeraGrafts'", "bindRange('pMonolithMass'", "bindRange('pPressureBreath'",
+    'grafts: params.chimeraGrafts', 'mass: params.monolithMass', 'breath: params.pressureBreath']) {
+    if (!html.includes(marker)) noteFailure(`Body-Energy-Relation Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
   if (!html.includes("prismSacrament: 'prismColorB'")
     || !html.includes('SURFACE_SECONDARY_COLOR_KEYS[params.activeOperator]')) {
@@ -749,7 +787,7 @@ if (html) {
   const presetManagerBody = presetManagerStart >= 0 && presetManagerEnd > presetManagerStart
     ? html.slice(presetManagerStart, presetManagerEnd)
     : '';
-  if (!html.includes('class="preset-manager" aria-labelledby="presetManagerTitle"')
+  if (!html.includes('class="preset-manager" role="group" aria-labelledby="presetManagerTitle"')
     || !html.includes('id="presetStatus" role="status" aria-live="polite" aria-atomic="true"')
     || !html.includes('.preset-status[data-state="warning"]')
     || !html.includes('.preset-status {')
@@ -877,8 +915,8 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*18/g) || []).length < 2 || !html.includes('data.version > 18') || !html.includes("a: 'td', v: 18")) {
-    noteFailure('Project/SVG/share schema version 18 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*19/g) || []).length < 2 || !html.includes('data.version > 19') || !html.includes("a: 'td', v: 19")) {
+    noteFailure('Project/SVG/share schema version 19 or its forward-version guard is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',

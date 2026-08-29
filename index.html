@@ -15,7 +15,7 @@
       --paper: #f4f3ef;
       --ink: #17140f;
       --red: #c41f1f;
-      --dim: #8f887a;
+      --dim: #6b655a;
       --line: #d9d5c9;
       --card: #fdfdfb;
       --mono: "Space Mono", Menlo, Consolas, monospace;
@@ -2996,7 +2996,7 @@
       }
       .mobile-dock { grid-template-columns: repeat(5, minmax(44px, 1fr)); }
       .mobile-dock button { display: grid; place-content: center; gap: 0.1rem; min-height: 64px; }
-      .mobile-dock button > span { color: var(--dim); font-size: 0.52rem; }
+      .mobile-dock button > span { color: #6b655a; font-size: 0.52rem; }
       .mobile-dock button[aria-pressed="true"] > span { color: var(--red); }
       .mobile-sheet-nav { grid-template-columns: 48px 56px minmax(0, 1fr) 64px; }
       #btnMobileParameterSearch { color: var(--red); }
@@ -3025,7 +3025,7 @@
   <header class="topbar">
     <span class="brand">TYPE DEFORMER<span class="jp">文字変形機</span></span>
     <span class="top-context" id="topContextStatus">Stretch × Lens × All</span>
-    <div class="topbar-actions" aria-label="Project and editing actions">
+    <div class="topbar-actions" role="group" aria-label="Project and editing actions">
       <button type="button" id="btnHeaderUndo" aria-keyshortcuts="Control+Z Meta+Z" disabled>Undo</button>
       <button type="button" id="btnHeaderRedo" aria-keyshortcuts="Control+Y Control+Shift+Z Meta+Shift+Z" disabled>Redo</button>
       <button type="button" id="btnHeaderPreview">Preview</button>
@@ -3037,7 +3037,7 @@
   <header class="mobile-topbar" aria-label="Mobile toolbar">
     <button type="button" id="btnMobileUndo" aria-keyshortcuts="Control+Z Meta+Z" disabled>Undo</button>
     <button type="button" id="btnMobileRedo" aria-keyshortcuts="Control+Y Control+Shift+Z Meta+Shift+Z" disabled>Redo</button>
-    <button type="button" id="btnMobileProject" aria-controls="projectMenu" aria-expanded="false" aria-haspopup="true">Project</button>
+    <button type="button" id="btnMobileProject" aria-controls="projectMenu" aria-expanded="false">Project</button>
     <span class="mobile-context" id="mobileContextStatus">Stretch × Lens × All</span>
     <button type="button" id="btnMobilePreview">Preview</button>
     <button type="button" id="btnMobileMenu" aria-label="Open controls" aria-expanded="false">Menu</button>
@@ -3183,8 +3183,10 @@ type deformer</textarea>
             <option value="voidPortal">Void Portal</option>
             <option value="recursiveShrine">Recursive Shrine</option>
             <option value="morphProcession">Morph Procession</option>
+            <option value="chimeraGraft">Chimera Graft</option>
           </optgroup>
           <optgroup label="MATERIAL / 質感">
+            <option value="monolithCast">Monolith Cast</option>
             <option value="rasterPress">Raster Press</option>
             <option value="hatchEngrave">Hatch Engrave</option>
             <option value="contourEtch">Contour Etch</option>
@@ -3205,7 +3207,7 @@ type deformer</textarea>
             <option value="blobTrack">Blob Track</option>
           </optgroup>
         </select>
-        <button type="button" id="btnOperatorBrowser" aria-label="Browse all 36 effects" aria-haspopup="dialog" aria-controls="operatorBrowser">Browse / 一覧</button>
+        <button type="button" id="btnOperatorBrowser" aria-label="Browse all 38 effects" aria-haspopup="dialog" aria-controls="operatorBrowser">Browse / 一覧</button>
       </div>
       <div class="operator-guide" id="operatorGuide" aria-live="polite">
         <span class="operator-guide-category" id="operatorGuideCategory">FORM / 変形</span>
@@ -3402,6 +3404,22 @@ type deformer</textarea>
         <div class="row"><label for="pMorphHalo">Halo</label><input type="range" id="pMorphHalo" min="0" max="160" step="1" value="12"><span class="val" id="vMorphHalo">12px</span></div>
         <p class="note">隣り合う文字のsigned-distance fieldを補間し、間に本当の中間字形を行列として生成します。線で結ぶLigature Cryptや時間断面を並べるSlit Sweepではありません。</p>
       </div>
+      <div class="operator-panel" data-operator-panel="chimeraGraft" hidden>
+        <div class="row"><label for="pChimeraGrafts">Grafts</label><input type="range" id="pChimeraGrafts" min="1" max="32" step="1" value="6"><span class="val" id="vChimeraGrafts">6</span></div>
+        <div class="row"><label for="pChimeraSpan">Tissue span</label><input type="range" id="pChimeraSpan" min="4" max="320" step="2" value="42"><span class="val" id="vChimeraSpan">42px</span></div>
+        <div class="row"><label for="pChimeraAssimilation">Assimilation</label><input type="range" id="pChimeraAssimilation" min="0" max="1" step="0.01" value="0.58"><span class="val" id="vChimeraAssimilation">0.58</span></div>
+        <div class="row"><label for="pChimeraForeignness">Foreignness</label><input type="range" id="pChimeraForeignness" min="0" max="4" step="0.01" value="1.15"><span class="val" id="vChimeraForeignness">1.15</span></div>
+        <div class="row"><label for="pChimeraSeam">Surgical seam</label><input type="range" id="pChimeraSeam" min="0" max="20" step="0.1" value="1.4"><span class="val" id="vChimeraSeam">1.4px</span></div>
+        <p class="note">隣の文字をdonorとして実際の字形断片をhostへ移植し、接続組織と切開痕を一体のsilhouetteにします。単独文字は自己移植し、Thornの棘やLigatureの文字間railにはなりません。</p>
+      </div>
+      <div class="operator-panel" data-operator-panel="monolithCast" hidden>
+        <div class="row"><label for="pMonolithMass">Cast mass</label><input type="range" id="pMonolithMass" min="-120" max="360" step="2" value="28"><span class="val" id="vMonolithMass">28px</span></div>
+        <div class="row"><label for="pMonolithModule">Course module</label><input type="range" id="pMonolithModule" min="2" max="120" step="1" value="14"><span class="val" id="vMonolithModule">14px</span></div>
+        <div class="row"><label for="pMonolithFault">Fault shift</label><input type="range" id="pMonolithFault" min="-480" max="480" step="2" value="18"><span class="val" id="vMonolithFault">18px</span></div>
+        <div class="row"><label for="pMonolithCounter">Counter return</label><input type="range" id="pMonolithCounter" min="0" max="1" step="0.01" value="0.78"><span class="val" id="vMonolithCounter">0.78</span></div>
+        <div class="row"><label for="pMonolithFormwork">Formwork marks</label><input type="range" id="pMonolithFormwork" min="0" max="4" step="0.01" value="0.45"><span class="val" id="vMonolithFormwork">0.45</span></div>
+        <p class="note">字形を侵食／膨張できる連続した量塊へ鋳造し、水平courseの断層ずれ、実counterの掘り戻し、型枠溝を露出します。網点・破片・glitchではなく構築そのものが形になります。</p>
+      </div>
       <div class="operator-panel" data-operator-panel="rasterPress" hidden>
         <div class="row"><label for="pRasterCell">Screen cell</label><input type="range" id="pRasterCell" min="2" max="72" step="1" value="8"><span class="val" id="vRasterCell">8px</span></div>
         <div class="row"><label for="pRasterGain">Dot gain</label><input type="range" id="pRasterGain" min="0.05" max="3" step="0.01" value="1.16"><span class="val" id="vRasterGain">1.16</span></div>
@@ -3429,7 +3447,10 @@ type deformer</textarea>
         <div class="row"><label for="pPressureAngle">Flow angle</label><input type="range" id="pPressureAngle" min="-180" max="180" step="1" value="28"><span class="val" id="vPressureAngle">28°</span></div>
         <div class="row"><label for="pPressureFrequency">Rhythm</label><input type="range" id="pPressureFrequency" min="0.1" max="32" step="0.05" value="2.2"><span class="val" id="vPressureFrequency">2.20</span></div>
         <div class="row"><label for="pPressureSoftness">Edge softness</label><input type="range" id="pPressureSoftness" min="0.1" max="24" step="0.1" value="1.4"><span class="val" id="vPressureSoftness">1.4px</span></div>
-        <p class="note">字形を距離場へ変換し、方向を持つ圧力で局所的な太細・侵食・膨張を生成。線や粒ではなく、連続したストローク質量として変形します。</p>
+        <div class="row"><label for="pPressureBreath">Breath</label><input type="range" id="pPressureBreath" min="0" max="4" step="0.01" value="0.85"><span class="val" id="vPressureBreath">0.85</span></div>
+        <div class="row"><label for="pPressureDryness">Dry brush</label><input type="range" id="pPressureDryness" min="0" max="1" step="0.01" value="0.12"><span class="val" id="vPressureDryness">0.12</span></div>
+        <div class="row"><label for="pPressureTaper">Start / end taper</label><input type="range" id="pPressureTaper" min="-2" max="2" step="0.01" value="0.25"><span class="val" id="vPressureTaper">+0.25</span></div>
+        <p class="note">太細・侵食・膨張、始筆から終筆へのtaper、乾いた擦れ、周期的な呼吸を同じ方向場から生成します。書のbone／flesh／sinewを、線粒ではなく連続した身体エネルギーとして扱います。</p>
       </div>
       <div class="operator-panel" data-operator-panel="cellFracture" hidden>
         <div class="row"><label for="pFractureCell">Cell scale</label><input type="range" id="pFractureCell" min="4" max="140" step="2" value="18"><span class="val" id="vFractureCell">18px</span></div>
@@ -3518,13 +3539,13 @@ type deformer</textarea>
       </div>
       <div class="surface-mixer" id="surfaceMixerBlock" hidden>
         <div class="surface-mixer-head"><span>Surface Mixer</span><span class="r" id="surfaceMixerName">Plotter Trace</span></div>
-        <div class="surface-ink-grid" aria-label="Independent text and effect colors">
+        <div class="surface-ink-grid" role="group" aria-label="Independent text and effect colors">
           <label class="surface-ink-control" for="pSurfaceTextColor"><span>Text ink</span><input type="color" id="pSurfaceTextColor" value="#17140f"></label>
           <span class="surface-ink-not-equal" aria-hidden="true">≠</span>
           <label class="surface-ink-control" for="pSurfaceEffectColor"><span id="surfaceEffectColorLabel">Effect ink</span><input type="color" id="pSurfaceEffectColor" value="#c41f1f"></label>
         </div>
         <div class="row" id="surfaceSecondColorRow" hidden><label for="pSurfaceEffectColorB">Effect ink B</label><input type="color" id="pSurfaceEffectColorB" value="#2468ff"></div>
-        <div class="surface-opacity-stack" aria-label="Independent text and effect opacity controls">
+        <div class="surface-opacity-stack" role="group" aria-label="Independent text and effect opacity controls">
           <div class="surface-opacity-title"><span>Opacity / 透明度</span><span class="r">Independent / 個別</span></div>
           <div class="surface-source-control" data-surface-opacity-layer="text">
             <div class="surface-source-head"><label for="pSurfaceSourceOpacity"><span class="surface-opacity-chip">TEXT</span><span>Text / 文字</span></label><output id="vSurfaceSourceOpacity" for="pSurfaceSourceOpacity">100%</output></div>
@@ -3548,7 +3569,7 @@ type deformer</textarea>
         <div class="row"><label for="pSurfaceBlend">Blend</label><select id="pSurfaceBlend"><option value="source-over">Normal / 通常</option><option value="multiply">Multiply / 乗算</option><option value="screen">Screen / スクリーン</option><option value="overlay">Overlay / オーバーレイ</option><option value="difference">Difference / 差の絶対値</option><option value="lighter">Add / 加算</option></select></div>
         <div class="surface-stack-row">
           <button type="button" id="btnSurfaceBack" aria-label="Move effect one layer toward the back">← Back</button>
-          <div class="surface-stack-axis"><span>Back</span><strong id="surfaceOrderLabel">27 / 27</strong><span>Front</span></div>
+          <div class="surface-stack-axis"><span>Back</span><strong id="surfaceOrderLabel">29 / 29</strong><span>Front</span></div>
           <button type="button" id="btnSurfaceFront" aria-label="Move effect one layer toward the front">Front →</button>
         </div>
         <p class="note">TEXTとFXの透明度は完全に独立しています。片方を変更しても、もう片方の濃さは変わりません。BlendとBack／FrontはFXレイヤーだけを変更します。</p>
@@ -3562,7 +3583,7 @@ type deformer</textarea>
       <div class="btns">
         <button id="btnShuffle">Shuffle 乱数</button>
       </div>
-      <div class="preset-manager" aria-labelledby="presetManagerTitle">
+      <div class="preset-manager" role="group" aria-labelledby="presetManagerTitle">
         <div class="preset-manager-head">
           <label id="presetManagerTitle" for="pPreset">Preset / プリセット</label>
           <span id="presetCount">4 built-in · 0 saved</span>
@@ -4485,7 +4506,7 @@ type deformer</textarea>
           <canvas id="compositionCanvas" aria-hidden="true"></canvas>
           <canvas id="surfaceFxCanvas" hidden aria-hidden="true"></canvas>
           <canvas id="blobTrackOverlay" hidden aria-hidden="true"></canvas>
-          <div class="stage" id="stage" aria-label="無制限の文字キャンバス"><div class="stage-world" id="stageWorld"></div></div>
+          <div class="stage" id="stage" role="region" aria-label="無制限の文字キャンバス"><div class="stage-world" id="stageWorld"></div></div>
         </div>
       </div>
       <div class="canvas-view-hint" id="canvasViewHint" role="status" aria-live="polite" aria-hidden="true">UNBOUNDED VIEW · DRAG TO PAN · WHEEL / PINCH TO ZOOM · DOUBLE TAP TO RESET</div>
@@ -4542,7 +4563,7 @@ type deformer</textarea>
           </select>
         </label>
       </div>
-      <p class="operator-browser-status" id="operatorBrowserStatus" role="status" aria-live="polite">36 / 36 effects</p>
+      <p class="operator-browser-status" id="operatorBrowserStatus" role="status" aria-live="polite">38 / 38 effects</p>
       <div class="operator-browser-list" id="operatorBrowserList"></div>
     </section>
   </div>
@@ -5153,6 +5174,7 @@ type deformer</textarea>
         cellFracture: { id: 'cellFracture', short: 'x', label: 'Cell Fracture', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 50, strengthMode: STRENGTH_MODES.CONTINUOUS },
         contourEtch: { id: 'contourEtch', short: 'n', label: 'Contour Etch', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 60, strengthMode: STRENGTH_MODES.CONTINUOUS },
         pressureStroke: { id: 'pressureStroke', short: 'q', label: 'Pressure Stroke', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 70, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        monolithCast: { id: 'monolithCast', short: 'mc', label: 'Monolith Cast', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 75, strengthMode: STRENGTH_MODES.CONTINUOUS },
         thornCrown: { id: 'thornCrown', short: 'u', label: 'Thorn Crown', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 80, strengthMode: STRENGTH_MODES.CONTINUOUS },
         boneScaffold: { id: 'boneScaffold', short: 'bs', label: 'Bone Scaffold', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 90, strengthMode: STRENGTH_MODES.CONTINUOUS },
         naveCutter: { id: 'naveCutter', short: 'nc', label: 'Nave Cutter', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 100, strengthMode: STRENGTH_MODES.CONTINUOUS },
@@ -5171,7 +5193,8 @@ type deformer</textarea>
         ligatureCrypt: { id: 'ligatureCrypt', short: 'lc', label: 'Ligature Crypt', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 70, strengthMode: STRENGTH_MODES.CONTINUOUS },
         cloisterFold: { id: 'cloisterFold', short: 'cf', label: 'Cloister Fold', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 80, strengthMode: STRENGTH_MODES.CONTINUOUS },
         voidPortal: { id: 'voidPortal', short: 'vp', label: 'Void Portal', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 90, strengthMode: STRENGTH_MODES.CONTINUOUS },
-        morphProcession: { id: 'morphProcession', short: 'mp', label: 'Morph Procession', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 100, strengthMode: STRENGTH_MODES.CONTINUOUS }
+        morphProcession: { id: 'morphProcession', short: 'mp', label: 'Morph Procession', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 100, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        chimeraGraft: { id: 'chimeraGraft', short: 'cg', label: 'Chimera Graft', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 110, strengthMode: STRENGTH_MODES.CONTINUOUS }
       };
       var OPERATOR_GUIDES = {
         confuse: '元の文字種を手掛かりに別の字形へ置換し、読める状態から文字化けまで段階的に変えます。',
@@ -5198,6 +5221,8 @@ type deformer</textarea>
         voidPortal: '文字固有のcounterと深い空白を入口にし、遠近を持つ内部トンネルへ投影します。',
         recursiveShrine: '字面を再帰的に縮小・回転し、UnionとXORの重なりで空洞を作ります。',
         morphProcession: '隣接する二文字の距離場を補間し、文字間へ連続した中間字形を並べます。',
+        chimeraGraft: '隣接文字の字形断片を移植し、接続組織と切開痕を持つ混成身体へ変えます。',
+        monolithCast: '字形を量塊化し、構築course・断層・counter・型枠痕を露出します。',
         rasterPress: '字面を網点や角形セルへ量子化し、dot gainと版ノイズを持つ印刷面へ変えます。',
         hatchEngrave: '平行線と交差線を字形へ刻み、方向性を持つ彫版状の陰影を作ります。',
         contourEtch: '字形の内外距離から等高線を成長させ、地形図のような線層を作ります。',
@@ -5214,11 +5239,11 @@ type deformer</textarea>
       var OPERATOR_IDS = Object.keys(OPERATOR_DEFS).sort(function (a, b) {
         return OPERATOR_DEFS[a].layerOrder - OPERATOR_DEFS[b].layerOrder || OPERATOR_DEFS[a].order - OPERATOR_DEFS[b].order;
       });
-      var SURFACE_OPERATOR_IDS = ['plotterTrace', 'webbing', 'softBlob', 'sigilForge', 'thornCrown', 'cipherLiturgy', 'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter', 'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'cellFracture', 'ribbonEcho', 'copyDecay', 'risoSeparation', 'slitSweep'];
+      var SURFACE_OPERATOR_IDS = ['plotterTrace', 'webbing', 'softBlob', 'sigilForge', 'thornCrown', 'cipherLiturgy', 'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter', 'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'chimeraGraft', 'monolithCast', 'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'cellFracture', 'ribbonEcho', 'copyDecay', 'risoSeparation', 'slitSweep'];
       // Back-to-front order preserves the pre-mixer renderer as the migration
       // default. The UI can move any Surface Operator without changing its
       // per-glyph application state.
-      var SURFACE_RENDER_ORDER_DEFAULT = ['copyDecay', 'risoSeparation', 'prismSacrament', 'recursiveShrine', 'chromeReliquary', 'naveCutter', 'cloisterFold', 'voidPortal', 'morphProcession', 'moireChoir', 'ligatureCrypt', 'cipherLiturgy', 'ribbonEcho', 'slitSweep', 'cellFracture', 'rasterPress', 'texturaMatrix', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'boneScaffold', 'thornCrown', 'softBlob', 'webbing', 'roseEngine', 'sigilForge', 'plotterTrace'];
+      var SURFACE_RENDER_ORDER_DEFAULT = ['copyDecay', 'risoSeparation', 'prismSacrament', 'recursiveShrine', 'chromeReliquary', 'naveCutter', 'cloisterFold', 'voidPortal', 'morphProcession', 'chimeraGraft', 'moireChoir', 'ligatureCrypt', 'cipherLiturgy', 'ribbonEcho', 'slitSweep', 'cellFracture', 'rasterPress', 'texturaMatrix', 'hatchEngrave', 'contourEtch', 'monolithCast', 'pressureStroke', 'boneScaffold', 'thornCrown', 'softBlob', 'webbing', 'roseEngine', 'sigilForge', 'plotterTrace'];
       var SURFACE_BLEND_MODES = ['source-over', 'multiply', 'screen', 'overlay', 'difference', 'lighter'];
       var SURFACE_OPACITY_KEYS = {
         plotterTrace: 'traceOpacity', webbing: 'webOpacity', softBlob: 'softBlobOpacity',
@@ -5226,7 +5251,8 @@ type deformer</textarea>
         boneScaffold: 'boneOpacity', roseEngine: 'roseOpacity', chromeReliquary: 'chromeOpacity',
         ligatureCrypt: 'ligatureOpacity', moireChoir: 'moireOpacity', naveCutter: 'naveOpacity',
         cloisterFold: 'cloisterOpacity', prismSacrament: 'prismOpacity', texturaMatrix: 'texturaOpacity',
-        voidPortal: 'voidOpacity', recursiveShrine: 'recursiveOpacity', morphProcession: 'morphOpacity',
+        voidPortal: 'voidOpacity', recursiveShrine: 'recursiveOpacity', morphProcession: 'morphOpacity', chimeraGraft: 'chimeraOpacity',
+        monolithCast: 'monolithOpacity',
         rasterPress: 'rasterOpacity', hatchEngrave: 'hatchOpacity', contourEtch: 'contourOpacity',
         pressureStroke: 'pressureOpacity', cellFracture: 'fractureOpacity', ribbonEcho: 'ribbonOpacity',
         copyDecay: 'copyOpacity', risoSeparation: 'risoOpacity', slitSweep: 'slitOpacity'
@@ -5237,7 +5263,8 @@ type deformer</textarea>
         boneScaffold: 'boneSourceOpacity', roseEngine: 'roseSourceOpacity', chromeReliquary: 'chromeSourceOpacity',
         ligatureCrypt: 'ligatureSourceOpacity', moireChoir: 'moireSourceOpacity', naveCutter: 'naveSourceOpacity',
         cloisterFold: 'cloisterSourceOpacity', prismSacrament: 'prismSourceOpacity', texturaMatrix: 'texturaSourceOpacity',
-        voidPortal: 'voidSourceOpacity', recursiveShrine: 'recursiveSourceOpacity', morphProcession: 'morphSourceOpacity',
+        voidPortal: 'voidSourceOpacity', recursiveShrine: 'recursiveSourceOpacity', morphProcession: 'morphSourceOpacity', chimeraGraft: 'chimeraSourceOpacity',
+        monolithCast: 'monolithSourceOpacity',
         rasterPress: 'rasterSourceOpacity', hatchEngrave: 'hatchSourceOpacity', contourEtch: 'contourSourceOpacity',
         pressureStroke: 'pressureSourceOpacity', cellFracture: 'fractureSourceOpacity', ribbonEcho: 'ribbonSourceOpacity',
         copyDecay: 'copySourceOpacity', risoSeparation: 'risoSourceOpacity', slitSweep: 'slitSourceOpacity'
@@ -5248,7 +5275,8 @@ type deformer</textarea>
         boneScaffold: 'boneBlend', roseEngine: 'roseBlend', chromeReliquary: 'chromeBlend',
         ligatureCrypt: 'ligatureBlend', moireChoir: 'moireBlend', naveCutter: 'naveBlend',
         cloisterFold: 'cloisterBlend', prismSacrament: 'prismBlend', texturaMatrix: 'texturaBlend',
-        voidPortal: 'voidBlend', recursiveShrine: 'recursiveBlend', morphProcession: 'morphBlend',
+        voidPortal: 'voidBlend', recursiveShrine: 'recursiveBlend', morphProcession: 'morphBlend', chimeraGraft: 'chimeraBlend',
+        monolithCast: 'monolithBlend',
         rasterPress: 'rasterBlend', hatchEngrave: 'hatchBlend', contourEtch: 'contourBlend',
         pressureStroke: 'pressureBlend', cellFracture: 'fractureBlend', ribbonEcho: 'ribbonBlend',
         copyDecay: 'copyBlend', risoSeparation: 'risoBlend', slitSweep: 'slitBlend'
@@ -6312,6 +6340,20 @@ type deformer</textarea>
         morphHalo: 12,
         morphColor: '#00a88f',
         morphSourceMode: 'keep',
+        chimeraGrafts: 6,
+        chimeraSpan: 42,
+        chimeraAssimilation: 0.58,
+        chimeraForeignness: 1.15,
+        chimeraSeam: 1.4,
+        chimeraColor: '#c52a55',
+        chimeraSourceMode: 'keep',
+        monolithMass: 28,
+        monolithModule: 14,
+        monolithFault: 18,
+        monolithCounter: 0.78,
+        monolithFormwork: 0.45,
+        monolithColor: '#5a544a',
+        monolithSourceMode: 'keep',
         rasterCell: 8,
         rasterGain: 1.16,
         rasterAngle: 24,
@@ -6335,6 +6377,9 @@ type deformer</textarea>
         pressureAngle: 28,
         pressureFrequency: 2.2,
         pressureSoftness: 1.4,
+        pressureBreath: 0.85,
+        pressureDryness: 0.12,
+        pressureTaper: 0.25,
         pressureColor: '#693c8f',
         pressureSourceMode: 'keep',
         fractureCell: 18,
@@ -6457,10 +6502,12 @@ type deformer</textarea>
         'voidDepth', 'voidAngle', 'voidAperture', 'voidTaper', 'voidRibs',
         'recursiveIterations', 'recursiveScale', 'recursiveTurn', 'recursiveOrbit', 'recursiveParity',
         'morphInbetweens', 'morphSpan', 'morphMelt', 'morphTwist', 'morphHalo',
+        'chimeraGrafts', 'chimeraSpan', 'chimeraAssimilation', 'chimeraForeignness', 'chimeraSeam',
+        'monolithMass', 'monolithModule', 'monolithFault', 'monolithCounter', 'monolithFormwork',
         'rasterCell', 'rasterGain', 'rasterAngle', 'rasterNoise',
         'hatchSpacing', 'hatchAngle', 'hatchWarp', 'hatchStroke',
         'contourBands', 'contourSpacing', 'contourStroke', 'contourDrift',
-        'pressureWeight', 'pressureContrast', 'pressureAngle', 'pressureFrequency', 'pressureSoftness',
+        'pressureWeight', 'pressureContrast', 'pressureAngle', 'pressureFrequency', 'pressureSoftness', 'pressureBreath', 'pressureDryness', 'pressureTaper',
         'fractureCell', 'fractureScatter', 'fractureGap', 'fractureSpin',
         'ribbonDepth', 'ribbonSteps', 'ribbonTwist', 'ribbonFade',
         'risoSplit', 'risoOverlap', 'risoRegister', 'risoGrain',
@@ -6496,10 +6543,13 @@ type deformer</textarea>
         voidDepth: [0, 1600], voidAngle: [-180, 180], voidAperture: [0, 1], voidTaper: [-2, 2], voidRibs: [1, 32],
         recursiveIterations: [1, 24], recursiveScale: [0.25, 1.5], recursiveTurn: [-180, 180], recursiveOrbit: [0, 1200], recursiveParity: [0, 1],
         morphInbetweens: [1, 24], morphSpan: [0.1, 2.5], morphMelt: [-2, 2], morphTwist: [-360, 360], morphHalo: [0, 160],
+        chimeraGrafts: [1, 32], chimeraSpan: [4, 320], chimeraAssimilation: [0, 1], chimeraForeignness: [0, 4], chimeraSeam: [0, 20],
+        monolithMass: [-120, 360], monolithModule: [2, 120], monolithFault: [-480, 480], monolithCounter: [0, 1], monolithFormwork: [0, 4],
         rasterCell: [2, 72], rasterGain: [0.05, 3], rasterAngle: [-90, 90], rasterNoise: [0, 2],
         hatchSpacing: [1, 80], hatchAngle: [-180, 180], hatchWarp: [0, 5], hatchStroke: [0.1, 12],
         contourBands: [1, 64], contourSpacing: [1, 40], contourStroke: [0.25, 14], contourDrift: [0, 6],
         pressureWeight: [-120, 260], pressureContrast: [0, 4], pressureAngle: [-180, 180], pressureFrequency: [0.1, 32], pressureSoftness: [0.1, 24],
+        pressureBreath: [0, 4], pressureDryness: [0, 1], pressureTaper: [-2, 2],
         fractureCell: [4, 140], fractureScatter: [0, 520], fractureGap: [0, 28], fractureSpin: [-720, 720],
         ribbonDepth: [-520, 520], ribbonSteps: [1, 96], ribbonTwist: [-540, 540], ribbonFade: [0, 1],
         risoSplit: [-1, 1], risoOverlap: [0, 1.5], risoRegister: [0, 160], risoGrain: [0, 2],
@@ -6526,10 +6576,12 @@ type deformer</textarea>
         voidPortal: [{ key: 'voidDepth', label: 'Depth', span: 0.24, unit: 'px' }, { key: 'voidAperture', label: 'Aperture', span: 0.46 }],
         recursiveShrine: [{ key: 'recursiveScale', label: 'Scale', span: 0.34 }, { key: 'recursiveParity', label: 'Parity', span: 0.46 }],
         morphProcession: [{ key: 'morphInbetweens', label: 'Inbetweens', span: 0.42, integer: true }, { key: 'morphMelt', label: 'Melt', span: 0.46 }],
+        chimeraGraft: [{ key: 'chimeraGrafts', label: 'Grafts', span: 0.42, integer: true }, { key: 'chimeraForeignness', label: 'Foreignness', span: 0.38 }],
+        monolithCast: [{ key: 'monolithMass', label: 'Mass', span: 0.18, unit: 'px' }, { key: 'monolithFault', label: 'Fault', span: 0.14, unit: 'px' }],
         rasterPress: [{ key: 'rasterCell', label: 'Cell', span: 0.32, unit: 'px' }, { key: 'rasterGain', label: 'Gain', span: 0.38 }],
         hatchEngrave: [{ key: 'hatchSpacing', label: 'Spacing', span: 0.32, unit: 'px' }, { key: 'hatchWarp', label: 'Warp', span: 0.38 }],
         contourEtch: [{ key: 'contourBands', label: 'Bands', span: 0.32, integer: true }, { key: 'contourDrift', label: 'Drift', span: 0.42 }],
-        pressureStroke: [{ key: 'pressureWeight', label: 'Weight', span: 0.2, unit: 'px' }, { key: 'pressureContrast', label: 'Contrast', span: 0.34 }],
+        pressureStroke: [{ key: 'pressureBreath', label: 'Breath', span: 0.38 }, { key: 'pressureDryness', label: 'Dryness', span: 0.46 }],
         cellFracture: [{ key: 'fractureScatter', label: 'Scatter', span: 0.18, unit: 'px' }, { key: 'fractureGap', label: 'Gap', span: 0.34, unit: 'px' }],
         ribbonEcho: [{ key: 'ribbonDepth', label: 'Depth', span: 0.18, unit: 'px' }, { key: 'ribbonTwist', label: 'Twist', span: 0.32, unit: 'deg' }],
         copyDecay: [{ key: 'copyGenerations', label: 'Generations', span: 0.42, integer: true }, { key: 'copyMotion', label: 'Drum drag', span: 0.12, unit: 'px' }],
@@ -6723,6 +6775,16 @@ type deformer</textarea>
         clampParam('morphMelt', -2, 2, false);
         clampParam('morphTwist', -360, 360, false);
         clampParam('morphHalo', 0, 160, false);
+        clampParam('chimeraGrafts', 1, 32, true);
+        clampParam('chimeraSpan', 4, 320, false);
+        clampParam('chimeraAssimilation', 0, 1, false);
+        clampParam('chimeraForeignness', 0, 4, false);
+        clampParam('chimeraSeam', 0, 20, false);
+        clampParam('monolithMass', -120, 360, false);
+        clampParam('monolithModule', 2, 120, false);
+        clampParam('monolithFault', -480, 480, false);
+        clampParam('monolithCounter', 0, 1, false);
+        clampParam('monolithFormwork', 0, 4, false);
         clampParam('rasterCell', 2, 72, false);
         clampParam('rasterGain', 0.05, 3, false);
         clampParam('rasterAngle', -90, 90, false);
@@ -6740,6 +6802,9 @@ type deformer</textarea>
         clampParam('pressureAngle', -180, 180, false);
         clampParam('pressureFrequency', 0.1, 32, false);
         clampParam('pressureSoftness', 0.1, 24, false);
+        clampParam('pressureBreath', 0, 4, false);
+        clampParam('pressureDryness', 0, 1, false);
+        clampParam('pressureTaper', -2, 2, false);
         clampParam('fractureCell', 4, 140, false);
         clampParam('fractureScatter', 0, 520, false);
         clampParam('fractureGap', 0, 28, false);
@@ -8392,6 +8457,8 @@ type deformer</textarea>
         voidPortal: [],
         recursiveShrine: [],
         morphProcession: [],
+        chimeraGraft: [],
+        monolithCast: [],
         rasterPress: [],
         hatchEngrave: [],
         contourEtch: [],
@@ -9892,6 +9959,8 @@ type deformer</textarea>
             voidPortal: surfaceOperatorStrength(m, 'voidPortal'),
             recursiveShrine: surfaceOperatorStrength(m, 'recursiveShrine'),
             morphProcession: surfaceOperatorStrength(m, 'morphProcession'),
+            chimeraGraft: surfaceOperatorStrength(m, 'chimeraGraft'),
+            monolithCast: surfaceOperatorStrength(m, 'monolithCast'),
             rasterPress: surfaceOperatorStrength(m, 'rasterPress'),
             hatchEngrave: surfaceOperatorStrength(m, 'hatchEngrave'),
             contourEtch: surfaceOperatorStrength(m, 'contourEtch'),
@@ -9995,6 +10064,16 @@ type deformer</textarea>
             morphMelt: deform.morphMelt,
             morphTwist: deform.morphTwist,
             morphHalo: deform.morphHalo,
+            chimeraGrafts: deform.chimeraGrafts,
+            chimeraSpan: deform.chimeraSpan,
+            chimeraAssimilation: deform.chimeraAssimilation,
+            chimeraForeignness: deform.chimeraForeignness,
+            chimeraSeam: deform.chimeraSeam,
+            monolithMass: deform.monolithMass,
+            monolithModule: deform.monolithModule,
+            monolithFault: deform.monolithFault,
+            monolithCounter: deform.monolithCounter,
+            monolithFormwork: deform.monolithFormwork,
             rasterCell: deform.rasterCell,
             rasterGain: deform.rasterGain,
             rasterAngle: deform.rasterAngle,
@@ -10012,6 +10091,9 @@ type deformer</textarea>
             pressureAngle: deform.pressureAngle,
             pressureFrequency: deform.pressureFrequency,
             pressureSoftness: deform.pressureSoftness,
+            pressureBreath: deform.pressureBreath,
+            pressureDryness: deform.pressureDryness,
+            pressureTaper: deform.pressureTaper,
             fractureCell: deform.fractureCell,
             fractureScatter: deform.fractureScatter,
             fractureGap: deform.fractureGap,
@@ -10157,7 +10239,8 @@ type deformer</textarea>
         boneScaffold: 'boneSourceMode', roseEngine: 'roseSourceMode', chromeReliquary: 'chromeSourceMode',
         ligatureCrypt: 'ligatureSourceMode', moireChoir: 'moireSourceMode', naveCutter: 'naveSourceMode',
         cloisterFold: 'cloisterSourceMode', prismSacrament: 'prismSourceMode', texturaMatrix: 'texturaSourceMode',
-        voidPortal: 'voidSourceMode', recursiveShrine: 'recursiveSourceMode', morphProcession: 'morphSourceMode',
+        voidPortal: 'voidSourceMode', recursiveShrine: 'recursiveSourceMode', morphProcession: 'morphSourceMode', chimeraGraft: 'chimeraSourceMode',
+        monolithCast: 'monolithSourceMode',
         rasterPress: 'rasterSourceMode', hatchEngrave: 'hatchSourceMode', contourEtch: 'contourSourceMode',
         pressureStroke: 'pressureSourceMode', cellFracture: 'fractureSourceMode', ribbonEcho: 'ribbonSourceMode',
         copyDecay: 'copySourceMode', risoSeparation: 'risoSourceMode', slitSweep: 'slitSourceMode'
@@ -10168,7 +10251,8 @@ type deformer</textarea>
         boneScaffold: 'boneColor', roseEngine: 'roseColor', chromeReliquary: 'chromeColor',
         ligatureCrypt: 'ligatureColor', moireChoir: 'moireColor', naveCutter: 'naveColor',
         cloisterFold: 'cloisterColor', prismSacrament: 'prismColorA', texturaMatrix: 'texturaColor',
-        voidPortal: 'voidColor', recursiveShrine: 'recursiveColor', morphProcession: 'morphColor',
+        voidPortal: 'voidColor', recursiveShrine: 'recursiveColor', morphProcession: 'morphColor', chimeraGraft: 'chimeraColor',
+        monolithCast: 'monolithColor',
         rasterPress: 'rasterColor', hatchEngrave: 'hatchColor', contourEtch: 'contourColor',
         pressureStroke: 'pressureColor', cellFracture: 'fractureColor', ribbonEcho: 'ribbonColor',
         copyDecay: 'copyColor', risoSeparation: 'risoColorA', slitSweep: 'slitColor'
@@ -12996,6 +13080,186 @@ type deformer</textarea>
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('contourEtch'), 1, 'contour-etch-color');
       }
 
+      function renderMonolithCast(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var massAggregate = surfaceAggregate(glyphs, 'monolithCast', 'monolithMass', params.monolithMass);
+        if (!massAggregate.weight) return;
+        var moduleSize = Math.max(2, surfaceAggregate(glyphs, 'monolithCast', 'monolithModule', params.monolithModule).value * pixelScale * L.s);
+        var fault = surfaceAggregate(glyphs, 'monolithCast', 'monolithFault', params.monolithFault).value * pixelScale * L.s;
+        var counter = Math.max(0, Math.min(1, surfaceAggregate(glyphs, 'monolithCast', 'monolithCounter', params.monolithCounter).value));
+        var formwork = Math.max(0, surfaceAggregate(glyphs, 'monolithCast', 'monolithFormwork', params.monolithFormwork).value);
+        var mask = buildSurfaceMask(glyphs, 'monolithCast', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'monolithCast', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+        var mass = massAggregate.value * pixelScale * L.s;
+        var reach = Math.max(moduleSize, Math.max(0, mass) + Math.abs(fault) + moduleSize * 0.75);
+        var minX = Math.max(0, Math.floor(field.bounds[0] - reach));
+        var minY = Math.max(0, Math.floor(field.bounds[1] - Math.max(moduleSize, Math.max(0, mass))));
+        var maxX = Math.min(width - 1, Math.ceil(field.bounds[2] + reach));
+        var maxY = Math.min(height - 1, Math.ceil(field.bounds[3] + Math.max(moduleSize, Math.max(0, mass))));
+        var originY = field.bounds[1] - moduleSize * 0.5;
+        var work = surfaceScratch('monolith-cast', width, height, false);
+        var output = work.ctx.createImageData(width, height);
+        for (var y = minY; y <= maxY; y++) {
+          var course = Math.floor((y - originY) / moduleSize);
+          var courseCenter = originY + (course + 0.5) * moduleSize;
+          var shift = (hash(course, params.seed % 997, 1619) * 2 - 1) * fault;
+          var stagger = (course & 1) ? moduleSize * 0.28 * Math.sign(fault || 1) : 0;
+          var withinCourse = ((y - originY) % moduleSize + moduleSize) % moduleSize;
+          var jointDistance = Math.min(withinCourse, moduleSize - withinCourse);
+          for (var x = minX; x <= maxX; x++) {
+            var sampleX = Math.max(0, Math.min(width - 1, Math.round(x - shift - stagger)));
+            var sampleY = Math.max(0, Math.min(height - 1, Math.round(courseCenter)));
+            var sampleIndex = sampleY * width + sampleX;
+            var signedDistance = field.inside[sampleIndex] ? -field.distance[sampleIndex] : field.distance[sampleIndex];
+            var edgeSoftness = Math.max(0.75, Math.min(3.5, moduleSize * 0.08));
+            var coverage = (mass - signedDistance + edgeSoftness) / (edgeSoftness * 2);
+            coverage = Math.max(0, Math.min(1, coverage));
+            coverage = coverage * coverage * (3 - 2 * coverage);
+            if (coverage <= 0.002) continue;
+            var courseGroove = formwork > 0.002
+              ? Math.max(0, 1 - jointDistance / Math.max(0.8, moduleSize * (0.025 + formwork * 0.018)))
+              : 0;
+            var boardWave = 0.5 + 0.5 * Math.sin((x - shift) / Math.max(2, moduleSize) * (6.2 + formwork * 2.4)
+              + course * 1.71 + params.seed * 0.13);
+            var pore = surfaceNoise01(x >> 2, y >> 2, params.seed + course * 31 + 1627);
+            var markLoss = Math.min(0.82, courseGroove * Math.min(0.72, formwork * 0.24)
+              + formwork * 0.055 * boardWave + (pore > 0.91 - Math.min(0.28, formwork * 0.06) ? formwork * 0.09 : 0));
+            var alpha = coverage * massAggregate.strength * (1 - markLoss);
+            if (alpha <= 0.002) continue;
+            var index = (y * width + x) * 4;
+            output.data[index] = output.data[index + 1] = output.data[index + 2] = 255;
+            output.data[index + 3] = Math.round(255 * Math.min(1, alpha));
+          }
+        }
+        work.ctx.putImageData(output, 0, 0);
+        if (counter > 0.002) {
+          var counterMask = surfaceVoidApertureMask(mask, 0);
+          if (counterMask) {
+            work.ctx.save();
+            work.ctx.globalCompositeOperation = 'destination-out';
+            work.ctx.globalAlpha = counter;
+            work.ctx.drawImage(counterMask, 0, 0, width, height);
+            work.ctx.restore();
+          }
+        }
+        paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('monolithCast'), 1, 'monolith-cast-color');
+      }
+
+      function renderChimeraGraft(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var graftAggregate = surfaceAggregate(glyphs, 'chimeraGraft', 'chimeraGrafts', params.chimeraGrafts);
+        if (!graftAggregate.weight) return;
+        var span = surfaceAggregate(glyphs, 'chimeraGraft', 'chimeraSpan', params.chimeraSpan).value * pixelScale * L.s;
+        var assimilation = Math.max(0, Math.min(1,
+          surfaceAggregate(glyphs, 'chimeraGraft', 'chimeraAssimilation', params.chimeraAssimilation).value));
+        var foreignness = Math.max(0,
+          surfaceAggregate(glyphs, 'chimeraGraft', 'chimeraForeignness', params.chimeraForeignness).value);
+        var seam = Math.max(0,
+          surfaceAggregate(glyphs, 'chimeraGraft', 'chimeraSeam', params.chimeraSeam).value * pixelScale * L.s);
+        var active = [];
+        for (var glyphIndex = 0; glyphIndex < glyphs.length; glyphIndex++) {
+          if (surfaceGlyphStrength(glyphs[glyphIndex], 'chimeraGraft') > 0.002) active.push(glyphs[glyphIndex]);
+        }
+        if (!active.length) return;
+        var mask = buildSurfaceMask(glyphs, 'chimeraGraft', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'chimeraGraft', coverBase);
+        var work = surfaceScratch('chimera-graft', width, height, false);
+        work.ctx.drawImage(mask, 0, 0);
+        var totalEvents = Math.min(160, Math.max(active.length, Math.round(graftAggregate.value * active.length)));
+        var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
+        var processedEvents = 0;
+        for (var hostIndex = 0; hostIndex < active.length && processedEvents < totalEvents; hostIndex++) {
+          var host = active[hostIndex];
+          var donor = active[(hostIndex + 1) % active.length];
+          var hostMask = surfaceScratch('chimera-host', width, height, true);
+          drawSurfaceGlyph(hostMask.ctx, host, pixelScale, L, fm, 1);
+          var donorMask = surfaceScratch('chimera-donor', width, height, true);
+          drawSurfaceGlyph(donorMask.ctx, donor, pixelScale, L, fm, 1);
+          var hostEdges = sampleSurfaceMask(hostMask.canvas, 0.82, true, 112);
+          var donorEdges = sampleSurfaceMask(donorMask.canvas, 0.72, true, 112);
+          if (!hostEdges.length || !donorEdges.length) continue;
+          var centerX = 0, centerY = 0;
+          for (var centerIndex = 0; centerIndex < hostEdges.length; centerIndex++) {
+            centerX += hostEdges[centerIndex].x;
+            centerY += hostEdges[centerIndex].y;
+          }
+          centerX /= hostEdges.length;
+          centerY /= hostEdges.length;
+          var eventsForHost = Math.floor(totalEvents / active.length) + (hostIndex < totalEvents % active.length ? 1 : 0);
+          var hostStrength = surfaceGlyphStrength(host, 'chimeraGraft');
+          for (var localEvent = 0; localEvent < eventsForHost && processedEvents < totalEvents; localEvent++, processedEvents++) {
+            var eventSeed = hostIndex * 131 + localEvent * 17 + params.seed * 7;
+            var hostPoint = hostEdges[Math.floor(hash(eventSeed, hostEdges.length, 1657) * hostEdges.length)];
+            var donorPoint = donorEdges[Math.floor(hash(eventSeed, donorEdges.length, 1663) * donorEdges.length)];
+            var angle = Math.atan2(hostPoint.y - centerY, hostPoint.x - centerX);
+            if (!isFinite(angle)) angle = hash(eventSeed, params.seed, 1667) * Math.PI * 2;
+            angle += (hash(eventSeed, params.seed, 1669) * 2 - 1) * foreignness * 0.22;
+            var pulse = 1 + Math.sin(phase + hostIndex * 1.17 + localEvent * 0.71) * Math.min(0.18, foreignness * 0.045);
+            var travel = span * (0.3 + foreignness * 0.35) * (0.62 + hash(eventSeed, params.seed, 1673) * 0.72) * pulse;
+            var targetX = hostPoint.x + Math.cos(angle) * travel;
+            var targetY = hostPoint.y + Math.sin(angle) * travel;
+            var chunkRadius = Math.max(3, span * (0.16 + foreignness * 0.045)
+              * (0.7 + hash(eventSeed, params.seed, 1679) * 0.65));
+            var tissueWidth = Math.max(1.5, chunkRadius * (0.52 + assimilation * 1.18));
+            var controlBend = (hash(eventSeed, params.seed, 1681) * 2 - 1) * travel * (0.12 + foreignness * 0.09);
+            var normalX = -Math.sin(angle), normalY = Math.cos(angle);
+            work.ctx.save();
+            work.ctx.globalCompositeOperation = 'source-over';
+            work.ctx.globalAlpha = Math.min(1, hostStrength * (0.72 + assimilation * 0.28));
+            work.ctx.strokeStyle = '#fff';
+            work.ctx.lineCap = 'round';
+            work.ctx.lineJoin = 'round';
+            work.ctx.lineWidth = tissueWidth;
+            work.ctx.beginPath();
+            work.ctx.moveTo(hostPoint.x, hostPoint.y);
+            work.ctx.bezierCurveTo(
+              hostPoint.x + Math.cos(angle) * travel * 0.32 + normalX * controlBend,
+              hostPoint.y + Math.sin(angle) * travel * 0.32 + normalY * controlBend,
+              targetX - Math.cos(angle) * travel * 0.26 - normalX * controlBend * 0.35,
+              targetY - Math.sin(angle) * travel * 0.26 - normalY * controlBend * 0.35,
+              targetX, targetY
+            );
+            work.ctx.stroke();
+            work.ctx.restore();
+
+            work.ctx.save();
+            work.ctx.globalCompositeOperation = 'source-over';
+            work.ctx.globalAlpha = Math.min(1, hostStrength * (0.62 + assimilation * 0.38));
+            work.ctx.beginPath();
+            work.ctx.ellipse(targetX, targetY, chunkRadius * (1.1 + foreignness * 0.12), chunkRadius,
+              angle, 0, Math.PI * 2);
+            work.ctx.clip();
+            var donorScale = Math.max(0.28, Math.min(3.2, 0.64 + foreignness * 0.28));
+            var donorTurn = (hash(eventSeed, params.seed, 1693) * 2 - 1) * foreignness * 0.78;
+            work.ctx.translate(targetX, targetY);
+            work.ctx.rotate(donorTurn);
+            work.ctx.scale(donorScale, donorScale * (0.78 + hash(eventSeed, params.seed, 1697) * 0.44));
+            work.ctx.translate(-donorPoint.x, -donorPoint.y);
+            work.ctx.drawImage(donorMask.canvas, 0, 0);
+            work.ctx.restore();
+
+            if (seam > 0.05) {
+              work.ctx.save();
+              work.ctx.globalCompositeOperation = 'destination-out';
+              work.ctx.globalAlpha = Math.min(0.94, hostStrength * (0.2 + (1 - assimilation) * 0.72));
+              work.ctx.strokeStyle = '#000';
+              work.ctx.lineCap = 'round';
+              work.ctx.lineWidth = seam;
+              work.ctx.beginPath();
+              work.ctx.arc(hostPoint.x, hostPoint.y, Math.max(seam, chunkRadius * 0.48),
+                angle - Math.PI * 0.58, angle + Math.PI * 0.58);
+              work.ctx.stroke();
+              work.ctx.restore();
+            }
+          }
+        }
+        paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('chimeraGraft'), 1, 'chimera-graft-color');
+      }
+
       function renderPressureStroke(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var weightAggregate = surfaceAggregate(glyphs, 'pressureStroke', 'pressureWeight', params.pressureWeight);
         if (!weightAggregate.weight) return;
@@ -13003,6 +13267,10 @@ type deformer</textarea>
         var angle = surfaceAggregate(glyphs, 'pressureStroke', 'pressureAngle', params.pressureAngle).value * Math.PI / 180;
         var frequency = surfaceAggregate(glyphs, 'pressureStroke', 'pressureFrequency', params.pressureFrequency).value;
         var softness = Math.max(0.1, surfaceAggregate(glyphs, 'pressureStroke', 'pressureSoftness', params.pressureSoftness).value * pixelScale * L.s);
+        var breath = Math.max(0, surfaceAggregate(glyphs, 'pressureStroke', 'pressureBreath', params.pressureBreath).value);
+        var dryness = Math.max(0, Math.min(1,
+          surfaceAggregate(glyphs, 'pressureStroke', 'pressureDryness', params.pressureDryness).value));
+        var taper = surfaceAggregate(glyphs, 'pressureStroke', 'pressureTaper', params.pressureTaper).value;
         var mask = buildSurfaceMask(glyphs, 'pressureStroke', width, height, pixelScale, L, fm);
         compositeSurfaceSource(targetCtx, mask, 'pressureStroke', coverBase);
         var maskCtx = mask.getContext('2d', { willReadFrequently: true });
@@ -13019,21 +13287,48 @@ type deformer</textarea>
         var pressureRange = Math.max(4, params.fontSize * pixelScale * L.s * 0.58 + Math.abs(baseWeight) * 0.14);
         var phase = compositionState.enabled ? (((compositionState.phase % 1) + 1) % 1) * Math.PI * 2 : 0;
         var cos = Math.cos(angle), sin = Math.sin(angle);
-        var span = Math.max(1, Math.sqrt(width * width + height * height));
+        var corners = [
+          [boundary.bounds[0], boundary.bounds[1]], [boundary.bounds[2], boundary.bounds[1]],
+          [boundary.bounds[0], boundary.bounds[3]], [boundary.bounds[2], boundary.bounds[3]]
+        ];
+        var minAlong = Infinity, maxAlong = -Infinity, minAcross = Infinity, maxAcross = -Infinity;
+        for (var cornerIndex = 0; cornerIndex < corners.length; cornerIndex++) {
+          var cornerAlong = corners[cornerIndex][0] * cos + corners[cornerIndex][1] * sin;
+          var cornerAcross = -corners[cornerIndex][0] * sin + corners[cornerIndex][1] * cos;
+          minAlong = Math.min(minAlong, cornerAlong);
+          maxAlong = Math.max(maxAlong, cornerAlong);
+          minAcross = Math.min(minAcross, cornerAcross);
+          maxAcross = Math.max(maxAcross, cornerAcross);
+        }
+        var alongSpan = Math.max(1, maxAlong - minAlong);
+        var acrossSpan = Math.max(1, maxAcross - minAcross);
+        var taperRange = params.fontSize * pixelScale * L.s * 0.72;
         for (var y = 0; y < height; y++) for (var x = 0; x < width; x++) {
           var index = y * width + x;
-          var along = (x * cos + y * sin) / span;
-          var across = (-x * sin + y * cos) / span;
+          var along = ((x * cos + y * sin) - minAlong) / alongSpan;
+          var across = ((-x * sin + y * cos) - minAcross) / acrossSpan;
           var primary = Math.sin(along * frequency * Math.PI * 2 + phase + params.seed * 0.19);
           var counter = Math.sin(across * (frequency * 0.43 + 0.7) * Math.PI * 2 - phase * 0.37 - params.seed * 0.11);
           var broadNoise = surfaceNoise01(x >> 4, y >> 4, params.seed + 823) * 2 - 1;
           var pressure = primary * 0.58 + counter * 0.25 + broadNoise * 0.17;
-          var localWeight = baseWeight + pressure * pressureRange * contrast;
+          var respiration = Math.sin(phase + along * Math.PI * 2 * (0.45 + breath * 0.2)
+            + params.seed * 0.071) * pressureRange * breath * 0.24;
+          var taperShift = (0.5 - along) * taper * taperRange;
+          var localWeight = baseWeight + pressure * pressureRange * contrast + respiration + taperShift;
           if (localWeight > 0) localWeight = Math.min(localWeight, availableMargin);
           var signedDistance = boundary.inside[index] ? -boundary.distance[index] : boundary.distance[index];
           var coverage = (localWeight - signedDistance + softness) / Math.max(0.001, softness * 2);
           coverage = Math.max(0, Math.min(1, coverage));
           coverage = coverage * coverage * (3 - 2 * coverage);
+          if (dryness > 0.001 && coverage > 0.002) {
+            var fiber = 0.5 + 0.5 * Math.sin(across * Math.PI * (18 + frequency * 1.7)
+              + along * Math.PI * 3.4 + params.seed * 0.41);
+            var dryNoise = surfaceNoise01(x >> 1, y >> 1, params.seed + 1733);
+            var drySignal = dryNoise * 0.62 + fiber * 0.38;
+            var retention = Math.max(0, Math.min(1, 1 - dryness * 1.2 + drySignal * dryness * 1.28));
+            if (dryness > 0.68 && drySignal < (dryness - 0.68) * 0.9) retention = 0;
+            coverage *= retention;
+          }
           if (coverage <= 0.002) continue;
           output.data[index * 4] = output.data[index * 4 + 1] = output.data[index * 4 + 2] = 255;
           output.data[index * 4 + 3] = Math.round(255 * coverage * weightAggregate.strength);
@@ -13972,6 +14267,7 @@ type deformer</textarea>
           voidPortal: renderVoidPortal,
           recursiveShrine: renderRecursiveShrine,
           morphProcession: renderMorphProcession,
+          chimeraGraft: renderChimeraGraft,
           moireChoir: renderMoireChoir,
           ligatureCrypt: renderLigatureCrypt,
           cipherLiturgy: renderCipherLiturgy,
@@ -13981,6 +14277,7 @@ type deformer</textarea>
           rasterPress: renderRasterPress,
           hatchEngrave: renderHatchEngrave,
           contourEtch: renderContourEtch,
+          monolithCast: renderMonolithCast,
           pressureStroke: renderPressureStroke,
           boneScaffold: renderBoneScaffold,
           thornCrown: renderThornCrown,
@@ -17879,8 +18176,14 @@ type deformer</textarea>
                 Math.pow(Math.max(0.25, profile.recursiveScale || 0.78), Math.min(12, Math.max(0, (profile.recursiveIterations || 1) - 1))))),
             surfaceOperatorStrength(metrics[i], 'morphProcession') * Math.min(2600,
               (profile.morphHalo || 0) * 2 + params.fontSize * (1 + Math.max(0, (profile.morphSpan || 1) - 1) * 3)),
+            surfaceOperatorStrength(metrics[i], 'chimeraGraft') * Math.min(2600,
+              (profile.chimeraSpan || 0) * (0.9 + (profile.chimeraForeignness || 0) * 0.72) + (profile.chimeraSeam || 0) * 2),
+            surfaceOperatorStrength(metrics[i], 'monolithCast') * Math.min(2400,
+              Math.max(0, profile.monolithMass || 0) + Math.abs(profile.monolithFault || 0) + (profile.monolithModule || 0)),
             surfaceOperatorStrength(metrics[i], 'contourEtch') * Math.min(760, (profile.contourBands || 0) * (profile.contourSpacing || 0) + (profile.contourStroke || 0) * 2),
-            surfaceOperatorStrength(metrics[i], 'pressureStroke') * (Math.max(0, profile.pressureWeight || 0) + params.fontSize * (profile.pressureContrast || 0) * 0.72 + (profile.pressureSoftness || 0) * 2),
+            surfaceOperatorStrength(metrics[i], 'pressureStroke') * (Math.max(0, profile.pressureWeight || 0)
+              + params.fontSize * ((profile.pressureContrast || 0) * 0.72 + (profile.pressureBreath || 0) * 0.2 + Math.abs(profile.pressureTaper || 0) * 0.4)
+              + (profile.pressureSoftness || 0) * 2),
             surfaceOperatorStrength(metrics[i], 'cellFracture') * ((profile.fractureScatter || 0) + (profile.fractureCell || 0)),
             surfaceOperatorStrength(metrics[i], 'ribbonEcho') * (Math.abs(profile.ribbonDepth || 0) * 1.25 + params.fontSize * 0.5),
             surfaceOperatorStrength(metrics[i], 'copyDecay') * (Math.abs(profile.copyMotion || 0) + (profile.copyErosion || 0) * 3 + (profile.copyToner || 0) * 18),
@@ -18187,8 +18490,13 @@ type deformer</textarea>
             Math.pow(Math.max(0.25, profile.recursiveScale || 0.78), Math.min(10, Math.max(0, (profile.recursiveIterations || 1) - 1)))));
         if (operator === 'morphProcession') return 50 + Math.min(1800,
           (profile.morphHalo || 0) * 2 + params.fontSize * (1 + Math.max(0, (profile.morphSpan || 1) - 1) * 3));
+        if (operator === 'chimeraGraft') return 50 + Math.min(1600,
+          (profile.chimeraSpan || 0) * (0.9 + (profile.chimeraForeignness || 0) * 0.72) + (profile.chimeraSeam || 0) * 2);
+        if (operator === 'monolithCast') return 50 + Math.min(1600,
+          Math.max(0, profile.monolithMass || 0) + Math.abs(profile.monolithFault || 0) + (profile.monolithModule || 0));
         if (operator === 'contourEtch') return 50 + Math.min(520, (profile.contourBands || 0) * (profile.contourSpacing || 0));
-        if (operator === 'pressureStroke') return 50 + Math.max(0, profile.pressureWeight || 0) + params.fontSize * (profile.pressureContrast || 0) * 0.72;
+        if (operator === 'pressureStroke') return 50 + Math.max(0, profile.pressureWeight || 0)
+          + params.fontSize * ((profile.pressureContrast || 0) * 0.72 + (profile.pressureBreath || 0) * 0.2 + Math.abs(profile.pressureTaper || 0) * 0.4);
         if (operator === 'cellFracture') return 50 + (profile.fractureScatter || 0) + (profile.fractureCell || 0);
         if (operator === 'ribbonEcho') return 50 + Math.abs(profile.ribbonDepth || 0) * 1.25;
         if (operator === 'copyDecay') return 50 + Math.abs(profile.copyMotion || 0) + (profile.copyErosion || 0) * 3 + (profile.copyToner || 0) * 18;
@@ -19107,7 +19415,7 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 18,
+          version: 19,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
           surfaceMixer: { order: surfaceRenderOrder(), direction: 'back-to-front' },
@@ -19222,6 +19530,18 @@ type deformer</textarea>
               inbetweens: params.morphInbetweens, span: params.morphSpan, melt: params.morphMelt,
               twist: params.morphTwist, halo: params.morphHalo
             },
+            chimeraGraft: {
+              color: params.chimeraColor, sourceMode: params.chimeraSourceMode, sourceOpacity: surfaceSourceOpacity('chimeraGraft'),
+              opacity: surfaceOutputOpacity('chimeraGraft'), blend: surfaceBlendMode('chimeraGraft'),
+              grafts: params.chimeraGrafts, span: params.chimeraSpan, assimilation: params.chimeraAssimilation,
+              foreignness: params.chimeraForeignness, seam: params.chimeraSeam
+            },
+            monolithCast: {
+              color: params.monolithColor, sourceMode: params.monolithSourceMode, sourceOpacity: surfaceSourceOpacity('monolithCast'),
+              opacity: surfaceOutputOpacity('monolithCast'), blend: surfaceBlendMode('monolithCast'),
+              mass: params.monolithMass, module: params.monolithModule, fault: params.monolithFault,
+              counter: params.monolithCounter, formwork: params.monolithFormwork
+            },
             rasterPress: {
               color: params.rasterColor, sourceMode: params.rasterSourceMode, sourceOpacity: surfaceSourceOpacity('rasterPress'),
               opacity: surfaceOutputOpacity('rasterPress'), blend: surfaceBlendMode('rasterPress'),
@@ -19245,7 +19565,8 @@ type deformer</textarea>
               opacity: surfaceOutputOpacity('pressureStroke'), blend: surfaceBlendMode('pressureStroke'),
               weight: params.pressureWeight, contrast: params.pressureContrast,
               angle: params.pressureAngle, frequency: params.pressureFrequency,
-              softness: params.pressureSoftness
+              softness: params.pressureSoftness, breath: params.pressureBreath,
+              dryness: params.pressureDryness, taper: params.pressureTaper
             },
             cellFracture: {
               color: params.fractureColor, sourceMode: params.fractureSourceMode, sourceOpacity: surfaceSourceOpacity('cellFracture'),
@@ -20754,6 +21075,16 @@ type deformer</textarea>
       bindRange('pMorphMelt', 'vMorphMelt', 'morphMelt', fSigned2, applyAllOperatorVisuals);
       bindRange('pMorphTwist', 'vMorphTwist', 'morphTwist', fDeg, applyAllOperatorVisuals);
       bindRange('pMorphHalo', 'vMorphHalo', 'morphHalo', fPx, applyAllOperatorVisuals);
+      bindRange('pChimeraGrafts', 'vChimeraGrafts', 'chimeraGrafts', f0, applyAllOperatorVisuals);
+      bindRange('pChimeraSpan', 'vChimeraSpan', 'chimeraSpan', fPx, applyAllOperatorVisuals);
+      bindRange('pChimeraAssimilation', 'vChimeraAssimilation', 'chimeraAssimilation', f2, applyAllOperatorVisuals);
+      bindRange('pChimeraForeignness', 'vChimeraForeignness', 'chimeraForeignness', f2, applyAllOperatorVisuals);
+      bindRange('pChimeraSeam', 'vChimeraSeam', 'chimeraSeam', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
+      bindRange('pMonolithMass', 'vMonolithMass', 'monolithMass', fPx, applyAllOperatorVisuals);
+      bindRange('pMonolithModule', 'vMonolithModule', 'monolithModule', fPx, applyAllOperatorVisuals);
+      bindRange('pMonolithFault', 'vMonolithFault', 'monolithFault', fPx, applyAllOperatorVisuals);
+      bindRange('pMonolithCounter', 'vMonolithCounter', 'monolithCounter', f2, applyAllOperatorVisuals);
+      bindRange('pMonolithFormwork', 'vMonolithFormwork', 'monolithFormwork', f2, applyAllOperatorVisuals);
       bindRange('pRasterCell', 'vRasterCell', 'rasterCell', fPx, applyAllOperatorVisuals);
       bindRange('pRasterGain', 'vRasterGain', 'rasterGain', f2, applyAllOperatorVisuals);
       bindRange('pRasterAngle', 'vRasterAngle', 'rasterAngle', fDeg, applyAllOperatorVisuals);
@@ -20771,6 +21102,9 @@ type deformer</textarea>
       bindRange('pPressureAngle', 'vPressureAngle', 'pressureAngle', fDeg, applyAllOperatorVisuals);
       bindRange('pPressureFrequency', 'vPressureFrequency', 'pressureFrequency', f2, applyAllOperatorVisuals);
       bindRange('pPressureSoftness', 'vPressureSoftness', 'pressureSoftness', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
+      bindRange('pPressureBreath', 'vPressureBreath', 'pressureBreath', f2, applyAllOperatorVisuals);
+      bindRange('pPressureDryness', 'vPressureDryness', 'pressureDryness', f2, applyAllOperatorVisuals);
+      bindRange('pPressureTaper', 'vPressureTaper', 'pressureTaper', fSigned2, applyAllOperatorVisuals);
       bindRange('pFractureCell', 'vFractureCell', 'fractureCell', fPx, applyAllOperatorVisuals);
       bindRange('pFractureScatter', 'vFractureScatter', 'fractureScatter', fPx, applyAllOperatorVisuals);
       bindRange('pFractureGap', 'vFractureGap', 'fractureGap', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
@@ -22961,7 +23295,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 18,
+          version: 19,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -23262,7 +23596,7 @@ type deformer</textarea>
         var preservedMemory = cloneLookMemory();
         preservedMemory.active = activeIndex;
         var loaded = loadProject({
-          app: 'type-deformer', version: 18,
+          app: 'type-deformer', version: 19,
           text: state.text, params: state.params,
           batchProfiles: state.batchProfiles,
           composition: state.composition,
@@ -23420,7 +23754,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 18,
+          version: 19,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -23473,7 +23807,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 18) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 19) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -24059,7 +24393,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 18, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 19, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);
