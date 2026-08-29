@@ -3157,6 +3157,7 @@ type deformer</textarea>
           </optgroup>
           <optgroup label="FORM / 変形">
             <option value="stretch" selected>Stretch</option>
+            <option value="sinewTorque">Sinew Torque</option>
             <option value="rotate">Rotate</option>
             <option value="skew">Skew</option>
             <option value="baselineShift">Baseline Shift</option>
@@ -3166,6 +3167,7 @@ type deformer</textarea>
             <option value="plotterTrace">Kinetic Trace</option>
             <option value="webbing">Field Webbing</option>
             <option value="softBlob">Physarum Blob</option>
+            <option value="etchantBloom">Etchant Bloom</option>
           </optgroup>
           <optgroup label="DIGITAL GOTHIC / 電子的ゴシック">
             <option value="sigilForge">Sigil Forge</option>
@@ -3207,7 +3209,7 @@ type deformer</textarea>
             <option value="blobTrack">Blob Track</option>
           </optgroup>
         </select>
-        <button type="button" id="btnOperatorBrowser" aria-label="Browse all 38 effects" aria-haspopup="dialog" aria-controls="operatorBrowser">Browse / 一覧</button>
+        <button type="button" id="btnOperatorBrowser" aria-label="Browse all 40 effects" aria-haspopup="dialog" aria-controls="operatorBrowser">Browse / 一覧</button>
       </div>
       <div class="operator-guide" id="operatorGuide" aria-live="polite">
         <span class="operator-guide-category" id="operatorGuideCategory">FORM / 変形</span>
@@ -3233,11 +3235,20 @@ type deformer</textarea>
       </div>
       <div id="operatorPanelsBlock">
       <div class="operator-panel" data-operator-panel="stretch">
-        <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
-        <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="0" max="3" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
+        <div class="row"><label for="pStretchX">Stretch X</label><input type="range" id="pStretchX" min="-2" max="8" step="0.05" value="1"><span class="val" id="vStretchX">1.00</span></div>
+        <div class="row"><label for="pStretchY">Stretch Y</label><input type="range" id="pStretchY" min="-2" max="8" step="0.05" value="1"><span class="val" id="vStretchY">1.00</span></div>
         <div class="row"><label for="pGeo">Geo ratio</label><input type="range" id="pGeo" min="0" max="1" step="0.02" value="0.32"><span class="val" id="vGeo">0.32</span></div>
         <div class="row"><label for="pRandom">Randomness</label><input type="range" id="pRandom" min="0" max="2" step="0.05" value="0"><span class="val" id="vRandom">0.00</span></div>
         <div class="row"><label for="pRot">Random rotation</label><input type="range" id="pRot" min="0" max="45" step="0.5" value="0"><span class="val" id="vRot">0.0</span></div>
+        <p class="note">正値は伸長、負値は連続的な圧縮です。−2で極細の骨格、8で画面を横断する量塊まで振れ、0はその軸を変形しません。</p>
+      </div>
+      <div class="operator-panel" data-operator-panel="sinewTorque" hidden>
+        <div class="row"><label for="pSinewPull">Tissue pull</label><input type="range" id="pSinewPull" min="-640" max="640" step="2" value="72"><span class="val" id="vSinewPull">72px</span></div>
+        <div class="row"><label for="pSinewTorque">Torque</label><input type="range" id="pSinewTorque" min="-540" max="540" step="2" value="58"><span class="val" id="vSinewTorque">58°</span></div>
+        <div class="row"><label for="pSinewTension">Tension</label><input type="range" id="pSinewTension" min="0.1" max="8" step="0.02" value="1.34"><span class="val" id="vSinewTension">1.34</span></div>
+        <div class="row"><label for="pSinewWaist">Waist pressure</label><input type="range" id="pSinewWaist" min="-2" max="4" step="0.02" value="0.34"><span class="val" id="vSinewWaist">+0.34</span></div>
+        <div class="row"><label for="pSinewAxis">Body axis</label><input type="range" id="pSinewAxis" min="-180" max="180" step="1" value="-18"><span class="val" id="vSinewAxis">-18°</span></div>
+        <p class="note">字形を切片や複製へ分けず、一枚の弾性膜として引き、捩り、中央を収縮／膨張させます。TEXTをHideにすると連続変形した輪郭だけを置換字形として使えます。</p>
       </div>
       <div class="operator-panel" data-operator-panel="rotate" hidden>
         <div class="row"><label for="pRotateAngle">Target angle</label><input type="range" id="pRotateAngle" min="-180" max="180" step="1" value="60"><span class="val" id="vRotateAngle">60°</span></div>
@@ -3283,6 +3294,14 @@ type deformer</textarea>
         <div class="row"><label for="pSoftBlobStiffness">Connectivity</label><input type="range" id="pSoftBlobStiffness" min="0" max="5" step="0.02" value="0.5"><span class="val" id="vSoftBlobStiffness">0.50</span></div>
         <div class="row"><label for="pSoftBlobSpeed">Pulse</label><input type="range" id="pSoftBlobSpeed" min="0" max="8" step="0.02" value="0.3"><span class="val" id="vSoftBlobSpeed">0.30</span></div>
         <p class="note">文字を栄養核にした輸送管と膜に、遠方へ拡散する胞子場を重ねます。Spore reachは到達距離、Spore fieldは微粒子・多孔質の島・薄いコロニー面の密度です。</p>
+      </div>
+      <div class="operator-panel" data-operator-panel="etchantBloom" hidden>
+        <div class="row"><label for="pEtchantPattern">Morphology</label><input type="range" id="pEtchantPattern" min="0" max="1" step="0.01" value="0.56"><span class="val" id="vEtchantPattern">0.56</span></div>
+        <div class="row"><label for="pEtchantCell">Reaction scale</label><input type="range" id="pEtchantCell" min="2" max="72" step="1" value="18"><span class="val" id="vEtchantCell">18px</span></div>
+        <div class="row"><label for="pEtchantGrowth">Growth time</label><input type="range" id="pEtchantGrowth" min="8" max="192" step="1" value="84"><span class="val" id="vEtchantGrowth">84</span></div>
+        <div class="row"><label for="pEtchantPolarity">Etch / bloom</label><input type="range" id="pEtchantPolarity" min="-1" max="1" step="0.01" value="0.28"><span class="val" id="vEtchantPolarity">+0.28</span></div>
+        <div class="row"><label for="pEtchantSpill">Chemical spill</label><input type="range" id="pEtchantSpill" min="0" max="640" step="2" value="72"><span class="val" id="vEtchantSpill">72px</span></div>
+        <p class="note">字形を化学反応の種と境界条件にし、spotsからlabyrinth、coralまで連続生成します。負のPolarityは孔食、正は増殖。Physarumの粒子・輸送管やContourの等距離線とは異なる面の相転移です。</p>
       </div>
       <div class="operator-panel" data-operator-panel="sigilForge" hidden>
         <div class="row"><label for="pSigilComplexity">Ritual nodes</label><input type="range" id="pSigilComplexity" min="1" max="24" step="1" value="8"><span class="val" id="vSigilComplexity">8</span></div>
@@ -4563,7 +4582,7 @@ type deformer</textarea>
           </select>
         </label>
       </div>
-      <p class="operator-browser-status" id="operatorBrowserStatus" role="status" aria-live="polite">38 / 38 effects</p>
+      <p class="operator-browser-status" id="operatorBrowserStatus" role="status" aria-live="polite">40 / 40 effects</p>
       <div class="operator-browser-list" id="operatorBrowserList"></div>
     </section>
   </div>
@@ -4953,6 +4972,16 @@ type deformer</textarea>
 
       function setCanvasViewActive(active) {
         canvasView.active = !!active;
+        // View mode owns the pointer completely. A mouse can remain "active"
+        // from the Lens hover immediately before VIEW is pressed; without an
+        // explicit hand-off, that stale pointer keeps toggling glyphs while a
+        // pan gesture is in progress.
+        if (canvasView.active && typeof pointer !== 'undefined' && pointer) {
+          activePointerId = null;
+          pointer.active = false;
+          pointer.pulse = false;
+          pointer.strength = 0;
+        }
         canvasViewPointers.clear();
         canvasViewDrag = null;
         canvasViewPinch = null;
@@ -5159,12 +5188,14 @@ type deformer</textarea>
       var OPERATOR_DEFS = {
         confuse: { id: 'confuse', short: 'c', label: 'Confuse', layer: 'codepoint', layerOrder: EVALUATION_LAYERS.codepoint, order: 5, strengthMode: STRENGTH_MODES.STEPPED },
         stretch: { id: 'stretch', short: 's', label: 'Stretch', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 10, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        sinewTorque: { id: 'sinewTorque', short: 'sn', label: 'Sinew Torque', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 72, strengthMode: STRENGTH_MODES.CONTINUOUS },
         rotate: { id: 'rotate', short: 'r', label: 'Rotate', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 20, strengthMode: STRENGTH_MODES.CONTINUOUS },
         skew: { id: 'skew', short: 'k', label: 'Skew', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 30, strengthMode: STRENGTH_MODES.CONTINUOUS },
         baselineShift: { id: 'baselineShift', short: 'b', label: 'Baseline Shift', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 40, strengthMode: STRENGTH_MODES.CONTINUOUS },
         mirror: { id: 'mirror', short: 'm', label: 'Mirror', layer: 'box', layerOrder: EVALUATION_LAYERS.box, order: 50, strengthMode: STRENGTH_MODES.CONTINUOUS },
         blobTrack: { id: 'blobTrack', short: 'o', label: 'Blob Track', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 10, strengthMode: STRENGTH_MODES.CONTINUOUS },
         softBlob: { id: 'softBlob', short: 'f', label: 'Physarum Blob', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 20, strengthMode: STRENGTH_MODES.CONTINUOUS },
+        etchantBloom: { id: 'etchantBloom', short: 'eb', label: 'Etchant Bloom', layer: 'ink', layerOrder: EVALUATION_LAYERS.ink, order: 30, strengthMode: STRENGTH_MODES.CONTINUOUS },
         ribbonEcho: { id: 'ribbonEcho', short: 'e', label: 'Ribbon Echo', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 30, strengthMode: STRENGTH_MODES.CONTINUOUS },
         slitSweep: { id: 'slitSweep', short: 'l', label: 'Slit Sweep', layer: 'relation', layerOrder: EVALUATION_LAYERS.relation, order: 40, strengthMode: STRENGTH_MODES.CONTINUOUS },
         plotterTrace: { id: 'plotterTrace', short: 't', label: 'Kinetic Trace', layer: 'stroke', layerOrder: EVALUATION_LAYERS.stroke, order: 10, strengthMode: STRENGTH_MODES.CONTINUOUS },
@@ -5199,6 +5230,7 @@ type deformer</textarea>
       var OPERATOR_GUIDES = {
         confuse: '元の文字種を手掛かりに別の字形へ置換し、読める状態から文字化けまで段階的に変えます。',
         stretch: '文字の横幅と縦幅を独立に伸縮し、基本的なプロポーションを変えます。',
+        sinewTorque: '字形を一枚の弾性膜として引き・捩り・収縮させ、切れ目のない置換輪郭を作ります。',
         rotate: '文字ごとの回転量を変え、整列から不規則な傾きまで作ります。',
         skew: '字形を水平・垂直方向へ傾け、斜体やせん断した形を作ります。',
         baselineShift: '文字を基準線から上下へ動かし、行のリズムや跳ねを作ります。',
@@ -5206,6 +5238,7 @@ type deformer</textarea>
         plotterTrace: '輪郭を一続きの描画経路へ変換し、実線とペン移動の軌跡を重ねます。',
         webbing: '適用した複数文字の間へ重力を持つ繊維を張り、文字間ネットワークを作ります。',
         softBlob: '文字群を栄養核として、粘菌状の膜・輸送管・遠方へ広がる胞子場を生成します。',
+        etchantBloom: '字形を反応の種と境界にし、孔食・迷路・細胞・珊瑚状の化学面へ相転移させます。',
         sigilForge: '複数文字の中心関係から共有軸と枝を組み、一つの左右対称な紋章へ再構成します。',
         thornCrown: '字形輪郭から鉤・葉槍・芽枝・三叉フィニアルを成長させ、装飾的に侵食します。',
         cipherLiturgy: 'Unicode・進数表記・文字順・文字種・checksumを碑文と注釈へ変換します。',
@@ -5239,14 +5272,14 @@ type deformer</textarea>
       var OPERATOR_IDS = Object.keys(OPERATOR_DEFS).sort(function (a, b) {
         return OPERATOR_DEFS[a].layerOrder - OPERATOR_DEFS[b].layerOrder || OPERATOR_DEFS[a].order - OPERATOR_DEFS[b].order;
       });
-      var SURFACE_OPERATOR_IDS = ['plotterTrace', 'webbing', 'softBlob', 'sigilForge', 'thornCrown', 'cipherLiturgy', 'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter', 'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'chimeraGraft', 'monolithCast', 'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'cellFracture', 'ribbonEcho', 'copyDecay', 'risoSeparation', 'slitSweep'];
+      var SURFACE_OPERATOR_IDS = ['plotterTrace', 'webbing', 'softBlob', 'etchantBloom', 'sigilForge', 'thornCrown', 'cipherLiturgy', 'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter', 'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'chimeraGraft', 'monolithCast', 'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'sinewTorque', 'cellFracture', 'ribbonEcho', 'copyDecay', 'risoSeparation', 'slitSweep'];
       // Back-to-front order preserves the pre-mixer renderer as the migration
       // default. The UI can move any Surface Operator without changing its
       // per-glyph application state.
-      var SURFACE_RENDER_ORDER_DEFAULT = ['copyDecay', 'risoSeparation', 'prismSacrament', 'recursiveShrine', 'chromeReliquary', 'naveCutter', 'cloisterFold', 'voidPortal', 'morphProcession', 'chimeraGraft', 'moireChoir', 'ligatureCrypt', 'cipherLiturgy', 'ribbonEcho', 'slitSweep', 'cellFracture', 'rasterPress', 'texturaMatrix', 'hatchEngrave', 'contourEtch', 'monolithCast', 'pressureStroke', 'boneScaffold', 'thornCrown', 'softBlob', 'webbing', 'roseEngine', 'sigilForge', 'plotterTrace'];
+      var SURFACE_RENDER_ORDER_DEFAULT = ['copyDecay', 'risoSeparation', 'prismSacrament', 'recursiveShrine', 'chromeReliquary', 'naveCutter', 'cloisterFold', 'voidPortal', 'morphProcession', 'chimeraGraft', 'moireChoir', 'ligatureCrypt', 'cipherLiturgy', 'ribbonEcho', 'slitSweep', 'cellFracture', 'rasterPress', 'texturaMatrix', 'hatchEngrave', 'etchantBloom', 'contourEtch', 'monolithCast', 'pressureStroke', 'sinewTorque', 'boneScaffold', 'thornCrown', 'softBlob', 'webbing', 'roseEngine', 'sigilForge', 'plotterTrace'];
       var SURFACE_BLEND_MODES = ['source-over', 'multiply', 'screen', 'overlay', 'difference', 'lighter'];
       var SURFACE_OPACITY_KEYS = {
-        plotterTrace: 'traceOpacity', webbing: 'webOpacity', softBlob: 'softBlobOpacity',
+        plotterTrace: 'traceOpacity', webbing: 'webOpacity', softBlob: 'softBlobOpacity', etchantBloom: 'etchantOpacity',
         sigilForge: 'sigilOpacity', thornCrown: 'thornOpacity', cipherLiturgy: 'cipherOpacity',
         boneScaffold: 'boneOpacity', roseEngine: 'roseOpacity', chromeReliquary: 'chromeOpacity',
         ligatureCrypt: 'ligatureOpacity', moireChoir: 'moireOpacity', naveCutter: 'naveOpacity',
@@ -5254,11 +5287,11 @@ type deformer</textarea>
         voidPortal: 'voidOpacity', recursiveShrine: 'recursiveOpacity', morphProcession: 'morphOpacity', chimeraGraft: 'chimeraOpacity',
         monolithCast: 'monolithOpacity',
         rasterPress: 'rasterOpacity', hatchEngrave: 'hatchOpacity', contourEtch: 'contourOpacity',
-        pressureStroke: 'pressureOpacity', cellFracture: 'fractureOpacity', ribbonEcho: 'ribbonOpacity',
+        pressureStroke: 'pressureOpacity', sinewTorque: 'sinewOpacity', cellFracture: 'fractureOpacity', ribbonEcho: 'ribbonOpacity',
         copyDecay: 'copyOpacity', risoSeparation: 'risoOpacity', slitSweep: 'slitOpacity'
       };
       var SURFACE_SOURCE_OPACITY_KEYS = {
-        plotterTrace: 'traceSourceOpacity', webbing: 'webSourceOpacity', softBlob: 'softBlobSourceOpacity',
+        plotterTrace: 'traceSourceOpacity', webbing: 'webSourceOpacity', softBlob: 'softBlobSourceOpacity', etchantBloom: 'etchantSourceOpacity',
         sigilForge: 'sigilSourceOpacity', thornCrown: 'thornSourceOpacity', cipherLiturgy: 'cipherSourceOpacity',
         boneScaffold: 'boneSourceOpacity', roseEngine: 'roseSourceOpacity', chromeReliquary: 'chromeSourceOpacity',
         ligatureCrypt: 'ligatureSourceOpacity', moireChoir: 'moireSourceOpacity', naveCutter: 'naveSourceOpacity',
@@ -5266,11 +5299,11 @@ type deformer</textarea>
         voidPortal: 'voidSourceOpacity', recursiveShrine: 'recursiveSourceOpacity', morphProcession: 'morphSourceOpacity', chimeraGraft: 'chimeraSourceOpacity',
         monolithCast: 'monolithSourceOpacity',
         rasterPress: 'rasterSourceOpacity', hatchEngrave: 'hatchSourceOpacity', contourEtch: 'contourSourceOpacity',
-        pressureStroke: 'pressureSourceOpacity', cellFracture: 'fractureSourceOpacity', ribbonEcho: 'ribbonSourceOpacity',
+        pressureStroke: 'pressureSourceOpacity', sinewTorque: 'sinewSourceOpacity', cellFracture: 'fractureSourceOpacity', ribbonEcho: 'ribbonSourceOpacity',
         copyDecay: 'copySourceOpacity', risoSeparation: 'risoSourceOpacity', slitSweep: 'slitSourceOpacity'
       };
       var SURFACE_BLEND_KEYS = {
-        plotterTrace: 'traceBlend', webbing: 'webBlend', softBlob: 'softBlobBlend',
+        plotterTrace: 'traceBlend', webbing: 'webBlend', softBlob: 'softBlobBlend', etchantBloom: 'etchantBlend',
         sigilForge: 'sigilBlend', thornCrown: 'thornBlend', cipherLiturgy: 'cipherBlend',
         boneScaffold: 'boneBlend', roseEngine: 'roseBlend', chromeReliquary: 'chromeBlend',
         ligatureCrypt: 'ligatureBlend', moireChoir: 'moireBlend', naveCutter: 'naveBlend',
@@ -5278,7 +5311,7 @@ type deformer</textarea>
         voidPortal: 'voidBlend', recursiveShrine: 'recursiveBlend', morphProcession: 'morphBlend', chimeraGraft: 'chimeraBlend',
         monolithCast: 'monolithBlend',
         rasterPress: 'rasterBlend', hatchEngrave: 'hatchBlend', contourEtch: 'contourBlend',
-        pressureStroke: 'pressureBlend', cellFracture: 'fractureBlend', ribbonEcho: 'ribbonBlend',
+        pressureStroke: 'pressureBlend', sinewTorque: 'sinewBlend', cellFracture: 'fractureBlend', ribbonEcho: 'ribbonBlend',
         copyDecay: 'copyBlend', risoSeparation: 'risoBlend', slitSweep: 'slitBlend'
       };
       var LOOK_MEMORY_SLOT_IDS = ['A', 'B', 'C', 'D'];
@@ -6234,6 +6267,13 @@ type deformer</textarea>
         softBlobSpeed: 0.3,
         softBlobColor: '#426b3b',
         softBlobSourceMode: 'keep',
+        etchantPattern: 0.56,
+        etchantCell: 18,
+        etchantGrowth: 84,
+        etchantPolarity: 0.28,
+        etchantSpill: 72,
+        etchantColor: '#82b912',
+        etchantSourceMode: 'keep',
         sigilComplexity: 8,
         sigilReach: 72,
         sigilSymmetry: 1,
@@ -6382,6 +6422,13 @@ type deformer</textarea>
         pressureTaper: 0.25,
         pressureColor: '#693c8f',
         pressureSourceMode: 'keep',
+        sinewPull: 72,
+        sinewTorque: 58,
+        sinewTension: 1.34,
+        sinewWaist: 0.34,
+        sinewAxis: -18,
+        sinewColor: '#ba2054',
+        sinewSourceMode: 'keep',
         fractureCell: 18,
         fractureScatter: 26,
         fractureGap: 2,
@@ -6487,6 +6534,7 @@ type deformer</textarea>
         'traceDensity', 'traceDefinition', 'traceStroke', 'traceJitter', 'traceLift',
         'webDensity', 'webReach', 'webChaos', 'webSag', 'webStroke',
         'softBlobInflation', 'softBlobStiffness', 'softBlobChaos', 'softBlobMembrane', 'softBlobSporeReach', 'softBlobSporeDensity', 'softBlobSpeed',
+        'etchantPattern', 'etchantCell', 'etchantGrowth', 'etchantPolarity', 'etchantSpill',
         'sigilComplexity', 'sigilReach', 'sigilSymmetry', 'sigilStroke', 'sigilBarbs',
         'thornLength', 'thornDensity', 'thornCurl', 'thornStroke', 'thornBranches',
         'cipherScale', 'cipherDensity', 'cipherOrbit', 'cipherDrift', 'cipherCallouts',
@@ -6508,6 +6556,7 @@ type deformer</textarea>
         'hatchSpacing', 'hatchAngle', 'hatchWarp', 'hatchStroke',
         'contourBands', 'contourSpacing', 'contourStroke', 'contourDrift',
         'pressureWeight', 'pressureContrast', 'pressureAngle', 'pressureFrequency', 'pressureSoftness', 'pressureBreath', 'pressureDryness', 'pressureTaper',
+        'sinewPull', 'sinewTorque', 'sinewTension', 'sinewWaist', 'sinewAxis',
         'fractureCell', 'fractureScatter', 'fractureGap', 'fractureSpin',
         'ribbonDepth', 'ribbonSteps', 'ribbonTwist', 'ribbonFade',
         'risoSplit', 'risoOverlap', 'risoRegister', 'risoGrain',
@@ -6516,7 +6565,7 @@ type deformer</textarea>
         'confuseDepth'
       ];
       var BATCH_PARAM_LIMITS = {
-        stretchX: [0, 3], stretchY: [0, 3], radius: [15, 180], ease: [0.02, 0.3],
+        stretchX: [-2, 8], stretchY: [-2, 8], radius: [15, 180], ease: [0.02, 0.3],
         geoRatio: [0, 1], randomness: [0, 2], rotation: [0, 45],
         rotateAngle: [-180, 180], skewX: [-70, 70], skewY: [-70, 70],
         baselineShift: [-3, 3], mirrorX: [0, 1], mirrorY: [0, 1],
@@ -6528,6 +6577,7 @@ type deformer</textarea>
         webDensity: [0, 6], webReach: [4, 1800], webChaos: [0, 8], webSag: [-6, 6], webStroke: [0.1, 48],
         softBlobInflation: [0, 6], softBlobStiffness: [0, 5], softBlobChaos: [0, 8], softBlobMembrane: [0, 4],
         softBlobSporeReach: [0, 2400], softBlobSporeDensity: [0, 4], softBlobSpeed: [0, 8],
+        etchantPattern: [0, 1], etchantCell: [2, 72], etchantGrowth: [8, 192], etchantPolarity: [-1, 1], etchantSpill: [0, 640],
         sigilComplexity: [1, 24], sigilReach: [0, 640], sigilSymmetry: [0, 4], sigilStroke: [0.2, 20], sigilBarbs: [0, 6],
         thornLength: [0, 360], thornDensity: [0.05, 6], thornCurl: [-3, 3], thornStroke: [0.2, 16], thornBranches: [0, 4],
         cipherScale: [3, 36], cipherDensity: [0.1, 4], cipherOrbit: [0, 360], cipherDrift: [0, 160], cipherCallouts: [0, 4],
@@ -6550,6 +6600,7 @@ type deformer</textarea>
         contourBands: [1, 64], contourSpacing: [1, 40], contourStroke: [0.25, 14], contourDrift: [0, 6],
         pressureWeight: [-120, 260], pressureContrast: [0, 4], pressureAngle: [-180, 180], pressureFrequency: [0.1, 32], pressureSoftness: [0.1, 24],
         pressureBreath: [0, 4], pressureDryness: [0, 1], pressureTaper: [-2, 2],
+        sinewPull: [-640, 640], sinewTorque: [-540, 540], sinewTension: [0.1, 8], sinewWaist: [-2, 4], sinewAxis: [-180, 180],
         fractureCell: [4, 140], fractureScatter: [0, 520], fractureGap: [0, 28], fractureSpin: [-720, 720],
         ribbonDepth: [-520, 520], ribbonSteps: [1, 96], ribbonTwist: [-540, 540], ribbonFade: [0, 1],
         risoSplit: [-1, 1], risoOverlap: [0, 1.5], risoRegister: [0, 160], risoGrain: [0, 2],
@@ -6561,6 +6612,7 @@ type deformer</textarea>
         plotterTrace: [{ key: 'traceDensity', label: 'Density', span: 0.42 }, { key: 'traceJitter', label: 'Drift', span: 0.22, unit: 'px' }],
         webbing: [{ key: 'webDensity', label: 'Strands', span: 0.42 }, { key: 'webSag', label: 'Gravity', span: 0.34 }],
         softBlob: [{ key: 'softBlobInflation', label: 'Mass', span: 0.42 }, { key: 'softBlobSporeReach', label: 'Spore reach', span: 0.34, unit: 'px' }],
+        etchantBloom: [{ key: 'etchantPattern', label: 'Morphology', span: 0.46 }, { key: 'etchantSpill', label: 'Spill', span: 0.28, unit: 'px' }],
         sigilForge: [{ key: 'sigilReach', label: 'Reach', span: 0.34, unit: 'px' }, { key: 'sigilComplexity', label: 'Nodes', span: 0.42, integer: true }],
         thornCrown: [{ key: 'thornLength', label: 'Length', span: 0.34, unit: 'px' }, { key: 'thornDensity', label: 'Density', span: 0.42 }],
         cipherLiturgy: [{ key: 'cipherDensity', label: 'Density', span: 0.42 }, { key: 'cipherOrbit', label: 'Orbit', span: 0.34, unit: 'px' }],
@@ -6582,6 +6634,7 @@ type deformer</textarea>
         hatchEngrave: [{ key: 'hatchSpacing', label: 'Spacing', span: 0.32, unit: 'px' }, { key: 'hatchWarp', label: 'Warp', span: 0.38 }],
         contourEtch: [{ key: 'contourBands', label: 'Bands', span: 0.32, integer: true }, { key: 'contourDrift', label: 'Drift', span: 0.42 }],
         pressureStroke: [{ key: 'pressureBreath', label: 'Breath', span: 0.38 }, { key: 'pressureDryness', label: 'Dryness', span: 0.46 }],
+        sinewTorque: [{ key: 'sinewPull', label: 'Pull', span: 0.16, unit: 'px' }, { key: 'sinewTorque', label: 'Torque', span: 0.28, unit: 'deg' }],
         cellFracture: [{ key: 'fractureScatter', label: 'Scatter', span: 0.18, unit: 'px' }, { key: 'fractureGap', label: 'Gap', span: 0.34, unit: 'px' }],
         ribbonEcho: [{ key: 'ribbonDepth', label: 'Depth', span: 0.18, unit: 'px' }, { key: 'ribbonTwist', label: 'Twist', span: 0.32, unit: 'deg' }],
         copyDecay: [{ key: 'copyGenerations', label: 'Generations', span: 0.42, integer: true }, { key: 'copyMotion', label: 'Drum drag', span: 0.12, unit: 'px' }],
@@ -6651,8 +6704,8 @@ type deformer</textarea>
       }
 
       function normalizeParams() {
-        clampParam('stretchX', 0, 3, false);
-        clampParam('stretchY', 0, 3, false);
+        clampParam('stretchX', -2, 8, false);
+        clampParam('stretchY', -2, 8, false);
         clampParam('radius', 15, 180, false);
         clampParam('ease', 0.02, 0.3, false);
         clampParam('geoRatio', 0, 1, false);
@@ -6700,6 +6753,11 @@ type deformer</textarea>
         clampParam('softBlobSporeReach', 0, 2400, false);
         clampParam('softBlobSporeDensity', 0, 4, false);
         clampParam('softBlobSpeed', 0, 8, false);
+        clampParam('etchantPattern', 0, 1, false);
+        clampParam('etchantCell', 2, 72, false);
+        clampParam('etchantGrowth', 8, 192, true);
+        clampParam('etchantPolarity', -1, 1, false);
+        clampParam('etchantSpill', 0, 640, false);
         clampParam('sigilComplexity', 1, 24, true);
         clampParam('sigilReach', 0, 640, false);
         clampParam('sigilSymmetry', 0, 4, false);
@@ -6805,6 +6863,11 @@ type deformer</textarea>
         clampParam('pressureBreath', 0, 4, false);
         clampParam('pressureDryness', 0, 1, false);
         clampParam('pressureTaper', -2, 2, false);
+        clampParam('sinewPull', -640, 640, false);
+        clampParam('sinewTorque', -540, 540, false);
+        clampParam('sinewTension', 0.1, 8, false);
+        clampParam('sinewWaist', -2, 4, false);
+        clampParam('sinewAxis', -180, 180, false);
         clampParam('fractureCell', 4, 140, false);
         clampParam('fractureScatter', 0, 520, false);
         clampParam('fractureGap', 0, 28, false);
@@ -6873,6 +6936,7 @@ type deformer</textarea>
         chooseParam('traceSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('webSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('softBlobSourceMode', ['keep', 'ghost', 'hide']);
+        chooseParam('etchantSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('sigilSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('thornSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('cipherSourceMode', ['keep', 'ghost', 'hide']);
@@ -6891,6 +6955,7 @@ type deformer</textarea>
         chooseParam('ribbonSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('contourSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('pressureSourceMode', ['keep', 'ghost', 'hide']);
+        chooseParam('sinewSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('risoSourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('copySourceMode', ['keep', 'ghost', 'hide']);
         chooseParam('slitSourceMode', ['keep', 'ghost', 'hide']);
@@ -6901,10 +6966,10 @@ type deformer</textarea>
           var boolValue = params[boolKeys[i]];
           params[boolKeys[i]] = boolValue === true || boolValue === 1;
         }
-        var colorKeys = ['ink', 'paper', 'accent', 'misregColorA', 'misregColorB', 'traceColor', 'webColor', 'softBlobColor',
+        var colorKeys = ['ink', 'paper', 'accent', 'misregColorA', 'misregColorB', 'traceColor', 'webColor', 'softBlobColor', 'etchantColor',
           'sigilColor', 'thornColor', 'cipherColor', 'boneColor', 'roseColor', 'chromeColor',
           'ligatureColor', 'moireColor', 'naveColor', 'cloisterColor', 'prismColorA', 'prismColorB', 'texturaColor',
-          'rasterColor', 'hatchColor', 'contourColor', 'pressureColor', 'fractureColor', 'ribbonColor', 'copyColor', 'risoColorA', 'risoColorB', 'slitColor'];
+          'rasterColor', 'hatchColor', 'contourColor', 'pressureColor', 'sinewColor', 'fractureColor', 'ribbonColor', 'copyColor', 'risoColorA', 'risoColorB', 'slitColor'];
         for (var c = 0; c < colorKeys.length; c++) {
           var colorKey = colorKeys[c];
           if (typeof params[colorKey] !== 'string' || !/^#[0-9a-f]{6}$/i.test(params[colorKey])) {
@@ -8076,8 +8141,16 @@ type deformer</textarea>
         var directional = seedX * 0.5;
         var deform = batchProfileForKey(info.batchKey);
 
-        var stretchX = 1 + info.currentIntensity * (1.48 + seedX * 0.85 + directional * 0.42) * deform.stretchX;
-        var stretchY = 1 + info.currentIntensity * (1.82 + seedY * 1.05 - directional * 0.36) * deform.stretchY;
+        function signedStretch(amount, response) {
+          // Positive amounts retain the established additive expansion. A
+          // negative amount uses an exponential response so compression can
+          // approach a hairline without crossing through zero or mirroring.
+          return amount >= 0
+            ? 1 + info.currentIntensity * response * amount
+            : Math.exp(info.currentIntensity * response * amount);
+        }
+        var stretchX = signedStretch(deform.stretchX, 1.48 + seedX * 0.85 + directional * 0.42);
+        var stretchY = signedStretch(deform.stretchY, 1.82 + seedY * 1.05 - directional * 0.36);
         var stepX = isFinite(info.stepX) && info.stepX > 0 ? info.stepX : 0.28;
         var stepY = isFinite(info.stepY) && info.stepY > 0 ? info.stepY : 0.34;
         var baseBlend = isFinite(info.blend) ? info.blend : 0.32;
@@ -8098,8 +8171,8 @@ type deformer</textarea>
             stretchY = stretchY * (1 - softBlend) + easedY * softBlend;
           }
         }
-        if (stretchX < 1) stretchX = 1; else if (stretchX > 8.0) stretchX = 8.0;
-        if (stretchY < 1) stretchY = 1; else if (stretchY > 9.0) stretchY = 9.0;
+        if (stretchX < 0.04) stretchX = 0.04; else if (stretchX > 18.0) stretchX = 18.0;
+        if (stretchY < 0.04) stretchY = 0.04; else if (stretchY > 18.0) stretchY = 18.0;
 
         info.el.style.setProperty('--ix', stretchX.toFixed(3));
         info.el.style.setProperty('--iy', stretchY.toFixed(3));
@@ -8752,6 +8825,7 @@ type deformer</textarea>
       });
 
       stage.addEventListener('pointermove', function (e) {
+        if (canvasView.active) return;
         if (activePointerId !== null && e.pointerId !== activePointerId && e.pointerType !== 'mouse') return;
         updatePointerFromEvent(e);
         if (e.pointerType === 'touch') {
@@ -8766,6 +8840,7 @@ type deformer</textarea>
       }, { passive: true });
 
       stage.addEventListener('pointerdown', function (e) {
+        if (canvasView.active) return;
         if (params.mode === 'flow' && !pointer.active) pushHistory();
         activePointerId = e.pointerId;
         updatePointerFromEvent(e);
@@ -9944,6 +10019,7 @@ type deformer</textarea>
             plotterTrace: surfaceOperatorStrength(m, 'plotterTrace'),
             webbing: surfaceOperatorStrength(m, 'webbing'),
             softBlob: surfaceOperatorStrength(m, 'softBlob'),
+            etchantBloom: surfaceOperatorStrength(m, 'etchantBloom'),
             sigilForge: surfaceOperatorStrength(m, 'sigilForge'),
             thornCrown: surfaceOperatorStrength(m, 'thornCrown'),
             cipherLiturgy: surfaceOperatorStrength(m, 'cipherLiturgy'),
@@ -9965,6 +10041,7 @@ type deformer</textarea>
             hatchEngrave: surfaceOperatorStrength(m, 'hatchEngrave'),
             contourEtch: surfaceOperatorStrength(m, 'contourEtch'),
             pressureStroke: surfaceOperatorStrength(m, 'pressureStroke'),
+            sinewTorque: surfaceOperatorStrength(m, 'sinewTorque'),
             cellFracture: surfaceOperatorStrength(m, 'cellFracture'),
             ribbonEcho: surfaceOperatorStrength(m, 'ribbonEcho'),
             copyDecay: surfaceOperatorStrength(m, 'copyDecay'),
@@ -9985,6 +10062,11 @@ type deformer</textarea>
             softBlobSporeReach: deform.softBlobSporeReach,
             softBlobSporeDensity: deform.softBlobSporeDensity,
             softBlobSpeed: deform.softBlobSpeed,
+            etchantPattern: deform.etchantPattern,
+            etchantCell: deform.etchantCell,
+            etchantGrowth: deform.etchantGrowth,
+            etchantPolarity: deform.etchantPolarity,
+            etchantSpill: deform.etchantSpill,
             sigilComplexity: deform.sigilComplexity,
             sigilReach: deform.sigilReach,
             sigilSymmetry: deform.sigilSymmetry,
@@ -10094,6 +10176,11 @@ type deformer</textarea>
             pressureBreath: deform.pressureBreath,
             pressureDryness: deform.pressureDryness,
             pressureTaper: deform.pressureTaper,
+            sinewPull: deform.sinewPull,
+            sinewTorqueAmount: deform.sinewTorque,
+            sinewTension: deform.sinewTension,
+            sinewWaist: deform.sinewWaist,
+            sinewAxis: deform.sinewAxis,
             fractureCell: deform.fractureCell,
             fractureScatter: deform.fractureScatter,
             fractureGap: deform.fractureGap,
@@ -10234,7 +10321,7 @@ type deformer</textarea>
       }
 
       var SURFACE_SOURCE_MODE_KEYS = {
-        plotterTrace: 'traceSourceMode', webbing: 'webSourceMode', softBlob: 'softBlobSourceMode',
+        plotterTrace: 'traceSourceMode', webbing: 'webSourceMode', softBlob: 'softBlobSourceMode', etchantBloom: 'etchantSourceMode',
         sigilForge: 'sigilSourceMode', thornCrown: 'thornSourceMode', cipherLiturgy: 'cipherSourceMode',
         boneScaffold: 'boneSourceMode', roseEngine: 'roseSourceMode', chromeReliquary: 'chromeSourceMode',
         ligatureCrypt: 'ligatureSourceMode', moireChoir: 'moireSourceMode', naveCutter: 'naveSourceMode',
@@ -10242,11 +10329,11 @@ type deformer</textarea>
         voidPortal: 'voidSourceMode', recursiveShrine: 'recursiveSourceMode', morphProcession: 'morphSourceMode', chimeraGraft: 'chimeraSourceMode',
         monolithCast: 'monolithSourceMode',
         rasterPress: 'rasterSourceMode', hatchEngrave: 'hatchSourceMode', contourEtch: 'contourSourceMode',
-        pressureStroke: 'pressureSourceMode', cellFracture: 'fractureSourceMode', ribbonEcho: 'ribbonSourceMode',
+        pressureStroke: 'pressureSourceMode', sinewTorque: 'sinewSourceMode', cellFracture: 'fractureSourceMode', ribbonEcho: 'ribbonSourceMode',
         copyDecay: 'copySourceMode', risoSeparation: 'risoSourceMode', slitSweep: 'slitSourceMode'
       };
       var SURFACE_COLOR_KEYS = {
-        plotterTrace: 'traceColor', webbing: 'webColor', softBlob: 'softBlobColor',
+        plotterTrace: 'traceColor', webbing: 'webColor', softBlob: 'softBlobColor', etchantBloom: 'etchantColor',
         sigilForge: 'sigilColor', thornCrown: 'thornColor', cipherLiturgy: 'cipherColor',
         boneScaffold: 'boneColor', roseEngine: 'roseColor', chromeReliquary: 'chromeColor',
         ligatureCrypt: 'ligatureColor', moireChoir: 'moireColor', naveCutter: 'naveColor',
@@ -10254,7 +10341,7 @@ type deformer</textarea>
         voidPortal: 'voidColor', recursiveShrine: 'recursiveColor', morphProcession: 'morphColor', chimeraGraft: 'chimeraColor',
         monolithCast: 'monolithColor',
         rasterPress: 'rasterColor', hatchEngrave: 'hatchColor', contourEtch: 'contourColor',
-        pressureStroke: 'pressureColor', cellFracture: 'fractureColor', ribbonEcho: 'ribbonColor',
+        pressureStroke: 'pressureColor', sinewTorque: 'sinewColor', cellFracture: 'fractureColor', ribbonEcho: 'ribbonColor',
         copyDecay: 'copyColor', risoSeparation: 'risoColorA', slitSweep: 'slitColor'
       };
       var SURFACE_SECONDARY_COLOR_KEYS = {
@@ -11390,6 +11477,244 @@ type deformer</textarea>
           distance[index] = reverse;
         }
         return { inside: inside, distance: distance, bounds: maxX >= 0 ? [minX, minY, maxX, maxY] : null };
+      }
+
+      // A bounded, independently implemented Gray-Scott field. The glyph mask
+      // is both the initial chemical seed and the nutrient/style map; no source
+      // code or shader assets from the visual references are embedded here.
+      function renderEtchantBloom(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var patternAggregate = surfaceAggregate(glyphs, 'etchantBloom', 'etchantPattern', params.etchantPattern);
+        if (!patternAggregate.weight) return;
+        var pattern = Math.max(0, Math.min(1, patternAggregate.value));
+        var reactionScale = Math.max(2, surfaceAggregate(glyphs, 'etchantBloom', 'etchantCell', params.etchantCell).value * pixelScale * L.s);
+        var growth = Math.max(8, Math.min(192, Math.round(surfaceAggregate(glyphs, 'etchantBloom', 'etchantGrowth', params.etchantGrowth).value)));
+        var polarity = Math.max(-1, Math.min(1, surfaceAggregate(glyphs, 'etchantBloom', 'etchantPolarity', params.etchantPolarity).value));
+        var spill = Math.max(0, surfaceAggregate(glyphs, 'etchantBloom', 'etchantSpill', params.etchantSpill).value * pixelScale * L.s);
+        var mask = buildSurfaceMask(glyphs, 'etchantBloom', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'etchantBloom', coverBase);
+        var maskCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = maskCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+
+        var pad = spill + reactionScale * 2.5;
+        var regionX = Math.max(0, Math.floor(field.bounds[0] - pad));
+        var regionY = Math.max(0, Math.floor(field.bounds[1] - pad));
+        var regionRight = Math.min(width, Math.ceil(field.bounds[2] + pad + 1));
+        var regionBottom = Math.min(height, Math.ceil(field.bounds[3] + pad + 1));
+        var regionWidth = Math.max(1, regionRight - regionX);
+        var regionHeight = Math.max(1, regionBottom - regionY);
+        var sampleStep = Math.max(1, reactionScale / 3.6);
+        var gridWidth = Math.max(8, Math.ceil(regionWidth / sampleStep));
+        var gridHeight = Math.max(8, Math.ceil(regionHeight / sampleStep));
+        var gridLimit = 144;
+        if (Math.max(gridWidth, gridHeight) > gridLimit) {
+          sampleStep *= Math.max(gridWidth, gridHeight) / gridLimit;
+          gridWidth = Math.max(8, Math.ceil(regionWidth / sampleStep));
+          gridHeight = Math.max(8, Math.ceil(regionHeight / sampleStep));
+        }
+        var count = gridWidth * gridHeight;
+        var chemicalA = new Float32Array(count);
+        var chemicalB = new Float32Array(count);
+        var nextA = new Float32Array(count);
+        var nextB = new Float32Array(count);
+        var permitted = new Float32Array(count);
+        var sampleX = new Int32Array(gridWidth);
+        var sampleY = new Int32Array(gridHeight);
+        var x, y, index;
+        for (x = 0; x < gridWidth; x++) sampleX[x] = Math.max(0, Math.min(width - 1, Math.round(regionX + (x + 0.5) * regionWidth / gridWidth)));
+        for (y = 0; y < gridHeight; y++) sampleY[y] = Math.max(0, Math.min(height - 1, Math.round(regionY + (y + 0.5) * regionHeight / gridHeight)));
+        var spillBand = Math.max(1, spill + reactionScale * 0.8);
+        for (y = 0; y < gridHeight; y++) for (x = 0; x < gridWidth; x++) {
+          index = y * gridWidth + x;
+          var sourceIndex = sampleY[y] * width + sampleX[x];
+          var inside = !!field.inside[sourceIndex];
+          var distance = field.distance[sourceIndex];
+          var nutrient = inside ? 1 : (spill > 0 ? Math.max(0, 1 - distance / spillBand) : 0);
+          permitted[index] = nutrient;
+          chemicalA[index] = 1;
+          if (nutrient <= 0.001) continue;
+          var sourceAlpha = source.data[sourceIndex * 4 + 3] / 255;
+          var seedNoise = hash(x * 11 + y * 3, y * 17 + x * 5, params.seed + 1901);
+          var boundarySeed = Math.exp(-distance / Math.max(1, reactionScale * 0.62));
+          var islands = seedNoise > 0.86 - pattern * 0.08 ? 0.38 + seedNoise * 0.46 : 0;
+          var seeded = Math.min(1, sourceAlpha * (0.06 + seedNoise * 0.18) + boundarySeed * 0.2 + islands * nutrient);
+          chemicalB[index] = seeded;
+          chemicalA[index] = 1 - seeded * 0.48;
+        }
+
+        var feed, kill;
+        if (pattern < 0.5) {
+          var firstMix = pattern * 2;
+          feed = 0.0367 + (0.055 - 0.0367) * firstMix;
+          kill = 0.0649 + (0.062 - 0.0649) * firstMix;
+        } else {
+          var secondMix = (pattern - 0.5) * 2;
+          feed = 0.055 + (0.063 - 0.055) * secondMix;
+          kill = 0.062 + (0.0602 - 0.062) * secondMix;
+        }
+        for (var iteration = 0; iteration < growth; iteration++) {
+          nextA.set(chemicalA);
+          nextB.set(chemicalB);
+          for (y = 1; y < gridHeight - 1; y++) for (x = 1; x < gridWidth - 1; x++) {
+            index = y * gridWidth + x;
+            var nutrientAtCell = permitted[index];
+            if (nutrientAtCell <= 0.001) { nextA[index] = 1; nextB[index] = 0; continue; }
+            var left = index - 1, right = index + 1, top = index - gridWidth, bottom = index + gridWidth;
+            var topLeft = top - 1, topRight = top + 1, bottomLeft = bottom - 1, bottomRight = bottom + 1;
+            var a = chemicalA[index], b = chemicalB[index];
+            var lapA = -a + (chemicalA[left] + chemicalA[right] + chemicalA[top] + chemicalA[bottom]) * 0.2
+              + (chemicalA[topLeft] + chemicalA[topRight] + chemicalA[bottomLeft] + chemicalA[bottomRight]) * 0.05;
+            var lapB = -b + (chemicalB[left] + chemicalB[right] + chemicalB[top] + chemicalB[bottom]) * 0.2
+              + (chemicalB[topLeft] + chemicalB[topRight] + chemicalB[bottomLeft] + chemicalB[bottomRight]) * 0.05;
+            var reaction = a * b * b;
+            var localNoise = hash(x, y, params.seed + 1913) - 0.5;
+            var localFeed = feed * (0.92 + nutrientAtCell * 0.12) + localNoise * 0.0012;
+            var localKill = kill + (0.5 - nutrientAtCell) * 0.0014;
+            nextA[index] = Math.max(0, Math.min(1, a + (lapA - reaction + localFeed * (1 - a))));
+            nextB[index] = Math.max(0, Math.min(1, b + (0.5 * lapB + reaction - (localKill + localFeed) * b)));
+          }
+          var swapA = chemicalA; chemicalA = nextA; nextA = swapA;
+          var swapB = chemicalB; chemicalB = nextB; nextB = swapB;
+        }
+
+        var grid = surfaceScratch('etchant-bloom-grid', gridWidth, gridHeight, true);
+        var image = grid.ctx.createImageData(gridWidth, gridHeight);
+        var polarityMix = (polarity + 1) * 0.5;
+        function smoothBand(value, low, high) {
+          var t = Math.max(0, Math.min(1, (value - low) / Math.max(0.0001, high - low)));
+          return t * t * (3 - 2 * t);
+        }
+        for (index = 0; index < count; index++) {
+          var gridX = index % gridWidth;
+          var gridY = Math.floor(index / gridWidth);
+          var chemicalRaw = chemicalB[index];
+          var chemical = Math.max(0, Math.min(1, chemicalRaw * 2.75));
+          var neighborLeft = chemicalB[gridX > 0 ? index - 1 : index];
+          var neighborRight = chemicalB[gridX + 1 < gridWidth ? index + 1 : index];
+          var neighborTop = chemicalB[gridY > 0 ? index - gridWidth : index];
+          var neighborBottom = chemicalB[gridY + 1 < gridHeight ? index + gridWidth : index];
+          var gradient = Math.max(
+            Math.abs(chemicalRaw - neighborLeft),
+            Math.abs(chemicalRaw - neighborRight),
+            Math.abs(chemicalRaw - neighborTop),
+            Math.abs(chemicalRaw - neighborBottom)
+          );
+          var laplacianRidge = Math.abs(chemicalRaw * 4 - neighborLeft - neighborRight - neighborTop - neighborBottom);
+          var membrane = smoothBand(gradient * 18 + laplacianRidge * 7, 0.035, 0.42);
+          var bloomThreshold = 0.1 + pattern * 0.085;
+          var bloom = smoothBand(chemical, bloomThreshold, bloomThreshold + 0.075);
+          var etchBand = smoothBand(chemical, bloomThreshold * 0.42, bloomThreshold * 0.9)
+            * (1 - smoothBand(chemical, bloomThreshold * 1.18, bloomThreshold * 1.78));
+          var poreNoise = hash(gridX * 5 + gridY * 13, gridY * 7 + gridX * 3, params.seed + 1931);
+          var porousBody = bloom * (0.56 + poreNoise * 0.44);
+          bloom = Math.max(porousBody, membrane * (0.72 + pattern * 0.24));
+          var etched = Math.max(etchBand * (0.68 + poreNoise * 0.32), membrane);
+          var coverage = (etched * (1 - polarityMix) + bloom * polarityMix) * permitted[index];
+          coverage *= 0.38 + patternAggregate.strength * 0.62;
+          var alpha = Math.max(0, Math.min(255, Math.round(coverage * 255)));
+          image.data[index * 4] = 255;
+          image.data[index * 4 + 1] = 255;
+          image.data[index * 4 + 2] = 255;
+          image.data[index * 4 + 3] = alpha;
+        }
+        grid.ctx.putImageData(image, 0, 0);
+        var expanded = surfaceScratch('etchant-bloom-expanded', width, height, false);
+        expanded.ctx.imageSmoothingEnabled = true;
+        expanded.ctx.imageSmoothingQuality = 'high';
+        expanded.ctx.drawImage(grid.canvas, regionX, regionY, regionWidth, regionHeight);
+        paintSurfaceMask(targetCtx, expanded.canvas, surfaceEffectColor('etchantBloom'), 1, 'etchant-bloom-color');
+      }
+
+      function renderSinewTorque(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
+        var pullAggregate = surfaceAggregate(glyphs, 'sinewTorque', 'sinewPull', params.sinewPull);
+        if (!pullAggregate.weight) return;
+        var globalStrength = pullAggregate.strength;
+        var pull = pullAggregate.value * pixelScale * L.s * globalStrength;
+        var torque = surfaceAggregate(glyphs, 'sinewTorque', 'sinewTorqueAmount', params.sinewTorque).value * Math.PI / 180 * globalStrength;
+        var tension = surfaceAggregate(glyphs, 'sinewTorque', 'sinewTension', params.sinewTension).value;
+        var waistAmount = surfaceAggregate(glyphs, 'sinewTorque', 'sinewWaist', params.sinewWaist).value * globalStrength;
+        var axis = surfaceAggregate(glyphs, 'sinewTorque', 'sinewAxis', params.sinewAxis).value * Math.PI / 180;
+        var mask = buildSurfaceMask(glyphs, 'sinewTorque', width, height, pixelScale, L, fm);
+        compositeSurfaceSource(targetCtx, mask, 'sinewTorque', coverBase);
+        var sourceCtx = mask.getContext('2d', { willReadFrequently: true });
+        var source;
+        try { source = sourceCtx.getImageData(0, 0, width, height); }
+        catch (error) { return; }
+        var field = surfaceBoundaryDistance(source.data, width, height);
+        if (!field.bounds) return;
+
+        var centerX = (field.bounds[0] + field.bounds[2]) * 0.5;
+        var centerY = (field.bounds[1] + field.bounds[3]) * 0.5;
+        var cosAxis = Math.cos(axis), sinAxis = Math.sin(axis);
+        var corners = [
+          [field.bounds[0], field.bounds[1]], [field.bounds[2], field.bounds[1]],
+          [field.bounds[2], field.bounds[3]], [field.bounds[0], field.bounds[3]]
+        ];
+        var halfU = 2, halfV = 2;
+        for (var cornerIndex = 0; cornerIndex < corners.length; cornerIndex++) {
+          var cornerDx = corners[cornerIndex][0] - centerX;
+          var cornerDy = corners[cornerIndex][1] - centerY;
+          halfU = Math.max(halfU, Math.abs(cornerDx * cosAxis + cornerDy * sinAxis));
+          halfV = Math.max(halfV, Math.abs(-cornerDx * sinAxis + cornerDy * cosAxis));
+        }
+        var waistReach = halfU * Math.max(0, Math.exp(Math.max(0, waistAmount) * 0.42) - 1);
+        var torqueReach = Math.min(width + height, Math.abs(torque) * (halfU + halfV) * 0.62);
+        var reach = Math.abs(pull) + waistReach + torqueReach + 6;
+        var minX = Math.max(0, Math.floor(field.bounds[0] - reach));
+        var maxX = Math.min(width - 1, Math.ceil(field.bounds[2] + reach));
+        var minY = Math.max(0, Math.floor(field.bounds[1] - reach));
+        var maxY = Math.min(height - 1, Math.ceil(field.bounds[3] + reach));
+        var warped = surfaceScratch('sinew-torque-mask', width, height, true);
+        var output = warped.ctx.createImageData(width, height);
+        var exponent = 0.45 + Math.max(0.1, Math.min(8, tension)) * 0.32;
+
+        function sourceAlphaAt(x, y) {
+          if (x < 0 || y < 0 || x >= width - 1 || y >= height - 1) return 0;
+          var x0 = Math.floor(x), y0 = Math.floor(y);
+          var tx = x - x0, ty = y - y0;
+          var i00 = (y0 * width + x0) * 4 + 3;
+          var i10 = i00 + 4;
+          var i01 = i00 + width * 4;
+          var i11 = i01 + 4;
+          var top = source.data[i00] * (1 - tx) + source.data[i10] * tx;
+          var bottom = source.data[i01] * (1 - tx) + source.data[i11] * tx;
+          return top * (1 - ty) + bottom * ty;
+        }
+
+        for (var y = minY; y <= maxY; y++) for (var x = minX; x <= maxX; x++) {
+          var dx = x - centerX, dy = y - centerY;
+          var destinationU = dx * cosAxis + dy * sinAxis;
+          var destinationV = -dx * sinAxis + dy * cosAxis;
+          var sourceU = destinationU, sourceV = destinationV;
+          var q = Math.max(-1.5, Math.min(1.5, sourceV / halfV));
+          for (var solve = 0; solve < 4; solve++) {
+            var flex = (q < 0 ? -1 : 1) * Math.pow(Math.abs(q), exponent);
+            var localAngle = torque * flex * 0.5;
+            var bend = pull * (q * 0.35 + Math.sin(q * Math.PI * 0.5) * 0.65);
+            var shiftedU = destinationU - bend;
+            var cosLocal = Math.cos(localAngle), sinLocal = Math.sin(localAngle);
+            var scaledU = shiftedU * cosLocal + destinationV * sinLocal;
+            sourceV = -shiftedU * sinLocal + destinationV * cosLocal;
+            q = Math.max(-1.5, Math.min(1.5, sourceV / halfV));
+            var centerPressure = Math.max(0, 1 - Math.min(1, Math.abs(q)));
+            var waistScale = Math.max(0.08, Math.min(5, Math.exp(waistAmount * centerPressure * 0.42)));
+            sourceU = scaledU / waistScale;
+          }
+          var sourceX = centerX + sourceU * cosAxis - sourceV * sinAxis;
+          var sourceY = centerY + sourceU * sinAxis + sourceV * cosAxis;
+          var alpha = sourceAlphaAt(sourceX, sourceY);
+          if (alpha < 0.5) continue;
+          var outputIndex = (y * width + x) * 4;
+          output.data[outputIndex] = 255;
+          output.data[outputIndex + 1] = 255;
+          output.data[outputIndex + 2] = 255;
+          output.data[outputIndex + 3] = Math.max(0, Math.min(255, Math.round(alpha)));
+        }
+        warped.ctx.putImageData(output, 0, 0);
+        paintSurfaceMask(targetCtx, warped.canvas, surfaceEffectColor('sinewTorque'), 1, 'sinew-torque-color');
       }
 
       function renderBoneScaffold(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
@@ -14279,9 +14604,11 @@ type deformer</textarea>
           contourEtch: renderContourEtch,
           monolithCast: renderMonolithCast,
           pressureStroke: renderPressureStroke,
+          sinewTorque: renderSinewTorque,
           boneScaffold: renderBoneScaffold,
           thornCrown: renderThornCrown,
           softBlob: renderSoftBlob,
+          etchantBloom: renderEtchantBloom,
           webbing: renderWebbing,
           roseEngine: renderRoseEngine,
           sigilForge: renderSigilForge,
@@ -18152,6 +18479,8 @@ type deformer</textarea>
             surfaceOperatorStrength(metrics[i], 'softBlob') * Math.min(3400,
               (profile.softBlobSporeReach || 0) + params.fontSize * (0.3
                 + (profile.softBlobInflation || 0) * 0.8 + (profile.softBlobMembrane || 0) * 0.72)),
+            surfaceOperatorStrength(metrics[i], 'etchantBloom') * Math.min(1800,
+              (profile.etchantSpill || 0) + (profile.etchantCell || 0) * 3),
             surfaceOperatorStrength(metrics[i], 'sigilForge') * ((profile.sigilReach || 0) * 1.35 + (profile.sigilStroke || 0) * 8 + 24),
             surfaceOperatorStrength(metrics[i], 'thornCrown') * ((profile.thornLength || 0) * 1.25 + (profile.thornStroke || 0) * 8 + 12),
             surfaceOperatorStrength(metrics[i], 'cipherLiturgy') * ((profile.cipherOrbit || 0) + (profile.cipherDrift || 0) * 0.5 + (profile.cipherScale || 0) * 7 + 24),
@@ -18184,6 +18513,10 @@ type deformer</textarea>
             surfaceOperatorStrength(metrics[i], 'pressureStroke') * (Math.max(0, profile.pressureWeight || 0)
               + params.fontSize * ((profile.pressureContrast || 0) * 0.72 + (profile.pressureBreath || 0) * 0.2 + Math.abs(profile.pressureTaper || 0) * 0.4)
               + (profile.pressureSoftness || 0) * 2),
+            surfaceOperatorStrength(metrics[i], 'sinewTorque') * Math.min(3600,
+              Math.abs(profile.sinewPull || 0) + params.fontSize * (0.8
+                + Math.abs(profile.sinewTorque || 0) / 72
+                + Math.max(0, Math.exp(Math.max(0, profile.sinewWaist || 0) * 0.42) - 1))),
             surfaceOperatorStrength(metrics[i], 'cellFracture') * ((profile.fractureScatter || 0) + (profile.fractureCell || 0)),
             surfaceOperatorStrength(metrics[i], 'ribbonEcho') * (Math.abs(profile.ribbonDepth || 0) * 1.25 + params.fontSize * 0.5),
             surfaceOperatorStrength(metrics[i], 'copyDecay') * (Math.abs(profile.copyMotion || 0) + (profile.copyErosion || 0) * 3 + (profile.copyToner || 0) * 18),
@@ -18467,6 +18800,8 @@ type deformer</textarea>
         if (operator === 'webbing') return 60 + Math.min(360, (profile.webReach || 0) * 0.35);
         if (operator === 'softBlob') return 60 + Math.min(760, (profile.softBlobSporeReach || 0) * 0.38)
           + params.fontSize * (0.5 + (profile.softBlobInflation || 0));
+        if (operator === 'etchantBloom') return 50 + Math.min(900,
+          (profile.etchantSpill || 0) + (profile.etchantCell || 0) * 3);
         if (operator === 'sigilForge') return 60 + (profile.sigilReach || 0) * 1.2 + (profile.sigilStroke || 0) * 8;
         if (operator === 'thornCrown') return 60 + (profile.thornLength || 0) * 1.2 + (profile.thornStroke || 0) * 8;
         if (operator === 'cipherLiturgy') return 60 + (profile.cipherOrbit || 0) + (profile.cipherDrift || 0) * 0.5 + (profile.cipherScale || 0) * 7;
@@ -18497,6 +18832,10 @@ type deformer</textarea>
         if (operator === 'contourEtch') return 50 + Math.min(520, (profile.contourBands || 0) * (profile.contourSpacing || 0));
         if (operator === 'pressureStroke') return 50 + Math.max(0, profile.pressureWeight || 0)
           + params.fontSize * ((profile.pressureContrast || 0) * 0.72 + (profile.pressureBreath || 0) * 0.2 + Math.abs(profile.pressureTaper || 0) * 0.4);
+        if (operator === 'sinewTorque') return 50 + Math.min(1800,
+          Math.abs(profile.sinewPull || 0) + params.fontSize * (0.8
+            + Math.abs(profile.sinewTorque || 0) / 72
+            + Math.max(0, Math.exp(Math.max(0, profile.sinewWaist || 0) * 0.42) - 1)));
         if (operator === 'cellFracture') return 50 + (profile.fractureScatter || 0) + (profile.fractureCell || 0);
         if (operator === 'ribbonEcho') return 50 + Math.abs(profile.ribbonDepth || 0) * 1.25;
         if (operator === 'copyDecay') return 50 + Math.abs(profile.copyMotion || 0) + (profile.copyErosion || 0) * 3 + (profile.copyToner || 0) * 18;
@@ -19415,7 +19754,7 @@ type deformer</textarea>
         parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
         parts.push('<metadata>' + escXml(JSON.stringify({
           app: 'type-deformer',
-          version: 19,
+          version: 20,
           sourceText: textInput.value,
           palette: { ink: params.ink, paper: params.paper, accent: params.accent },
           surfaceMixer: { order: surfaceRenderOrder(), direction: 'back-to-front' },
@@ -19438,6 +19777,12 @@ type deformer</textarea>
               mass: params.softBlobInflation, connectivity: params.softBlobStiffness,
               branching: params.softBlobChaos, membrane: params.softBlobMembrane,
               sporeReach: params.softBlobSporeReach, sporeDensity: params.softBlobSporeDensity, pulse: params.softBlobSpeed
+            },
+            etchantBloom: {
+              color: params.etchantColor, sourceMode: params.etchantSourceMode, sourceOpacity: surfaceSourceOpacity('etchantBloom'),
+              opacity: surfaceOutputOpacity('etchantBloom'), blend: surfaceBlendMode('etchantBloom'),
+              morphology: params.etchantPattern, reactionScale: params.etchantCell,
+              growthTime: params.etchantGrowth, polarity: params.etchantPolarity, spill: params.etchantSpill
             },
             sigilForge: {
               color: params.sigilColor, sourceMode: params.sigilSourceMode, sourceOpacity: surfaceSourceOpacity('sigilForge'),
@@ -19567,6 +19912,12 @@ type deformer</textarea>
               angle: params.pressureAngle, frequency: params.pressureFrequency,
               softness: params.pressureSoftness, breath: params.pressureBreath,
               dryness: params.pressureDryness, taper: params.pressureTaper
+            },
+            sinewTorque: {
+              color: params.sinewColor, sourceMode: params.sinewSourceMode, sourceOpacity: surfaceSourceOpacity('sinewTorque'),
+              opacity: surfaceOutputOpacity('sinewTorque'), blend: surfaceBlendMode('sinewTorque'),
+              pull: params.sinewPull, torque: params.sinewTorque,
+              tension: params.sinewTension, waist: params.sinewWaist, axis: params.sinewAxis
             },
             cellFracture: {
               color: params.fractureColor, sourceMode: params.fractureSourceMode, sourceOpacity: surfaceSourceOpacity('cellFracture'),
@@ -21000,6 +21351,11 @@ type deformer</textarea>
       bindRange('pSoftBlobStiffness', 'vSoftBlobStiffness', 'softBlobStiffness', f2, applyAllOperatorVisuals);
       bindRange('pSoftBlobChaos', 'vSoftBlobChaos', 'softBlobChaos', f2, applyAllOperatorVisuals);
       bindRange('pSoftBlobSpeed', 'vSoftBlobSpeed', 'softBlobSpeed', f2, applyAllOperatorVisuals);
+      bindRange('pEtchantPattern', 'vEtchantPattern', 'etchantPattern', f2, applyAllOperatorVisuals);
+      bindRange('pEtchantCell', 'vEtchantCell', 'etchantCell', fPx, applyAllOperatorVisuals);
+      bindRange('pEtchantGrowth', 'vEtchantGrowth', 'etchantGrowth', f0, applyAllOperatorVisuals);
+      bindRange('pEtchantPolarity', 'vEtchantPolarity', 'etchantPolarity', fSigned2, applyAllOperatorVisuals);
+      bindRange('pEtchantSpill', 'vEtchantSpill', 'etchantSpill', fPx, applyAllOperatorVisuals);
       bindRange('pSigilComplexity', 'vSigilComplexity', 'sigilComplexity', f0, applyAllOperatorVisuals);
       bindRange('pSigilReach', 'vSigilReach', 'sigilReach', fPx, applyAllOperatorVisuals);
       bindRange('pSigilSymmetry', 'vSigilSymmetry', 'sigilSymmetry', f2, applyAllOperatorVisuals);
@@ -21105,6 +21461,11 @@ type deformer</textarea>
       bindRange('pPressureBreath', 'vPressureBreath', 'pressureBreath', f2, applyAllOperatorVisuals);
       bindRange('pPressureDryness', 'vPressureDryness', 'pressureDryness', f2, applyAllOperatorVisuals);
       bindRange('pPressureTaper', 'vPressureTaper', 'pressureTaper', fSigned2, applyAllOperatorVisuals);
+      bindRange('pSinewPull', 'vSinewPull', 'sinewPull', fPx, applyAllOperatorVisuals);
+      bindRange('pSinewTorque', 'vSinewTorque', 'sinewTorque', fDeg, applyAllOperatorVisuals);
+      bindRange('pSinewTension', 'vSinewTension', 'sinewTension', f2, applyAllOperatorVisuals);
+      bindRange('pSinewWaist', 'vSinewWaist', 'sinewWaist', fSigned2, applyAllOperatorVisuals);
+      bindRange('pSinewAxis', 'vSinewAxis', 'sinewAxis', fDeg, applyAllOperatorVisuals);
       bindRange('pFractureCell', 'vFractureCell', 'fractureCell', fPx, applyAllOperatorVisuals);
       bindRange('pFractureScatter', 'vFractureScatter', 'fractureScatter', fPx, applyAllOperatorVisuals);
       bindRange('pFractureGap', 'vFractureGap', 'fractureGap', function (v) { return v.toFixed(1) + 'px'; }, applyAllOperatorVisuals);
@@ -23295,7 +23656,7 @@ type deformer</textarea>
       function currentLookState() {
         flushPendingTextRebuild();
         return {
-          version: 19,
+          version: 20,
           text: textInput.value,
           params: cloneKnownParams(params),
           batchProfiles: cloneBatchProfiles(),
@@ -23596,7 +23957,7 @@ type deformer</textarea>
         var preservedMemory = cloneLookMemory();
         preservedMemory.active = activeIndex;
         var loaded = loadProject({
-          app: 'type-deformer', version: 19,
+          app: 'type-deformer', version: 20,
           text: state.text, params: state.params,
           batchProfiles: state.batchProfiles,
           composition: state.composition,
@@ -23754,7 +24115,7 @@ type deformer</textarea>
         flushPendingTextRebuild();
         return {
           app: 'type-deformer',
-          version: 19,
+          version: 20,
           text: textInput.value,
           params: params,
           batchProfiles: cloneBatchProfiles(),
@@ -23807,7 +24168,7 @@ type deformer</textarea>
 
       function projectLoadError(data) {
         if (!isProjectData(data)) return 'Type DeformerのProject JSONではありません。';
-        if (data.version != null && data.version > 19) return 'このProjectは新しいバージョンで保存されています。';
+        if (data.version != null && data.version > 20) return 'このProjectは新しいバージョンで保存されています。';
         if (typeof data.text === 'string' && data.text.length > 500000) return 'テキストが大きすぎます（上限50万文字）。';
         return '';
       }
@@ -24393,7 +24754,7 @@ type deformer</textarea>
       // sparse letter encoding: only letters that deviate from rest
       function shareData() {
         flushPendingTextRebuild();
-        var d = { a: 'td', v: 19, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
+        var d = { a: 'td', v: 20, text: textInput.value, params: {}, profiles: cloneBatchProfiles(), C: persistentCompositionState(), M: cloneLookMemory(), L: [] };
         for (var k in params) { if (k !== 'mode') d.params[k] = params[k]; }
         for (var i = 0; i < metrics.length; i++) {
           var s = letterState(metrics[i]);

@@ -157,17 +157,17 @@ if (html) {
   }
 
   const proceduralOperators = [
-    'plotterTrace', 'webbing', 'softBlob', 'sigilForge', 'thornCrown', 'cipherLiturgy',
+    'plotterTrace', 'webbing', 'softBlob', 'etchantBloom', 'sigilForge', 'thornCrown', 'cipherLiturgy',
     'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter',
     'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'chimeraGraft', 'monolithCast',
-    'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'cellFracture', 'ribbonEcho',
+    'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'sinewTorque', 'cellFracture', 'ribbonEcho',
     'copyDecay', 'risoSeparation', 'slitSweep'
   ];
   const proceduralLabels = [
-    'Kinetic Trace', 'Field Webbing', 'Physarum Blob', 'Sigil Forge', 'Thorn Crown', 'Cipher Liturgy',
+    'Kinetic Trace', 'Field Webbing', 'Physarum Blob', 'Etchant Bloom', 'Sigil Forge', 'Thorn Crown', 'Cipher Liturgy',
     'Bone Scaffold', 'Rose Engine', 'Chrome Reliquary', 'Ligature Crypt', 'Moiré Choir', 'Nave Cutter',
     'Cloister Fold', 'Prism Sacrament', 'Textura Matrix', 'Void Portal', 'Recursive Shrine', 'Morph Procession', 'Chimera Graft', 'Monolith Cast',
-    'Raster Press', 'Hatch Engrave', 'Contour Etch', 'Pressure Stroke', 'Cell Fracture', 'Ribbon Echo',
+    'Raster Press', 'Hatch Engrave', 'Contour Etch', 'Pressure Stroke', 'Sinew Torque', 'Cell Fracture', 'Ribbon Echo',
     'Copy Decay', 'Riso Separation', 'Slit Sweep'
   ];
   const surfaceSnapshotBody = html.match(/var surface = \{([\s\S]*?)\n\s*\};\n\s*var w =/)?.[1] || '';
@@ -181,6 +181,10 @@ if (html) {
   if (!html.includes('cloisterFoldAmount: deform.cloisterFold')
     || !html.includes("surfaceAggregate(glyphs, 'cloisterFold', 'cloisterFoldAmount', params.cloisterFold)")) {
     noteFailure('Cloister Fold strength and Fold amount do not have independent snapshot keys.');
+  }
+  if (!html.includes('sinewTorqueAmount: deform.sinewTorque')
+    || !html.includes("surfaceAggregate(glyphs, 'sinewTorque', 'sinewTorqueAmount', params.sinewTorque)")) {
+    noteFailure('Sinew Torque strength and Torque amount do not have independent snapshot keys.');
   }
   for (const operator of proceduralOperators) {
     if (!new RegExp(`<option\\s+value=["']${operator}["']`).test(markupOnly)) {
@@ -209,10 +213,12 @@ if (html) {
     }
   }
   const extremeRangeChecks = [
+    ['pStretchX', '8'], ['pStretchY', '8'],
     ['pTraceDensity', '4'], ['pTraceDefinition', '256'], ['pTraceStroke', '40'], ['pTraceJitter', '500'], ['pTraceLift', '1'],
     ['pWebDensity', '6'], ['pWebReach', '1800'], ['pWebChaos', '8'], ['pWebSag', '6'], ['pWebStroke', '48'],
     ['pSoftBlobInflation', '6'], ['pSoftBlobStiffness', '5'], ['pSoftBlobChaos', '8'], ['pSoftBlobMembrane', '4'],
     ['pSoftBlobSporeReach', '2400'], ['pSoftBlobSporeDensity', '4'], ['pSoftBlobSpeed', '8'],
+    ['pEtchantPattern', '1'], ['pEtchantCell', '72'], ['pEtchantGrowth', '192'], ['pEtchantPolarity', '1'], ['pEtchantSpill', '640'],
     ['pSigilComplexity', '24'], ['pSigilReach', '640'], ['pSigilSymmetry', '4'], ['pSigilStroke', '20'], ['pSigilBarbs', '6'],
     ['pThornLength', '360'], ['pThornDensity', '6'], ['pThornCurl', '3'], ['pThornStroke', '16'], ['pThornBranches', '4'],
     ['pCipherScale', '36'], ['pCipherDensity', '4'], ['pCipherOrbit', '360'], ['pCipherDrift', '160'], ['pCipherCallouts', '4'],
@@ -235,6 +241,7 @@ if (html) {
     ['pContourEtchBands', '64'], ['pContourEtchSpacing', '40'], ['pContourEtchStroke', '14'], ['pContourEtchDrift', '6'],
     ['pPressureWeight', '260'], ['pPressureContrast', '4'], ['pPressureAngle', '180'], ['pPressureFrequency', '32'], ['pPressureSoftness', '24'],
     ['pPressureBreath', '4'], ['pPressureDryness', '1'], ['pPressureTaper', '2'],
+    ['pSinewPull', '640'], ['pSinewTorque', '540'], ['pSinewTension', '8'], ['pSinewWaist', '4'], ['pSinewAxis', '180'],
     ['pFractureCell', '140'], ['pFractureScatter', '520'], ['pFractureGap', '28'], ['pFractureSpin', '720'],
     ['pRibbonDepth', '520'], ['pRibbonSteps', '96'], ['pRibbonTwist', '540'], ['pRibbonFade', '1'],
     ['pCopyGenerations', '48'], ['pCopyExposure', '1.5'], ['pCopyMotion', '640'], ['pCopyErosion', '24'], ['pCopyToner', '5'], ['pCopyDust', '4'],
@@ -248,10 +255,12 @@ if (html) {
     }
   }
   const extremeMinChecks = [
+    ['pStretchX', '-2'], ['pStretchY', '-2'],
     ['pTraceDensity', '0.02'], ['pTraceDefinition', '1'], ['pTraceStroke', '0.1'], ['pTraceJitter', '0'], ['pTraceLift', '0'],
     ['pWebDensity', '0'], ['pWebReach', '4'], ['pWebChaos', '0'], ['pWebSag', '-6'], ['pWebStroke', '0.1'],
     ['pSoftBlobInflation', '0'], ['pSoftBlobStiffness', '0'], ['pSoftBlobChaos', '0'], ['pSoftBlobMembrane', '0'],
     ['pSoftBlobSporeReach', '0'], ['pSoftBlobSporeDensity', '0'], ['pSoftBlobSpeed', '0'],
+    ['pEtchantPattern', '0'], ['pEtchantCell', '2'], ['pEtchantGrowth', '8'], ['pEtchantPolarity', '-1'], ['pEtchantSpill', '0'],
     ['pSigilComplexity', '1'], ['pSigilReach', '0'], ['pSigilSymmetry', '0'], ['pSigilStroke', '0.2'], ['pSigilBarbs', '0'],
     ['pThornLength', '0'], ['pThornDensity', '0.05'], ['pThornCurl', '-3'], ['pThornStroke', '0.2'], ['pThornBranches', '0'],
     ['pCipherScale', '3'], ['pCipherDensity', '0.1'], ['pCipherOrbit', '0'], ['pCipherDrift', '0'], ['pCipherCallouts', '0'],
@@ -274,6 +283,7 @@ if (html) {
     ['pContourEtchBands', '1'], ['pContourEtchSpacing', '1'], ['pContourEtchStroke', '0.25'],
     ['pPressureWeight', '-120'], ['pPressureFrequency', '0.1'], ['pPressureSoftness', '0.1'],
     ['pPressureBreath', '0'], ['pPressureDryness', '0'], ['pPressureTaper', '-2'],
+    ['pSinewPull', '-640'], ['pSinewTorque', '-540'], ['pSinewTension', '0.1'], ['pSinewWaist', '-2'], ['pSinewAxis', '-180'],
     ['pFractureCell', '4'], ['pFractureSpin', '-720'],
     ['pRibbonDepth', '-520'], ['pRibbonSteps', '1'], ['pRibbonTwist', '-540'],
     ['pCopyGenerations', '1'], ['pCopyExposure', '-1.5'], ['pCopyMotion', '-640'],
@@ -285,7 +295,7 @@ if (html) {
       noteFailure(`${id} does not expose the expected extreme minimum (${expectedMin}).`);
     }
   }
-  for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderCellFracture',
+  for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderEtchantBloom', 'renderSinewTorque', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
     if (!html.includes(`function ${renderer}(`)) noteFailure(`${renderer} is missing from the surface renderer.`);
   }
@@ -440,6 +450,37 @@ if (html) {
     "bindRange('pChimeraGrafts'", "bindRange('pMonolithMass'", "bindRange('pPressureBreath'",
     'grafts: params.chimeraGrafts', 'mass: params.monolithMass', 'breath: params.pressureBreath']) {
     if (!html.includes(marker)) noteFailure(`Body-Energy-Relation Batch/Proof/binding/metadata integration is missing ${marker}.`);
+  }
+  if (!html.includes("buildSurfaceMask(glyphs, 'etchantBloom'")
+    || !html.includes('var chemicalA = new Float32Array(count)')
+    || !html.includes('var reaction = a * b * b')
+    || !html.includes('var permitted = new Float32Array(count)')
+    || !html.includes("paintSurfaceMask(targetCtx, expanded.canvas, surfaceEffectColor('etchantBloom')")) {
+    noteFailure('Etchant Bloom reaction-diffusion field, glyph boundary, or colored output is incomplete.');
+  }
+  if (!html.includes("buildSurfaceMask(glyphs, 'sinewTorque'")
+    || !html.includes('function sourceAlphaAt(x, y)')
+    || !html.includes('for (var solve = 0; solve < 4; solve++)')
+    || !html.includes('Math.exp(waistAmount * centerPressure * 0.42)')
+    || !html.includes("paintSurfaceMask(targetCtx, warped.canvas, surfaceEffectColor('sinewTorque')")) {
+    noteFailure('Sinew Torque continuous inverse warp, bilinear sampling, or colored output is incomplete.');
+  }
+  for (const mapping of ['etchantBloom: renderEtchantBloom', 'sinewTorque: renderSinewTorque']) {
+    if (!html.includes(mapping)) noteFailure(`Morphogenetic Body Fields dispatch is missing ${mapping}.`);
+  }
+  for (const key of ['etchantOpacity', 'sinewOpacity', 'etchantSourceOpacity', 'sinewSourceOpacity',
+    'etchantBlend', 'sinewBlend', 'etchantColor', 'sinewColor']) {
+    if (!html.includes(key)) noteFailure(`Morphogenetic Body Fields Surface Mixer state is missing ${key}.`);
+  }
+  for (const marker of ["etchantBloom: [{ key: 'etchantPattern'", "sinewTorque: [{ key: 'sinewPull'",
+    "bindRange('pEtchantPattern'", "bindRange('pSinewPull'",
+    'morphology: params.etchantPattern', 'pull: params.sinewPull']) {
+    if (!html.includes(marker)) noteFailure(`Morphogenetic Body Fields Batch/Proof/binding/metadata integration is missing ${marker}.`);
+  }
+  if (!html.includes('function signedStretch(amount, response)')
+    || !html.includes('Math.exp(info.currentIntensity * response * amount)')
+    || !html.includes('stretchX < 0.04')) {
+    noteFailure('Stretch no longer supports continuous signed compression and extreme expansion.');
   }
   if (!html.includes("prismSacrament: 'prismColorB'")
     || !html.includes('SURFACE_SECONDARY_COLOR_KEYS[params.activeOperator]')) {
@@ -915,8 +956,8 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*19/g) || []).length < 2 || !html.includes('data.version > 19') || !html.includes("a: 'td', v: 19")) {
-    noteFailure('Project/SVG/share schema version 19 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*20/g) || []).length < 2 || !html.includes('data.version > 20') || !html.includes("a: 'td', v: 20")) {
+    noteFailure('Project/SVG/share schema version 20 or its forward-version guard is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',
@@ -985,6 +1026,14 @@ if (html) {
   if (!html.includes('var CANVAS_VIEW_MIN = 0.05;') || !html.includes('var CANVAS_VIEW_MAX = 32;')
     || !html.includes('function canvasCameraLayout(')) {
     noteFailure('The wide-range unbounded canvas camera contract is incomplete.');
+  }
+  if (!/data-operator-panel="etchantBloom"[\s\S]*?EtchantSpill[\s\S]*?<\/div>\s*<div class="operator-panel" data-operator-panel="sigilForge"/.test(html)) {
+    noteFailure('The Etchant Bloom control panel is not closed before the following operator panel.');
+  }
+  const viewModePointerGuards = html.match(/if \(canvasView\.active\) return;/g) || [];
+  if (viewModePointerGuards.length < 2
+    || !/function setCanvasViewActive\(active\)[\s\S]*?pointer\.active = false;[\s\S]*?pointer\.pulse = false;[\s\S]*?pointer\.strength = 0;/.test(html)) {
+    noteFailure('Canvas VIEW mode does not fully isolate pan gestures from Lens pointer editing.');
   }
   if (!html.includes('compositionPreviewLayout = canvasCameraLayout(width, height)')
     || !html.includes('renderSurfaceFxLayer(surfaceFxCtx, glyphs, dpr, canvasCameraLayout(width, height)')
