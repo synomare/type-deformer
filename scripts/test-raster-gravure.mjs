@@ -98,7 +98,9 @@ test('legacy and four existing modern grammars never enter the Gravure renderer'
   }
 });
 
-test('existing modern Raster Press pixels retain the frozen v57 baseline', () => {
+test('existing modern Raster Press pixels retain the frozen v57 baseline', {
+  skip: process.platform === 'win32' ? false : 'Frozen baseline uses the shipped Windows test fonts.'
+}, () => {
   const cases = [
     ['B&O', 250, 'Times New Roman', 720, 520],
     ['RIFT', 205, 'Arial Black', 720, 520],

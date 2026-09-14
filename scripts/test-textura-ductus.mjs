@@ -151,7 +151,9 @@ test('effect color changes RGB but never geometry or alpha', () => {
   for (let i = 3; i < a.length; i += 4) assert.equal(a[i], b[i]);
 });
 
-test('the five existing Textura grammars retain their frozen v59 pixels', () => {
+test('the five existing Textura grammars retain their frozen v59 pixels', {
+  skip: process.platform === 'win32' ? false : 'Frozen baseline uses the shipped Windows test fonts.'
+}, () => {
   const cases = [
     ['B&O', 220, 'Times New Roman', 680, 440],
     ['RITUAL', 160, 'Arial Black', 720, 400],
