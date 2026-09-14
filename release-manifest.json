@@ -19,10 +19,11 @@
     "playwright.config.js",
     "tests/preview.spec.js",
     "scripts/serve-static.mjs",
+    "scripts/render-caesura-field.mjs",
     "scripts/test-video-browser.mjs"
   ],
   "catalogAssets": [
-    { "directory": "assets/operator-previews", "extension": ".png", "expected": 116 },
+    { "directory": "assets/operator-previews", "extension": ".png", "expected": 116, "manifest": "assets/operator-previews/manifest.json" },
     { "directory": "assets/presets", "extension": ".jpg", "expected": 436 }
   ],
   "vendor": [
@@ -30,7 +31,19 @@
     "assets/vendor/mediabunny-LICENSE.txt",
     "assets/vendor/README.md"
   ],
+  "generatedSources": [
+    ".codex/prototypes/auxetic-type/editor-adapter.js",
+    ".codex/prototypes/calligraphic-field/editor.js",
+    ".codex/prototypes/conformal-type/editor-adapter.js",
+    ".codex/prototypes/counterform-engine/editor-adapter.js",
+    ".codex/prototypes/differential-type/editor-adapter.js",
+    ".codex/prototypes/marbling-type/editor-adapter.js"
+  ],
   "generatedAssets": [
-    "assets/type-deformer-preview-og.png"
+    "assets/type-deformer-preview-og.png",
+    "docs/shared-coverage.json",
+    "docs/shared-coverage.md",
+    "surface-worker-kernels.js",
+    "worker-dependencies.json"
   ]
 }

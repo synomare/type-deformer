@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-const html=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
+const html=(await fs.readFile(new URL('../index.html',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
 function extract(name) {
   const p=html.indexOf(`      function ${name}(`);assert.ok(p>=0,name);
   const tail=html.slice(p);return tail.slice(0,tail.indexOf('\n      }')+8);

@@ -9,15 +9,16 @@ const posix = value => value.split(path.sep).join('/').replace(/^\.\//, '');
 const absolute = value => path.resolve(root, value);
 const exists = value => fs.existsSync(absolute(value)) && fs.statSync(absolute(value)).isFile();
 const manifest = JSON.parse(fs.readFileSync(absolute('release-manifest.json'), 'utf8'));
-const required = new Set(['release-manifest.json', 'scripts/check-release.mjs', ...manifest.entrypoints, ...manifest.documents, ...(manifest.tests || []), ...manifest.vendor, ...manifest.generatedAssets]);
+const required = new Set(['release-manifest.json', 'scripts/check-release.mjs', ...manifest.entrypoints, ...manifest.documents, ...(manifest.tests || []), ...manifest.vendor, ...(manifest.generatedSources || []), ...manifest.generatedAssets]);
 const missing = [];
 const warnings = [];
 for (const file of required) if (!exists(file)) missing.push(`${file} (release manifest)`);
 
 function add(value, from) {
-  if (!value || /^(?:https?:|data:|blob:|#|%23|mailto:|javascript:)/i.test(value)) return;
+  if (!value || /^(?:https?:|data:|blob:|node:|#|%23|mailto:|javascript:)/i.test(value)) return;
   const clean = posix(value.split(/[?#]/)[0]);
   if (!clean) return;
+  if (fs.existsSync(absolute(clean)) && fs.statSync(absolute(clean)).isDirectory()) return;
   if (!exists(clean)) missing.push(`${clean} (from ${from})`);
   else required.add(clean);
 }
@@ -36,7 +37,10 @@ function scanText(file) {
     }
   }
   if (/\.(?:m?js|html)$/.test(file)) {
-    for (const match of source.matchAll(/(?:import\s*\(|new\s+Worker\s*\()\s*["']([^"']+)["']/g)) {
+    for (const match of source.matchAll(/(?:import|export)\s+(?:[^"']*?\s+from\s*)?["']([^"']+)["']/g)) {
+      if (match[1].startsWith('.')) add(posix(path.join(path.dirname(file), match[1])), file);
+    }
+    for (const match of source.matchAll(/(?<!["'])(?:import\s*\(|new\s+Worker\s*\()\s*["']([^"']+)["']/g)) {
       const target = match[1].startsWith('.') ? posix(path.join(path.dirname(file), match[1])) : match[1];
       add(target, file);
     }
@@ -55,14 +59,15 @@ for (let previous = -1; previous !== required.size;) {
 const packageJson = JSON.parse(fs.readFileSync(absolute('package.json'), 'utf8'));
 if (packageJson.version !== manifest.version) missing.push(`package.json version ${packageJson.version} != ${manifest.version}`);
 for (const [name, command] of Object.entries(packageJson.scripts || {})) {
-  for (const match of command.matchAll(/(?:^|\s)([.\w-]+(?:\/[.\w-]+)+\.(?:m?js|json))(?:\s|$)/g)) add(match[1], `package script ${name}`);
+  for (const match of command.matchAll(/(?:^|\s)([.\w-]+(?:\/[.\w-]+)+\.(?:m?js|json))(?=\s|$)/g)) add(match[1], `package script ${name}`);
 }
 
-const atlasFiles = [];
 const loaderSource = fs.readFileSync(absolute('preset-loader.js'), 'utf8');
-for (const match of loaderSource.matchAll(/["'](assets\/presets\/[^"']+\.js)["']/g)) atlasFiles.push(match[1]);
+const presetSources = [...loaderSource.matchAll(/["']((?:assets\/presets\/[^"']+|preset-library)\.js)["']/g)].map(match => match[1]);
+const atlasFiles = presetSources.filter(file => file.startsWith('assets/presets/'));
 if (atlasFiles.length !== 13 || new Set(atlasFiles).size !== 13) missing.push(`preset-loader.js must list 13 unique atlases; found ${atlasFiles.length}`);
-atlasFiles.forEach(file => add(file, 'preset-loader.js'));
+if (!presetSources.includes('preset-library.js')) missing.push('preset-loader.js must list preset-library.js');
+presetSources.forEach(file => add(file, 'preset-loader.js'));
 
 const recipes = [];
 const presetContext = {};
@@ -85,11 +90,17 @@ if (!catalog || orderedCatalogIds.length !== 116 || Object.keys(catalog.metadata
 else orderedCatalogIds.forEach(id => add(`assets/operator-previews/${id}.png`, 'operator catalog'));
 
 for (const spec of manifest.catalogAssets) {
+  if (spec.manifest) add(spec.manifest, `${spec.directory} manifest`);
   const count = fs.readdirSync(absolute(spec.directory)).filter(name => name.endsWith(spec.extension)).length;
   if (count !== spec.expected) warnings.push(`${spec.directory} contains ${count} ${spec.extension} files; expected ${spec.expected}`);
 }
 
 if (manifest.generatedAssets.some(file => !exists(file))) warnings.push('Preview OGP card has not been generated yet.');
+
+for (let previous = -1; previous !== required.size;) {
+  previous = required.size;
+  for (const file of [...required]) scanText(file);
+}
 
 if (process.argv.includes('--require-tracked')) {
   const tracked = new Set(childProcess.execFileSync('git', ['ls-files', '-z'], { cwd: root }).toString('utf8').split('\0').filter(Boolean).map(posix));

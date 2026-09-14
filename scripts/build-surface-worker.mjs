@@ -1,5 +1,6 @@
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');const root=repo;
+const normalizedText=value=>value.replace(/\r\n/g,'\n');
 const acorn={};new Function('exports','module',process.binding('natives')['internal/deps/acorn/acorn/dist/acorn'])(acorn,{exports:acorn});
 const html=fs.readFileSync(path.join(repo,'index.html'),'utf8'),offset=html.lastIndexOf('<script>')+8,source=html.slice(offset,html.indexOf('</script>',offset));
 const ast=acorn.parse(source,{ecmaVersion:'latest'}),text=n=>source.slice(n.start,n.end);
@@ -44,8 +45,8 @@ while(stack.length){const name=stack.pop();if(needed.has(name)||supplied.has(nam
 const report={operators:entries.map(p=>p.key.name),nativeIds,functions:[...needed].filter(n=>declarations.get(n)?.node?.type==='FunctionDeclaration'),variables:[...needed].filter(n=>declarations.get(n)?.node?.type!=='FunctionDeclaration'),unknown:[...unknown]};
 if(unknown.size)throw new Error('Worker dependencies are not supplied: '+[...unknown].join(', '));
 const reportPath=path.join(repo,'worker-dependencies.json'),reportText=JSON.stringify(report,null,2);
-if(process.argv.includes('--check')){if(fs.readFileSync(reportPath,'utf8')!==reportText)throw new Error('Worker dependency manifest differs from editor source. Run node scripts/build-surface-worker.mjs.');}else fs.writeFileSync(reportPath,reportText);
+if(process.argv.includes('--check')){if(normalizedText(fs.readFileSync(reportPath,'utf8'))!==normalizedText(reportText))throw new Error('Worker dependency manifest differs from editor source. Run node scripts/build-surface-worker.mjs.');}else fs.writeFileSync(reportPath,reportText);
 const generated=[...needed].sort((a,b)=>(declarations.get(a)?.start||0)-(declarations.get(b)?.start||0)).map(name=>override[name]||declarations.get(name).code).join('\n\n');
 const result=generated+'\nvar workerCompositionGenerators={'+Object.entries(composeGenerators).map(([k,v])=>k+':'+v).join(',')+'};\nvar workerRenderers={'+entries.map(p=>['conformalType','auxeticType','marblingType'].includes(p.key.name)?p.key.name+':function(ctx,glyphs,width,height,pixelScale,L,fm,coverBase,livePreview){return '+text(p.value)+'(ctx,glyphs,pixelScale,L,fm,livePreview);}':text(p)).join(',\n')+'};\n';
-const target=path.join(repo,'surface-worker-kernels.js');if(process.argv.includes('--check')){if(fs.readFileSync(target,'utf8')!==result)throw new Error('Worker kernels differ from editor source. Run node scripts/build-surface-worker.mjs.');}else fs.writeFileSync(target,result);
+const target=path.join(repo,'surface-worker-kernels.js');if(process.argv.includes('--check')){if(normalizedText(fs.readFileSync(target,'utf8'))!==normalizedText(result))throw new Error('Worker kernels differ from editor source. Run node scripts/build-surface-worker.mjs.');}else fs.writeFileSync(target,result);
 console.log(JSON.stringify({operators:report.operators.length,functions:report.functions.length,variables:report.variables,unknown:report.unknown,bytes:generated.length},null,2));

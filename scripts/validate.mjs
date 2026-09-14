@@ -33,7 +33,7 @@ function localAssetPath(rawUrl) {
   return clean ? path.resolve(root, decodeURIComponent(clean)) : null;
 }
 
-const html = readRequired(htmlPath);
+const html = readRequired(htmlPath).replace(/\r\n/g, '\n');
 const dictionarySource = readRequired(dictionaryPath);
 const packageJson = readRequired(packagePath);
 
