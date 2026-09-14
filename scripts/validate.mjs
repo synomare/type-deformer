@@ -9,6 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const htmlPath = path.join(root, 'index.html');
 const dictionaryPath = path.join(root, 'confuse-dictionary.js');
+const packagePath = path.join(root, 'package.json');
 
 const failures = [];
 const warnings = [];
@@ -34,6 +35,7 @@ function localAssetPath(rawUrl) {
 
 const html = readRequired(htmlPath);
 const dictionarySource = readRequired(dictionaryPath);
+const packageJson = readRequired(packagePath);
 
 if (html) {
   if (!/^<!doctype html>/i.test(html.trimStart())) noteFailure('index.html is missing an HTML doctype.');
@@ -158,6 +160,7 @@ if (html) {
 
   const proceduralOperators = [
     'plotterTrace', 'webbing', 'softBlob', 'etchantBloom', 'sigilForge', 'thornCrown', 'cipherLiturgy',
+    'calligraphicStress', 'asemicDuctus', 'spectralType', 'differentialType', 'conformalType', 'auxeticType', 'marblingType', 'counterformEngine', 'terminalExcess', 'ligatureBody',
     'boneScaffold', 'roseEngine', 'chromeReliquary', 'ligatureCrypt', 'moireChoir', 'naveCutter',
     'cloisterFold', 'prismSacrament', 'texturaMatrix', 'voidPortal', 'recursiveShrine', 'morphProcession', 'chimeraGraft', 'monolithCast',
     'rasterPress', 'hatchEngrave', 'contourEtch', 'pressureStroke', 'sinewTorque', 'cellFracture', 'ribbonEcho',
@@ -165,12 +168,13 @@ if (html) {
   ];
   const proceduralLabels = [
     'Kinetic Trace', 'Field Webbing', 'Physarum Blob', 'Etchant Bloom', 'Sigil Forge', 'Thorn Crown', 'Cipher Liturgy',
+    'Calligraphic Stress', 'Asemic Ductus', 'Spectral Type', 'Differential Type', 'Conformal Type', 'Auxetic Type', 'Marbling Type', 'Counterform Engine', 'Terminal Excess', 'Ligature Body',
     'Bone Scaffold', 'Rose Engine', 'Chrome Reliquary', 'Ligature Crypt', 'Moiré Choir', 'Nave Cutter',
     'Cloister Fold', 'Prism Sacrament', 'Textura Matrix', 'Void Portal', 'Recursive Shrine', 'Morph Procession', 'Chimera Graft', 'Monolith Cast',
     'Raster Press', 'Hatch Engrave', 'Contour Etch', 'Pressure Stroke', 'Sinew Torque', 'Cell Fracture', 'Ribbon Echo',
     'Copy Decay', 'Riso Separation', 'Slit Sweep'
   ];
-  const surfaceSnapshotBody = html.match(/var surface = \{([\s\S]*?)\n\s*\};\n\s*var w =/)?.[1] || '';
+  const surfaceSnapshotBody = html.match(/var surface = (?:hasVisibleSurfaceOperator\(m\) \? )?\{([\s\S]*?)\n\s*\}(?: : null)?;\n\s*var w =/)?.[1] || '';
   const surfaceSnapshotKeys = [...surfaceSnapshotBody.matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)].map((match) => match[1]);
   const duplicateSurfaceSnapshotKeys = [...new Set(surfaceSnapshotKeys.filter((key, index) => surfaceSnapshotKeys.indexOf(key) !== index))];
   if (!surfaceSnapshotBody || duplicateSurfaceSnapshotKeys.length) {
@@ -202,6 +206,19 @@ if (html) {
       noteFailure(`Procedural operator label "${label}" is missing from the Operator select.`);
     }
   }
+  for (const operator of ['calligraphicStress', 'asemicDuctus', 'spectralType', 'differentialType', 'conformalType', 'auxeticType', 'marblingType', 'counterformEngine', 'terminalExcess', 'ligatureBody', 'pressureStroke', 'sinewTorque', 'chimeraGraft', 'contextualFit', 'scrollType']) {
+    if (!html.match(/var GLYPH_BODY_OPERATOR_IDS = \[([^\]]+)\]/)?.[1].includes(`'${operator}'`)) {
+      noteFailure('Glyph Body replacement Operator registry is incomplete.');
+      break;
+    }
+    if (!new RegExp(`${operator}:\\s*render[A-Z]`).test(html)) {
+      noteFailure(`Glyph Body renderer "${operator}" is missing from the Surface renderer map.`);
+    }
+  }
+  if (!html.includes("GLYPH_BODY_OPERATOR_IDS.indexOf(surfaceParamId) === -1 ? 1 : 0")
+    || !html.includes("GLYPH_BODY_OPERATOR_IDS.indexOf(sourceMigrationId) !== -1")) {
+    noteFailure('Glyph Body source text must default to hidden without changing legacy Surface source opacity.');
+  }
   for (const id of ['pSurfaceTextColor', 'pSurfaceEffectColor', 'pSurfaceEffectColorB',
     'pSurfaceSourceOpacity', 'vSurfaceSourceOpacity']) {
     if (!ids.has(id)) noteFailure(`Surface color/source separation is missing ${id}.`);
@@ -223,14 +240,19 @@ if (html) {
     ['pSoftBlobInflation', '6'], ['pSoftBlobStiffness', '5'], ['pSoftBlobChaos', '8'], ['pSoftBlobMembrane', '4'],
     ['pSoftBlobSporeReach', '2400'], ['pSoftBlobSporeDensity', '4'], ['pSoftBlobSpeed', '8'],
     ['pEtchantPattern', '1'], ['pEtchantCell', '72'], ['pEtchantGrowth', '192'], ['pEtchantPolarity', '1'], ['pEtchantSpill', '640'],
+    ['pCalligraphyExpansion', '260'], ['pCalligraphyContrast', '4'], ['pCalligraphyAngle', '180'], ['pCalligraphyPulse', '4'], ['pCalligraphyWetness', '1'],
+    ['pAsemicMemory', '1'], ['pAsemicGestures', '16'], ['pAsemicWeight', '64'], ['pAsemicFlow', '4'], ['pAsemicContrast', '6'], ['pAsemicFlourish', '480'], ['pAsemicCounter', '1.5'],
+    ['pCounterformPressure', '160'], ['pCounterformBridge', '180'], ['pCounterformAperture', '1'], ['pCounterformAngle', '180'], ['pCounterformTrap', '160'],
+    ['pTerminalReach', '360'], ['pTerminalMass', '4'], ['pTerminalSelection', '1'], ['pTerminalBias', '1'], ['pTerminalTrap', '160'],
+    ['pLigatureBodyFusion', '4'], ['pLigatureBodyReach', '1800'], ['pLigatureBodyBand', '240'], ['pLigatureBodyCounter', '1.5'], ['pLigatureBodyTension', '4'],
     ['pSigilBinding', '4'], ['pSigilComplexity', '24'], ['pSigilReach', '640'], ['pSigilSymmetry', '4'], ['pSigilStroke', '20'], ['pSigilBarbs', '6'],
     ['pThornArmor', '4'], ['pThornLength', '360'], ['pThornDensity', '6'], ['pThornCurl', '3'], ['pThornStroke', '16'], ['pThornBranches', '4'],
     ['pCipherRegisters', '4'], ['pCipherScale', '36'], ['pCipherDensity', '4'], ['pCipherOrbit', '360'], ['pCipherDrift', '160'], ['pCipherCallouts', '4'],
-    ['pBoneMarrow', '4'], ['pBoneCell', '40'], ['pBoneBranching', '4'], ['pBoneWeight', '16'], ['pBoneJoint', '28'], ['pBoneWarp', '4'],
+    ['pBoneMarrow', '6'], ['pBoneCell', '96'], ['pBoneBranching', '8'], ['pBoneWeight', '32'], ['pBoneJoint', '64'], ['pBoneWarp', '8'],
     ['pRoseInterlace', '4'], ['pRosePetals', '32'], ['pRoseRings', '8'], ['pRoseRadius', '560'], ['pRoseWarp', '2'], ['pRoseStroke', '18'],
     ['pChromeVoltage', '6'], ['pChromeBevel', '96'], ['pChromeAngle', '180'], ['pChromeBands', '24'], ['pChromeContrast', '4'], ['pChromeWarp', '4'],
     ['pLigatureWeave', '4'], ['pLigatureReach', '1800'], ['pLigatureBand', '180'], ['pLigatureRise', '4'], ['pLigatureCounter', '1.5'], ['pLigatureKnot', '64'],
-    ['pMoirePitch', '160'], ['pMoireDetune', '0.95'], ['pMoireAngle', '180'], ['pMoireDepth', '8'], ['pMoireReach', '1200'],
+    ['pMoireResonance', '8'], ['pMoirePitch', '240'], ['pMoireDetune', '1.5'], ['pMoireAngle', '180'], ['pMoireDepth', '16'], ['pMoireReach', '1800'],
     ['pNaveColumns', '24'], ['pNaveRise', '4'], ['pNaveVoid', '1'], ['pNaveButtress', '80'], ['pNaveWarp', '2'],
     ['pCloisterPlanes', '32'], ['pCloisterFold', '2'], ['pCloisterAxis', '180'], ['pCloisterPerspective', '4'], ['pCloisterCrease', '64'],
     ['pPrismRefraction', '4'], ['pPrismDispersion', '320'], ['pPrismFacets', '32'], ['pPrismCaustic', '6'], ['pPrismBloom', '640'],
@@ -269,6 +291,11 @@ if (html) {
     ['pSoftBlobInflation', '0'], ['pSoftBlobStiffness', '0'], ['pSoftBlobChaos', '0'], ['pSoftBlobMembrane', '0'],
     ['pSoftBlobSporeReach', '0'], ['pSoftBlobSporeDensity', '0'], ['pSoftBlobSpeed', '0'],
     ['pEtchantPattern', '0'], ['pEtchantCell', '2'], ['pEtchantGrowth', '8'], ['pEtchantPolarity', '-1'], ['pEtchantSpill', '0'],
+    ['pCalligraphyExpansion', '-120'], ['pCalligraphyContrast', '0'], ['pCalligraphyAngle', '-180'], ['pCalligraphyPulse', '0'], ['pCalligraphyWetness', '0'],
+    ['pAsemicMemory', '0'], ['pAsemicGestures', '2'], ['pAsemicWeight', '0.4'], ['pAsemicFlow', '-4'], ['pAsemicContrast', '0'], ['pAsemicFlourish', '0'], ['pAsemicCounter', '0'],
+    ['pCounterformPressure', '-120'], ['pCounterformBridge', '0'], ['pCounterformAperture', '0'], ['pCounterformAngle', '-180'], ['pCounterformTrap', '0'],
+    ['pTerminalReach', '0'], ['pTerminalMass', '0.1'], ['pTerminalSelection', '0.05'], ['pTerminalBias', '-1'], ['pTerminalTrap', '0'],
+    ['pLigatureBodyFusion', '0'], ['pLigatureBodyReach', '0'], ['pLigatureBodyBand', '1'], ['pLigatureBodyCounter', '0'], ['pLigatureBodyTension', '-4'],
     ['pSigilBinding', '0'], ['pSigilComplexity', '1'], ['pSigilReach', '0'], ['pSigilSymmetry', '0'], ['pSigilStroke', '0.2'], ['pSigilBarbs', '0'],
     ['pThornArmor', '0'], ['pThornLength', '0'], ['pThornDensity', '0.05'], ['pThornCurl', '-3'], ['pThornStroke', '0.2'], ['pThornBranches', '0'],
     ['pCipherRegisters', '0'], ['pCipherScale', '3'], ['pCipherDensity', '0.1'], ['pCipherOrbit', '0'], ['pCipherDrift', '0'], ['pCipherCallouts', '0'],
@@ -276,7 +303,7 @@ if (html) {
     ['pRoseInterlace', '0'], ['pRosePetals', '3'], ['pRoseRings', '1'], ['pRoseRadius', '8'], ['pRoseWarp', '-2'], ['pRoseStroke', '0.2'],
     ['pChromeVoltage', '0'], ['pChromeBevel', '1'], ['pChromeAngle', '-180'], ['pChromeBands', '2'], ['pChromeContrast', '0'], ['pChromeWarp', '0'],
     ['pLigatureWeave', '0'], ['pLigatureReach', '0'], ['pLigatureBand', '1'], ['pLigatureRise', '-4'], ['pLigatureCounter', '0'], ['pLigatureKnot', '0'],
-    ['pMoirePitch', '2'], ['pMoireDetune', '-0.95'], ['pMoireAngle', '-180'], ['pMoireDepth', '0'], ['pMoireReach', '0'],
+    ['pMoireResonance', '0'], ['pMoirePitch', '2'], ['pMoireDetune', '-1.5'], ['pMoireAngle', '-180'], ['pMoireDepth', '0'], ['pMoireReach', '0'],
     ['pNaveColumns', '1'], ['pNaveRise', '0.25'], ['pNaveVoid', '0'], ['pNaveButtress', '0'], ['pNaveWarp', '-2'],
     ['pCloisterPlanes', '1'], ['pCloisterFold', '-2'], ['pCloisterAxis', '-180'], ['pCloisterPerspective', '0'], ['pCloisterCrease', '0'],
     ['pPrismRefraction', '-4'], ['pPrismDispersion', '0'], ['pPrismFacets', '1'], ['pPrismCaustic', '0'], ['pPrismBloom', '0'],
@@ -318,7 +345,7 @@ if (html) {
   const legacyOperatorGrammarSelects = {
     pThornGrammar: ['hybrid', 'lancet', 'hook', 'vine', 'trident'],
     pCipherDialect: ['mixed', 'unicode', 'machine', 'ledger', 'ritual'],
-    pBoneArchitecture: ['adaptive', 'spine', 'ribcage', 'truss'],
+    pBoneArchitecture: ['trabecular', 'adaptive', 'spine', 'ribcage', 'truss'],
     pRoseCore: ['auto', 'oculus', 'foil', 'compass', 'knot', 'rosette'],
     pLigatureGrammar: ['ribbon', 'joinery', 'blackletter', 'suture']
   };
@@ -342,10 +369,10 @@ if (html) {
     }
   }
   const adaptiveMaterialSelects = {
-    pRasterScreen: ['legacy', 'adaptive', 'stochastic', 'line', 'mezzotint'],
+    pRasterScreen: ['legacy', 'gravure', 'adaptive', 'stochastic', 'line', 'mezzotint'],
     pHatchGrammar: ['legacy', 'tonal', 'crosscut', 'burin', 'woodcut'],
     pFractureTopology: ['triangles', 'impact', 'fault', 'crystal', 'spall'],
-    pRibbonPath: ['legacy', 'extrude', 'helix', 'fan', 'braid']
+    pRibbonPath: ['legacy', 'extrude', 'helix', 'fan', 'braid', 'lamina']
   };
   for (const [id, values] of Object.entries(adaptiveMaterialSelects)) {
     const select = markupOnly.match(new RegExp(`<select\\b[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]*?)<\\/select>`, 'i'));
@@ -381,6 +408,21 @@ if (html) {
     if (!html.includes(marker)) noteFailure(`Legacy Operator grammar state integration is missing ${marker}.`);
   }
   for (const marker of [
+    "boneArchitecture: 'lamellar'",
+    "boneArchitecture: ['trabecular', 'adaptive', 'spine', 'ribcage', 'truss', 'lamellar']",
+    'function renderBoneLamellar(',
+    'function boneLamellarFullMask(',
+    'function renderBoneTrabecularV36(',
+    "surfaceScratch('bone-v36-trabecular-body'",
+    "'bone-v36-periosteal-envelope'",
+    'var constructionMask = surfaceBoundaryEnvelopeCanvas(',
+    'function strokeTrabecula(',
+    'function drawOsteon(',
+    "if (architecture === 'trabecular')"
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Bone Scaffold v36 trabecular-body integration is missing ${marker}.`);
+  }
+  for (const marker of [
     "bindProfileSelect('pMoireLattice'", "bindRange('pMoireResonance'",
     "bindProfileSelect('pNavePlan'", "bindRange('pNaveRibwork'",
     "bindProfileSelect('pCloisterTessellation'", "bindRange('pCloisterRelief'",
@@ -398,9 +440,9 @@ if (html) {
     if (!html.includes(marker)) noteFailure(`Early Operator evolution state integration is missing ${marker}.`);
   }
   for (const marker of [
-    "surfaceNodesForGlyphs(glyphs, 'moireChoir', 8", "topology === 'concentric'",
-    "surfaceScratch('nave-cutter-apertures'", "plan === 'fan'", 'Ribwork detail',
-    "topology === 'miura'", "surfaceScratch('cloister-fold-evolved-seams'",
+    "surfaceNodesForGlyphs(glyphs, 'moireChoir', 12", "topology === 'concentric'",
+    "surfaceScratch('nave-cutter-v34-body-mask'", "plan === 'fan'", 'Ribwork detail',
+    'var miuraGrid = []', "surfaceScratch('cloister-fold-piecewise-seams'",
     "surfaceScratch('prism-sacrament-rays'", "optics === 'fresnel'",
     'function traceTexturaGrammarStem(', "grammar === 'bastarda'"
   ]) {
@@ -477,6 +519,17 @@ if (html) {
     if (!html.includes(marker)) noteFailure(`Five Process renderer is missing ${marker}.`);
   }
   for (const marker of [
+    '<option value="relief" selected>Hachure relief</option>',
+    "contourGrammar: 'relief'", "contourSourceMode: 'ghost'",
+    'function contourReliefFieldV57(', 'function contourReliefHachuresV57(',
+    'function contourReliefCounterTicksV57(', 'function renderContourReliefV57(',
+    "if (grammar === 'relief')", 'level % 5 === 0',
+    'surfaceVoidTopology(field, width, height)', 'maximumMarks == null ? 12000',
+    'Number(data.version || 0) < 57'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Contour Etch v57 relief integration is missing ${marker}.`);
+  }
+  for (const marker of [
     'topology: params.sigilTopology, binding: params.sigilBinding',
     'grammar: params.contourGrammar, relief: params.contourRelief',
     'master: params.risoPlateMap, pressure: params.risoPressure',
@@ -501,7 +554,9 @@ if (html) {
   for (const refinement of ['function drawLancet(', 'function drawHook(', 'function drawBud(',
     'function cipherSecondaryToken(', "return 'B' + binary.slice(-8)",
     "surfaceChoice(glyphs, 'thornCrown'", "surfaceChoice(glyphs, 'cipherLiturgy'",
-    'var registerKind =', 'var armorStrength =']) {
+    'var registerKind =', 'var armorStrength =', 'function drawTaperedArmature(',
+    'var rootLimit = Math.min(72', 'function drawBasalPad(', 'function drawBackBarb(',
+    'function drawTrident(']) {
     if (!html.includes(refinement)) noteFailure(`Digital Gothic ornament or inscription variation is missing ${refinement}.`);
   }
   if (!html.includes("surfaceBoundaryDistance(source.data, width, height)")
@@ -513,8 +568,17 @@ if (html) {
   for (const refinement of ['function addPoint(x, y, distance, tangentX, tangentY, ridge)',
     'function drawRoseHub(hubRadius)', 'function chromeOffsetShell(name, shiftX, shiftY, color, opacity)',
     "chrome-reliquary-magenta-rim", "chrome-reliquary-white-rim", 'var acidAmount =',
-    'function strokeBoneEdge(', 'var ringTipSets =', 'var posterSteps =']) {
+    'function strokeBoneEdge(', 'function connectRidgeSlices(previous, current)',
+    'forcedIndex < forcedEdges.length', 'var ringTipSets =', 'var posterSteps =']) {
     if (!html.includes(refinement)) noteFailure(`Cathedral Topology refinement is missing ${refinement}.`);
+  }
+  for (const refinement of ['function traceRoseEngineRail(', 'function traceRoseConnection(',
+    'var satelliteCandidates = nodes.slice().sort', 'var environmentBand =',
+    "surfaceScratch('chrome-reliquary-reflection'", 'var anisotropicGlint =',
+    'function cipherCollectGroups(', 'function cipherMacroToken(', 'function drawCipherHierarchy()',
+    'drawCipherHierarchy();', 'bone-scaffold-structural', 'function sampleSlice(',
+    'function strokeRoseCurrentPath(', 'function drawRoseBoss(', 'var archivolt = 0']) {
+    if (!html.includes(refinement)) noteFailure(`Second Operator quality pass is missing ${refinement}.`);
   }
   for (const key of ['boneOpacity', 'roseOpacity', 'chromeOpacity',
     'boneSourceOpacity', 'roseSourceOpacity', 'chromeSourceOpacity',
@@ -530,19 +594,53 @@ if (html) {
     noteFailure('Ligature Crypt source-order, bounded-band, or counter geometry is incomplete.');
   }
   for (const refinement of ['function traceLigatureConstructionBand(', 'function ligatureConstructionPoint(',
-    "grammar !== 'ribbon'", 'constructionPairs.length < 96', 'Construction detail']) {
+    "grammar !== 'ribbon'", 'constructionPairs.length < 96', 'Construction density',
+    'line: Math.max(0, parseInt(el.dataset.line, 10) || 0)',
+    'word: Math.max(0, parseInt(el.dataset.word, 10) || 0)',
+    'constructionA.glyph.word !== constructionB.glyph.word', 'var joineryRailOffset =',
+    'var freshStructure = {', 'el.dataset.line = freshStructure.line',
+    'el.dataset.word = freshStructure.word']) {
     if (!html.includes(refinement)) noteFailure(`Ligature Crypt construction refinement is missing ${refinement}.`);
+  }
+  for (const refinement of ['function renderLigatureCryptV31(', 'function renderLigatureCryptV32(',
+    'function ligatureCryptMaskAnchorV32(', 'function ligatureCryptPairCompatibleV32(',
+    'sourceB !== sourceA + 1', 'function ligatureCryptDrawMortiseMaskV32(',
+    'function ligatureCryptDrawBraidMaskV32(', 'function ligatureCryptPrepareSutureV32(',
+    "surfaceScratch('ligature-crypt-word-form-v32'", 'line: source.line', 'word: source.word',
+    'params.ligatureSourceOpacity = 0.12', 'Construction density', 'Mortise fusion',
+    'Textura counter braid', 'Cut-edge suture']) {
+    if (!html.includes(refinement)) noteFailure(`Ligature Crypt v32 word-form renderer is missing ${refinement}.`);
+  }
+  if ((html.match(/\.glyph\.line !== [^\n]*\.glyph\.line/g) || []).length < 2) {
+    noteFailure('Ligature Crypt must reject cross-line joins in both construction and ribbon grammars.');
   }
   if (!html.includes("surfaceBoundaryDistance(source.data, width, height)")
     || !html.includes('secondFrequency = frequency') || !html.includes('phaseA - phaseB')
     || !html.includes("surfaceEffectColor('moireChoir')")) {
     noteFailure('Moiré Choir distance-linked detuned interference renderer is incomplete.');
   }
+  for (const refinement of ["surfaceScratch('moire-choir-v35-wavefront-field'",
+    'var thirdFrequency = frequency', 'thirdDistance = Infinity',
+    'Math.PI * (radial - secondRadial) / pitch', 'var waveSum =',
+    'var causticPhase =', 'var beatPhase = (phaseA - phaseB) * 0.5',
+    'var antinodeRail =', 'var nodalRail =', 'var choralEnvelope =',
+    'Nodal choir', 'Wavefront wells', 'Angular caustics', 'Woven beat lattice',
+    'params.moireResonance = 0']) {
+    if (!html.includes(refinement)) noteFailure(`Moiré Choir v35 wavefront-field refinement is missing ${refinement}.`);
+  }
   if (!html.includes("buildSurfaceMask(glyphs, 'naveCutter'")
     || !html.includes("surfaceScratch('nave-cutter-supports'")
     || !html.includes("ctx.globalCompositeOperation = 'destination-out'")
     || !html.includes("supports.ctx.globalCompositeOperation = 'destination-in'")) {
     noteFailure('Nave Cutter subtractive apertures or mask-clipped buttresses are incomplete.');
+  }
+  for (const refinement of ["surfaceNodesForGlyphs(glyphs, 'naveCutter', 192",
+    "surfaceScratch('nave-cutter-v34-masonry'", "surfaceScratch('nave-cutter-v34-rib-network'",
+    'var groupsByLine = {}', 'function tracePointedOpening(', 'function strokeNaveRib(',
+    'function drawNaveBoss(', 'function drawClusteredPier(',
+    "ctx.globalCompositeOperation = 'destination-out'", 'voidAmount * (0.72 + voidAmount * 0.38)',
+    "plan === 'loop'", "plan === 'clerestory'", 'params.naveSourceOpacity = 0.14', 'Legacy arcade · Rib 0']) {
+    if (!html.includes(refinement)) noteFailure(`Nave Cutter v34 architectural-body refinement is missing ${refinement}.`);
   }
   for (const mapping of ['ligatureCrypt: renderLigatureCrypt', 'moireChoir: renderMoireChoir', 'naveCutter: renderNaveCutter']) {
     if (!html.includes(mapping)) noteFailure(`Word-Bound Optical Architecture dispatch is missing ${mapping}.`);
@@ -558,9 +656,22 @@ if (html) {
     if (!html.includes(marker)) noteFailure(`Word-Bound Optical Architecture Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
   if (!html.includes("buildSurfaceMask(glyphs, 'cloisterFold'")
-    || !html.includes('ctx.transform(axialScale, 0, shear, compression')
-    || !html.includes('plane < planes')) {
+    || !html.includes('function affineTriangle(')
+    || !html.includes('ctx.setTransform(a, b, c, d, e, f)')
+    || !html.includes('function foldVertex(')
+    || !html.includes("surfaceScratch('cloister-fold-piecewise-body'")) {
     noteFailure('Cloister Fold coherent plane clipping or affine fold geometry is incomplete.');
+  }
+  for (const marker of [
+    "if (topology === 'strips')", 'var accordionRows = []', 'var diamondGrid = []',
+    'var fanInner = [], fanOuter = []', 'var miuraGrid = []',
+    'var toneAmounts = [-0.84, -0.62, -0.4, -0.14, 0.08, 0.3, 0.54]',
+    'function cloisterFacetTone(tone)', 'tone: cloisterFacetTone(tone)',
+    'function facetInkForTone(tone)', 'facetInkCache.length < 7',
+    'params.cloisterSourceOpacity = 0.14', 'Facet relief', 'Fold density',
+    'Fold depth', 'Depth projection', 'Crease weight'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Cloister Fold v32 piecewise-sheet refinement is missing ${marker}.`);
   }
   if (!html.includes("buildSurfaceMask(glyphs, 'prismSacrament'")
     || !html.includes('function signedDistanceAt(') || !html.includes('offsetA = baseShift + dispersion')
@@ -593,9 +704,10 @@ if (html) {
   }
   if (!html.includes("buildSurfaceMask(glyphs, 'recursiveShrine'")
     || !html.includes('function drawRecursiveMask(')
+    || !html.includes('function renderRecursiveShrineLegacy(')
     || !html.includes("xorLayer.ctx.globalCompositeOperation = 'xor'")
     || !html.includes('iteration < iterations')) {
-    noteFailure('Recursive Shrine affine recursion or parity/XOR rendering is incomplete.');
+    noteFailure('Recursive Shrine Legacy affine recursion or parity/XOR rendering is incomplete.');
   }
   if (!html.includes('function surfaceMorphGlyphField(')
     || !html.includes('var signed = new Float32Array(size * size)')
@@ -620,7 +732,24 @@ if (html) {
     || !html.includes('var course = Math.floor((y - originY) / moduleSize)')
     || !html.includes('surfaceVoidApertureMask(mask, 0)')
     || !html.includes('var courseGroove = formwork')) {
-    noteFailure('Monolith Cast mass, construction-course, counter, or formwork rendering is incomplete.');
+    noteFailure('Monolith Cast legacy mass, construction-course, counter, or formwork rendering is incomplete.');
+  }
+  if (!ids.has('pMonolithGrammar')
+    || !html.includes("monolithGrammar: ['legacy', 'strata', 'ashlar', 'vault', 'stereotomy']")
+    || !html.includes("bindProfileSelect('pMonolithGrammar', 'monolithGrammar'")
+    || !html.includes("surfaceChoice(glyphs, 'monolithCast', 'monolithGrammar'")
+    || !html.includes('function renderMonolithCastLegacy(')
+    || !html.includes('function monolithGlyphBoundsV35(')
+    || !html.includes('function monolithBodyV35(')
+    || !html.includes('function monolithDrawStrataV35(')
+    || !html.includes('function monolithDrawAshlarV35(')
+    || !html.includes('function monolithDrawVaultV35(')
+    || !html.includes('function monolithDrawStereotomyV35(')
+    || !html.includes('voidPortalGlyphScanV33(entry.glyph, bounds')
+    || !html.includes('var legacyMonolithCast = Number(data.version || 0) < 35')
+    || !html.includes("params.monolithGrammar = 'legacy'")
+    || !html.includes("batchProfiles[monolithProfileKey].monolithGrammar = 'legacy'")) {
+    noteFailure('Monolith Cast v35 grammar, glyph-local construction renderer, or v34 compatibility migration is incomplete.');
   }
   if (!html.includes("buildSurfaceMask(glyphs, 'chimeraGraft'")
     || !html.includes('var donor = active[(hostIndex + 1) % active.length]')
@@ -837,7 +966,7 @@ if (html) {
   }
   if (!html.includes('function renderOperatorBrowser()')
     || !html.includes('function syncOperatorGuide()')
-    || !html.includes("setActiveOperator(button.dataset.operatorBrowserId)")
+    || !html.includes("setActiveOperator(button.dataset.operatorBrowserId, 'user')")
     || !html.includes("operatorBrowser.addEventListener('keydown'")
     || !html.includes("operatorBrowserReturnFocus")
     || !html.includes('var currentIndex = focusable.indexOf(document.activeElement);')
@@ -846,12 +975,13 @@ if (html) {
     || !html.includes('id="pOperator" aria-describedby="operatorGuideSummary"')) {
     noteFailure('Effect Browser search, selection, persistence, focus return, or current-effect explanation is incomplete.');
   }
-  for (const id of ['applicationModeHint', 'applicationQuickTitle', 'applicationQuickStatus', 'btnApplyCurrentTarget']) {
+  for (const id of ['applicationModeHint', 'applicationQuickTitle', 'applicationQuickStatus', 'btnApplyCurrentTarget', 'btnReleaseCurrentTarget', 'pBatchGroup', 'batchTargetName']) {
     if (!ids.has(id)) noteFailure(`Apply-stage quick action is missing ${id}.`);
   }
   if (!html.includes('function matchingBatchMetrics(')
     || !html.includes('function updateApplicationSummary()')
-    || !html.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.all)")
+    || !html.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.none, true)")
+    || !html.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.none, false)")
     || !html.includes('.panel-section[data-panel-section="apply"] .stage-lede { display: none; }')) {
     noteFailure('The selected Effect cannot be applied to the current target from the first Apply-stage viewport.');
   }
@@ -1008,11 +1138,11 @@ if (html) {
     || !html.includes('syncMobileStepperPair(pair)')) {
     noteFailure('Mobile range steppers lack readable names, endpoint state, or control relationships.');
   }
-  if (!html.includes("var resetName = rowLabels.length ? rowLabels.join(' and ') : 'parameter group'")
-    || !html.includes("parameterRow.resetButton.setAttribute('aria-label', 'Reset ' + resetName)")) {
+  if (!html.includes("parameterRow.resetName = rowLabels.length ? rowLabels.join(' and ') : 'parameter group'")
+    || !html.includes("reset.setAttribute('aria-label','Reset '+row.resetName)")) {
     noteFailure('Parameter-row reset actions no longer expose distinct readable names.');
   }
-  if (!/populatePresets\(\);\s*syncCompositionUI\(\);[\s\S]*?initParameterNavigator\(\);\s*syncLookMemoryUI\(\);/s.test(html)
+  if (!/populatePresets\(\);\s*syncCompositionUI\(\);[\s\S]*?initParameterNavigator\(\);[\s\S]*?syncLookMemoryUI\(\);/s.test(html)
     || /initProgressiveUI\(\);\s*initParameterNavigator\(\);/.test(html)
     || !html.includes('select[id^="p"]:not(#pOperator):not(#pCompositionEngine)')) {
     noteFailure('Parameter RESET baselines can be captured before canonical Compose defaults or include the engine picker.');
@@ -1153,8 +1283,341 @@ if (html) {
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*25/g) || []).length < 2 || !html.includes('data.version > 25') || !html.includes("a: 'td', v: 25")) {
-    noteFailure('Project/SVG/share schema version 25 or its forward-version guard is incomplete.');
+  if ((html.match(/version:\s*92/g) || []).length < 2 || !html.includes('data.version > 92') || !html.includes("a: 'td', v: 92")) {
+    noteFailure('Project/SVG/share schema version 92 or its forward-version guard is incomplete.');
+  }
+  for (const marker of [
+    '<script src="conditions-of-type.js"></script>', 'CONDITIONS OF TYPE / 文字の条件',
+    "rubyUsurper: conditionSurfaceRenderer('rubyUsurper')", "punctuationLoom: conditionSurfaceRenderer('punctuationLoom')",
+    "counterpage: conditionSurfaceRenderer('counterpage')", "rendererDebt: conditionSurfaceRenderer('rendererDebt')",
+    "ligatureContagion: conditionSurfaceRenderer('ligatureContagion')", "strokeCommons: conditionSurfaceRenderer('strokeCommons')",
+    "rubyText: ''", "counterpageText: ''", 'function conditionSurfaceRenderer(', 'test:conditions'
+  ]) {
+    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Conditions of Type v68 integration is missing ${marker}.`);
+  }
+  for (const relativePath of ['conditions-of-type.js', 'scripts/test-conditions-of-type.mjs']) {
+    if (!fs.existsSync(path.join(root, relativePath))) noteFailure(`Conditions of Type v68 evidence is missing ${relativePath}.`);
+  }
+  for (const marker of [
+    '<option value="caesuraField">Caesura Field · 句読点の呼吸</option>',
+    'data-operator-panel="caesuraField"', "caesuraField: { id: 'caesuraField'",
+    "caesuraGrammar: ['aperture', 'terrace', 'hinge']",
+    "caesuraField: ['caesuraGrammar', 'caesuraBreath', 'caesuraLift', 'caesuraHierarchy', 'caesuraAngle', 'caesuraSpan']",
+    'function caesuraPunctuationStrength(', 'function buildCaesuraFieldFrames(',
+    'function caesuraFieldValues(', 'function applyCaesuraFieldVisual(',
+    'buildCaesuraFieldFrames(metrics, params.vertical)', "'--op-caesura-x'",
+    "bindProfileSelect('pCaesuraGrammar'", "segmentation: 'explicit punctuation classes; no semantic inference'",
+    'test:caesura'
+  ]) {
+    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Caesura Field v63 integration is missing ${marker}.`);
+  }
+  for (const relativePath of ['scripts/test-caesura-field.mjs', 'scripts/render-caesura-field.mjs']) {
+    if (!fs.existsSync(path.join(root, relativePath))) noteFailure(`Caesura Field v63 evidence is missing ${relativePath}.`);
+  }
+  for (const marker of ["<option value=\"counterbody\" selected>Compound counterbody</option>",
+    "ligatureBodyGrammar: ['legacy', 'counterbody', 'interlock'", 'function renderLigatureBodyV29(',
+    'function surfaceLigatureRibbonV62(', 'function renderLigatureCounterbodyV62(',
+    "grammar === 'counterbody'", "params.ligatureBodyGrammar = 'interlock'", 'test:ligature']) {
+    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Ligature Body v62 Counterbody integration is missing ${marker}.`);
+  }
+  for (const marker of ["<option value=\"birefringent\" selected>Birefringent field</option>",
+    "prismOptics: ['legacy', 'crystal', 'birefringent'", 'function prismFacetCellV61(',
+    'function prismBoundaryEmittersV61(', 'function renderPrismBirefringentV61(',
+    "optics === 'birefringent'", "params.prismOptics = 'crystal'"]) {
+    if (!html.includes(marker)) noteFailure(`Prism Sacrament v61 integration is missing ${marker}.`);
+  }
+  for (const marker of [
+    '<option value="ductus">Medial ductus</option>',
+    "texturaGrammar: ['stems', 'textura', 'ductus', 'fraktur', 'bastarda', 'lattice']",
+    'function texturaDuctusBoundsV60(', 'function texturaDuctusSignatureV60(', 'function texturaDuctusThinV60(',
+    'function texturaDuctusTraceV60(', 'function texturaDuctusPrepareV60(',
+    'function texturaDuctusGeometryV60(', 'function renderTexturaDuctusV60(',
+    "if (grammar === 'ductus')", "surfaceScratch('textura-matrix-v60-ductus'",
+    'texturaDuctusPreparedCacheV60', 'test:textura'
+  ]) {
+    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Textura Matrix v60 Medial Ductus integration is missing ${marker}.`);
+  }
+  for (const marker of [
+    "gutterFugue: { id: 'gutterFugue'", '<option value="gutterFugue">Gutter Fugue · 見開きの対位</option>',
+    'data-operator-panel="gutterFugue"',
+    'function buildGutterFugueFrames(', 'function gutterFugueValues(', 'function applyGutterFugueVisual(',
+    'buildGutterFugueFrames(metrics, params.vertical)', "'--op-fugue-x'", "gutterFugue: ['--op-fugue-x'",
+    "bindRange('pGutterTension'", 'activeOnlyInSpreads: true'
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Gutter Fugue v59 integration is missing ${marker}.`);
+  }
+  for (const marker of [
+    'function rasterGravureCellPathV58(', 'function rasterGravurePlanV58(', 'function drawRasterGravureV58(',
+    "if (screen === 'gravure')", 'maxCells || 12000', "rasterScreen: 'gravure'",
+    "Number(data.version || 0) < 58", "params.rasterScreen = 'adaptive'"
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Raster Press v58 Gravure integration is missing ${marker}.`);
+  }
+  const asemicGrammarSelect = markupOnly.match(/<select\b[^>]*\bid=["']pAsemicGrammar["'][^>]*>([\s\S]*?)<\/select>/i);
+  const asemicModes = ['current', 'chamber', 'incised', 'polyphonic'];
+  if (!asemicGrammarSelect || asemicModes.some((value) => !new RegExp(`value=["']${value}["']`).test(asemicGrammarSelect[1]))) {
+    noteFailure('Asemic Ductus v37 is missing one or more script grammars.');
+  }
+  for (const marker of [
+    'function renderAsemicDuctus(', 'function asemicCandidatePool(', 'function asemicSelectAnchors(',
+    'function asemicRenderChamber(', 'function asemicCutCounters(', "surfaceVoidTopology(field, width, height)",
+    "asemicDuctus: renderAsemicDuctus", "asemicDuctus: [{ key: 'asemicMemory'",
+    "bindProfileSelect('pAsemicGrammar', 'asemicGrammar'", "surfaceOperatorStrength(m, 'asemicDuctus')",
+    "if (!glyphText.trim()) continue", "if (metas.length > 96) gestures = Math.min(gestures, 6)",
+    "(((compositionState.phase % 1) + 1) % 1) * Math.PI * 2"
+  ]) {
+    if (!html.includes(marker)) noteFailure(`Asemic Ductus v37 body integration is missing ${marker}.`);
+  }
+  const extractIndentedFunction = (name) => {
+    const match = html.match(new RegExp(`^      function ${name}\\([\\s\\S]*?^      \\}`, 'm'));
+    return match ? match[0] : '';
+  };
+  const asemicRuntimeNames = [
+    'hash', 'surfaceNearestGlyphMeta', 'asemicCanonicalPoint', 'asemicCandidatePool',
+    'asemicSelectAnchors', 'asemicOrderAnchors', 'asemicBuildAnchors'
+  ];
+  const asemicRuntimeSource = asemicRuntimeNames.map(extractIndentedFunction).join('\n');
+  if (asemicRuntimeNames.some((name) => !extractIndentedFunction(name))) {
+    noteFailure('Asemic Ductus geometry functions cannot be isolated for deterministic validation.');
+  } else {
+    try {
+      const sandbox = { Math, Uint8Array, Float32Array, params: { seed: 7, vertical: false } };
+      vm.createContext(sandbox);
+      new vm.Script(asemicRuntimeSource, { filename: 'asemic-ductus-v37-geometry.js' }).runInContext(sandbox);
+      const width = 96, height = 96;
+      const inside = new Uint8Array(width * height);
+      const distance = new Float32Array(width * height);
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const nx = (x - 48) / 30;
+        const ny = (y - 48) / 34;
+        const radial = Math.hypot(nx, ny);
+        const index = y * width + x;
+        if (radial <= 1) {
+          inside[index] = 1;
+          distance[index] = Math.max(0, (1 - radial) * 24);
+        }
+      }
+      const meta = { index: 0, x: 48, y: 48, halfW: 30, halfH: 34 };
+      const metas = [meta];
+      const field = { inside, distance, bounds: [18, 14, 78, 82] };
+      const roundAnchors = (points) => points.map(({ x, y }) => [Number(x.toFixed(6)), Number(y.toFixed(6))]);
+      const modes = ['current', 'chamber', 'incised', 'polyphonic'];
+      const modeKeys = new Set();
+      for (const mode of modes) {
+        const atZero = sandbox.asemicBuildAnchors(field, width, height, metas, meta, mode, 0.68, 7, 1.16, 34, 0, 9243);
+        const atLoop = sandbox.asemicBuildAnchors(field, width, height, metas, meta, mode, 0.68, 7, 1.16, 34, Math.PI * 2, 9243);
+        const atHalf = sandbox.asemicBuildAnchors(field, width, height, metas, meta, mode, 0.68, 7, 1.16, 34, Math.PI, 9243);
+        if (atZero.length < 2 || atZero.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y))) {
+          noteFailure(`Asemic Ductus ${mode} geometry is blank or non-finite.`);
+        }
+        const zeroKey = JSON.stringify(roundAnchors(atZero));
+        if (zeroKey !== JSON.stringify(roundAnchors(atLoop))) {
+          noteFailure(`Asemic Ductus ${mode} geometry does not close exactly at Compose phase 1.`);
+        }
+        if (zeroKey === JSON.stringify(roundAnchors(atHalf))) {
+          noteFailure(`Asemic Ductus ${mode} geometry does not respond at Compose phase 0.5.`);
+        }
+        modeKeys.add(zeroKey);
+      }
+      if (modeKeys.size !== modes.length) {
+        noteFailure('Asemic Ductus script grammars collapse to the same anchor geometry.');
+      }
+      const minimum = sandbox.asemicBuildAnchors(field, width, height, metas, meta, 'current', 0, 2, -4, 0, 0, 0, 9243);
+      const maximum = sandbox.asemicBuildAnchors(field, width, height, metas, meta, 'current', 1, 16, 4, 480, Math.PI, 9243);
+      if (minimum.length !== 2 || maximum.length < 16 || JSON.stringify(roundAnchors(minimum)) === JSON.stringify(roundAnchors(maximum))) {
+        noteFailure('Asemic Ductus minimum and maximum geometry budgets are ineffective.');
+      }
+    } catch (error) {
+      noteFailure(`Asemic Ductus deterministic geometry validation failed: ${error.message}`);
+    }
+  }
+  if (!ids.has('pTraceGrammar')
+    || !html.includes("traceGrammar: ['legacy', 'circuit', 'relay', 'carriage', 'duet']")
+    || !html.includes("bindProfileSelect('pTraceGrammar', 'traceGrammar'")
+    || !html.includes("surfaceChoice(glyphs, 'plotterTrace', 'traceGrammar'")
+    || !html.includes('function renderPlotterTraceLegacy(')
+    || !html.includes('function traceMaskContoursV34(')
+    || !html.includes('function traceTimelineV34(')
+    || !html.includes('function renderTraceTimelineV34(')
+    || !html.includes('var legacyKineticTrace = Number(data.version || 0) < 34')
+    || !html.includes("params.traceGrammar = 'legacy'")
+    || !html.includes("batchProfiles[traceProfileKey].traceGrammar = 'legacy'")) {
+    noteFailure('Kinetic Trace v34 grammar, contour/timeline renderer, or v33 compatibility migration is incomplete.');
+  }
+  for (const id of ['pCalligraphyTool', 'pCounterformGrammar', 'pTerminalStyle', 'pLigatureBodyGrammar']) {
+    if (!ids.has(id)) noteFailure(`Glyph Anatomy v29 grammar suite is missing ${id}.`);
+  }
+  for (const fn of ['renderCalligraphicStressLegacy', 'renderCounterformEngineLegacy', 'renderTerminalExcessLegacy',
+    'renderLigatureBodyLegacy', 'surfaceCounterExit', 'surfaceStemWidthAt', 'surfaceLigatureShoulder']) {
+    if (!html.includes(`function ${fn}(`)) noteFailure(`Glyph Anatomy v29 grammar suite is missing ${fn}().`);
+  }
+  if (!html.includes('var legacyGlyphAnatomy = Number(data.version || 0) < 29')
+    || !html.includes("params.calligraphyTool = 'legacy'")
+    || !html.includes("params.counterformGrammar = 'legacy'")
+    || !html.includes("params.terminalStyle = 'legacy'")
+    || !html.includes("params.ligatureBodyGrammar = 'legacy'")
+    || !html.includes('calligraphyLegacyTool')
+    || !html.includes('counterformLegacyGrammar')
+    || !html.includes('terminalLegacyStyle')
+    || !html.includes('ligatureBodyLegacyGrammar')) {
+    noteFailure('Glyph Anatomy v29 no longer preserves the exact v28 renderer sub-modes.');
+  }
+  if (!html.includes('// BEGIN COUNTERFORM ENGINE GENERATED')
+    || !html.includes('function renderCounterformEngineV29(')
+    || !html.includes('function renderCounterformEngine(')
+    || !html.includes("counterformGrammar: ['legacy', 'apertureV29', 'stencilV29', 'trapV29', 'channelV29', 'aperture', 'stencil', 'trap', 'channel']")
+    || !html.includes('var legacyCounterformV29 = Number(data.version || 0) < 42')
+    || !html.includes("value + 'V29' : value")
+    || !html.includes('batchProfiles[counterformProfileKey].counterformGrammar = preserveV29CounterformGrammar')
+    || !html.includes("surfaceScratch('counterform-engine-v42-local-body'")
+    || !html.includes('counterformInvalidateFonts(); refreshConfuseFontCandidates()')) {
+    noteFailure('Counterform Engine v42 glyph-local runtime, v29 preservation, bounded source lifecycle or schema migration is incomplete.');
+  }
+  if (!ids.has('pPressureSystem')
+    || !html.includes("pressureSystem: ['legacy', 'gesture', 'bristle', 'pool', 'flyingWhite']")
+    || !html.includes('function renderPressureStrokeLegacy(')
+    || !html.includes("bindProfileSelect('pPressureSystem', 'pressureSystem'")
+    || !html.includes("params.pressureSystem = 'legacy'")
+    || !html.includes('Number(data.version || 0) < 30')
+    || !html.includes('function preserveV29MaterialGrammar(')
+    || !html.includes('adaptiveV29')
+    || !html.includes('tonalV29')
+    || !html.includes('ghostingV29')
+    || !html.includes('var rasterV29')
+    || !html.includes('var hatchV29')
+    || !html.includes('var copyV29')
+    || !html.includes('function surfaceBoundaryEnvelopeCanvas(')
+    || !html.includes('var defectLevel = 0;')) {
+    noteFailure('Material-transfer v30 grammars, exact Pressure migration, or visible plate/machine failure structures are incomplete.');
+  }
+  if (!ids.has('pMorphChoreography')
+    || !html.includes("morphChoreography: ['legacy', 'corridor', 'braid', 'cascade', 'membrane']")
+    || !html.includes("bindProfileSelect('pMorphChoreography', 'morphChoreography'")
+    || !html.includes('var legacyMorphProcession = Number(data.version || 0) < 31')
+    || !html.includes("params.morphChoreography = 'legacy'")
+    || !html.includes('function renderMorphProcessionLegacy(')
+    || !html.includes('function surfaceMorphGlyphDescriptor(')
+    || !html.includes('function surfaceMorphFieldSample(')
+    || !html.includes('function strokeMorphCorrespondence(')
+    || !html.includes("rendering === 'doubleContour'")
+    || !html.includes('var edgeInset = Math.min(distance * 0.18')
+    || !html.includes('if (pairs.length <= 18) return pairs')
+    || !html.includes("'morph-procession-v31-color'")) {
+    noteFailure('Morph Procession v31 choreography, Batch binding, or v30 migration is incomplete.');
+  }
+  if (!ids.has('pRecursiveStructure')
+    || !html.includes("recursiveStructure: ['legacy', 'reliquary', 'tracery', 'cantor', 'mandorla']")
+    || !html.includes("bindProfileSelect('pRecursiveStructure', 'recursiveStructure'")
+    || !html.includes('var legacyRecursiveShrine = Number(data.version || 0) < 32')
+    || !html.includes("params.recursiveStructure = 'legacy'")
+    || !html.includes("batchProfiles[recursiveProfileKey].recursiveStructure = 'legacy'")
+    || !html.includes('params.recursiveSourceOpacity = 0.16')
+    || !html.includes('function drawRecursiveNodeMaskV32(')
+    || !html.includes('function recursiveShrineGraphV32(')
+    || !html.includes('function recursiveShrineFrameV32(')
+    || !html.includes('function drawRecursiveShrineRailsV32(')
+    || !html.includes('var totalNodeBudget = 360')
+    || !html.includes("'recursive-shrine-v32-paper-apertures'")
+    || !html.includes("'recursive-shrine-v32-body-color'")
+    || !html.includes("'recursive-shrine-v32-rail-color'")
+    || !html.includes("'recursive-shrine-v32-glint-color'")) {
+    noteFailure('Recursive Shrine v32 per-glyph graph, compatibility migration, bounded layers, or persistence is incomplete.');
+  }
+  if (!ids.has('pVoidArchitecture')
+    || !html.includes("voidArchitecture: ['legacy', 'archivolt', 'carceri', 'horizon']")
+    || !html.includes("bindProfileSelect('pVoidArchitecture', 'voidArchitecture'")
+    || !html.includes('var legacyVoidPortal = Number(data.version || 0) < 33')
+    || !html.includes("params.voidArchitecture = 'legacy'")
+    || !html.includes("batchProfiles[voidProfileKey].voidArchitecture = 'legacy'")
+    || !html.includes('params.voidSourceOpacity = 0.18')
+    || !html.includes('function renderVoidPortalLegacy(')
+    || !html.includes('function voidPortalGlyphBoundsV33(')
+    || !html.includes('function voidPortalLabelComponentsV33(')
+    || !html.includes('function voidPortalAperturesV33(')
+    || !html.includes('function voidPortalSectionStateV33(')
+    || !html.includes('var maxGlyphs = 56')
+    || !html.includes("'void-portal-v33-paper-color'")
+    || !html.includes("'void-portal-v33-terminal-color'")
+    || !html.includes("'void-portal-v33-rib-color'")
+    || !html.includes("'void-portal-v33-rail-color'")
+    || !html.includes("'void-portal-v33-rim-color'")) {
+    noteFailure('Void Portal v33 per-glyph aperture topology, architecture modes, migration, or layered rendering is incomplete.');
+  }
+  if (!html.includes('function renderCellFractureV24(')
+    || !html.includes('function drawTransformedFractureFragment(')
+    || !html.includes('function renderImpactFractureV31(')
+    || !html.includes('function renderFaultFractureV31(')
+    || !html.includes('function renderCrystalFractureV31(')
+    || !html.includes('function renderSpallFractureV31(')
+    || !html.includes("'cell-fracture-v31-paper-cuts'")
+    || !html.includes("'cell-fracture-v31-propagation-edges'")) {
+    noteFailure('Cell Fracture v31 fragments, distinct fracture regimes, or layered crack output is incomplete.');
+  }
+  if (!html.includes('function renderSigilForgeV25(')
+    || !html.includes('function prepareSigilComponentsV31(')
+    || !html.includes('function sigilComponentTransformV31(')
+    || !html.includes('function sigilRosettePathV31(')
+    || !html.includes('componentBudget || active.length')
+    || !html.includes("'sigil-forge-v31-compound-body'")
+    || !html.includes("'sigil-forge-v31-negative-counters'")
+    || !html.includes("'sigil-forge-v31-compound-color'")) {
+    noteFailure('Sigil Forge v31 affine glyph components, functional component budget, body fusion, or negative-counter layers are incomplete.');
+  }
+  if (!html.includes('function renderRibbonEchoV25(')
+    || !html.includes('function ribbonSectionStateV31(')
+    || !html.includes('function ribbonSkinStripV31(')
+    || !html.includes('function ribbonFanLeavesV31(')
+    || !html.includes('params.ribbonSourceOpacity = 0.28')
+    || !html.includes('Math.min(96, Math.max(8,')
+    || !html.includes("'ribbon-echo-v31-section-body'")
+    || !html.includes("'ribbon-echo-v31-paper-gaps'")
+    || !html.includes("'ribbon-echo-v31-section-color'")) {
+    noteFailure('Ribbon Echo v31 ordered sections, bounded sweep, skinned bodies, paper gaps, source-opacity default, or layered output is incomplete.');
+  }
+  if (!html.includes('function renderSlitSweepV25(')
+    || !html.includes('function slitTimeCoordinateV31(')
+    || !html.includes('function slitTemporalSamplesV31(')
+    || !html.includes('function slitDrawTemporalStateV31(')
+    || !html.includes('params.slitSourceOpacity = 0.26')
+    || !html.includes("'slit-sweep-v31-temporal-field'")
+    || !html.includes("'slit-sweep-v31-temporal-color'")
+    || !html.includes('var maxDraws = 6800')) {
+    noteFailure('Slit Sweep v31 finite cache, temporal sampling, source-opacity default, bounded draw cap, or layered output is incomplete.');
+  }
+  for (const id of ['pWebTopology', 'pEtchantRegime', 'pSinewSystem', 'pChimeraSystem']) {
+    if (!ids.has(id)) noteFailure(`Organic field/anatomy grammar suite is missing ${id}.`);
+  }
+  for (const fn of ['renderWebbingLegacy', 'renderEtchantBloomLegacy', 'renderSinewTorqueLegacy',
+    'renderChimeraGraftLegacy', 'strokeEtchantContours']) {
+    if (!html.includes(`function ${fn}(`)) noteFailure(`Organic field/anatomy grammar suite is missing ${fn}().`);
+  }
+  if (!html.includes("params.webTopology = 'legacy'")
+    || !html.includes("params.etchantRegime = 'legacy'")
+    || !html.includes("params.sinewSystem = 'legacy'")
+    || !html.includes("params.chimeraSystem = 'legacy'")
+    || !html.includes("bindProfileSelect('pWebTopology', 'webTopology'")
+    || !html.includes("bindProfileSelect('pEtchantRegime', 'etchantRegime'")
+    || !html.includes("bindProfileSelect('pSinewSystem', 'sinewSystem'")
+    || !html.includes("bindProfileSelect('pChimeraSystem', 'chimeraSystem'")) {
+    noteFailure('Organic field/anatomy grammars no longer preserve v27 rendering or participate in Batch/UI state.');
+  }
+  for (const id of ['pMisregSystem', 'pMisregWarp', 'pMisregZones', 'pMisregSlur', 'pMisregTrap',
+    'pMoshGrammar', 'pMoshMemory', 'pMoshCoherence', 'pBlobVisual', 'pBlobInfluence',
+    'pBlobDensity', 'pBlobVector', 'pBlobTrails', 'pBlobStroke', 'pBlobMaxMove', 'pBlobRevive']) {
+    if (!ids.has(id)) noteFailure(`Signal/press/tracker Operator suite is missing ${id}.`);
+  }
+  for (const fn of ['renderMisregistration', 'renderDataMosh', 'renderBlobTrack',
+    'drawRegistrationSliceField', 'dataMoshFrameIndex', 'blobTrackSurfaceSources']) {
+    if (!html.includes(`function ${fn}(`)) noteFailure(`Signal/press/tracker Operator suite is missing ${fn}().`);
+  }
+  if (!html.includes('var SURFACE_OPERATOR_IDS = TypeDeformerCatalog.surfaceIds.slice()')
+    || !html.includes("surfaceFieldNodesForGlyphs(glyphs, 'blobTrack'")
+    || !html.includes("var sourcePairs = {};")
+    || !html.includes("params.blobVisual = 'legacy'")
+    || !html.includes("params.misregSystem = 'legacy'")
+    || !html.includes("params.moshGrammar = 'legacy'")
+    || !html.includes('select, input[type="text"], input[type="search"] { flex: 1 1 auto; min-width: 0; }')) {
+    noteFailure('Signal/press/tracker rendering, v26 migration, Surface registration, or narrow-panel containment is incomplete.');
   }
   for (const id of ['lookMemoryBlock', 'lookMemoryCount', 'lookMemoryGrid', 'lookMemoryStatus',
     'btnLookCompare', 'btnLookReturn', 'lookCompareOverlay', 'lookCompareFrame',
@@ -1236,6 +1699,32 @@ if (html) {
     || !html.includes('renderSurfaceFxLayer(surfaceFxCtx, glyphs, dpr, canvasCameraLayout(width, height)')
     || !html.includes('var screenshotLayout = canvasCameraLayout(cssWidth, cssHeight)')) {
     noteFailure('DOM text, procedural effects, Compose, or View shot no longer share one explicit camera.');
+  }
+  const surfaceCanonicalRasterBlock = html.match(/function surfaceCanonicalRasterPlan\(glyphs\)[\s\S]*?\n\s*function renderSurfaceFxLayer\(/)?.[0] || '';
+  if (!surfaceCanonicalRasterBlock
+    || surfaceCanonicalRasterBlock.includes('matchMedia')
+    || !html.includes('var plan = surfaceCanonicalRasterPlan(glyphs);')
+    || !html.includes('var canonicalLayout = plan.layout;')
+    || !html.includes('var rasterFactor = outputDensity / plan.density;')
+    || !html.includes('scale*(L.dx+plan.bounds.x*L.s)')
+    || !html.includes('renderers[id](layer.ctx,glyphs,width,height,pixelScale,canonicalLayout,fm,false,livePreview,context);')) {
+    noteFailure('Surface topology is no longer built in one camera- and export-independent world raster.');
+  }
+  if (!html.includes('if (!regenerate && compositionScene && compositionScene.presented) return compositionScene;')
+    || !html.includes('function withSceneRenderClock(scene, callback)')
+    || !html.includes('snapshotRenderableScene(width, height, true)')
+    || (html.match(/withSceneRenderClock\([^,]+, function \(\)/g) || []).length < 4) {
+    noteFailure('Static outputs no longer reuse the presented Compose scene and render clock.');
+  }
+  if (!html.includes('var compositionCameraOnlyPending = false;')
+    || !html.includes('scheduleCompositionDraw(true);')
+    || !html.includes('var canReusePresentedScene = cameraOnly && compositionScene && compositionScene.presented')
+    || !html.includes('withSceneRenderClock(compositionScene, function ()')) {
+    noteFailure('Camera-only Compose redraws are rebuilding or retiming the logical scene.');
+  }
+  if (html.includes("if (qualityMode === 'export') compositionQualityOverride = 'high';")
+    || html.includes("if (qualityMode === 'export') return compact ? 24000 : 48000;")) {
+    noteFailure('Export silently overrides the preview quality or FX budget, breaking screen/output parity.');
   }
   if (ids.has('canvasSizeBadge') || ids.has('canvasSizeText') || ids.has('btnCanvasReset')) {
     noteFailure('Legacy finite/resizable canvas-frame UI is still present.');

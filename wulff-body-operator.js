@@ -1,0 +1,33 @@
+// Finite-facet Wulff construction: intersection of n.x <= gamma(n).
+// Cubic {100}, {110}, {111} families; gamma100 = 1. Shape volume is
+// normalized before glyph-guided aggregation. See wulff-body-research.md.
+(function(root){'use strict';
+  var schema={label:'Wulff Body',short:'wlf',color:'#34404a',description:'面ごとの表面エネルギーから結晶粒を作り、粒の大きさと向きで文字の穴・接続・稜線を組み直します。',
+    defaults:{wulff111:1,wulff110:1.12,wulffSize:.12,wulffFill:.95,wulffHabit:1,wulffDisorder:.25,wulffYaw:22,wulffTilt:-24},
+    limits:{wulff111:[.45,1.9],wulff110:[.65,1.9],wulffSize:[.04,.26],wulffFill:[.55,1.55],wulffHabit:[.22,3],wulffDisorder:[0,1],wulffYaw:[-180,180],wulffTilt:[-80,80]},integers:[],options:{},
+    labels:{wulff111:'111面 / 比率',wulff110:'110面 / 比率',wulffSize:'Grain / 粒間隔',wulffFill:'Size / 粒の大きさ',wulffHabit:'Habit / 板と針',wulffDisorder:'Disorder / 向き',wulffYaw:'Yaw / 横の視点',wulffTilt:'Tilt / 縦の視点'}};
+  function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+  function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
+  function unit(a){var m=Math.hypot.apply(null,a)||1;return a.map(function(v){return v/m;});}
+  function planes(a,b){var out=[];for(var x=-1;x<=1;x++)for(var y=-1;y<=1;y++)for(var z=-1;z<=1;z++){var count=Math.abs(x)+Math.abs(y)+Math.abs(z);if(!count)continue;out.push({n:unit([x,y,z]),h:count===1?1:count===2?b:a,family:count===1?'100':count===2?'110':'111'});}return out;}
+  var shapeCache=new Map();
+  function polyhedron(a,b){var key=a+','+b;if(shapeCache.has(key))return shapeCache.get(key);var pp=planes(a,b),vertices=[],faces=[];
+    for(var i=0;i<pp.length-2;i++)for(var j=i+1;j<pp.length-1;j++)for(var k=j+1;k<pp.length;k++){var A=pp[i],B=pp[j],C=pp[k],bc=cross(B.n,C.n),ca=cross(C.n,A.n),ab=cross(A.n,B.n),d=dot(A.n,bc);if(Math.abs(d)<1e-9)continue;var q=bc.map(function(v,t){return (A.h*v+B.h*ca[t]+C.h*ab[t])/d;});if(pp.some(function(p){return dot(p.n,q)>p.h+1e-8;}))continue;if(vertices.some(function(v){return Math.hypot(v[0]-q[0],v[1]-q[1],v[2]-q[2])<1e-7;}))continue;vertices.push(q);}
+    pp.forEach(function(p){var vs=[];vertices.forEach(function(v,i){if(Math.abs(dot(p.n,v)-p.h)<1e-7)vs.push(i);});if(vs.length<3)return;var center=[0,0,0];vs.forEach(function(i){vertices[i].forEach(function(v,k){center[k]+=v/vs.length;});});var u=unit(cross(p.n,Math.abs(p.n[2])<.8?[0,0,1]:[0,1,0])),v=cross(p.n,u);vs.sort(function(i,j){var aa=vertices[i].map(function(x,k){return x-center[k];}),bb=vertices[j].map(function(x,k){return x-center[k];});return Math.atan2(dot(aa,v),dot(aa,u))-Math.atan2(dot(bb,v),dot(bb,u));});faces.push({indices:vs,normal:p.n,family:p.family});});
+    var volume=0;faces.forEach(function(f){var a=vertices[f.indices[0]];for(var i=1;i<f.indices.length-1;i++)volume+=dot(a,cross(vertices[f.indices[i]],vertices[f.indices[i+1]]))/6;});var scale=Math.cbrt(8/volume),result={planes:pp,vertices:vertices.map(function(v){return v.map(function(x){return x*scale;});}),faces:faces,rawVolume:volume,scale:scale,volume:8};if(shapeCache.size>=12)shapeCache.delete(shapeCache.keys().next().value);shapeCache.set(key,result);return result;
+  }
+  function random(i,seed){var v=(Math.imul(i+1,0x45d9f3b)^(seed|0))>>>0;v=Math.imul(v^(v>>>16),0x45d9f3b);v=Math.imul(v^(v>>>16),0x45d9f3b);return ((v^(v>>>16))>>>0)/4294967296;}
+  // Farthest-point sampling covers the glyph with separated interior sites.
+  // This is a
+  // typographic arrangement of independent grains, not an aggregate energy
+  // minimizer, a nucleation model, or a simulation of inter-grain boundaries.
+  function sites(s,b,p,seed){var D=Math.max(b.w,b.h),pitch=D*p.wulffSize,step=Math.max(1,D/150),candidates=[],points=[];if(b.empty)return {points:points,pitch:pitch};for(var y=b.y0;y<=b.y1;y+=step)for(var x=b.x0;x<=b.x1;x+=step){var ix=Math.min(s.w-1,Math.round(x)),iy=Math.min(s.h-1,Math.round(y));if(s.alpha[iy*s.w+ix]>=.5)candidates.push({x:ix,y:iy});}if(!candidates.length){for(var y=b.y0;y<=b.y1&&!candidates.length;y++)for(var x=b.x0;x<=b.x1;x++)if(s.alpha[y*s.w+x]>.02){candidates.push({x:x,y:y});break;}}if(!candidates.length)return {points:points,pitch:pitch};var distances=new Float64Array(candidates.length).fill(Infinity),next=Math.min(candidates.length-1,Math.floor(random(100,seed)*candidates.length));for(var n=0;n<1600;n++){var q=candidates[next];points.push({x:q.x,y:q.y,id:n});var far=-1;for(var i=0;i<candidates.length;i++){var dx=candidates[i].x-q.x,dy=candidates[i].y-q.y,d=dx*dx+dy*dy;if(d<distances[i])distances[i]=d;if(distances[i]>far){far=distances[i];next=i;}}if(far<pitch*pitch)break;}return {points:points,pitch:pitch};}
+  function grainRotation(v,id,amount,seed){var yaw=(random(id*7+3,seed)-.5)*Math.PI*amount,tilt=(random(id*7+4,seed)-.5)*Math.PI*amount,roll=(random(id*7+5,seed)-.5)*Math.PI*amount,c=Math.cos(roll),s=Math.sin(roll),x=v[0]*c-v[1]*s,y=v[0]*s+v[1]*c;return root.TypeDeformerMetamorphicBody.internals.rotate([x,y,v[2]],yaw,tilt);}
+  // The volume-preserving affine habit A=diag(1/sqrt(h),1/sqrt(h),h)
+  // changes the anisotropy. Face normals transform with A^(-T), not A.
+  function habitPoint(q,h){return [q[0]/Math.sqrt(h),q[1]/Math.sqrt(h),q[2]*h];}
+  function habitNormal(n,h){return unit([n[0]*Math.sqrt(h),n[1]*Math.sqrt(h),n[2]/h]);}
+  function mesh(s,b,p,seed){var shape=polyhedron(p.wulff111,p.wulff110),grains=sites(s,b,p,seed),D=Math.max(b.w,b.h),radius=grains.pitch*.62*p.wulffFill,mesh={v:[],t:[]};grains.points.forEach(function(site){var z=(random(site.id*7+6,seed)-.5)*radius*.6*p.wulffDisorder,coords=shape.vertices.map(function(q){var v=grainRotation(habitPoint(q,p.wulffHabit),site.id,p.wulffDisorder,seed);return [(site.x-b.cx+radius*v[0])/D,(site.y-b.cy+radius*v[1])/D,(z+radius*v[2])/D];});shape.faces.forEach(function(f){var n=grainRotation(habitNormal(f.normal,p.wulffHabit),site.id,p.wulffDisorder,seed),start=mesh.v.length;f.indices.forEach(function(i){mesh.v.push(coords[i].concat([-1,-1],n));});for(var j=1;j<f.indices.length-1;j++)mesh.t.push([start,start+j,start+j+1]);});});mesh.diagnostics={grains:grains.points.length,facets:shape.faces.length,rawCrystalVolume:shape.rawVolume,normalizedCrystalVolume:shape.volume};return mesh;}
+  function render(s,p,color,accent,seed){var I=root.TypeDeformerMetamorphicBody.internals,b=I.bounds(s),m=mesh(s,b,p,seed==null?17:seed);return I.renderMesh(s,b,m,color,p.wulffYaw,p.wulffTilt);}
+  root.TypeDeformerWulffBody={schemas:{wulffBody:schema},ids:['wulffBody'],renderers:{wulffBody:render},effectPad:function(id,g){return Math.ceil((g?Math.max(g.w,g.h):180)*1.1+12);},internals:{dot:dot,cross:cross,planes:planes,polyhedron:polyhedron,sites:sites,habitPoint:habitPoint,habitNormal:habitNormal,grainRotation:grainRotation,mesh:mesh}};
+})(typeof globalThis!=='undefined'?globalThis:this);

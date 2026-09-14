@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0-preview.1",
+  "entrypoints": [
+    "index.html",
+    "package.json",
+    "package-lock.json",
+    ".github/workflows/validate.yml"
+  ],
+  "documents": [
+    "README.md",
+    "CHANGELOG.md",
+    "KNOWN_LIMITATIONS.md",
+    "PRIVACY.md",
+    "THIRD_PARTY_NOTICES.md",
+    "ASSETS_LICENSE.md",
+    "LICENSE"
+  ],
+  "tests": [
+    "playwright.config.js",
+    "tests/preview.spec.js",
+    "scripts/serve-static.mjs",
+    "scripts/test-video-browser.mjs"
+  ],
+  "catalogAssets": [
+    { "directory": "assets/operator-previews", "extension": ".png", "expected": 116 },
+    { "directory": "assets/presets", "extension": ".jpg", "expected": 436 }
+  ],
+  "vendor": [
+    "assets/vendor/mediabunny-1.56.1.mjs",
+    "assets/vendor/mediabunny-LICENSE.txt",
+    "assets/vendor/README.md"
+  ],
+  "generatedAssets": [
+    "assets/type-deformer-preview-og.png"
+  ]
+}

@@ -1,0 +1,67 @@
+#btnPresetLibrary { width: 100%; margin: .5rem 0 0; min-height: 44px; }
+#presetLibrary {
+  padding: 0; width: min(1160px, calc(100vw - 32px)); height: min(800px, calc(100dvh - 32px));
+  max-width: none; max-height: none; border: 1px solid var(--ink); background: var(--card); color: var(--ink);
+  overflow: hidden; box-shadow: 8px 8px 0 #0004; font-family: var(--mono), sans-serif;
+}
+#presetLibrary:not([open]) { display: none; }
+#presetLibrary[open] { display: flex; flex-direction: column; }
+#presetLibrary::backdrop { background: #17140fcc; }
+#presetLibrary button { box-shadow: none; transform: none; min-height: 44px; }
+#btnPresetLibraryClose { flex-shrink: 0; min-width: 60px; }
+#presetLibrary :is(button, input, select):focus-visible { outline: 2px solid var(--red); outline-offset: -3px; }
+.preset-library-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 22px; border-bottom: 1px solid var(--ink); }
+.preset-library-head p { margin: 0 0 4px; color: var(--dim); font-size: 10px; letter-spacing: .12em; }
+.preset-library-head h2 { margin: 0; font: 24px/1.3 var(--jp); letter-spacing: .04em; }
+.preset-library-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px 22px 0; }
+.preset-library-filters label { display: grid; gap: 5px; font-size: 11px; }
+.preset-library-filters :is(input, select) { width: 100%; min-width: 0; height: 44px; background: var(--paper); color: var(--ink); font: 14px var(--mono), sans-serif; }
+.preset-library-view { display: flex; gap: 8px; align-items: center; padding: 12px 22px; }
+.preset-library-view button { background: transparent; font-size: 11px; }
+.preset-library-view button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.preset-library-view output { margin-left: auto; color: var(--dim); font-size: 11px; white-space: nowrap; }
+.preset-library-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; border-top: 1px solid var(--ink); flex: 1; min-height: 0; }
+.preset-library-results { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.preset-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; gap: 14px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; padding: 18px 22px; overscroll-behavior: contain; }
+.preset-library-pager { display: grid; grid-template-columns: minmax(6rem, 1fr) auto minmax(6rem, 1fr); align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-top: 1px solid var(--ink); background: var(--paper); }
+.preset-library-pager button:last-child { justify-self: end; }
+.preset-library-pager output { min-width: 4.5rem; text-align: center; font-size: 0.7rem; letter-spacing: 0.12em; }
+#presetLibrary .preset-library-card { min-width: 0; height: auto; align-self: start; display: block; overflow: hidden; padding: 0; text-align: left; letter-spacing: 0; text-transform: none; background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+#presetLibrary .preset-library-card[aria-pressed="true"] { outline: 2px solid var(--red); outline-offset: -2px; border-color: var(--red); }
+.preset-library-card img { display: block; flex-shrink: 0; width: 100%; height: auto; aspect-ratio: 600/370; object-fit: contain; }
+.preset-library-card-name { display: block; padding: 10px 12px 4px; font-size: 12px; line-height: 1.5; }
+.preset-library-card-operators { display: block; padding: 0 12px 12px; font-size: 9px; line-height: 1.5; color: var(--dim); }
+.preset-library-detail { display: flex; flex-direction: column; gap: 10px; padding: 18px; border-left: 1px solid var(--ink); overflow: hidden; }
+.preset-library-summary { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+#presetLibraryPreview { display: block; width: 100%; height: auto; aspect-ratio: 600/370; object-fit: contain; }
+#presetLibrarySelected { font: 18px/1.5 var(--jp); margin: 0; }
+#presetLibraryOperators { font-size: 10px; color: var(--dim); line-height: 1.6; margin: 0; }
+#presetLibraryDescription { font: 13px/1.8 var(--jp); margin: 0; }
+.preset-library-actions { flex-shrink: 0; margin-top: auto; padding-top: 12px; display: grid; gap: 8px; }
+#btnPresetLibraryApply { background: var(--ink); color: var(--card); font-size: 12px; }
+#btnPresetLibraryExample { background: transparent; color: var(--ink); font-size: 11px; }
+.preset-library-hint, #presetLibraryStatus { font-size: 10px; line-height: 1.7; margin: 0; color: var(--dim); }
+#presetLibraryStatus { flex-shrink: 0; color: var(--red); }
+#presetLibraryStatus:empty { display: none; }
+.preset-library-empty { grid-column: 1/-1; padding: 40px 10px; font-size: 13px; text-align: center; }
+@media (min-width: 1100px) { .preset-library-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  #presetLibrary { width: 100%; height: 100dvh; margin: 0; border: 0; box-shadow: none; padding-top: env(safe-area-inset-top); }
+  .preset-library-head { padding: 12px 14px; gap: 10px; }
+  .preset-library-head h2 { font-size: 18px; letter-spacing: 0; }
+  .preset-library-filters { padding: 12px 14px 0; gap: 8px; }
+  .preset-library-filters :is(input, select) { font-size: 16px; }
+  .preset-library-view { padding: 10px 14px; flex-wrap: wrap; }
+  .preset-library-body { display: flex; flex-direction: column; }
+  .preset-library-results { flex: 1; min-height: 100px; }
+  .preset-library-grid { padding: 12px 14px; gap: 10px; }
+  .preset-library-card-name { padding: 8px; font-size: 11px; }
+  .preset-library-card-operators { display: none; }
+  .preset-library-detail { flex-shrink: 0; border-left: 0; border-top: 1px solid var(--ink); padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); gap: 5px; max-height: 44dvh; }
+  .preset-library-summary { gap: 5px; }
+  #presetLibraryPreview, #presetLibraryDescription { display: none; }
+  #presetLibrarySelected { font-size: 16px; }
+  .preset-library-actions { grid-template-columns: 1fr 1fr; padding-top: 4px; }
+  .preset-library-hint { grid-column: 1/-1; font-size: 9px; }
+  #presetLibraryStatus { min-height: 0; font-size: 9px; }
+}
