@@ -1670,7 +1670,7 @@ if (html) {
     || !html.includes('stageWorld.style.transform =')) {
     noteFailure('The unbounded stage world or its independent camera transform is incomplete.');
   }
-  const canvasCameraBlock = html.match(/\/\* ---------------- canvas view camera ----------------[\s\S]*?window\.addEventListener\('type-deformer-frame-resize', applyCanvasView\);\s*\n\s*applyCanvasView\(\);/)?.[0] || '';
+  const canvasCameraBlock = html.match(/\/\* ---------------- canvas view camera ----------------[\s\S]*?window\.addEventListener\('type-deformer-frame-resize', refreshCanvasViewAfterResize\);\s*\n\s*applyCanvasView\(\);/)?.[0] || '';
   if (!canvasCameraBlock) {
     noteFailure('The canvas camera implementation block could not be isolated for mutation checks.');
   } else {
@@ -1686,6 +1686,13 @@ if (html) {
   if (!html.includes('var CANVAS_VIEW_MIN = 0.05;') || !html.includes('var CANVAS_VIEW_MAX = 32;')
     || !html.includes('function canvasCameraLayout(')) {
     noteFailure('The wide-range unbounded canvas camera contract is incomplete.');
+  }
+  if (!html.includes('autoFit: true') || !html.includes('function canvasAutoFitBounds(scene)')
+    || !html.includes('function fitCanvasViewToScene(scene)')
+    || !html.includes('var effectPad = surfaceEffectPad();')
+    || !html.includes('if (canvasView.active || !canvasView.autoFit) return false;')
+    || !html.includes('if (canvasView.autoFit && !canvasView.active) scheduleVisualOverscan();')) {
+    noteFailure('The default preview camera no longer fits complete glyph and effect bounds while preserving explicit VIEW control.');
   }
   if (!/data-operator-panel="etchantBloom"[\s\S]*?EtchantSpill[\s\S]*?<\/div>\s*<div class="operator-panel" data-operator-panel="sigilForge"/.test(html)) {
     noteFailure('The Etchant Bloom control panel is not closed before the following operator panel.');

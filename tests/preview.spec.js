@@ -122,3 +122,117 @@ test('Compare, Project round-trip, Share, PNG/SVG and keyboard flows work', asyn
   await expect(page.locator('#operatorBrowser')).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test('default preview fits complete glyph and Surface effect bounds at narrow width', async ({ page }) => {
+  const errors = [];
+  await openPreview(page, errors);
+  const projectDownload = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#btnSaveProj').evaluate(element => element.click())
+  ]).then(values => values[0]);
+  const savedPath = await projectDownload.path();
+  const project = JSON.parse(fs.readFileSync(savedPath, 'utf8'));
+  project.text = 'synomare';
+  Object.assign(project.params, {
+    fontSize: 160, textMeasure: 0,
+    hatchGrammar: 'tonal', hatchDepth: 1.7, hatchSpacing: 5, hatchAngle: -24,
+    hatchWarp: 1.1, hatchStroke: 1.4, hatchColor: '#26334a', hatchSourceMode: 'ghost',
+    hatchOpacity: 0.9, hatchSourceOpacity: 0.2,
+    contourGrammar: 'relief', contourRelief: 1.6, contourBands: 12, contourSpacing: 10,
+    contourStroke: 1.35, contourDrift: 1, contourColor: '#c41f1f', contourSourceMode: 'keep',
+    contourOpacity: 1, contourSourceOpacity: 0.1
+  });
+  project.letters = Array.from({ length: project.text.length }, () => ({
+    t: 0, l: 0, i: 0, o: { hatchEngrave: { t: 1, i: 1 }, contourEtch: { t: 1, i: 1 } }
+  }));
+  const fixturePath = savedPath + '.preview-fit.json';
+  fs.writeFileSync(fixturePath, JSON.stringify(project));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#projFile').setInputFiles(fixturePath);
+  await page.waitForFunction(() => document.querySelectorAll('#stageWorld .c').length === 8
+    && Number(document.querySelector('.stage-wrap')?.dataset.viewScale) < 0.9);
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('#surfaceFxCanvas');
+    if (!canvas || canvas.hidden) return false;
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 8) return true;
+    return false;
+  });
+
+  const result = await page.evaluate(() => {
+    const frame = document.querySelector('.stage-frame').getBoundingClientRect();
+    const glyphs = Array.from(document.querySelectorAll('#stageWorld .c')).map(element => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left - frame.left, top: rect.top - frame.top,
+        right: rect.right - frame.left, bottom: rect.bottom - frame.top };
+    });
+    const canvas = document.querySelector('#surfaceFxCanvas');
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return {
+      frame: { width: frame.width, height: frame.height }, glyphs,
+      effect: { minX, minY, maxX, maxY },
+      scale: Number(document.querySelector('.stage-wrap').dataset.viewScale),
+      fitLabel: document.querySelector('#btnViewReset').textContent
+    };
+  });
+  expect(result.scale).toBeLessThan(0.9);
+  expect(result.fitLabel).toContain('FIT');
+  expect(result.glyphs.every(rect => rect.left >= 0 && rect.top >= 0
+    && rect.right <= result.frame.width && rect.bottom <= result.frame.height)).toBe(true);
+  expect(result.effect.minX).toBeGreaterThan(0);
+  expect(result.effect.minY).toBeGreaterThan(0);
+  expect(result.effect.maxX).toBeLessThan(390 - 1);
+  expect(result.effect.maxY).toBeLessThan(Math.ceil(result.frame.height) - 1);
+
+  await page.locator('#btnCompositionApply').evaluate(element => element.click());
+  await page.waitForFunction(() => {
+    const frame = document.querySelector('.stage-frame');
+    const canvas = document.querySelector('#compositionCanvas');
+    if (!frame?.classList.contains('composition-active') || !canvas || getComputedStyle(canvas).display === 'none') return false;
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 8) return true;
+    return false;
+  });
+  await expect.poll(() => page.locator('#btnViewReset').textContent()).toMatch(/^FIT /);
+  await expect.poll(() => page.locator('#compositionCanvas').evaluate(canvas => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return minX > 0 && minY > 0 && maxX < canvas.width - 1 && maxY < canvas.height - 1;
+  })).toBe(true);
+  const compositionBounds = await page.locator('#compositionCanvas').evaluate(canvas => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return { width: canvas.width, height: canvas.height, minX, minY, maxX, maxY };
+  });
+  expect(compositionBounds.minX).toBeGreaterThan(0);
+  expect(compositionBounds.minY).toBeGreaterThan(0);
+  expect(compositionBounds.maxX).toBeLessThan(compositionBounds.width - 1);
+  expect(compositionBounds.maxY).toBeLessThan(compositionBounds.height - 1);
+
+  const fittedScale = Number(await page.locator('.stage-wrap').getAttribute('data-view-scale'));
+  await page.locator('#btnViewMode').click();
+  await expect(page.locator('#btnViewMode')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#btnViewZoomIn').click();
+  await expect(page.locator('#btnViewReset')).not.toContainText('FIT');
+  expect(Number(await page.locator('.stage-wrap').getAttribute('data-view-scale'))).toBeGreaterThan(fittedScale);
+  await page.locator('#btnViewReset').click();
+  await expect(page.locator('#btnViewMode')).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(() => page.locator('#btnViewReset').textContent()).toMatch(/^FIT /);
+  expect(errors).toEqual([]);
+});
