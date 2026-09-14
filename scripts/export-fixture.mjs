@@ -4,7 +4,8 @@ import vm from 'node:vm';
 import { canvas } from './thorn-rooted-fixture.mjs';
 import { fixture, metric, extract, html } from './paragraph-current-fixture.mjs';
 export { canvas, html };
-if (!canvas.GlobalFonts.registerFromPath('C:/Windows/Fonts/yumin.ttf', 'Yu Mincho')) throw Error('Native Japanese test font unavailable');
+const registeredJapaneseTestFont = canvas.GlobalFonts.registerFromPath('C:/Windows/Fonts/yumin.ttf', 'Yu Mincho');
+if (process.platform === 'win32' && !registeredJapaneseTestFont) throw Error('Native Japanese test font unavailable');
 export function exportFixture() {
   const downloads = [], statuses = [];
   let allocations = 0;
