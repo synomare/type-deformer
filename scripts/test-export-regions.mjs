@@ -37,6 +37,10 @@ test('page/spread windows use the declared untransformed frame on horizontal, ve
     assert.equal(JSON.stringify([c.params,c.canvasView,c.metrics.map(m=>[m.relX,m.relY,m.operatorStates])]),before);
   }
   const {c}=setup({},'字'.repeat(65));
+  // The exact line count varies with the native fallback font. Construct the
+  // odd-page case explicitly; this assertion covers the empty spread slot,
+  // not platform font metrics.
+  if(c.pageLayoutState.pages.length%2===0)c.pageLayoutState.pages.pop();
   assert.equal(c.pageLayoutState.pages.length%2,1);
   c.params.exportRegion='spread';c.params.exportRegionNumber=Math.ceil(c.pageLayoutState.pages.length/2);
   assert.equal(c.exportRegionState().frame.w,360,'empty last partner keeps its declared slot');
