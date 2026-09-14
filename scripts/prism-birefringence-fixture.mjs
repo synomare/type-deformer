@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 export const canvas = require(process.env.TYPE_DEFORMER_CANVAS_MODULE
-  || 'C:/Users/soran/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas/index.js');
+  || '@napi-rs/canvas');
 export const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 export function extract(name) {

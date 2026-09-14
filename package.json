@@ -84,6 +84,7 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^0.1.100",
     "@playwright/test": "1.63.0"
   }
 }

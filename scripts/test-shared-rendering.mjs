@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-const canvas=require(process.env.TYPE_DEFORMER_CANVAS_MODULE||'C:/Users/soran/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas/index.js');
+const canvas=require(process.env.TYPE_DEFORMER_CANVAS_MODULE||'@napi-rs/canvas');
 const read=name=>fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
 function fixture(){const c=vm.createContext({document:{createElement:()=>canvas.createCanvas(1,1)},DOMMatrix:canvas.DOMMatrix,ArrayBuffer,Uint8Array,Uint8ClampedArray,Float32Array,Float64Array});for(const name of ['parameter-model.js','parameter-definitions.js','render-context.js','render-jobs.js'])vm.runInContext(read(name),c);return c;}
 test('normal slider travel, mathematical domains and render budgets remain independent',()=>{

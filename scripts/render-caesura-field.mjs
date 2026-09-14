@@ -9,7 +9,7 @@ import { fixture, metric, html } from './paragraph-current-fixture.mjs';
 
 const require = createRequire(import.meta.url);
 const runtime = process.env.TYPE_DEFORMER_CANVAS_MODULE
-  || 'C:/Users/soran/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas/index.js';
+  || '@napi-rs/canvas';
 const { createCanvas, GlobalFonts, loadImage } = require(runtime);
 const out = path.resolve(process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'type-deformer-caesura-v63-')));
 fs.mkdirSync(out, { recursive: true });
