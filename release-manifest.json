@@ -31,6 +31,9 @@
     "assets/vendor/mediabunny-LICENSE.txt",
     "assets/vendor/README.md"
   ],
+  "runtimeAssets": [
+    "surface-worker.js"
+  ],
   "generatedSources": [
     ".codex/prototypes/auxetic-type/editor-adapter.js",
     ".codex/prototypes/calligraphic-field/editor.js",

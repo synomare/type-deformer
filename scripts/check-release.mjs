@@ -9,7 +9,7 @@ const posix = value => value.split(path.sep).join('/').replace(/^\.\//, '');
 const absolute = value => path.resolve(root, value);
 const exists = value => fs.existsSync(absolute(value)) && fs.statSync(absolute(value)).isFile();
 const manifest = JSON.parse(fs.readFileSync(absolute('release-manifest.json'), 'utf8'));
-const required = new Set(['release-manifest.json', 'scripts/check-release.mjs', ...manifest.entrypoints, ...manifest.documents, ...(manifest.tests || []), ...manifest.vendor, ...(manifest.generatedSources || []), ...manifest.generatedAssets]);
+const required = new Set(['release-manifest.json', 'scripts/check-release.mjs', ...manifest.entrypoints, ...manifest.documents, ...(manifest.tests || []), ...manifest.vendor, ...(manifest.runtimeAssets || []), ...(manifest.generatedSources || []), ...manifest.generatedAssets]);
 const missing = [];
 const warnings = [];
 for (const file of required) if (!exists(file)) missing.push(`${file} (release manifest)`);
@@ -46,6 +46,14 @@ function scanText(file) {
     }
     for (const match of source.matchAll(/new\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/g)) {
       add(posix(path.join(path.dirname(file), match[1])), file);
+    }
+    for (const match of source.matchAll(/new\s+Worker\s*\(\s*new\s+URL\(\s*["']([^"']+)["']/g)) {
+      add(posix(path.join(path.dirname(file), match[1])), file);
+    }
+    for (const call of source.matchAll(/importScripts\s*\(([^)]*)\)/g)) {
+      for (const match of call[1].matchAll(/["']([^"']+)["']/g)) {
+        add(posix(path.join(path.dirname(file), match[1])), file);
+      }
     }
   }
 }
