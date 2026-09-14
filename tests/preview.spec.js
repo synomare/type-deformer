@@ -102,6 +102,13 @@ test('Compare, Project round-trip, Share, PNG/SVG and keyboard flows work', asyn
 
   await page.locator('#btnShare').evaluate(element => element.click());
   await expect.poll(() => page.url()).toContain('#');
+  const manualCopy = page.locator('#manualCopyOverlay');
+  await manualCopy.waitFor({ state: 'visible', timeout: 1000 }).catch(() => {});
+  if (await manualCopy.isVisible()) {
+    await expect(page.locator('#manualCopyValue')).toHaveValue(/#.+/);
+    await page.locator('#btnManualCopyClose').click();
+    await expect(manualCopy).toBeHidden();
+  }
 
   const [png] = await Promise.all([page.waitForEvent('download'), page.locator('#btnPng').evaluate(element => element.click())]);
   expect(png.suggestedFilename()).toMatch(/\.png$/);
