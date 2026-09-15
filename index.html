@@ -16497,31 +16497,37 @@ type deformer</textarea>
           if (objectScale !== 1) { x += w * .5 * (1 - 1/objectScale); y += h * .75 * (1 - 1/objectScale); w /= objectScale; h /= objectScale; }
           var isGridGlyph = el.dataset.gridCell != null;
           var bx = x, by = y, bw = w, bh = h;
-          if (isGridGlyph) {
-            // A grid cell may be much smaller than its type. offsetWidth only
-            // reports the cell, so estimate the overflowing ink separately;
-            // otherwise Auto PNG/SVG bounds crop large glyphs to the cell.
-            var tm = measureCtx ? measureCtx.measureText(el.textContent) : null;
-            var inkW = tm ? Math.max(tm.width, (tm.actualBoundingBoxLeft || 0) + (tm.actualBoundingBoxRight || 0)) : params.fontSize;
-            var inkAscent = tm && tm.actualBoundingBoxAscent ? tm.actualBoundingBoxAscent : measuredFm.ascent;
-            var inkDescent = tm && tm.actualBoundingBoxDescent ? tm.actualBoundingBoxDescent : measuredFm.descent;
-            var inkH = inkAscent + inkDescent;
-            var centerX = x + w / 2;
-            var centerY = y + h / 2;
-            if (params.vertical) {
-              if (!el.dataset.upright) {
-                var swap = inkW; inkW = inkH; inkH = swap;
+          // A CSS line box is layout, not ink. Imported display fonts can put
+          // swashes, ascenders and descenders far outside it, and Grid cells can
+          // be smaller than the type itself. Measure the actual glyph ink for
+          // every token and union it with the layout box so camera fitting,
+          // per-glyph Surface rasters and every export share the same envelope.
+          if (measureCtx) {
+            var centerX = x + w / 2, centerY = y + h / 2;
+            measureCtx.textAlign = params.vertical || isGridGlyph ? 'center' : 'left';
+            measureCtx.textBaseline = params.vertical ? 'middle' : 'alphabetic';
+            var tm = measureCtx.measureText(el.textContent);
+            var inkLeft = Number(tm.actualBoundingBoxLeft);
+            var inkRight = Number(tm.actualBoundingBoxRight);
+            var inkAscent = Number(tm.actualBoundingBoxAscent);
+            var inkDescent = Number(tm.actualBoundingBoxDescent);
+            if ([inkLeft, inkRight, inkAscent, inkDescent].every(Number.isFinite)) {
+              var anchorX = params.vertical || isGridGlyph ? centerX : x;
+              var anchorY = params.vertical ? centerY
+                : y + (h - (measuredFm.ascent + measuredFm.descent)) / 2 + measuredFm.ascent;
+              var inkX0 = anchorX - inkLeft, inkX1 = anchorX + inkRight;
+              var inkY0 = anchorY - inkAscent, inkY1 = anchorY + inkDescent;
+              if (params.vertical && !el.dataset.upright) {
+                var rotatedX0 = centerX - (inkY1 - centerY);
+                var rotatedX1 = centerX - (inkY0 - centerY);
+                var rotatedY0 = centerY + (inkX0 - centerX);
+                var rotatedY1 = centerY + (inkX1 - centerX);
+                inkX0 = Math.min(rotatedX0, rotatedX1); inkX1 = Math.max(rotatedX0, rotatedX1);
+                inkY0 = Math.min(rotatedY0, rotatedY1); inkY1 = Math.max(rotatedY0, rotatedY1);
               }
-              bx = centerX - inkW / 2;
-              by = centerY - inkH / 2;
-              bw = inkW;
-              bh = inkH;
-            } else {
-              var baseline = y + (h - (measuredFm.ascent + measuredFm.descent)) / 2 + measuredFm.ascent;
-              bx = centerX - inkW / 2;
-              by = baseline - inkAscent;
-              bw = inkW;
-              bh = inkH;
+              var unionX0 = Math.min(x, inkX0), unionY0 = Math.min(y, inkY0);
+              var unionX1 = Math.max(x + w, inkX1), unionY1 = Math.max(y + h, inkY1);
+              bx = unionX0; by = unionY0; bw = Math.max(1, unionX1 - unionX0); bh = Math.max(1, unionY1 - unionY0);
             }
           }
           glyphs.push({

@@ -42,6 +42,30 @@ test('glyph-local settings never average opposing batches and sanitize invalid d
  assert.equal(I.settings('chromaticSwarm',{surface:{swarmPlates:2.8}},{}).swarmPlates,3);
 });
 
+test('bounded-body rasters request more world space when a solver is compressed or reaches an edge',()=>{
+ const diagnosticPad=I.nextPad({pad:100},{_lensDiagnostics:{viewScale:.5}});
+ assert.ok(diagnosticPad>=220,'lens diagnostics restore the uncompressed image scale');
+ const data=new Uint8ClampedArray(12*10*4);data[(9*12+6)*4+3]=255;
+ const edge={width:12,height:10,getContext:()=>({getImageData:()=>({data})})};
+ assert.equal(I.touchesRasterEdge(edge,3),true);
+ assert.ok(I.nextPad({pad:40},edge)>40);
+ data[(9*12+6)*4+3]=0;data[(5*12+6)*4+3]=255;
+ assert.equal(I.touchesRasterEdge(edge,3),false);
+ assert.equal(I.nextPad({pad:40},edge),0);
+});
+
+test('glyph-local sources include measured ink beyond the CSS layout box',()=>{
+ let drawn=null;
+ const env={
+  scratch(_name,w,h){return {canvas:{width:w,height:h},ctx:{getImageData(){return {data:new Uint8ClampedArray(w*h*4)};}}};},
+  drawGlyph(_ctx,g){drawn=g;},traceContours:null
+ };
+ const g={x:100,y:100,w:40,h:60,bx:80,by:40,bw:90,bh:300};
+ const p=I.settings('tensorFiligree',{surface:{}},{}),s=I.source(g,{dx:0,dy:0,s:1},{},env,'tensorFiligree',p);
+ assert.deepEqual({x:s.x,y:s.y,w:s.w,h:s.h,pad:s.pad},{x:64,y:24,w:244,h:664,pad:16});
+ assert.equal(drawn.x,36);assert.equal(drawn.y,76);
+});
+
 test('operator short keys remain unique for lossless share and project decoding',()=>{
  const definitions=[...html.matchAll(/\w+: \{ id: '(\w+)', short: '(\w+)'/g)];assert.equal(definitions.length,116);assert.equal(new Set(definitions.map(m=>m[2])).size,116);
 });

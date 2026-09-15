@@ -265,6 +265,89 @@ test('default preview fits complete glyph and Surface effect bounds at narrow wi
   expect(errors).toEqual([]);
 });
 
+test('font ink outside its CSS line box survives Surface preview, Output Preview, PNG and SVG', async ({ page }) => {
+  const errors = [];
+  // Model an imported display face with an unusually long y descender. Canvas
+  // is patched at its public metrics/drawing boundary so the regression does
+  // not depend on a machine-specific test font.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'Worker', { configurable: true, value: undefined });
+    const measureText = CanvasRenderingContext2D.prototype.measureText;
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.measureText = function (text) {
+      const metrics = measureText.call(this, text);
+      if (String(text) !== 'y') return metrics;
+      return new Proxy(metrics, { get(target, property) {
+        if (property === 'actualBoundingBoxDescent') return 520;
+        return Reflect.get(target, property, target);
+      } });
+    };
+    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxWidth) {
+      if (maxWidth == null) fillText.call(this, text, x, y);
+      else fillText.call(this, text, x, y, maxWidth);
+      if (String(text) !== 'y') return;
+      this.save();
+      this.fillRect(x - 2, y, 4, 520);
+      this.restore();
+    };
+  });
+  await openPreview(page, errors);
+  const projectDownload = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#btnSaveProj').evaluate(element => element.click())
+  ]).then(values => values[0]);
+  const savedPath = await projectDownload.path();
+  const project = JSON.parse(fs.readFileSync(savedPath, 'utf8'));
+  project.text = 'y';
+  Object.assign(project.params, {
+    activeOperator: 'stretch', fontFamily: 'Arial', fontWeight: 400,
+    fontSize: 160, textMeasure: 0, randomness: 0,
+    lensMode: 'single', lensEinstein: 0, lensSeparation: 0, lensRatio: 1,
+    lensScale: 1, lensSourceX: 0, lensSourceY: 0, lensAngle: 0, lensShear: 0,
+    gravityLensColor: '#343434', gravityLensSourceMode: 'hide', gravityLensSourceOpacity: 0,
+    gravityLensOpacity: 1, artboard: 'auto', exportScale: 1
+  });
+  project.letters = [{ t: 0, l: 0, i: 0, o: { gravityLens: { t: 1, i: 1 } } }];
+  const fixturePath = savedPath + '.overflowing-ink.json';
+  fs.writeFileSync(fixturePath, JSON.stringify(project));
+  await page.locator('#projFile').setInputFiles(fixturePath);
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('#surfaceFxCanvas');
+    if (!canvas || canvas.hidden) return false;
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minY = canvas.height, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] > 8) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    }
+    return maxY > minY;
+  }, null, { timeout: 30000 });
+
+  const liveBounds = await page.locator('#surfaceFxCanvas').evaluate(canvas => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minY = canvas.height, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) if (pixels[(y * canvas.width + x) * 4 + 3] > 8) {
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    return { height: canvas.height, minY, maxY, ratio: (maxY - minY) / canvas.height };
+  });
+  expect(liveBounds.ratio).toBeGreaterThan(.35);
+  expect(liveBounds.minY).toBeGreaterThan(2);
+  expect(liveBounds.maxY).toBeLessThan(liveBounds.height - 3);
+
+  await page.locator('#btnPreview').evaluate(element => element.click());
+  await expect(page.locator('#previewOverlay')).toBeVisible({ timeout: 60000 });
+  await expect.poll(() => page.locator('#previewImg').evaluate(image => image.naturalHeight), { timeout: 60000 }).toBeGreaterThan(500);
+  await page.locator('#btnPreviewClose').click();
+
+  const [png] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.locator('#btnPng').evaluate(element => element.click())]);
+  expect(fs.statSync(await png.path()).size).toBeGreaterThan(1000);
+  const [svg] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.locator('#btnSvg').evaluate(element => element.click())]);
+  const svgText = fs.readFileSync(await svg.path(), 'utf8');
+  expect(svgText).toContain('data-effect-layer="surface-fx"');
+  expect(svgText).toContain('data:image/png;base64,');
+  expect(errors).toEqual([]);
+});
+
 test('wide Contour field is not cut by the shared raster in preview, Output Preview, PNG or SVG', async ({ page }) => {
   const errors = [];
   await openPreview(page, errors);
