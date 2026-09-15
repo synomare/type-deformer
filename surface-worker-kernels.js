@@ -640,6 +640,8 @@ function surfaceOperatorStrength(info, id) {
         return Math.max(0, Math.min(1, numericManual(state, state.current)));
       }
 
+var surfaceEnvelopeScale = 1;
+
 function surfaceGlyphStrength(g, id) {
         var value = g && g.surface ? Number(g.surface[id]) : 0;
         return isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
@@ -10115,13 +10117,10 @@ function renderSinewTorqueLegacy(targetCtx, glyphs, width, height, pixelScale, L
           halfU = Math.max(halfU, Math.abs(cornerDx * cosAxis + cornerDy * sinAxis));
           halfV = Math.max(halfV, Math.abs(-cornerDx * sinAxis + cornerDy * cosAxis));
         }
-        var waistReach = halfU * Math.max(0, Math.exp(Math.max(0, waistAmount) * 0.42) - 1);
-        var torqueReach = Math.min(width + height, Math.abs(torque) * (halfU + halfV) * 0.62);
-        var reach = Math.abs(pull) + waistReach + torqueReach + 6;
-        var minX = Math.max(0, Math.floor(field.bounds[0] - reach));
-        var maxX = Math.min(width - 1, Math.ceil(field.bounds[2] + reach));
-        var minY = Math.max(0, Math.floor(field.bounds[1] - reach));
-        var maxY = Math.min(height - 1, Math.ceil(field.bounds[3] + reach));
+        // The inverse deformation decides whether a destination pixel belongs
+        // to the body. A predicted reach rectangle is not a valid clipping
+        // boundary: extreme pull/torque can fold real output beyond it.
+        var minX = 0, maxX = width - 1, minY = 0, maxY = height - 1;
         var warped = surfaceScratch('sinew-torque-mask', width, height, true);
         var output = warped.ctx.createImageData(width, height);
         var exponent = 0.45 + (globalThis.TypeDeformerParameters ? globalThis.TypeDeformerParameters.normalize('sinewTension', tension, 0, 0.1, 8) : Math.max(0.1, Math.min(8, tension))) * 0.32;
@@ -10363,13 +10362,10 @@ function renderSinewTorqueField(targetCtx, glyphs, width, height, pixelScale, L,
           return top * (1 - ty) + bottom * ty;
         }
 
-        var waistReach = halfU * Math.max(0, Math.exp(Math.max(0, waistAmount) * 0.52) - 1);
-        var torqueReach = Math.min(width + height, Math.abs(torque) * (halfU + halfV) * 0.72);
-        var reach = Math.abs(pull) + waistReach + torqueReach + halfV * tension * 0.05 + 8;
-        var minX = Math.max(0, Math.floor(field.bounds[0] - reach));
-        var maxX = Math.min(width - 1, Math.ceil(field.bounds[2] + reach));
-        var minY = Math.max(0, Math.floor(field.bounds[1] - reach));
-        var maxY = Math.min(height - 1, Math.ceil(field.bounds[3] + reach));
+        // Never turn a performance estimate into an artwork boundary. Scan the
+        // complete analysis surface; the shared render envelope grows it when
+        // real pixels reach an edge.
+        var minX = 0, maxX = width - 1, minY = 0, maxY = height - 1;
         var warped = surfaceScratch('sinew-tissue-mask', width, height, true);
         var output = warped.ctx.createImageData(width, height);
         for (var y = minY; y <= maxY; y++) for (var x = minX; x <= maxX; x++) {
@@ -24967,6 +24963,8 @@ function surfaceCanonicalRasterPlan(glyphs) {
         bounds.h = Math.max(1, isFinite(bounds.h) ? bounds.h : 1);
         bounds.x = isFinite(bounds.x) ? bounds.x : 0;
         bounds.y = isFinite(bounds.y) ? bounds.y : 0;
+        var envelopeScale = typeof surfaceEnvelopeScale === 'number' ? surfaceEnvelopeScale : 1;
+        if (globalThis.TypeDeformerRenderEnvelope) bounds = globalThis.TypeDeformerRenderEnvelope.expandBounds(bounds, envelopeScale);
         // A viewport breakpoint here would make browser zoom/orientation a
         // morphology input. Keep the raster budget identical on every device.
         var maxSide = 1440;
@@ -24983,7 +24981,8 @@ function surfaceCanonicalRasterPlan(glyphs) {
           density: density,
           width: Math.max(1, Math.ceil(bounds.w * density)),
           height: Math.max(1, Math.ceil(bounds.h * density)),
-          layout: { w: bounds.w, h: bounds.h, s: 1, dx: -bounds.x, dy: -bounds.y }
+          layout: { w: bounds.w, h: bounds.h, s: 1, dx: -bounds.x, dy: -bounds.y },
+          envelopeScale: envelopeScale
         };
       }
 

@@ -265,6 +265,55 @@ test('default preview fits complete glyph and Surface effect bounds at narrow wi
   expect(errors).toEqual([]);
 });
 
+test('Sinew Torque renders beyond its old reach estimate and keeps a shared-envelope gutter', async ({ page }) => {
+  const errors = [];
+  await openPreview(page, errors);
+  const projectDownload = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#btnSaveProj').evaluate(element => element.click())
+  ]).then(values => values[0]);
+  const savedPath = await projectDownload.path();
+  const project = JSON.parse(fs.readFileSync(savedPath, 'utf8'));
+  project.text = 'synomare';
+  Object.assign(project.params, {
+    fontSize: 180, textMeasure: 0, artboard: 'auto', exportRegion: 'work', exportScale: 1, transparentBg: true,
+    sinewSystem: 'legacy', sinewPull: 640, sinewTorque: 58, sinewTension: 1.34,
+    sinewWaist: 0.34, sinewAxis: -18, sinewColor: '#343434', sinewSourceMode: 'hide',
+    sinewSourceOpacity: 0, sinewOpacity: 1
+  });
+  project.letters = Array.from(project.text, () => ({
+    t: 0, l: 0, i: 0, o: { sinewTorque: { t: 1, i: 1 } }
+  }));
+  const fixturePath = savedPath + '.sinew-envelope.json';
+  fs.writeFileSync(fixturePath, JSON.stringify(project));
+  await page.locator('#projFile').setInputFiles(fixturePath);
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('#surfaceFxCanvas');
+    return canvas && !canvas.hidden && document.querySelector('#renderQualityStatus')?.textContent.includes('更新しました');
+  }, null, { timeout: 60000 });
+
+  const preview = await page.locator('#surfaceFxCanvas').evaluate(canvas => {
+    const contact = window.TypeDeformerRenderEnvelope.scanCanvas(canvas, { gutter: 3, threshold: 8 });
+    return { contact };
+  });
+  expect(Object.values(preview.contact).some(Boolean)).toBe(false);
+
+  await page.locator('#btnPreview').evaluate(element => element.click());
+  await expect(page.locator('#previewOverlay')).toBeVisible({ timeout: 60000 });
+  await expect.poll(() => page.locator('#previewImg').evaluate(image => image.naturalWidth), { timeout: 60000 }).toBeGreaterThan(0);
+  const outputContact = await page.locator('#previewImg').evaluate(image => {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    canvas.getContext('2d').drawImage(image, 0, 0);
+    return window.TypeDeformerRenderEnvelope.scanCanvas(canvas, { gutter: 2, threshold: 8 });
+  });
+  expect(Object.values(outputContact).some(Boolean)).toBe(false);
+  await page.locator('#btnPreviewClose').click();
+  const [png] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.locator('#btnPng').evaluate(element => element.click())]);
+  expect(fs.statSync(await png.path()).size).toBeGreaterThan(1000);
+  expect(errors).toEqual([]);
+});
+
 test('font ink outside its CSS line box survives Surface preview, Output Preview, PNG and SVG', async ({ page }) => {
   const errors = [];
   // Model an imported display face with an unusually long y descender. Canvas

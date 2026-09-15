@@ -655,6 +655,7 @@
     "graphemeSegmenter",
     "SURFACE_BLEND_MODES",
     "SURFACE_BLEND_KEYS",
+    "surfaceEnvelopeScale",
     "CalligraphyField",
     "BATCH_PARAM_OPTIONS",
     "ribbonEchoEffectPadCache",

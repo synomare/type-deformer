@@ -7,7 +7,7 @@
   "scripts": {
     "check:release": "node scripts/check-release.mjs --require-tracked",
     "check:release:local": "node scripts/check-release.mjs",
-    "test:preview": "node --test scripts/test-discovery-store.mjs scripts/test-export-preflight.mjs scripts/test-preset-loader.mjs scripts/test-video-encoder.mjs",
+    "test:preview": "node --test scripts/test-discovery-store.mjs scripts/test-export-preflight.mjs scripts/test-preset-loader.mjs scripts/test-render-envelope.mjs scripts/test-video-encoder.mjs",
     "test:e2e": "playwright test",
     "test:video": "node scripts/test-video-browser.mjs",
     "measure:preview": "node scripts/measure-preview.mjs",

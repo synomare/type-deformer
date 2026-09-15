@@ -1,5 +1,5 @@
 'use strict';
-importScripts('render-context.js','parameter-model.js','parameter-definitions.js','font-axes.js');
+importScripts('render-context.js','render-envelope.js','parameter-model.js','parameter-definitions.js','font-axes.js');
 // The kernels use only Canvas, font measurement and immutable frame data.
 // No editor DOM, storage or UI state is accessible from this worker.
 self.window=self;self.TypeDeformerWorkerRuntime=true;
@@ -7,7 +7,7 @@ self.document={fonts:self.fonts,createElement:function(tag){if(tag!=='canvas')th
 var workerMobile=false;self.matchMedia=function(){return {matches:workerMobile};};
 importScripts('structural-operators.js','pattern-tension-operators.js','wave-growth-operators.js','order-matter-operators.js','hyperbolic-atlas-operator.js','loadpath-foundry-operator.js','nodal-glaze-operator.js','spinodal-alloy-operator.js','density-recast-operator.js','hopf-loom-operator.js','miura-vault-operator.js','vortex-bath-operator.js','stress-glass-operator.js','excess-body-operators.js','ramified-body-operators.js','folded-body-operators.js','letterform-body-operators.js','metamorphic-body-operators.js','gravity-lens-operator.js','liquid-rope-body.js','wulff-body-operator.js','repulsive-curves-body.js','wasserstein-letters.js','field-material-operators.js','conditions-of-type.js');
 var workerFontMetrics={},workerCompositionInputs={},workerSourceGlyphs=[],compositionScene={},compositionQualityOverride=null,textInput={value:''};
-var params={},compositionState={},renderedSourceText='',surfaceFxPhase=0,dataMoshFrame=0,blobTrackState={blobs:[]},surfaceFxScratchCanvases={};
+var params={},compositionState={},renderedSourceText='',surfaceFxPhase=0,dataMoshFrame=0,blobTrackState={blobs:[]},surfaceFxScratchCanvases={},surfaceEnvelopeScale=1;
 var workerFontRuntime=TypeDeformerAxes.createRuntime(),workerFontKeys=new Set();
 var axisFieldEditor={font:function(g,size){return workerFontRuntime.activate(params,g,size);}};
 importScripts('surface-worker-kernels.js');
@@ -61,7 +61,7 @@ async function renderFrame(frame){
     var bodyBounds=TypeDeformerFieldMaterials.bodyBounds(frame.glyphs,merged,frame.fm,{params:params,strength:surfaceGlyphStrength,color:surfaceEffectColor,scratch:surfaceScratch,drawGlyph:drawSurfaceGlyph,traceContours:spectralTraceContours,font:glyphFontSpec,charInfo:charInfo,bounds:contentBounds});
     return {kind:'bounds',geometryKey:frame.geometryKey,bounds:bodyBounds,layers:{},duration:performance.now()-jobStarted,paintDuration:performance.now()-boundsStarted};
   }
-  var started=performance.now(),R=TypeDeformerRenderContext,plan=surfaceCanonicalRasterPlan(frame.glyphs),L=frame.layout,scale=frame.scale,width=plan.width,height=plan.height;
+  var started=performance.now(),R=TypeDeformerRenderContext,plan=frame.plan||surfaceCanonicalRasterPlan(frame.glyphs),L=frame.layout,scale=frame.scale,width=plan.width,height=plan.height,envelopeResult=null;
   var factor=scale*L.s/plan.density,projectedX=scale*(L.dx+plan.bounds.x*L.s),projectedY=scale*(L.dy+plan.bounds.y*L.s);
   var viewX=Math.max(0,Math.floor(-projectedX)),viewY=Math.max(0,Math.floor(-projectedY));
   var viewW=Math.max(0,Math.min(Math.ceil(width*factor),Math.ceil(frame.width-projectedX))-viewX),viewH=Math.max(0,Math.min(Math.ceil(height*factor),Math.ceil(frame.height-projectedY))-viewY);
@@ -74,12 +74,16 @@ async function renderFrame(frame){
     for(var tile of tiles){
       var context=R.make({purpose:frame.purpose,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
       R.withContext(context,function(){
-        var layer=surfaceScratch('worker-layer',width,height,false);
+        var layer=surfaceScratch('worker-layer',width,height,true);
         workerRenderers[id](layer.ctx,frame.glyphs,width,height,plan.density,plan.layout,frame.fm,false,false,context);
+        var contact=TypeDeformerRenderEnvelope.scanCanvas(layer.canvas,{gutter:3,threshold:1});
+        if(TypeDeformerRenderEnvelope.touches(contact)){envelopeResult={kind:'envelope',contact:contact,requiredScale:TypeDeformerRenderEnvelope.nextScale(plan.envelopeScale||1,contact),layers:{},duration:performance.now()-jobStarted,paintDuration:performance.now()-started};return;}
         target.save();target.setTransform(factor,0,0,factor,projectedX,projectedY);
         var tx=tile.x/factor,ty=tile.y/factor,tw=tile.width/factor,th=tile.height/factor;
         R.drawImage(target,layer.canvas,tx,ty,tw,th,tx,ty,tw,th);target.restore();
-      });peakBytes=Math.max(peakBytes,context.peakBytes);
+      });
+      if(envelopeResult){Object.values(layers).forEach(function(bitmap){bitmap.close();});canvas.width=canvas.height=1;return envelopeResult;}
+      peakBytes=Math.max(peakBytes,context.peakBytes);
     }
     layers[id]=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
   }
