@@ -92,6 +92,19 @@ test('all five axes, extreme values, seeds and time have actual output effects; 
   t.diagnostic(`260x180 native-mask kernel max ${maxMs.toFixed(1)}ms; not browser FPS`);
 });
 
+test('modern Hatch Engrave reserves its exterior plate and relief at declared extremes', () => {
+  const c = fixture(mask, { hatchGrammar: 'woodcut', hatchSpacing: 80, hatchDepth: 4, hatchStroke: 12 });
+  const glyph = { x: 0, y: 0, w: 600, h: 240, opacity: 1,
+    surface: { ...c.params, hatchEngrave: 1 } };
+  const pad = c.hatchEngraveEffectPad([glyph]);
+  const declared = 80 * (0.58 + 4 * 0.16) + 2.4 + 6;
+  assert.ok(pad >= declared, `expected at least ${declared}, received ${pad}`);
+  for (const grammar of ['legacy', 'tonalV29', 'copperplate']) {
+    glyph.surface.hatchGrammar = grammar;
+    assert.equal(c.hatchEngraveEffectPad([glyph]), 0, grammar);
+  }
+});
+
 test('actual per-glyph masks retain unequal amounts and exclude unassigned or invisible glyphs', () => {
   const c=fixture(canvas.createCanvas(600,200),{fontFamily:'Arial',fontSize:90,fontWeight:700,hatchWarp:0,hatchSpacing:1});
   vm.runInContext(extract('buildSurfaceMask')+'\n'+extract('drawSurfaceGlyph'),c);c.baselineOffset=()=>90;

@@ -13,7 +13,7 @@ test('new mode uses existing profile/snapshot/save channels, old five modes rema
   for (const mode of ['legacy', 'extrude', 'helix', 'fan', 'braid', 'lamina']) assert.ok(c.BATCH_PARAM_OPTIONS.ribbonPath.includes(mode));
   assert.ok(extract('snapshotGlyphs').includes('ribbonPath: deform.ribbonPath'));
   assert.ok(html.includes("bindProfileSelect('pRibbonPath', 'ribbonPath'"));
-  assert.ok(extract('sceneContentBounds').includes('ribbonLaminaEffectPad(scene.glyphs)'));
+  assert.ok(extract('sceneContentBounds').includes('ribbonEchoEffectPad(scene.glyphs)'));
 });
 
 test('flat lamina preserves source alpha holes and has no shared-triangle cracks', () => {
@@ -78,6 +78,30 @@ test('world padding bounds all mapped points, including tall text and low intens
       assert.ok(p.x >= -pad && p.x <= 600 + pad && p.y >= -pad && p.y <= h + pad);
     }
     g.surface.ribbonPath = 'helix'; assert.equal(c.ribbonLaminaEffectPad([g]), 0);
+  }
+});
+
+test('shared Ribbon bounds contain every rotating section for preview, PNG and SVG plans', () => {
+  const c = fixture(mask); vm.runInContext(extract('contentBounds'), c);
+  const g = { x: 0, y: 0, w: 600, h: 200, ox: 0, oy: 0, tx: 0, ty: 0, scaleX: 1, scaleY: 1,
+    opacity: 1, surface: { ribbonEcho: .01 } };
+  const corners = [[0, 0], [600, 0], [600, 200], [0, 200]];
+  for (const path of ['extrude', 'helix', 'fan', 'braid']) for (const depth of [-520, 520]) {
+    Object.assign(g.surface, { ribbonPath: path, ribbonDepth: depth, ribbonWeave: 4, ribbonTwist: 540 });
+    const pad = c.ribbonEchoEffectPad([g]);
+    assert.ok(pad > 40, `${path} must reserve transformed world space`);
+    const pivotX = path === 'fan' ? (depth < 0 ? 600 : 0) : 300;
+    for (let phaseIndex = 0; phaseIndex < 48; phaseIndex++) for (let sample = 0; sample <= 96; sample++) {
+      const phase = phaseIndex / 48 * Math.PI * 2, t = sample / 96;
+      for (let lane = 0; lane < (path === 'braid' ? 2 : 1); lane++) {
+        const state = c.ribbonSectionStateV31(path, t, depth, 4, phase, Math.PI * 3, [0, 0, 600, 200], lane);
+        for (const corner of corners) {
+          const point = c.ribbonTransformPointV31(corner[0], corner[1], pivotX, 100, state);
+          assert.ok(point.x >= -pad && point.x <= 600 + pad && point.y >= -pad && point.y <= 200 + pad,
+            `${path} point escaped the shared raster/output bounds`);
+        }
+      }
+    }
   }
 });
 

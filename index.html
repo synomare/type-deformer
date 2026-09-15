@@ -3393,7 +3393,7 @@ type deformer</textarea>
         </div>
         <input type="file" id="pFontFile" accept=".otf,.ttf,.woff,.woff2,.ttc,.otc,font/otf,font/ttf,font/woff,font/woff2,application/font-woff" multiple hidden>
         <input type="file" id="pFontFolder" accept=".otf,.ttf,.woff,.woff2,.ttc,.otc" webkitdirectory multiple hidden>
-        <p class="font-status" id="fontStatus" aria-live="polite">フォントファイル／フォルダは端末内だけで読み込み、サーバーには送信しません。</p>
+        <p class="font-status" id="fontStatus" aria-live="polite">最大4,096書体をLibraryへ一括登録できます。選択した書体だけ端末内で読み込み、サーバーには送信しません。</p>
         <details class="font-advanced">
           <summary>Advanced · installed font name</summary>
           <div class="row"><label for="pFontCustom">Local name</label><input type="text" id="pFontCustom" list="fontLocalSuggestions" placeholder="例: A1明朝 / ヒラギノ角ゴ" spellcheck="false"><button type="button" id="btnFontCustomClear" title="ローカルフォント名を解除">Clear</button></div>
@@ -35477,6 +35477,76 @@ type deformer</textarea>
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('contourEtch'), 1, 'contour-etch-v25-color');
       }
 
+      function contourEtchEffectPad(glyphs) {
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'contourEtch') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var grammar = surfaceChoice(selected, 'contourEtch', 'contourGrammar', params.contourGrammar,
+          BATCH_PARAM_OPTIONS.contourGrammar);
+        var bands = Math.max(1, Math.round(surfaceAggregate(selected, 'contourEtch', 'contourBands', params.contourBands).value));
+        var spacing = Math.max(1, surfaceAggregate(selected, 'contourEtch', 'contourSpacing', params.contourSpacing).value);
+        var stroke = Math.max(0.25, surfaceAggregate(selected, 'contourEtch', 'contourStroke', params.contourStroke).value);
+        var relief = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('contourRelief', surfaceAggregate(selected, 'contourEtch', 'contourRelief', params.contourRelief).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'contourEtch', 'contourRelief', params.contourRelief).value)));
+        var reach = bands * spacing;
+        if (grammar === 'relief') reach *= 1 + relief * 0.075;
+        else if (grammar !== 'legacy') reach *= 1 + relief * 0.055;
+        var marks = grammar === 'relief' ? Math.min(96, spacing * (1 + relief * 0.6)) : 0;
+        return Math.ceil(reach + marks + stroke * 4 + 12);
+      }
+
+      function rasterPressEffectPad(glyphs) {
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'rasterPress') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var screen = surfaceChoice(selected, 'rasterPress', 'rasterScreen', params.rasterScreen,
+          BATCH_PARAM_OPTIONS.rasterScreen);
+        if (screen === 'legacy' || /V29$/.test(screen)) return 0;
+        var cell = Math.max(1.4, surfaceAggregate(selected, 'rasterPress', 'rasterCell', params.rasterCell).value);
+        var noise = Math.max(0, surfaceAggregate(selected, 'rasterPress', 'rasterNoise', params.rasterNoise).value);
+        var modulation = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('rasterModulation', surfaceAggregate(selected, 'rasterPress', 'rasterModulation', params.rasterModulation).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'rasterPress', 'rasterModulation', params.rasterModulation).value)));
+        var source = contentBounds(selected, 0);
+        var pad = 40;
+        // The renderer may enlarge its cell to stay within the hard mark budget.
+        // Iterate the same dependency because the reserved halo also enlarges the raster.
+        for (var pass = 0; pass < 3; pass++) {
+          var budgetCell = Math.sqrt(Math.max(1, (source.w + pad * 2) * (source.h + pad * 2)) / 10800);
+          var effectiveCell = Math.max(cell, budgetCell);
+          pad = Math.max(2, effectiveCell * (0.62 + modulation * 0.24 + noise * 0.12)) + 6;
+        }
+        return Math.ceil(pad);
+      }
+
+      function hatchEngraveEffectPad(glyphs) {
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'hatchEngrave') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var grammar = surfaceChoice(selected, 'hatchEngrave', 'hatchGrammar', params.hatchGrammar,
+          BATCH_PARAM_OPTIONS.hatchGrammar);
+        if (grammar === 'legacy' || grammar === 'copperplate' || /V29$/.test(grammar)) return 0;
+        var spacing = Math.max(2.1, surfaceAggregate(selected, 'hatchEngrave', 'hatchSpacing', params.hatchSpacing).value);
+        var depth = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('hatchDepth', surfaceAggregate(selected, 'hatchEngrave', 'hatchDepth', params.hatchDepth).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'hatchEngrave', 'hatchDepth', params.hatchDepth).value)));
+        var stroke = Math.max(0.12, surfaceAggregate(selected, 'hatchEngrave', 'hatchStroke', params.hatchStroke).value);
+        var source = contentBounds(selected, 0);
+        var pad = 40;
+        for (var pass = 0; pass < 3; pass++) {
+          var budgetSpacing = (source.w + source.h + pad * 4) / 620;
+          var effectiveSpacing = Math.max(spacing, budgetSpacing);
+          var plateReach = Math.max(1.5, effectiveSpacing * (0.58 + depth * 0.16));
+          var relief = Math.max(0.45, Math.min(2.4, stroke * (0.4 + depth * 0.16)));
+          pad = plateReach + relief + 6;
+        }
+        return Math.ceil(pad);
+      }
+
       function renderMonolithCastLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var massAggregate = surfaceAggregate(glyphs, 'monolithCast', 'monolithMass', params.monolithMass);
         if (!massAggregate.weight) return;
@@ -38379,6 +38449,59 @@ type deformer</textarea>
         // y stays inside the source height plus the backbone excursion; x
         // additionally carries an orthographic transverse roll component.
         return Math.ceil(Math.max(depth * 0.72, depth * 0.125 + bounds.h * 0.19) + 4);
+      }
+
+      var ribbonEchoEffectPadCache = { key: '', value: 0 };
+
+      function ribbonEchoEffectPad(glyphs) {
+        var path = surfaceChoice(glyphs, 'ribbonEcho', 'ribbonPath', params.ribbonPath, BATCH_PARAM_OPTIONS.ribbonPath);
+        if (path === 'lamina') return ribbonLaminaEffectPad(glyphs);
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'ribbonEcho') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var source = contentBounds(selected, 0);
+        if (path === 'legacy') {
+          var legacyDepth = Math.abs(surfaceAggregate(selected, 'ribbonEcho', 'ribbonDepth', params.ribbonDepth).value);
+          return Math.ceil(legacyDepth * 1.25 + params.fontSize * 0.5 + 12);
+        }
+        var depth = surfaceAggregate(selected, 'ribbonEcho', 'ribbonDepth', params.ribbonDepth).value;
+        var weave = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('ribbonWeave', surfaceAggregate(selected, 'ribbonEcho', 'ribbonWeave', params.ribbonWeave).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'ribbonEcho', 'ribbonWeave', params.ribbonWeave).value)));
+        var twist = surfaceAggregate(selected, 'ribbonEcho', 'ribbonTwist', params.ribbonTwist).value * Math.PI / 180;
+        var left = source.x, top = source.y, right = source.x + source.w, bottom = source.y + source.h;
+        var centerX = (left + right) * 0.5, centerY = (top + bottom) * 0.5;
+        var pivotX = path === 'fan' ? (depth < 0 ? right : left) : centerX;
+        var pivotY = centerY;
+        var cacheKey = [path, depth, weave, twist, left, top, right, bottom, params.fontSize].join('|');
+        if (ribbonEchoEffectPadCache.key === cacheKey) return ribbonEchoEffectPadCache.value;
+        var minX = left, minY = top, maxX = right, maxY = bottom;
+        var corners = [[left, top], [right, top], [right, bottom], [left, bottom]];
+        var lanes = path === 'braid' ? 2 : 1;
+        // Animation rotates the trajectory direction through a complete turn.
+        // Sample that closed interval together with the continuous ribbon path;
+        // the safety gutter below covers the sub-sample curvature and strokes.
+        for (var phaseIndex = 0; phaseIndex < 64; phaseIndex++) {
+          var phase = phaseIndex / 64 * Math.PI * 2;
+          for (var sample = 0; sample <= 96; sample++) {
+            var t = sample / 96;
+            for (var lane = 0; lane < lanes; lane++) {
+              var state = ribbonSectionStateV31(path, t, depth, weave, phase, twist,
+                [left, top, right, bottom], lane);
+              for (var corner = 0; corner < corners.length; corner++) {
+                var point = ribbonTransformPointV31(corners[corner][0], corners[corner][1], pivotX, pivotY, state);
+                minX = Math.min(minX, point.x); minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x); maxY = Math.max(maxY, point.y);
+              }
+            }
+          }
+        }
+        var expansion = Math.max(left - minX, top - minY, maxX - right, maxY - bottom, 0);
+        var sampleSlack = Math.hypot(source.w, source.h) * (Math.PI * 2 / 64) + Math.abs(depth) * (Math.PI * 2 / 64);
+        var value = Math.ceil(expansion + sampleSlack + Math.max(12, params.fontSize * 0.08));
+        ribbonEchoEffectPadCache = { key: cacheKey, value: value };
+        return value;
       }
 
       function surfaceNoise01(x, y, salt) {
@@ -42334,7 +42457,7 @@ type deformer</textarea>
       // at the destination density; only intentional sampled fields are resampled.
       // Camera zoom therefore changes presentation precision, never the rules.
       function surfaceCanonicalRasterPlan(glyphs) {
-        var bounds = contentBounds(glyphs, Math.max(surfaceEffectPad(), ribbonLaminaEffectPad(glyphs), differentialEffectPad(glyphs), conformalEffectPad(glyphs), auxeticEffectPad(glyphs), calligraphyEffectPad(glyphs), marblingEffectPad(glyphs)));
+        var bounds = contentBounds(glyphs, Math.max(surfaceEffectPad(), ribbonEchoEffectPad(glyphs), contourEtchEffectPad(glyphs), rasterPressEffectPad(glyphs), hatchEngraveEffectPad(glyphs), differentialEffectPad(glyphs), conformalEffectPad(glyphs), auxeticEffectPad(glyphs), calligraphyEffectPad(glyphs), marblingEffectPad(glyphs)));
         bounds.w = Math.max(1, isFinite(bounds.w) ? bounds.w : 1);
         bounds.h = Math.max(1, isFinite(bounds.h) ? bounds.h : 1);
         bounds.x = isFinite(bounds.x) ? bounds.x : 0;
@@ -46494,7 +46617,7 @@ type deformer</textarea>
       }
 
       function sceneContentBounds(scene, pad) {
-        pad = Math.max(pad || 0, copyTransferEffectPad(scene.glyphs), ribbonLaminaEffectPad(scene.glyphs), differentialEffectPad(scene.glyphs), conformalEffectPad(scene.glyphs), auxeticEffectPad(scene.glyphs), calligraphyEffectPad(scene.glyphs), marblingEffectPad(scene.glyphs, scene.presentedPhase));
+        pad = Math.max(pad || 0, copyTransferEffectPad(scene.glyphs), ribbonEchoEffectPad(scene.glyphs), contourEtchEffectPad(scene.glyphs), rasterPressEffectPad(scene.glyphs), hatchEngraveEffectPad(scene.glyphs), differentialEffectPad(scene.glyphs), conformalEffectPad(scene.glyphs), auxeticEffectPad(scene.glyphs), calligraphyEffectPad(scene.glyphs), marblingEffectPad(scene.glyphs, scene.presentedPhase));
         var bounds = contextualBounds(scene.glyphs, contentBounds(scene.glyphs, pad));
         if (typeof TypeDeformerFieldMaterials !== 'undefined' && TypeDeformerFieldMaterials.bodyBounds) {
           if(studioRendererMode&&surfaceRenderJobs&&(TypeDeformerFieldMaterials.needsBodyBounds(scene.glyphs,surfaceGlyphStrength)||['differentialType','conformalType','auxeticType','marblingType'].some(function(id){return surfaceEffectPresent(scene.glyphs,id);})))bounds=workerFieldBodyBounds(scene.glyphs,bounds,fontMetrics());
@@ -53038,6 +53161,9 @@ type deformer</textarea>
       var fontStatus = document.getElementById('fontStatus');
       var runtimeFontFaces = [];
       var studioFontBuffers = new Map();
+      var runtimeFontFiles = new Map();
+      var runtimeFontLoads = new Map();
+      var fontSelectionRevision = 0;
       var operatorInspector = TypeDeformerOperatorInspector.create({
         label: function (id) { return OPERATOR_DEFS[id].label; },
         sheetOpen: function () { return controlPanel.classList.contains('mobile-open'); },
@@ -53087,7 +53213,11 @@ type deformer</textarea>
         var primary = primaryFontName();
         if (runtimeFontLabels[primary]) {
           importedFontSelect.value = primary;
-          setFontStatus('Active: ' + runtimeFontLabels[primary] + ' · ' + (runtimeFontSources[primary] === 'system' ? '端末のインストール済みフォント' : 'ブラウザ内ライブラリ'), true);
+          if (runtimeFontSources[primary] === 'file-pending') {
+            setFontStatus('Library: ' + runtimeFontLabels[primary] + ' · 選択すると端末内で読み込みます。', false);
+          } else {
+            setFontStatus('Active: ' + runtimeFontLabels[primary] + ' · ' + (runtimeFontSources[primary] === 'system' ? '端末のインストール済みフォント' : 'ブラウザ内ライブラリ'), true);
+          }
           return;
         }
         importedFontSelect.value = '';
@@ -53098,7 +53228,7 @@ type deformer</textarea>
         } else if (primary) {
           setFontStatus('Local font name: ' + primary + ' · 端末に書体がない場合はフォールバック', false);
         } else {
-          setFontStatus('フォントはこの端末のブラウザ内だけで読み込み、サーバーには送信しません。', false);
+          setFontStatus('最大4,096書体をLibraryへ一括登録できます。選択した書体だけ端末内で読み込み、サーバーには送信しません。', false);
         }
       }
 
@@ -53143,9 +53273,9 @@ type deformer</textarea>
         importedFontSelect.value = current;
       }
 
-      function setImportedFont(family) {
+      function applyImportedFont(family, recordHistory) {
         if (!family || !runtimeFontLabels[family]) return;
-        pushHistory();
+        if (recordHistory !== false) pushHistory();
         clearTimeout(fontCustomTimer);
         params.fontFamily = '"' + safeFontFamily(family) + '", ' + PARAM_DEFAULTS.fontFamily;
         fontSelect.selectedIndex = -1;
@@ -53153,20 +53283,82 @@ type deformer</textarea>
         applyFontChange();
       }
 
-      function importFontCollection(fileList, sourceLabel, input) {
+      function ensureRuntimeFontLoaded(family) {
+        if (studioFontBuffers.has(family) || runtimeFontSources[family] !== 'file-pending') return Promise.resolve(true);
+        if (runtimeFontLoads.has(family)) return runtimeFontLoads.get(family);
+        var pending = runtimeFontFiles.get(family);
+        if (!pending) return Promise.reject(new Error('フォントファイルを再度Importしてください。'));
+        var load = pending.file.arrayBuffer().then(function (buffer) {
+          var face = new FontFace(family, buffer);
+          return face.load().then(function (loadedFace) {
+            var record = { family: family, label: pending.label, buffer: buffer };
+            studioFontBuffers.set(family, record);
+            return axisFieldEditor.register(record).then(function () { return loadedFace; });
+          });
+        }).then(function (face) {
+          document.fonts.add(face);
+          runtimeFontFaces.push(face);
+          runtimeFontSources[family] = 'file';
+          runtimeFontFiles.delete(family);
+          return true;
+        }).finally(function () {
+          runtimeFontLoads.delete(family);
+        });
+        runtimeFontLoads.set(family, load);
+        return load;
+      }
+
+      function setImportedFont(family) {
+        if (!family || !runtimeFontLabels[family]) return Promise.resolve(false);
+        var revision = ++fontSelectionRevision;
+        if (runtimeFontSources[family] !== 'file-pending') {
+          applyImportedFont(family, true);
+          return Promise.resolve(true);
+        }
+        setFontStatus('「' + runtimeFontLabels[family] + '」を端末内で読み込み中…', false);
+        return ensureRuntimeFontLoaded(family).then(function () {
+          if (revision !== fontSelectionRevision || importedFontSelect.value !== family) return false;
+          applyImportedFont(family, true);
+          return true;
+        }).catch(function () {
+          if (revision === fontSelectionRevision && importedFontSelect.value === family) {
+            importedFontSelect.value = '';
+            setFontStatus('Import failed: 「' + runtimeFontLabels[family] + '」を読み込めませんでした。別のフォントを選ぶか、同じファイルを再Importしてください。', false);
+          }
+          return false;
+        });
+      }
+
+      var FONT_IMPORT_LIMITS = Object.freeze({
+        maxFiles: 4096,
+        maxFileBytes: 128 * 1024 * 1024,
+        maxTotalBytes: 8 * 1024 * 1024 * 1024
+      });
+
+      function fontImportPlan(fileList) {
         var allFiles = Array.prototype.slice.call(fileList || []);
         var valid = allFiles.filter(function (file) { return /\.(otf|ttf|woff2?|ttc|otc)$/i.test(file.name); });
-        var maxFiles = 256;
-        var maxFileBytes = 50 * 1024 * 1024;
-        var maxTotalBytes = 250 * 1024 * 1024;
         var totalBytes = valid.reduce(function (sum, file) { return sum + file.size; }, 0);
+        var issue = '';
+        if (!valid.length) issue = 'empty';
+        else if (valid.length > FONT_IMPORT_LIMITS.maxFiles) issue = 'count';
+        else if (totalBytes > FONT_IMPORT_LIMITS.maxTotalBytes) issue = 'total';
+        else if (valid.some(function (file) { return file.size > FONT_IMPORT_LIMITS.maxFileBytes; })) issue = 'file';
+        return { files: valid, totalBytes: totalBytes, issue: issue };
+      }
+
+      window.TypeDeformerFontImport = Object.freeze({ limits: FONT_IMPORT_LIMITS, plan: fontImportPlan });
+
+      function importFontCollection(fileList, sourceLabel, input) {
+        var plan = fontImportPlan(fileList);
+        var valid = plan.files;
         if (!valid.length) {
           setFontStatus('Import failed: OTF / TTF / WOFF / WOFF2 / TTC / OTCが見つかりませんでした。', false);
           input.value = '';
           return;
         }
-        if (valid.length > maxFiles || totalBytes > maxTotalBytes || valid.some(function (file) { return file.size > maxFileBytes; })) {
-          setFontStatus('Import failed: 最大256書体・合計250MB・1ファイル50MBまでです。', false);
+        if (plan.issue) {
+          setFontStatus('Import failed: 最大4,096書体・合計8GB・1ファイル128MBまでです。', false);
           input.value = '';
           return;
         }
@@ -53175,54 +53367,51 @@ type deformer</textarea>
           input.value = '';
           return;
         }
-        setFontStatus(sourceLabel + 'を読込中… 0 / ' + valid.length, false);
-        var loaded = 0;
-        var failed = 0;
-        var chain = Promise.resolve();
-        valid.forEach(function (file, index) {
-          chain = chain.then(function () {
+        setFontStatus(sourceLabel + 'をLibraryへ登録中… 0 / ' + valid.length, false);
+        input.value = '';
+        var added = 0;
+        var existing = 0;
+        var index = 0;
+        function registerChunk() {
+          var stop = Math.min(valid.length, index + 128);
+          for (; index < stop; index++) {
+            var file = valid[index];
             var sourcePath = file.webkitRelativePath || file.name;
             var fileBase = file.name.replace(/\.[^.]+$/, '').replace(/[^0-9A-Za-z\u00A0-\uFFFF _-]+/g, ' ').trim().slice(0, 72) || 'User Font';
             var family = 'Type Deformer ' + fileBase + ' ' + fontLibraryHash(sourcePath + '|' + file.size + '|' + Number(file.lastModified || 0));
             if (runtimeFontLabels[family]) {
-              loaded++;
-              setFontStatus(sourceLabel + 'を読込中… ' + (index + 1) + ' / ' + valid.length, false);
-              return;
+              existing++;
+              if (runtimeFontSources[family] === 'file-pending') runtimeFontFiles.set(family, { file: file, label: file.name });
+              continue;
             }
-            return file.arrayBuffer().then(function (buffer) {
-              var face = new FontFace(family, buffer);
-              return face.load().then(function (loadedFace) {
-                var record = { family: family, label: file.name, buffer: buffer };
-                studioFontBuffers.set(family, record);
-                return axisFieldEditor.register(record).then(function () { return loadedFace; });
-              });
-            }).then(function (face) {
-              document.fonts.add(face);
-              runtimeFontFaces.push(face);
-              registerRuntimeFont(family, file.name, 'file');
-              loaded++;
-            }).catch(function () {
-              failed++;
-            }).then(function () {
-              setFontStatus(sourceLabel + 'を読込中… ' + (index + 1) + ' / ' + valid.length, false);
-            });
-          });
-        });
-        chain.then(function () {
-          input.value = '';
-          sortRuntimeFontOptions();
-          syncFontStatus();
-          var current = primaryFontName();
-          var resultText = loaded + '書体を追加' + (failed ? '・' + failed + '件をスキップ' : '');
-          if (runtimeFontLabels[current]) {
-            applyStyle();
-            refreshConfuseFontCandidates();
-            scheduleCompositionDraw();
-            setFontStatus(resultText + ' · Active: ' + runtimeFontLabels[current], true);
-          } else {
-            setFontStatus(resultText + '。Libraryから選ぶと適用されます。', loaded > 0);
+            runtimeFontFiles.set(family, { file: file, label: file.name });
+            registerRuntimeFont(family, file.name, 'file-pending');
+            added++;
           }
-        });
+          setFontStatus(sourceLabel + 'をLibraryへ登録中… ' + index + ' / ' + valid.length, false);
+          if (index < valid.length) {
+            setTimeout(registerChunk, 0);
+            return;
+          }
+          sortRuntimeFontOptions();
+          var current = primaryFontName();
+          var resultText = added + '書体をLibraryへ追加' + (existing ? '・' + existing + '件は登録済み' : '');
+          if (runtimeFontSources[current] === 'file-pending') {
+            setFontStatus(resultText + '。使用中の「' + runtimeFontLabels[current] + '」を読み込み中…', false);
+            ensureRuntimeFontLoaded(current).then(function () {
+              if (primaryFontName() !== current) return;
+              applyStyle();
+              refreshConfuseFontCandidates();
+              scheduleCompositionDraw();
+              setFontStatus(resultText + ' · Active: ' + runtimeFontLabels[current], true);
+            }).catch(function () {
+              setFontStatus(resultText + '。使用中の書体は読み込めませんでした。Libraryから別の書体を選べます。', false);
+            });
+          } else {
+            setFontStatus(resultText + '。Libraryから選ぶと、その書体だけ端末内で読み込みます。', added > 0 || existing > 0);
+          }
+        }
+        registerChunk();
       }
 
       function applyFontChange() {

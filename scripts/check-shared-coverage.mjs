@@ -6,6 +6,14 @@ const root=new URL('../',import.meta.url),read=name=>normalize(fs.readFileSync(n
 for(const file of ['parameter-model.js','parameter-definitions.js'])vm.runInContext(read(file),c);
 for(const name of ['STRENGTH_MODES','EVALUATION_LAYERS','OPERATOR_DEFS'])vm.runInContext(html.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
 const manifest=JSON.parse(read('worker-dependencies.json')),model=c.TypeDeformerParameters;
+const effectPadBody=html.match(/      function surfaceEffectPad\(\) \{[^]*?^      \}/m)?.[0]||'';
+const canonicalPlanBody=html.match(/      function surfaceCanonicalRasterPlan\(glyphs\) \{[^]*?^      \}/m)?.[0]||'';
+const dedicatedPads={differentialType:'differentialEffectPad',conformalType:'conformalEffectPad',auxeticType:'auxeticEffectPad',
+ marblingType:'marblingEffectPad',rasterPress:'rasterPressEffectPad',hatchEngrave:'hatchEngraveEffectPad'};
+for(const id of manifest.operators){
+ const shared=effectPadBody.includes(`'${id}'`),dedicated=dedicatedPads[id];
+ assert.ok(shared||(dedicated&&canonicalPlanBody.includes(dedicated+'(glyphs)')),`Effect bounds missing: ${id}`);
+}
 const inputs=[...html.matchAll(/<input\b[^>]*>/g)].map(m=>Object.fromEntries([...m[0].matchAll(/([\w-]+)="([^"]*)"/g)].map(a=>[a[1],a[2]])));
 const ranges=inputs.filter(i=>i.type==='range'&&i.id!=='lookCompareRange'); // Comparison wipe is a viewer control.
 for(const input of ranges)assert.ok(model.byControl[input.id],`Numeric definition missing: ${input.id}`);

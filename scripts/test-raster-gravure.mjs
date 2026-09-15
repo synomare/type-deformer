@@ -88,6 +88,22 @@ test('declared extremes stay bounded and never mutate the source mask', () => {
   assert.deepEqual(Buffer.from(pixels(mask)), before);
 });
 
+test('modern Raster Press reserves its full declared exterior plate halo', () => {
+  const mask = textMask('PRESS', 180, 'Arial Black', 720, 520);
+  const fixture = createRasterFixture(mask, {
+    rasterScreen: 'gravure', rasterCell: 72, rasterNoise: 2, rasterModulation: 4
+  });
+  const glyph = { x: 0, y: 0, w: 720, h: 520, opacity: 1,
+    surface: { ...fixture.params, rasterPress: 1 } };
+  const pad = fixture.rasterPressEffectPad([glyph]);
+  const declaredHalo = 72 * (0.62 + 4 * 0.24 + 2 * 0.12);
+  assert.ok(pad >= declaredHalo + 6, `expected at least ${declaredHalo + 6}, received ${pad}`);
+  glyph.surface.rasterScreen = 'legacy';
+  assert.equal(fixture.rasterPressEffectPad([glyph]), 0);
+  glyph.surface.rasterScreen = 'adaptiveV29';
+  assert.equal(fixture.rasterPressEffectPad([glyph]), 0);
+});
+
 test('legacy and four existing modern grammars never enter the Gravure renderer', () => {
   const mask = textMask('MAP', 150, 'Arial Black', 520, 360);
   const fixture = createRasterFixture(mask);

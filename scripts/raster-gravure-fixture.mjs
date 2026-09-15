@@ -24,10 +24,19 @@ export function createRasterFixture(mask, settings = {}, source = html) {
     document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {},
     compositionState: { enabled: true, phase: 0 },
+    contentBounds(glyphs) {
+      const active = glyphs.filter(glyph => glyph && Number.isFinite(glyph.x) && Number.isFinite(glyph.y));
+      if (!active.length) return { x: 0, y: 0, w: width, h: height };
+      const left = Math.min(...active.map(glyph => glyph.x));
+      const top = Math.min(...active.map(glyph => glyph.y));
+      const right = Math.max(...active.map(glyph => glyph.x + glyph.w));
+      const bottom = Math.max(...active.map(glyph => glyph.y + glyph.h));
+      return { x: left, y: top, w: right - left, h: bottom - top };
+    },
     compositeSurfaceSource() {}
   });
   const helpers = [
-    'renderRasterPress', 'renderRasterPressLegacy', 'rasterPressOutput',
+    'renderRasterPress', 'renderRasterPressLegacy', 'rasterPressOutput', 'rasterPressEffectPad',
     'surfaceBoundaryEnvelopeCanvas', 'surfaceBoundaryDistance', 'surfaceSignedDistanceValue',
     'surfaceFieldNormal', 'sampleMaskNeighborhoodAlpha', 'surfaceScratch',
     'surfaceAggregate', 'surfaceChoice', 'surfaceGlyphStrength', 'hash'

@@ -18678,6 +18678,76 @@ function renderContourEtch(targetCtx, glyphs, width, height, pixelScale, L, fm, 
         paintSurfaceMask(targetCtx, work.canvas, surfaceEffectColor('contourEtch'), 1, 'contour-etch-v25-color');
       }
 
+function contourEtchEffectPad(glyphs) {
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'contourEtch') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var grammar = surfaceChoice(selected, 'contourEtch', 'contourGrammar', params.contourGrammar,
+          BATCH_PARAM_OPTIONS.contourGrammar);
+        var bands = Math.max(1, Math.round(surfaceAggregate(selected, 'contourEtch', 'contourBands', params.contourBands).value));
+        var spacing = Math.max(1, surfaceAggregate(selected, 'contourEtch', 'contourSpacing', params.contourSpacing).value);
+        var stroke = Math.max(0.25, surfaceAggregate(selected, 'contourEtch', 'contourStroke', params.contourStroke).value);
+        var relief = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('contourRelief', surfaceAggregate(selected, 'contourEtch', 'contourRelief', params.contourRelief).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'contourEtch', 'contourRelief', params.contourRelief).value)));
+        var reach = bands * spacing;
+        if (grammar === 'relief') reach *= 1 + relief * 0.075;
+        else if (grammar !== 'legacy') reach *= 1 + relief * 0.055;
+        var marks = grammar === 'relief' ? Math.min(96, spacing * (1 + relief * 0.6)) : 0;
+        return Math.ceil(reach + marks + stroke * 4 + 12);
+      }
+
+function rasterPressEffectPad(glyphs) {
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'rasterPress') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var screen = surfaceChoice(selected, 'rasterPress', 'rasterScreen', params.rasterScreen,
+          BATCH_PARAM_OPTIONS.rasterScreen);
+        if (screen === 'legacy' || /V29$/.test(screen)) return 0;
+        var cell = Math.max(1.4, surfaceAggregate(selected, 'rasterPress', 'rasterCell', params.rasterCell).value);
+        var noise = Math.max(0, surfaceAggregate(selected, 'rasterPress', 'rasterNoise', params.rasterNoise).value);
+        var modulation = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('rasterModulation', surfaceAggregate(selected, 'rasterPress', 'rasterModulation', params.rasterModulation).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'rasterPress', 'rasterModulation', params.rasterModulation).value)));
+        var source = contentBounds(selected, 0);
+        var pad = 40;
+        // The renderer may enlarge its cell to stay within the hard mark budget.
+        // Iterate the same dependency because the reserved halo also enlarges the raster.
+        for (var pass = 0; pass < 3; pass++) {
+          var budgetCell = Math.sqrt(Math.max(1, (source.w + pad * 2) * (source.h + pad * 2)) / 10800);
+          var effectiveCell = Math.max(cell, budgetCell);
+          pad = Math.max(2, effectiveCell * (0.62 + modulation * 0.24 + noise * 0.12)) + 6;
+        }
+        return Math.ceil(pad);
+      }
+
+function hatchEngraveEffectPad(glyphs) {
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'hatchEngrave') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var grammar = surfaceChoice(selected, 'hatchEngrave', 'hatchGrammar', params.hatchGrammar,
+          BATCH_PARAM_OPTIONS.hatchGrammar);
+        if (grammar === 'legacy' || grammar === 'copperplate' || /V29$/.test(grammar)) return 0;
+        var spacing = Math.max(2.1, surfaceAggregate(selected, 'hatchEngrave', 'hatchSpacing', params.hatchSpacing).value);
+        var depth = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('hatchDepth', surfaceAggregate(selected, 'hatchEngrave', 'hatchDepth', params.hatchDepth).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'hatchEngrave', 'hatchDepth', params.hatchDepth).value)));
+        var stroke = Math.max(0.12, surfaceAggregate(selected, 'hatchEngrave', 'hatchStroke', params.hatchStroke).value);
+        var source = contentBounds(selected, 0);
+        var pad = 40;
+        for (var pass = 0; pass < 3; pass++) {
+          var budgetSpacing = (source.w + source.h + pad * 4) / 620;
+          var effectiveSpacing = Math.max(spacing, budgetSpacing);
+          var plateReach = Math.max(1.5, effectiveSpacing * (0.58 + depth * 0.16));
+          var relief = Math.max(0.45, Math.min(2.4, stroke * (0.4 + depth * 0.16)));
+          pad = plateReach + relief + 6;
+        }
+        return Math.ceil(pad);
+      }
+
 function renderMonolithCastLegacy(targetCtx, glyphs, width, height, pixelScale, L, fm, coverBase) {
         var massAggregate = surfaceAggregate(glyphs, 'monolithCast', 'monolithMass', params.monolithMass);
         if (!massAggregate.weight) return;
@@ -21261,6 +21331,59 @@ function ribbonLaminaEffectPad(glyphs) {
         // y stays inside the source height plus the backbone excursion; x
         // additionally carries an orthographic transverse roll component.
         return Math.ceil(Math.max(depth * 0.72, depth * 0.125 + bounds.h * 0.19) + 4);
+      }
+
+var ribbonEchoEffectPadCache = { key: '', value: 0 };
+
+function ribbonEchoEffectPad(glyphs) {
+        var path = surfaceChoice(glyphs, 'ribbonEcho', 'ribbonPath', params.ribbonPath, BATCH_PARAM_OPTIONS.ribbonPath);
+        if (path === 'lamina') return ribbonLaminaEffectPad(glyphs);
+        var selected = glyphs.filter(function (g) {
+          return surfaceGlyphStrength(g, 'ribbonEcho') > 0.002 && (g.opacity == null || g.opacity > 0.002);
+        });
+        if (!selected.length) return 0;
+        var source = contentBounds(selected, 0);
+        if (path === 'legacy') {
+          var legacyDepth = Math.abs(surfaceAggregate(selected, 'ribbonEcho', 'ribbonDepth', params.ribbonDepth).value);
+          return Math.ceil(legacyDepth * 1.25 + params.fontSize * 0.5 + 12);
+        }
+        var depth = surfaceAggregate(selected, 'ribbonEcho', 'ribbonDepth', params.ribbonDepth).value;
+        var weave = (globalThis.TypeDeformerParameters
+          ? globalThis.TypeDeformerParameters.normalize('ribbonWeave', surfaceAggregate(selected, 'ribbonEcho', 'ribbonWeave', params.ribbonWeave).value, 0, 0, 4)
+          : Math.max(0, Math.min(4, surfaceAggregate(selected, 'ribbonEcho', 'ribbonWeave', params.ribbonWeave).value)));
+        var twist = surfaceAggregate(selected, 'ribbonEcho', 'ribbonTwist', params.ribbonTwist).value * Math.PI / 180;
+        var left = source.x, top = source.y, right = source.x + source.w, bottom = source.y + source.h;
+        var centerX = (left + right) * 0.5, centerY = (top + bottom) * 0.5;
+        var pivotX = path === 'fan' ? (depth < 0 ? right : left) : centerX;
+        var pivotY = centerY;
+        var cacheKey = [path, depth, weave, twist, left, top, right, bottom, params.fontSize].join('|');
+        if (ribbonEchoEffectPadCache.key === cacheKey) return ribbonEchoEffectPadCache.value;
+        var minX = left, minY = top, maxX = right, maxY = bottom;
+        var corners = [[left, top], [right, top], [right, bottom], [left, bottom]];
+        var lanes = path === 'braid' ? 2 : 1;
+        // Animation rotates the trajectory direction through a complete turn.
+        // Sample that closed interval together with the continuous ribbon path;
+        // the safety gutter below covers the sub-sample curvature and strokes.
+        for (var phaseIndex = 0; phaseIndex < 64; phaseIndex++) {
+          var phase = phaseIndex / 64 * Math.PI * 2;
+          for (var sample = 0; sample <= 96; sample++) {
+            var t = sample / 96;
+            for (var lane = 0; lane < lanes; lane++) {
+              var state = ribbonSectionStateV31(path, t, depth, weave, phase, twist,
+                [left, top, right, bottom], lane);
+              for (var corner = 0; corner < corners.length; corner++) {
+                var point = ribbonTransformPointV31(corners[corner][0], corners[corner][1], pivotX, pivotY, state);
+                minX = Math.min(minX, point.x); minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x); maxY = Math.max(maxY, point.y);
+              }
+            }
+          }
+        }
+        var expansion = Math.max(left - minX, top - minY, maxX - right, maxY - bottom, 0);
+        var sampleSlack = Math.hypot(source.w, source.h) * (Math.PI * 2 / 64) + Math.abs(depth) * (Math.PI * 2 / 64);
+        var value = Math.ceil(expansion + sampleSlack + Math.max(12, params.fontSize * 0.08));
+        ribbonEchoEffectPadCache = { key: cacheKey, value: value };
+        return value;
       }
 
 function surfaceNoise01(x, y, salt) {
@@ -24839,7 +24962,7 @@ function renderCipherLiturgy(targetCtx, glyphs, width, height, pixelScale, L, fm
       }
 
 function surfaceCanonicalRasterPlan(glyphs) {
-        var bounds = contentBounds(glyphs, Math.max(surfaceEffectPad(), ribbonLaminaEffectPad(glyphs), differentialEffectPad(glyphs), conformalEffectPad(glyphs), auxeticEffectPad(glyphs), calligraphyEffectPad(glyphs), marblingEffectPad(glyphs)));
+        var bounds = contentBounds(glyphs, Math.max(surfaceEffectPad(), ribbonEchoEffectPad(glyphs), contourEtchEffectPad(glyphs), rasterPressEffectPad(glyphs), hatchEngraveEffectPad(glyphs), differentialEffectPad(glyphs), conformalEffectPad(glyphs), auxeticEffectPad(glyphs), calligraphyEffectPad(glyphs), marblingEffectPad(glyphs)));
         bounds.w = Math.max(1, isFinite(bounds.w) ? bounds.w : 1);
         bounds.h = Math.max(1, isFinite(bounds.h) ? bounds.h : 1);
         bounds.x = isFinite(bounds.x) ? bounds.x : 0;

@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
 import '../font-axes.js';
 const A=globalThis.TypeDeformerAxes;
+const editorSource=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const limitsSource=editorSource.match(/^      var FONT_IMPORT_LIMITS = Object\.freeze\(\{[^]*?^      \}\);/m)?.[0];
+const planSource=editorSource.match(/^      function fontImportPlan\([^]*?^      \}/m)?.[0];
+if(!limitsSource||!planSource)throw Error('Font import policy is missing from the editor source');
+const importPolicy=vm.createContext({});
+vm.runInContext(limitsSource+'\n'+planSource,importPolicy);
 function fixture(axes=[['wght',100,400,1000,0],['wdth',25,100,151,0],['GRAD',-200,0,150,0],['XXXX',0,0,1,1]]){
  const bytes=new ArrayBuffer(28+16+axes.length*20),v=new DataView(bytes);
  v.setUint32(0,0x00010000);v.setUint16(4,1);new Uint8Array(bytes).set([102,118,97,114],12);v.setUint32(20,28);v.setUint32(24,16+axes.length*20);
@@ -34,4 +42,14 @@ test('distributions are deterministic, distinct, continuous for wave and phase c
  assert.equal(new Set(['sequence','mirror','wave','steps'].map(mode=>JSON.stringify(samples(mode)))).size,4);
  for(let i=0;i<20;i++)assert.ok(Math.abs(A.field(meta,{}, {...base,distribution:'wave'},i/20).wdth-A.field(meta,{}, {...base,distribution:'wave',phase:base.phase+1},i/20).wdth)<1e-10);
  assert.equal(A.css({wght:400,wdth:100}),'"wdth" 100, "wght" 400');
+});
+test('font import policy accepts a large lazy library and rejects only declared hard budgets',()=>{
+ const L=importPolicy.FONT_IMPORT_LIMITS,plan=importPolicy.fontImportPlan;
+ assert.equal(L.maxFiles,4096);assert.equal(L.maxFileBytes,128*1024*1024);assert.equal(L.maxTotalBytes,8*1024*1024*1024);
+ const many=Array.from({length:1024},(_,i)=>({name:'font-'+i+'.otf',size:4*1024*1024}));
+ const accepted=plan(many);assert.equal(accepted.issue,'');assert.equal(accepted.files.length,1024);
+ assert.equal(plan([...many,{name:'notes.txt',size:1}]).files.length,1024);
+ assert.equal(plan(Array.from({length:4097},(_,i)=>({name:i+'.ttf',size:1}))).issue,'count');
+ assert.equal(plan([{name:'oversize.woff2',size:L.maxFileBytes+1}]).issue,'file');
+ assert.equal(plan(Array.from({length:65},(_,i)=>({name:i+'.ttc',size:L.maxFileBytes}))).issue,'total');
 });

@@ -34,9 +34,19 @@ export function fixture(mask, settings = {}, source = html) {
     return fn;
   };
   const c = vm.createContext({ Math, document: { createElement: () => canvas.createCanvas(1, 1) },
-    surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 }, compositeSurfaceSource() {} });
+    surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 },
+    contentBounds(glyphs) {
+      const active = glyphs.filter(glyph => glyph && Number.isFinite(glyph.x) && Number.isFinite(glyph.y));
+      if (!active.length) return { x: 0, y: 0, w: mask.width, h: mask.height };
+      const left = Math.min(...active.map(glyph => glyph.x));
+      const top = Math.min(...active.map(glyph => glyph.y));
+      const right = Math.max(...active.map(glyph => glyph.x + glyph.w));
+      const bottom = Math.max(...active.map(glyph => glyph.y + glyph.h));
+      return { x: left, y: top, w: right - left, h: bottom - top };
+    },
+    compositeSurfaceSource() {} });
   const names = ['renderHatchEngrave', 'renderHatchEngraveLegacy', 'drawHatchFamily', 'drawAdaptiveHatchFamily',
-    'surfaceScratch', 'surfaceBoundaryDistance', 'surfaceBoundaryEnvelopeCanvas', 'colorizeSurfaceCanvas',
+    'hatchEngraveEffectPad', 'surfaceScratch', 'surfaceBoundaryDistance', 'surfaceBoundaryEnvelopeCanvas', 'colorizeSurfaceCanvas',
     'surfaceAggregate', 'surfaceChoice', 'surfaceGlyphStrength', 'hash',
     ...[...source.matchAll(/^      function (hatchCopper\w+)\(/gm)].map(m => m[1])];
   vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(n => source.match(new RegExp('      var ' + n + ' = \\{[^]*?\\n      };'))[0]).join('\n')

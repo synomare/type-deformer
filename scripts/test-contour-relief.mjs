@@ -118,6 +118,24 @@ test('declared extremes stay finite, bounded, and do not mutate the source mask'
   assert.deepEqual(Buffer.from(alphaData(mask)), before);
 });
 
+test('declared contour reach is reserved before the shared raster and output are allocated', () => {
+  const mask = textMask('地形', 190, 'Contour Test Yu Mincho', 720, 520);
+  const fixture = createContourFixture(mask, {
+    contourBands: 64,
+    contourSpacing: 40,
+    contourStroke: 14,
+    contourDrift: 6,
+    contourRelief: 4
+  });
+  const glyph = { x: 0, y: 0, w: 720, h: 520, ox: 0, oy: 0, tx: 0, ty: 0,
+    scaleX: 1, scaleY: 1, opacity: 1,
+    surface: { ...fixture.params, contourGrammar: 'relief', contourEtch: .01 } };
+  const reliefPad = fixture.contourEtchEffectPad([glyph]);
+  assert.ok(reliefPad > 3200, 'the former 760px cap would crop the declared 64 by 40px relief field');
+  glyph.surface.contourGrammar = 'isobars';
+  assert.ok(fixture.contourEtchEffectPad([glyph]) >= 2560 + 56 + 12);
+});
+
 test('legacy and existing modern modes remain routed away from relief', () => {
   const mask = textMask('MAP', 140, 'Arial Black', 520, 360);
   const fixture = createContourFixture(mask);

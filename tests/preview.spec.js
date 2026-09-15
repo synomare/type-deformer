@@ -68,6 +68,34 @@ test('cold start, Discover and lazy Preset Library stay within the preview contr
   expect(errors).toEqual([]);
 });
 
+test('more than 256 font files enter the Library without eagerly reading every file', async ({ page }) => {
+  const errors = [];
+  await openPreview(page, errors);
+  await page.evaluate(() => {
+    const original = Blob.prototype.arrayBuffer;
+    window.__fontArrayBufferReads = 0;
+    Blob.prototype.arrayBuffer = function () {
+      window.__fontArrayBufferReads++;
+      return original.call(this);
+    };
+  });
+  const files = Array.from({ length: 300 }, (_, index) => ({
+    name: `batch-font-${String(index).padStart(3, '0')}.ttf`,
+    mimeType: 'font/ttf',
+    buffer: Buffer.from([0, 1, 2, index & 255])
+  }));
+  await page.locator('#pFontFile').setInputFiles(files);
+  await expect(page.locator('#fontStatus')).toContainText('300書体をLibraryへ追加');
+  await expect(page.locator('#pImportedFont option')).toHaveCount(301);
+  expect(await page.evaluate(() => window.__fontArrayBufferReads)).toBe(0);
+  const firstFamily = await page.locator('#pImportedFont option').nth(1).getAttribute('value');
+  await page.locator('#pImportedFont').selectOption(firstFamily);
+  await expect(page.locator('#fontStatus')).toContainText('Import failed');
+  expect(await page.evaluate(() => window.__fontArrayBufferReads)).toBe(1);
+  expect(await page.evaluate(() => window.TypeDeformerFontImport.limits.maxFiles)).toBe(4096);
+  expect(errors).toEqual([]);
+});
+
 test('Compare, Project round-trip, Share, PNG/SVG and keyboard flows work', async ({ page }) => {
   const errors = [];
   await openPreview(page, errors);
@@ -234,5 +262,82 @@ test('default preview fits complete glyph and Surface effect bounds at narrow wi
   await page.locator('#btnViewReset').click();
   await expect(page.locator('#btnViewMode')).toHaveAttribute('aria-pressed', 'false');
   await expect.poll(() => page.locator('#btnViewReset').textContent()).toMatch(/^FIT /);
+  expect(errors).toEqual([]);
+});
+
+test('wide Contour field is not cut by the shared raster in preview, Output Preview, PNG or SVG', async ({ page }) => {
+  const errors = [];
+  await openPreview(page, errors);
+  const projectDownload = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#btnSaveProj').evaluate(element => element.click())
+  ]).then(values => values[0]);
+  const savedPath = await projectDownload.path();
+  const project = JSON.parse(fs.readFileSync(savedPath, 'utf8'));
+  project.text = 'synomare';
+  Object.assign(project.params, {
+    fontSize: 160, textMeasure: 0,
+    contourGrammar: 'relief', contourRelief: 4, contourBands: 32, contourSpacing: 20,
+    contourStroke: 3, contourDrift: 3, contourColor: '#d8ccb2', contourSourceMode: 'keep',
+    contourOpacity: 1, contourSourceOpacity: 0.1,
+    paper: '#14322f', ink: '#d8ccb2', artboard: 'custom', abW: 1200, abH: 740,
+    fit: true, marginPct: 6, transparentBg: false, exportScale: 1
+  });
+  project.letters = Array.from({ length: project.text.length }, () => ({
+    t: 0, l: 0, i: 0, o: { contourEtch: { t: 1, i: 1 } }
+  }));
+  const fixturePath = savedPath + '.wide-contour.json';
+  fs.writeFileSync(fixturePath, JSON.stringify(project));
+  await page.setViewportSize({ width: 989, height: 512 });
+  await page.locator('#projFile').setInputFiles(fixturePath);
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('#surfaceFxCanvas');
+    if (!canvas || canvas.hidden) return false;
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return maxX - minX > canvas.width * 0.72 && maxY - minY > canvas.height * 0.68
+      && minX > 8 && minY > 8 && maxX < canvas.width - 9 && maxY < canvas.height - 9;
+  }, null, { timeout: 30000 });
+
+  const live = await page.locator('#surfaceFxCanvas').evaluate(canvas => {
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return { width: canvas.width, height: canvas.height, minX, minY, maxX, maxY };
+  });
+  expect((live.maxX - live.minX) / live.width).toBeGreaterThan(0.72);
+  expect((live.maxY - live.minY) / live.height).toBeGreaterThan(0.68);
+
+  await page.locator('#btnPreview').evaluate(element => element.click());
+  await expect(page.locator('#previewOverlay')).toBeVisible({ timeout: 60000 });
+  await expect.poll(() => page.locator('#previewImg').evaluate(image => image.naturalWidth * image.naturalHeight),
+    { timeout: 60000 }).toBeGreaterThan(0);
+  await expect(page.locator('#previewCaption')).toContainText(/preview|高品質確認/);
+  await page.locator('#btnPreviewClose').click();
+
+  const [png] = await Promise.all([
+    page.waitForEvent('download', { timeout: 60000 }),
+    page.locator('#btnPng').evaluate(element => element.click())
+  ]);
+  expect(png.suggestedFilename()).toMatch(/\.png$/);
+  expect(fs.statSync(await png.path()).size).toBeGreaterThan(100000);
+
+  const [svg] = await Promise.all([
+    page.waitForEvent('download', { timeout: 60000 }),
+    page.locator('#btnSvg').evaluate(element => element.click())
+  ]);
+  expect(svg.suggestedFilename()).toMatch(/\.svg$/);
+  const svgText = fs.readFileSync(await svg.path(), 'utf8');
+  expect(svgText).toContain('data-effect-layer="surface-fx"');
+  expect(svgText).toContain('data:image/png;base64,');
   expect(errors).toEqual([]);
 });

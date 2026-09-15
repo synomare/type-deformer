@@ -28,7 +28,7 @@ export function createContourFixture(mask, settings = {}, source = html) {
     compositeSurfaceSource() {}
   });
   const helpers = [
-    'renderContourEtch', 'renderContourEtchLegacy', 'renderContourReliefV57', 'surfaceBoundaryDistance',
+    'renderContourEtch', 'renderContourEtchLegacy', 'renderContourReliefV57', 'contourEtchEffectPad', 'contentBounds', 'surfaceBoundaryDistance',
     'surfaceSignedDistanceValue', 'surfaceFieldNormal', 'surfaceVoidTopology',
     'surfaceSmoothCoverage', 'surfaceScratch', 'surfaceAggregate', 'surfaceChoice',
     'surfaceGlyphStrength', 'paintSurfaceMask', 'hash'

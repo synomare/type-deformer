@@ -8,7 +8,8 @@ const names = ['renderRibbonEcho', 'renderRibbonLamina', 'renderRibbonEchoLegacy
   ...[...html.matchAll(/^      function (ribbon\w+)\(/gm)].map(m => m[1])];
 export function fixture(mask, settings = {}, oldSource = '') {
   const c = vm.createContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
-    surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 }, compositeSurfaceSource() {} });
+    surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 },
+    ribbonEchoEffectPadCache: { key: '', value: 0 }, compositeSurfaceSource() {} });
   vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(n => html.match(new RegExp('      var ' + n + ' = \\{[^]*?\\n      };'))[0]).join('\n')
     + '\n' + [...new Set(names)].map(extract).join('\n') + '\n' + oldSource, c);
   Object.assign(c.params, { seed: 41, paper: '#f3f0e8' }, settings);
