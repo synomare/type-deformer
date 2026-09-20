@@ -135,3 +135,19 @@ test('unchanged pending/error messages do not repeatedly mutate the status live 
   f.failWrite('QuotaExceededError'); c.saveAutosave(); const errors = mutations;
   for (let i = 0; i < 30; i++) c.markAutosaveDirty(); assert.equal(mutations, errors);
 });
+
+test('startup strips every effect before loading, preserves raw recovery and does not overwrite it with a later plain boot', () => {
+ const f=autosaveFixture(),{c}=f,heavy={app:'type-deformer',version:50,text:'残す原文',params:{fontSize:5000,textObjects:'untrusted layout'},letters:[{t:1,o:{tensorFiligree:{t:1,i:1}},mx:20}],composition:{enabled:true},lookMemory:{heavy:true}};
+ const raw=JSON.stringify(heavy);f.memory.set(c.AUTOSAVE_KEY,raw);assert.equal(c.tryRestoreAutosave(),true);
+ assert.equal(c.data.text,heavy.text);assert.equal(c.data.letters.length,0);assert.equal(Object.keys(c.data.params).length,0);assert.equal(c.data.composition.enabled,false);assert.equal(f.memory.get(c.AUTOSAVE_RECOVERY_KEY),raw);
+ c.saveAutosave();c.tryRestoreAutosave();assert.equal(f.memory.get(c.AUTOSAVE_RECOVERY_KEY),raw);assert.equal(c.data.letters.length,0);
+});
+test('recovery write failure still starts plain and protects original data',()=>{
+ const f=autosaveFixture(),{c}=f,raw=JSON.stringify({app:'type-deformer',version:50,text:'原文',params:{},letters:[{o:{x:{t:1}}}]});f.memory.set(c.AUTOSAVE_KEY,raw);f.failWrite('QuotaExceededError',c.AUTOSAVE_RECOVERY_KEY);
+ assert.equal(c.tryRestoreAutosave(),true);assert.equal(c.data.letters.length,0);assert.equal(c.autosaveRecoveryBlocked,true);c.saveAutosave();assert.equal(f.memory.get(c.AUTOSAVE_KEY),raw);
+});
+test('refresh warning is independent of autosave success and performs no serialization',()=>{
+ const f=autosaveFixture(),{c}=f;c.startAutosave();c.sessionHasChanges=false;let warnings=0;const event={preventDefault(){warnings++;}};
+ f.events['window:beforeunload'](event);assert.equal(warnings,0);c.markAutosaveDirty();c.saveAutosave();const count=f.serializations();f.events['window:beforeunload'](event);assert.equal(warnings,1);assert.equal(event.returnValue,'');assert.equal(f.serializations(),count);
+ c.autosaveSuspended=true;f.events['window:beforeunload'](event);assert.equal(warnings,1);
+});

@@ -29,7 +29,8 @@
     "tests/fixtures/fonts/narrow.woff2",
     "tests/fixtures/fonts/pair.ttc",
     "tests/fixtures/fonts/README.md",
-    "tests/fixtures/fonts/wide.ttf"
+    "tests/fixtures/fonts/wide.ttf",
+    "tests/restart.spec.js"
   ],
   "catalogAssets": [
     {

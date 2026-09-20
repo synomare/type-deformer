@@ -50,3 +50,21 @@ test('failed font loading is not acknowledged, and worker crashes recover the ne
 test('cancelling or disposing clears timers and never revives work',()=>{
  for(const action of ['cancel','dispose']){const {q,workers,tick,timers}=fixture();q.request('a',edit);q.invalidate();q.request('b',edit);q[action]();tick();assert.equal(timers.size,0);assert.equal(workers.length,1);assert.equal(q.status().busy,false);}
 });
+
+test('edit deadlines terminate a stuck worker, release timers and permit a new request; export remains unlimited',()=>{
+ let stopped=0;const {q,workers,tick,timers}=fixture({editTimeout:8000,onTimeout(){stopped++;}});
+ q.request('stuck',edit);tick();assert.equal(workers[0].terminated,true);assert.equal(q.status().busy,false);assert.match(q.status().error,/時間上限/);assert.equal(stopped,1);assert.equal(timers.size,0);
+ q.request('next',edit);workers[1].result();tick();assert.equal(stopped,1);assert.equal(q.status().ready,true);
+ q.request('export',{purpose:'export'});tick();assert.equal(workers[1].terminated,undefined);assert.equal(q.status().busy,true);q.dispose();
+});
+test('cancel releases completed bitmaps and repeated cancel does not start notification loops',()=>{
+ let notifications=0,closed=0;const {q,workers}=fixture({onState(){notifications++;}});q.request('a',edit);workers[0].result(0,{bitmap:{close(){closed++;}}});q.cancel();assert.equal(closed,1);const count=notifications;q.cancel();assert.equal(notifications,count);
+});
+
+test('an edit deadline hands a queued proof/export to a new worker without cancelling that explicit job',()=>{
+ let stopped=0;for(const purpose of ['proof','export']){const {q,workers,tick}=fixture({editTimeout:8000,onTimeout(){stopped++;}});q.request('edit',edit);q.request('output',{purpose});tick();assert.equal(workers[0].terminated,true);assert.equal(workers[1].sent[0].key,'output');workers[1].result();assert.equal(q.status().ready,true);q.dispose();}assert.equal(stopped,0);
+});
+
+test('pausing the editor releases edits but leaves explicit output work running',()=>{
+ for(const purpose of ['edit','proof','export']){const {q,workers}=fixture();q.request('a',{purpose});q.cancelEditing();assert.equal(q.status().busy,purpose!=='edit');assert.equal(!!workers[0].terminated,purpose==='edit');q.dispose();}
+});

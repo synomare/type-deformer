@@ -3292,6 +3292,8 @@
     <div class="project-menu-body" aria-live="polite">
       <p class="project-menu-title">PROJECT <span>保存・共有</span></p>
       <div class="autosave-box">
+        <p class="hint">更新するとエフェクトなしの文字だけに戻ります。作品を残すにはSave projectで保存してください。</p>
+        <button type="button" id="btnPreviousProject" hidden>前回の作品をJSON保存</button>
         <p id="autosaveStatus" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">このブラウザへの自動保存を準備しています。</p>
         <button type="button" id="btnAutosaveRetry" hidden>自動保存を再試行</button>
       </div>
@@ -5935,6 +5937,7 @@ type deformer</textarea>
       <div class="render-quality-controls" role="group" aria-label="表示品質">
         <label for="previewQuality">表示</label><select id="previewQuality"><option value="standard">標準</option><option value="low">低負荷</option></select>
         <button type="button" id="btnHighQualityCheck">高品質確認</button>
+        <button type="button" id="btnPauseRendering" aria-pressed="false">描画を停止</button>
         <span id="renderQualityStatus" role="status" aria-live="polite"></span>
       </div>
       <div class="canvas-view-controls" role="group" aria-label="Unbounded canvas view">
@@ -16581,10 +16584,11 @@ type deformer</textarea>
       var surfaceFxLastPaint = 0;
       var surfaceEnvelopeScale = 1;
       var SURFACE_ENVELOPE_MAX = 512;
+      var previewRenderingPaused = false;
       var surfaceEnvelopeError = '';
       var SURFACE_WORKER_IDS=["dataMosh","copyDecay","misregistration","risoSeparation","calligraphicStress","asemicDuctus","spectralType","counterformEngine","terminalExcess","ligatureBody","fiberBody","glyphMutation","suspendedSyntax","livingTextField","innerEruption","recursiveGraft","structuralCollision","peelWeave","voidPressure","ornamentReserve","tensionMembrane","diffractiveGlyph","dendriteCast","quasicrystalBody","nematicFilm","hyperbolicAtlas","loadpathFoundry","nodalGlaze","spinodalAlloy","densityRecast","hopfLoom","miuraVault","vortexBath","rationalCusp","bladeBody","blackBastion","inktrapAbyss","strangulation","gillArray","screwExtrusion","harmonicCage","beltramiFlow","riemannRamification","linkedTwist","enneperBody","nibRecast","anatomyWarp","kreslingShell","growthBuckle","inversionBody","gravityLens","liquidRope","wulffBody","repulsiveCurves","wassersteinLetters","stressGlass","tensorFiligree","chromaticSwarm","gyroidSculpture","causticGlass","rubyUsurper","punctuationLoom","counterpage","rendererDebt","ligatureContagion","strokeCommons","chromeReliquary","naveCutter","cloisterFold","prismSacrament","texturaMatrix","voidPortal","recursiveShrine","morphProcession","chimeraGraft","moireChoir","ligatureCrypt","cipherLiturgy","ribbonEcho","slitSweep","cellFracture","rasterPress","hatchEngrave","contourEtch","monolithCast","pressureStroke","sinewTorque","boneScaffold","thornCrown","softBlob","blobTrack","etchantBloom","webbing","roseEngine","sigilForge","plotterTrace","differentialType","conformalType","auxeticType","marblingType"];
       var surfaceWorkerClockHold=false,surfaceWorkerFrameResult=null,surfaceWorkerParameterKeys={},surfaceWorkerBoundsCache=null;
-      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
+      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(status)status.textContent=state.error|| (state.busy?'描画中…':state.ready?'表示を更新しました。':'');
         if(state.ready&&state.result&&state.result.kind==='envelope'){
           surfaceWorkerFrameResult=null;if(surfaceFxCanvas)surfaceFxCanvas.hidden=true;
@@ -16600,6 +16604,20 @@ type deformer</textarea>
         return {fontCss:Array.from(document.querySelectorAll('link[rel=stylesheet][href]')).map(function(link){return link.href;}).filter(function(url){return /^https:\/\/fonts.googleapis.com\//.test(url);}),params:Object.assign({},params),composition:JSON.parse(JSON.stringify(compositionState)),text:renderedSourceText,
           surfacePhase:surfaceFxPhase,dataMoshFrame:dataMoshFrame,blobTrack:JSON.parse(JSON.stringify({blobs:blobTrackState.blobs,trails:blobTrackState.trails})),glyphs:compact,fm:fm,operatorKeys:surfaceWorkerParameterKeys};
       }
+      function pausePreviewRendering(message) {
+        previewRenderingPaused = true;
+        if(surfaceRenderJobs)surfaceRenderJobs.cancelEditing();
+        if(typeof compositionRenderJobs!=='undefined'&&compositionRenderJobs)compositionRenderJobs.cancelEditing();
+        surfaceWorkerFrameResult=null;surfaceWorkerBoundsCache=null;surfaceWorkerClockHold=false;compositionWorkerHold=false;
+        setCompositionPlaying(false);
+        var button=document.getElementById('btnPauseRendering');button.textContent='描画を再開';button.setAttribute('aria-pressed','true');
+        differentialPrepare([]);conformalPrepare([]);auxeticPrepare([]);marblingPrepare([]);
+        document.getElementById('renderQualityStatus').textContent=message||'描画を停止しました。設定を調整して再開できます。';
+      }
+      document.getElementById('btnPauseRendering').addEventListener('click',function(){
+        if(!previewRenderingPaused){pausePreviewRendering();return;}
+        previewRenderingPaused=false;this.textContent='描画を停止';this.setAttribute('aria-pressed','false');invalidateSurfaceWorkerFrame();
+      });
       function surfaceWorkerFontRecords(frame) {
         if (typeof studioFontBuffers === 'undefined') return [];
         var families = [frame.params.fontFamily].concat(frame.glyphs.map(function(g){return g.fontFamily || ''; })).join(',');
@@ -16629,10 +16647,10 @@ type deformer</textarea>
       function prepareSurfaceWorkerFrame(glyphs,scale,L,fm,width,height,purpose) {
         purpose=purpose||'edit';if(!surfaceRenderJobs || (studioRendererMode&&purpose==='edit'))return true;
         var operators=SURFACE_WORKER_IDS.filter(function(id){return surfaceEffectPresent(glyphs,id);});
-        if(!operators.length){surfaceWorkerFrameResult=null;surfaceWorkerClockHold=false;return true;}
+        if(!operators.length){surfaceRenderJobs.cancel();surfaceWorkerFrameResult=null;surfaceWorkerClockHold=false;return true;}
         var frame=surfaceWorkerSnapshot(glyphs,fm);
         Object.assign(frame,{kind:'frame',scale:scale,layout:L,width:width,height:height,plan:surfaceCanonicalRasterPlan(glyphs),operators:operators,
-          purpose:purpose,presentation:purpose==='edit'&&globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.mode():'standard'});
+          purpose:purpose,mobile:isIOS||/Android/.test(navigator.userAgent),presentation:purpose==='edit'&&globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.mode():'standard'});
         var key=JSON.stringify(frame);frame.fonts=surfaceWorkerFontRecords(frame);
         var state=surfaceRenderJobs.request(key,frame);surfaceWorkerClockHold=!state.ready;
         if(state.error){if(purpose!=='edit')throw new Error(state.error);return false;}
@@ -42800,6 +42818,7 @@ type deformer</textarea>
         if(studioRendererMode){surfaceFxDrawRaf=null;return;}
         if (!surfaceFxCtx || !metrics.length) marblingPrepare([]);
         surfaceFxDrawRaf = null;
+        if(typeof previewRenderingPaused!=='undefined'&&previewRenderingPaused&&!studioRendererMode)return;
         if (!surfaceFxCtx || !metrics.length) { differentialPrepare([]); conformalPrepare([]); auxeticPrepare([]); counterformResetInactive([]); return; }
         if (metricsDirty) measureLayout();
         if(globalThis.TypeDeformerPreview&&globalThis.TypeDeformerPreview.throttle(now)){surfaceFxDrawRaf=requestAnimationFrame(renderSurfaceFxPreview);return;}
@@ -42839,6 +42858,7 @@ type deformer</textarea>
         if (!hasEffects) {
           marblingPrepare([]);
           differentialPrepare([]); conformalPrepare([]); auxeticPrepare([]); counterformResetInactive([]);
+          if(typeof surfaceRenderJobs!=='undefined'&&surfaceRenderJobs)surfaceRenderJobs.cancel();if(typeof surfaceWorkerFrameResult!=='undefined')surfaceWorkerFrameResult=null;
           surfaceFxCanvas.hidden = true;
           surfaceFxCtx.setTransform(1, 0, 0, 1, 0, 0);
           surfaceFxCtx.clearRect(0, 0, surfaceFxCanvas.width, surfaceFxCanvas.height);
@@ -45678,7 +45698,7 @@ type deformer</textarea>
         )
       };
 
-      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
+      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(state.error&&status)status.textContent=state.error;
         if(!studioRendererMode&&(state.ready||state.error))scheduleCompositionDraw();
       }}):null;
@@ -46256,7 +46276,7 @@ type deformer</textarea>
         var presentation=globalThis.TypeDeformerCompositionPresentation||{density:1},density=presentation.density||1;
         var targetW=Math.max(1,Math.ceil(width*density)),targetH=Math.max(1,Math.ceil(height*density));
         var limit=state.gl.getParameter(state.gl.MAX_TEXTURE_SIZE);
-        if(targetW>limit||targetH>limit||targetW*targetH*8>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.composeBytes:512*1024*1024)){var error=new Error('Composeの光学描画がGPUまたは512 MBの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        if(targetW>limit||targetH>limit||targetW*targetH*8>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.limits(presentation.purpose||'edit').composeBytes:512*1024*1024)){var error=new Error('Composeの光学描画が表示用メモリ予算を超えました。低負荷表示に切り替えるか設定を軽くしてください。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         if (state.canvas.width !== targetW) state.canvas.width = targetW;
         if (state.canvas.height !== targetH) state.canvas.height = targetH;
         var gl = state.gl;
@@ -46333,7 +46353,7 @@ type deformer</textarea>
       function updateCompositionWebGLTextTexture(state) {
         var gl = state.gl;
         var maskSize = 1024,density=(globalThis.TypeDeformerCompositionPresentation||{}).density||1,physicalSize=Math.max(1,Math.ceil(maskSize*density));
-        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.textureBytes:256*1024*1024)){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.limits((globalThis.TypeDeformerCompositionPresentation||{}).purpose||'edit').textureBytes:256*1024*1024)){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         var key = textInput.value + '|' + params.fontFamily + '|' + params.fontWeight + '|' + params.vertical+'|'+density;
         if (state.maskKey === key && state.maskCanvas) return;
         state.maskKey = key;
@@ -46517,6 +46537,7 @@ type deformer</textarea>
       }
 
       function renderCompositionPreview() {
+        if(typeof previewRenderingPaused!=='undefined'&&previewRenderingPaused&&!studioRendererMode){compositionDrawRaf=null;return;}
         var renderStarted = performance.now();
         var cameraOnly = compositionCameraOnlyPending;
         compositionCameraOnlyPending = false;
@@ -46582,6 +46603,7 @@ type deformer</textarea>
       }
 
       function scheduleCompositionDraw(cameraOnly) {
+        if(typeof previewRenderingPaused!=='undefined'&&previewRenderingPaused&&!studioRendererMode)return;
         if (compositionDrawRaf !== null) {
           if (!cameraOnly) compositionCameraOnlyPending = false;
           return;
@@ -54910,7 +54932,7 @@ type deformer</textarea>
           setProjectActionStatus('文字変換を確定してから保存してください。', 'working');
           return;
         }
-        var blob = new Blob([JSON.stringify(projectData())], { type: 'application/json' });
+        var blob = new Blob([JSON.stringify(projectData())], { type: 'application/json;charset=utf-8' });
         var mode = download(blob, 'type-deform-project-' + stamp() + '.json');
         setProjectActionStatus('Project JSON · ' + Math.max(1, Math.round(blob.size / 1024)) + ' KB · ' + downloadOutcomeLabel(mode), 'done');
       }
@@ -55343,6 +55365,8 @@ type deformer</textarea>
       /* ---------------- autosave ---------------- */
       var AUTOSAVE_KEY = 'typeDeformer.autosave.v1';
       var AUTOSAVE_BACKUP_KEY = 'typeDeformer.autosave.backup.v1';
+      var AUTOSAVE_RECOVERY_KEY = 'typeDeformer.previousProject.v1';
+      var startupRecoveryRaw = '', sessionHasChanges = false;
       var autosaveDirty = true;
       var autosaveSuspended = false;
       var autosaveIdleHandle = null;
@@ -55378,7 +55402,7 @@ type deformer</textarea>
 
       function autosaveSavedFeedback() {
         var time = new Date(autosaveLastSavedAt).toLocaleTimeString('ja-JP');
-        setAutosaveFeedback('saved', 'このブラウザに保存済み · ' + time + '。長期保管にはSave projectでJSONも保存してください。');
+        setAutosaveFeedback('saved', 'このブラウザに保存済み · ' + time + '。更新後は文字だけで起動します。エフェクト付き作品はSave projectで保存してください。');
       }
 
       function recordAutosaveFailure(error, backupOnly, serialization) {
@@ -55394,6 +55418,7 @@ type deformer</textarea>
       }
 
       function markAutosaveDirty() {
+        sessionHasChanges = true;
         autosaveDirty = true;
         if (autosaveRecoveryBlocked) return;
         if (!autosaveFeedback || autosaveFeedback.state === 'saved' || autosaveFeedback.state === 'pending') {
@@ -55478,6 +55503,12 @@ type deformer</textarea>
         }
       }
 
+      function startupProjectHasEffects(data) {
+        return !!(data.composition && data.composition.enabled) || (Array.isArray(data.letters) && data.letters.some(function(s){return s && (s.t || s.mx || s.my || s.d || s.o && Object.keys(s.o).length); }));
+      }
+      function plainStartupProject(data) {
+        return {app:data.app,version:data.version,text:data.text,params:{},letters:[],composition:{enabled:false}};
+      }
       function tryRestoreAutosave() {
         var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];
         var failed = false;
@@ -55485,11 +55516,18 @@ type deformer</textarea>
           try {
             var raw = localStorage.getItem(keys[i]);
             if (!raw) continue;
-            if (loadProject(JSON.parse(raw), true)) {
+            var data = JSON.parse(raw);
+            if (!isProjectData(data)) { failed = true; continue; }
+            if (loadProject(plainStartupProject(data), true)) {
+              if (startupProjectHasEffects(data)) {
+                startupRecoveryRaw = raw;
+                try { localStorage.setItem(AUTOSAVE_RECOVERY_KEY, raw); }
+                catch (recoveryError) { failed = true; }
+              }
               if (failed) {
                 autosaveRecoveryBlocked = true;
-                setAutosaveFeedback('blocked', 'バックアップから復元しました。通常の保存データを読み込めないため、上書きせず自動保存を停止しています。現在の作品はSave projectでJSONを保存してください。');
-              } else setAutosaveFeedback('pending', '前回の自動保存を復元しました。現在の変更は保存待ちです。');
+                setAutosaveFeedback('blocked', 'バックアップから復元、または前回の作品の保護が必要な状態です。文字だけで起動し、保存先を上書きせず自動保存を停止しています。必要な作品はJSONで保存してください。');
+              } else setAutosaveFeedback('pending', '前回の文字だけを復元しました。エフェクトとComposeは解除しています。');
               return true;
             }
             failed = true;
@@ -55503,6 +55541,16 @@ type deformer</textarea>
       }
 
       function startAutosave() {
+        try { if (!startupRecoveryRaw) startupRecoveryRaw = localStorage.getItem(AUTOSAVE_RECOVERY_KEY) || ''; } catch (e) {}
+        var previousButton = document.getElementById('btnPreviousProject');
+        if (previousButton) {
+          previousButton.hidden = !startupRecoveryRaw;
+          previousButton.addEventListener('click', function(){download(new Blob([startupRecoveryRaw],{type:'application/json;charset=utf-8'}),'type-deform-previous-project-' + stamp() + '.json');});
+        }
+        window.addEventListener('beforeunload', function(event) {
+          if (!sessionHasChanges || autosaveSuspended) return;
+          event.preventDefault(); event.returnValue = '';
+        });
         if (!autosaveFeedback) markAutosaveDirty();
         var retry = document.getElementById('btnAutosaveRetry');
         if (retry) retry.addEventListener('click', retryAutosave);
@@ -55581,6 +55629,7 @@ type deformer</textarea>
         try {
           localStorage.removeItem(AUTOSAVE_KEY);
           localStorage.removeItem(AUTOSAVE_BACKUP_KEY);
+          localStorage.removeItem(AUTOSAVE_RECOVERY_KEY);
         } catch (e) { }
         location.replace(location.href.split('#')[0]);
       }
@@ -56155,8 +56204,12 @@ type deformer</textarea>
       syncLookMemoryUI();
       // restore order: shared URL wins, then the autosave; autosaving only
       // starts after restore so the default state never clobbers a session
-      if (!studioRendererMode) tryRestoreFromHash().then(function (fromHash) {
+      var navigationEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+      var isRestart = navigationEntry && navigationEntry.type !== 'navigate';
+      if (!studioRendererMode) (isRestart ? Promise.resolve(false) : tryRestoreFromHash()).then(function (fromHash) {
         if (!fromHash) tryRestoreAutosave();
+        if (isRestart && location.hash.indexOf('#p=') === 0) history.replaceState(null, '', location.pathname + location.search);
+        sessionHasChanges = !!fromHash;
         startAutosave();
         consumeNewProjectNotice();
       });

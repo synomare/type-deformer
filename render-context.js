@@ -4,13 +4,18 @@
   var nativeCreate=typeof document!=='undefined'?document.createElement.bind(document):null;
   var MiB=1024*1024;
   var budgets=Object.freeze({workBytes:768*MiB,layerBytes:512*MiB,composeBytes:512*MiB,textureBytes:256*MiB,videoBytes:512*MiB,maxCanvasPixels:64*MiB});
+  function limits(purpose,mobile){
+    if(purpose==='export'||purpose==='proof')return budgets;
+    if(mobile==null)mobile=!!(root.navigator&&(/Android|iPhone|iPad|iPod/.test((root.navigator.userAgent||'')+' '+(root.navigator.platform||''))||/Mac/.test(root.navigator.userAgent||'')&&(root.navigator.maxTouchPoints>1||root.document&&'ontouchend' in root.document)));
+    return {workBytes:(mobile?128:256)*MiB,layerBytes:(mobile?64:128)*MiB,composeBytes:(mobile?96:192)*MiB,textureBytes:64*MiB,videoBytes:budgets.videoBytes,maxCanvasPixels:(mobile?8:16)*MiB};
+  }
   function nativeCanvas(w,h){var c=nativeCreate?nativeCreate('canvas'):new OffscreenCanvas(w||1,h||1);c.width=w||1;c.height=h||1;return c;}
-  function make(options){options=options||{};var purpose=['edit','proof','export'].includes(options.purpose)?options.purpose:'edit';
+  function make(options){options=options||{};var purpose=['edit','proof','export'].includes(options.purpose)?options.purpose:'edit',budget=limits(purpose,options.mobile);
     var c={purpose:purpose,presentation:options.presentation==='low'&&purpose==='edit'?'low':'standard',
       width:Math.max(1,Number(options.width)||1),height:Math.max(1,Number(options.height)||1),
       viewScale:Math.max(.000001,Number(options.viewScale)||1),factor:Math.max(.000001,Number(options.factor)||1),
-      precision:purpose==='edit'?'display':'output',memoryBudget:options.memoryBudget||budgets.workBytes,
-      maxCanvasPixels:options.maxCanvasPixels||budgets.maxCanvasPixels,tile:options.tile||null,
+      precision:purpose==='edit'?'display':'output',memoryBudget:options.memoryBudget||budget.workBytes,
+      maxCanvasPixels:options.maxCanvasPixels||budget.maxCanvasPixels,tile:options.tile||null,
       referenceWidth:options.referenceWidth||0,referenceHeight:options.referenceHeight||0,overscan:options.overscan||0,
       accounted:new WeakMap(),bytes:0,peakBytes:0,created:0};
     c.key=[purpose,c.presentation,c.factor,c.tile&&[c.tile.x,c.tile.y,c.tile.width,c.tile.height].join(',')].join('/');return c;
@@ -49,6 +54,7 @@
   }
   function drawImage(ctx,source){var args=Array.prototype.slice.call(arguments,2),resolved=imageRect(source,args,true);if(resolved)ctx.drawImage.apply(ctx,resolved);}
   function createCanvas(w,h,options){
+    if(current&&Math.max(1,w||1)*Math.max(1,h||1)>current.maxCanvasPixels)throw new Error('描画面が表示用メモリ予算を超えました。文字サイズや効果を軽くしてください。設定値は保持されています。');
     var requestedFactor=options&&Number.isFinite(options.factor)&&options.factor>0?options.factor:current&&current.factor;
     assertAllocation(Math.max(1,w||1)*Math.max(1,h||1)*4);
     if(!current || (Math.abs(requestedFactor-1)<1e-8&&!current.tile)){var normal=nativeCanvas(w,h);try{account(normal);}catch(error){release(normal);throw error;}return normal;}
@@ -176,5 +182,5 @@
     },options);
   }
   function tiles(width,height,size){size=size||2048;var out=[];for(var y=0;y<height;y+=size)for(var x=0;x<width;x+=size)out.push({x:x,y:y,width:Math.min(size,width-x),height:Math.min(size,height-y)});return out;}
-  root.TypeDeformerRenderContext={budgets:budgets,make:make,withContext:withContext,withScope:withScope,retain:retain,current:function(){return current;},createCanvas:createCanvas,physical:physical,analysis:analysis,byteSize:byteSize,drawImage:drawImage,account:account,release:release,tiles:tiles,field:field,copyField:copyField,sample:sample,alphaSampler:alphaSampler,rasterSample:rasterSample,signed:signed,normal:normal,present:present,applyAlpha:applyAlpha,mesh:mesh,shadedMesh:shadedMesh,key:function(){return current?current.key:'analysis';}};
+  root.TypeDeformerRenderContext={budgets:budgets,limits:limits,make:make,withContext:withContext,withScope:withScope,retain:retain,current:function(){return current;},createCanvas:createCanvas,physical:physical,analysis:analysis,byteSize:byteSize,drawImage:drawImage,account:account,release:release,tiles:tiles,field:field,copyField:copyField,sample:sample,alphaSampler:alphaSampler,rasterSample:rasterSample,signed:signed,normal:normal,present:present,applyAlpha:applyAlpha,mesh:mesh,shadedMesh:shadedMesh,key:function(){return current?current.key:'analysis';}};
 })(typeof globalThis!=='undefined'?globalThis:this);

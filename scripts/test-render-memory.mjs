@@ -89,7 +89,7 @@ test('larger work budgets admit a 320 MiB raster and reject oversized allocation
   const allocated = [];
   const c = vm.createContext({ document: { createElement() { const canvas = { width: 1, height: 1, getContext: () => ({ setTransform() {} }) }; allocated.push(canvas); return canvas; } } });
   vm.runInContext(fs.readFileSync(new URL('render-context.js', root), 'utf8'), c);
-  const R = c.TypeDeformerRenderContext, context = R.make({ factor: 2 });
+  const R = c.TypeDeformerRenderContext, context = R.make({ purpose: 'export', factor: 2 });
   assert.equal(context.memoryBudget, 768 * 1024 * 1024);
   assert.equal(R.budgets.layerBytes, 512 * 1024 * 1024);
   assert.equal(R.budgets.composeBytes, 512 * 1024 * 1024);
@@ -99,7 +99,7 @@ test('larger work budgets admit a 320 MiB raster and reject oversized allocation
     assert.equal(context.bytes, 320 * 1024 * 1024);
   }));
   assert.equal(context.bytes, 0);
-  const constrained = R.make({ factor: 2, memoryBudget: 192 * 1024 * 1024 });
+  const constrained = R.make({ purpose: 'export', factor: 2, memoryBudget: 192 * 1024 * 1024 });
   assert.throws(() => R.withContext(constrained, () => R.createCanvas(4096, 4096)), /192 MB/);
   assert.equal(constrained.bytes, 0);
   assert.ok(allocated.every(canvas => canvas.width === 1 && canvas.height === 1));
@@ -113,4 +113,14 @@ test('video preflight uses the raised budget and names an explicit lower overrid
   const limited = c.TypeDeformerExportPreflight.evaluate({ ...input, memoryBudget: 192 * 1024 * 1024 });
   assert.equal(limited.status, 'blocked');
   assert.match(limited.blockers.join(' '), /192 MB/);
+});
+
+test('editing uses bounded desktop/mobile budgets while proof/export keep larger explicit capacity',()=>{
+ const {R}=fixture();assert.equal(R.make({purpose:'edit',mobile:false}).memoryBudget,256*1024*1024);assert.equal(R.make({purpose:'edit',mobile:true}).memoryBudget,128*1024*1024);assert.equal(R.make({purpose:'proof',mobile:true}).memoryBudget,768*1024*1024);assert.equal(R.limits('edit',true).layerBytes,64*1024*1024);
+ const context=R.make({purpose:'edit',mobile:true});assert.throws(()=>R.withContext(context,()=>R.createCanvas(4000,4000)),/予算/);assert.equal(context.bytes,0);
+});
+
+test('iPhone and touch Mac platform reporting both select the mobile edit budget',()=>{
+ const source=fs.readFileSync(new URL('render-context.js',root),'utf8');
+ for(const navigator of [{platform:'iPhone',userAgent:'WebKit'},{platform:'MacIntel',userAgent:'Macintosh',maxTouchPoints:5}]){const c=vm.createContext({navigator});vm.runInContext(source,c);assert.equal(c.TypeDeformerRenderContext.make().memoryBudget,128*1024*1024);}
 });

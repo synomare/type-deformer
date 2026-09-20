@@ -31,7 +31,7 @@ async function loadFonts(records,frame){
   }
 }
 async function renderFrame(frame){
-  var jobStarted=performance.now();
+  var jobStarted=performance.now(),budget=TypeDeformerRenderContext.limits(frame.purpose,frame.mobile);
   params=frame.params;compositionState=frame.composition;renderedSourceText=frame.text;surfaceFxPhase=frame.surfacePhase;dataMoshFrame=frame.dataMoshFrame;blobTrackState=frame.blobTrack||{blobs:[]};
   frame.glyphs.forEach(function(g){if(g.surface)g.surface=Object.assign(Object.create(params),g.surface);});
   await loadFonts(frame.fonts,frame);workerFontMetrics=frame.fm;
@@ -69,10 +69,11 @@ async function renderFrame(frame){
   try{for(var id of frame.operators){
     if(!workerRenderers[id])throw new Error('Worker renderer missing: '+id);
     for(var key of frame.operatorKeys[id]||[])for(var glyph of frame.glyphs){if(surfaceGlyphStrength(glyph,id)>.002&&glyph.surface&&typeof glyph.surface[key]==='number')TypeDeformerParameters.assertBudget(key,glyph.surface[key]);}
-    var start=performance.now(),canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d');
-    resultBytes+=frame.width*frame.height*4;if(resultBytes>R.budgets.layerBytes)throw new Error('重ねた効果の完成画像が512 MBを超えます。出力範囲を小さくしてください。設定値は保持されています。');
+    var start=performance.now();
+    resultBytes+=frame.width*frame.height*4;if(resultBytes>budget.layerBytes)throw new Error('重ねた効果が表示用メモリ予算を超えました。低負荷表示に切り替えるか、効果を減らしてください。設定値は保持されています。');
+    var canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d');
     for(var tile of tiles){
-      var context=R.make({purpose:frame.purpose,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
+      var context=R.make({purpose:frame.purpose,mobile:frame.mobile,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
       R.withContext(context,function(){return R.withScope(function(){
         var layer=surfaceScratch('worker-layer',width,height,true);
         workerRenderers[id](layer.ctx,frame.glyphs,width,height,plan.density,plan.layout,frame.fm,false,false,context);
@@ -87,7 +88,7 @@ async function renderFrame(frame){
     }
     layers[id]=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
   }
-  return {layers:layers,timings:timings,duration:performance.now()-jobStarted,paintDuration:performance.now()-started,peakBytes:peakBytes,resultBytes:resultBytes,cacheBytes:TypeDeformerFieldMaterials.cacheStats().bytes,workBudget:R.budgets.workBytes};
+  return {layers:layers,timings:timings,duration:performance.now()-jobStarted,paintDuration:performance.now()-started,peakBytes:peakBytes,resultBytes:resultBytes,cacheBytes:TypeDeformerFieldMaterials.cacheStats().bytes,workBudget:budget.workBytes};
   }catch(error){if(canvas)canvas.width=canvas.height=1;Object.values(layers).forEach(function(bitmap){bitmap.close();});throw error;}
 }
 self.onmessage=async function(event){var message=event.data;try{var result=await renderFrame(message.payload);self.postMessage({type:'result',id:message.id,result:result},Object.values(result.layers).concat(result.transfers||[]));}catch(error){self.postMessage({type:'error',id:message.id,message:error.message,stack:error.stack});}};

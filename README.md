@@ -420,7 +420,13 @@ Text → Typography → **Page layout**で「連続」「ページ列」「見�
 
 設計参照：[W3C JLReqの基本版面の設計要素](https://www.w3.org/TR/jlreq/#elements_of_kihonhanmen)。版面の行長・組方向・行間を分ける考え方を利用し、完全準拠を意味しません。`npm run test:pages`と本文編集テストで、3千／1万／5万字の配置、1万字のtextarea選択→見開き取得→Apply→編集→保存復元→native PNG／SVG一致、RTLの飛び飛び範囲・Unicode・空段落を検証。DOM／イベント／組版は模擬環境で、実ブラウザのCSS組版・操作・実iPhoneは未確認。比較図の再現は `scripts/render-page-layout.mjs`（native font測定＋模擬折返し、実画面ではありません）。以下は各版で追加した機能の記録です。
 
-### 自動保存の状態と再試行 — v49 local fixes
+### 起動・更新と自動保存
+
+更新後は文字だけを復元し、エフェクト・Compose・書式設定は初期状態に戻します。前回のエフェクト付き作品はProjectの「前回の作品をJSON保存」から描画せず退避できます。編集後の更新・移動ではブラウザ標準の警告を要求しますが、モバイルでは必ず表示されるとは限りません。重要な作品は更新前にSave projectで保存してください。
+
+編集の作業予算はPC 256 MiB／モバイル128 MiB、高品質確認・書き出しは768 MiBです。編集Workerが8秒を超えると停止し、設定は保持します。「描画を停止／再開」で手動操作もできます。
+
+以下は自動保存の失敗・再試行の扱いです。
 
 - Projectに、未保存／保存済み／最新保存の失敗／バックアップだけの未更新を表示します。警告はタイマーで消えず、閉じたメニューやモバイルのProjectボタンにも注意表示が残ります。失敗時は**自動保存を再試行**、または既存の**Save project**でJSONへ退避できます。JSONの保存要求を自動保存の成功とは扱いません。
 - 最新保存が失敗した場合、保存済みの主データとバックアップを変更しません。最新保存だけ成功した場合は、バックアップ更新を区別し、再試行用の直前データをセッション内に保持します。空き容量を作るための自動削除はしません。
@@ -514,7 +520,7 @@ Textの原文を選び、**選択範囲を対象に** または **この段落�
 
 制作工程は **Text → Effect → Apply → Compose → Export** の一方向で、デスクトップとモバイルの現在地を共通保存します。モバイルで選んだ工程からデスクトップへ戻った場合も、選択表示と実際のパネルが一致します。Applyの冒頭では **選択Effect → 対象**、作用中の文字数、**Quick apply** をまとめて表示し、最初の画面から対象全体への適用・残りへの適用・解除を切り替えられます。解除時に視覚イージングの残像が消えるまでは **解除中…** と区別し、ボタンは次に実行される永続操作を表示します。GridがOFFのときにArrangeを選ぶとGrid設定へ移動し、ONにしたあとは同じ操作からArrangeへ入れます。設定シートは開いた工程名へフォーカスし、閉じると元の工程ボタンへ戻ります。モバイルのシート上部にある **Find** から全工程のパラメータを検索でき、結果を選ぶと該当工程・Operator・詳細欄を開いて値へ移動します。検索条件があるときのEscapeは条件だけを解除し、空の状態でもう一度押すとシートを閉じます。Composeは **Engine → Grid → Build / Apply → Perform** の順に並び、適用後は演奏コントロールへ直接移動できます。視差軽減時はUI内の自動スクロールも即時移動へ切り替わります。
 
-Effectの **Browse / 一覧** は51種類をカテゴリと短い説明付きで比較でき、名前・カテゴリ・特徴から検索できます。検索またはカテゴリ絞り込み中のEscapeは条件を解除し、もう一度押すと一覧を閉じます。選択したEffectは通常のセレクトと同期し、自動保存・再読み込み後にも維持されます。Stretch X / Yは−2〜8の符号付き範囲になり、負側の連続圧縮から正側の極端な伸長まで同じ操作で扱えます。
+Effectの **Browse / 一覧** は51種類をカテゴリと短い説明付きで比較でき、名前・カテゴリ・特徴から検索できます。検索またはカテゴリ絞り込み中のEscapeは条件を解除し、もう一度押すと一覧を閉じます。選択したEffectは通常のセレクトと同期し、Project保存・読込で維持されます。タブ更新時は初期状態に戻ります。Stretch X / Yは−2〜8の符号付き範囲になり、負側の連続圧縮から正側の極端な伸長まで同じ操作で扱えます。
 
 FORMの **Rotate / Skew / Baseline Shift / Mirror** は、全字へ同じ値を掛けるだけでなく、元文字の行内位置・word・Unicodeから決定的なcadenceを作ります。RotateはUniform／Alternating／Wave／Unicode、Skewは反対方向と位相差を持つshear field、BaselineはWave／Zigzag／Unicode path、Mirrorは全字／交互／block／word／Unicode grammarを選べます。角度±720°、shear±85°、baseline±12em、1行16 cycleまで振れ、文字種Batch、Undo、自動保存、Project、Share、Look、PNG／SVGと同じ状態を共有します。v20以前のProjectは従来の一様変形として開きます。
 
@@ -528,7 +534,7 @@ Undo / Redoは実行できる履歴がある場合だけ有効になり、文字
 
 iPhone幅では、チェックボックスと開閉見出しを最小44pxの操作領域に統一しています。Application helpは開くと実際のLens／Edit説明を表示し、checkbox／selectの変更もUndo / Redoと自動保存へ入ります。320×568のような短い画面では、常設の5工程ドックを移動手段として使い、Nextボタンは通常フローへ戻して設定やRESETを覆いません。未変更の行は非表示RESET用の余白を取らず、狭幅でも主要項目を自然に並べます。
 
-Composeはクリーン起動直後を0 changedとして開始し、Engineごとの短い説明と未適用Draftの再読み込み保持を備えます。モバイルの全パネルbutton／checkbox／Disclosure／RESETは44×44px以上です。ProjectのShareはメニューを閉じずにCopied!／失敗を表示し、Motion videoのCancelは進捗を0へ戻します。
+Composeはクリーン起動直後を0 changedとして開始し、Engineごとの短い説明と未適用DraftのProject保存・読込を備えます。タブ更新時はComposeを解除します。モバイルの全パネルbutton／checkbox／Disclosure／RESETは44×44px以上です。ProjectのShareはメニューを閉じずにCopied!／失敗を表示し、Motion videoのCancelは進捗を0へ戻します。
 
 ExportはPNG／SVG／View shot／Copy PNGの生成中・完了・失敗と実寸をデスクトップ／モバイル両方へ表示し、Project JSON保存もメニューを閉じずにサイズと保存経路を通知します。
 

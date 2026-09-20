@@ -16,6 +16,6 @@ export default defineConfig({
   workers: 1,
   reporter: 'line',
   use: { baseURL: 'http://127.0.0.1:4174', viewport: { width: 1440, height: 900 }, acceptDownloads: true },
-  projects: [...projects, { name: 'webkit-fonts', testMatch: /fonts\.spec\.js/, use: { browserName: 'webkit', viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } }],
+  projects: [...projects, { name: 'webkit-fonts', testMatch: /(fonts|restart)\.spec\.js/, use: { browserName: 'webkit', viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } }],
   webServer: { command: 'node scripts/serve-static.mjs', url: 'http://127.0.0.1:4174', env: { PORT: '4174' }, reuseExistingServer: true, timeout: 30000 }
 });

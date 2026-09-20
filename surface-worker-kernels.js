@@ -27905,7 +27905,7 @@ function ensureCompositionWebGL(width, height) {
         var presentation=globalThis.TypeDeformerCompositionPresentation||{density:1},density=presentation.density||1;
         var targetW=Math.max(1,Math.ceil(width*density)),targetH=Math.max(1,Math.ceil(height*density));
         var limit=state.gl.getParameter(state.gl.MAX_TEXTURE_SIZE);
-        if(targetW>limit||targetH>limit||targetW*targetH*8>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.composeBytes:512*1024*1024)){var error=new Error('Composeの光学描画がGPUまたは512 MBの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        if(targetW>limit||targetH>limit||targetW*targetH*8>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.limits(presentation.purpose||'edit').composeBytes:512*1024*1024)){var error=new Error('Composeの光学描画が表示用メモリ予算を超えました。低負荷表示に切り替えるか設定を軽くしてください。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         if (state.canvas.width !== targetW) state.canvas.width = targetW;
         if (state.canvas.height !== targetH) state.canvas.height = targetH;
         var gl = state.gl;
@@ -27982,7 +27982,7 @@ function webglHexColor(hex) {
 function updateCompositionWebGLTextTexture(state) {
         var gl = state.gl;
         var maskSize = 1024,density=(globalThis.TypeDeformerCompositionPresentation||{}).density||1,physicalSize=Math.max(1,Math.ceil(maskSize*density));
-        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.textureBytes:256*1024*1024)){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.limits((globalThis.TypeDeformerCompositionPresentation||{}).purpose||'edit').textureBytes:256*1024*1024)){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         var key = textInput.value + '|' + params.fontFamily + '|' + params.fontWeight + '|' + params.vertical+'|'+density;
         if (state.maskKey === key && state.maskCanvas) return;
         state.maskKey = key;
