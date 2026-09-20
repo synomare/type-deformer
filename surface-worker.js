@@ -70,10 +70,10 @@ async function renderFrame(frame){
     if(!workerRenderers[id])throw new Error('Worker renderer missing: '+id);
     for(var key of frame.operatorKeys[id]||[])for(var glyph of frame.glyphs){if(surfaceGlyphStrength(glyph,id)>.002&&glyph.surface&&typeof glyph.surface[key]==='number')TypeDeformerParameters.assertBudget(key,glyph.surface[key]);}
     var start=performance.now(),canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d');
-    resultBytes+=frame.width*frame.height*4;if(resultBytes>192*1024*1024)throw new Error('重ねた効果の完成画像が192 MBを超えます。出力範囲を小さくしてください。設定値は保持されています。');
+    resultBytes+=frame.width*frame.height*4;if(resultBytes>R.budgets.layerBytes)throw new Error('重ねた効果の完成画像が512 MBを超えます。出力範囲を小さくしてください。設定値は保持されています。');
     for(var tile of tiles){
       var context=R.make({purpose:frame.purpose,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
-      R.withContext(context,function(){
+      R.withContext(context,function(){return R.withScope(function(){
         var layer=surfaceScratch('worker-layer',width,height,true);
         workerRenderers[id](layer.ctx,frame.glyphs,width,height,plan.density,plan.layout,frame.fm,false,false,context);
         var contact=TypeDeformerRenderEnvelope.scanCanvas(layer.canvas,{gutter:3,threshold:1});
@@ -81,13 +81,13 @@ async function renderFrame(frame){
         target.save();target.setTransform(factor,0,0,factor,projectedX,projectedY);
         var tx=tile.x/factor,ty=tile.y/factor,tw=tile.width/factor,th=tile.height/factor;
         R.drawImage(target,layer.canvas,tx,ty,tw,th,tx,ty,tw,th);target.restore();
-      });
+      });});
       if(envelopeResult){Object.values(layers).forEach(function(bitmap){bitmap.close();});canvas.width=canvas.height=1;return envelopeResult;}
       peakBytes=Math.max(peakBytes,context.peakBytes);
     }
     layers[id]=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
   }
-  return {layers:layers,timings:timings,duration:performance.now()-jobStarted,paintDuration:performance.now()-started,peakBytes:peakBytes,resultBytes:resultBytes};
-  }catch(error){Object.values(layers).forEach(function(bitmap){bitmap.close();});throw error;}
+  return {layers:layers,timings:timings,duration:performance.now()-jobStarted,paintDuration:performance.now()-started,peakBytes:peakBytes,resultBytes:resultBytes,cacheBytes:TypeDeformerFieldMaterials.cacheStats().bytes,workBudget:R.budgets.workBytes};
+  }catch(error){if(canvas)canvas.width=canvas.height=1;Object.values(layers).forEach(function(bitmap){bitmap.close();});throw error;}
 }
 self.onmessage=async function(event){var message=event.data;try{var result=await renderFrame(message.payload);self.postMessage({type:'result',id:message.id,result:result},Object.values(result.layers).concat(result.transfers||[]));}catch(error){self.postMessage({type:'error',id:message.id,message:error.message,stack:error.stack});}};

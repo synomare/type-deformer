@@ -16578,7 +16578,7 @@ type deformer</textarea>
       var surfaceEnvelopeError = '';
       var SURFACE_WORKER_IDS=["dataMosh","copyDecay","misregistration","risoSeparation","calligraphicStress","asemicDuctus","spectralType","counterformEngine","terminalExcess","ligatureBody","fiberBody","glyphMutation","suspendedSyntax","livingTextField","innerEruption","recursiveGraft","structuralCollision","peelWeave","voidPressure","ornamentReserve","tensionMembrane","diffractiveGlyph","dendriteCast","quasicrystalBody","nematicFilm","hyperbolicAtlas","loadpathFoundry","nodalGlaze","spinodalAlloy","densityRecast","hopfLoom","miuraVault","vortexBath","rationalCusp","bladeBody","blackBastion","inktrapAbyss","strangulation","gillArray","screwExtrusion","harmonicCage","beltramiFlow","riemannRamification","linkedTwist","enneperBody","nibRecast","anatomyWarp","kreslingShell","growthBuckle","inversionBody","gravityLens","liquidRope","wulffBody","repulsiveCurves","wassersteinLetters","stressGlass","tensorFiligree","chromaticSwarm","gyroidSculpture","causticGlass","rubyUsurper","punctuationLoom","counterpage","rendererDebt","ligatureContagion","strokeCommons","chromeReliquary","naveCutter","cloisterFold","prismSacrament","texturaMatrix","voidPortal","recursiveShrine","morphProcession","chimeraGraft","moireChoir","ligatureCrypt","cipherLiturgy","ribbonEcho","slitSweep","cellFracture","rasterPress","hatchEngrave","contourEtch","monolithCast","pressureStroke","sinewTorque","boneScaffold","thornCrown","softBlob","blobTrack","etchantBloom","webbing","roseEngine","sigilForge","plotterTrace","differentialType","conformalType","auxeticType","marblingType"];
       var surfaceWorkerClockHold=false,surfaceWorkerFrameResult=null,surfaceWorkerParameterKeys={},surfaceWorkerBoundsCache=null;
-      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&typeof Worker!=='undefined'?globalThis.TypeDeformerRenderJobs.create({onState:function(state){
+      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&typeof Worker!=='undefined'?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(status)status.textContent=state.error|| (state.busy?'描画中…':state.ready?'表示を更新しました。':'');
         if(state.ready&&state.result&&state.result.kind==='envelope'){
           surfaceWorkerFrameResult=null;if(surfaceFxCanvas)surfaceFxCanvas.hidden=true;
@@ -16901,13 +16901,14 @@ type deformer</textarea>
         var canvas = surfaceFxScratchCanvases[name];
         var renderContext=globalThis.TypeDeformerRenderContext,contextKey=renderContext?renderContext.key():'analysis';
         if (!canvas || canvas._tdScratchKey !== contextKey) {
+          if(canvas && renderContext) renderContext.release(canvas);
           canvas = renderContext ? renderContext.createCanvas(width,height,{tiled:true}) : (globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas'));
           canvas._tdScratchKey=contextKey;
           surfaceFxScratchCanvases[name] = canvas;
         }
-        if (renderContext) renderContext.account(canvas);
         if (canvas.width !== width) canvas.width = width;
         if (canvas.height !== height) canvas.height = height;
+        if (renderContext) renderContext.account(canvas);
         var ctx = canvas.getContext('2d', readFrequently ? { willReadFrequently: true } : undefined);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
@@ -42777,7 +42778,7 @@ type deformer</textarea>
               if(rendererContext){var tile=rasterTiles[tileIndex],tx=tile.x/rasterFactor,ty=tile.y/rasterFactor,tw=tile.width/rasterFactor,th=tile.height/rasterFactor;rendererContext.drawImage(targetCtx,layer.canvas,tx,ty,tw,th,tx,ty,tw,th);}else targetCtx.drawImage(layer.canvas,0,0);
               targetCtx.restore();
             };
-            if(rendererContext)rendererContext.withContext(context,paintTile);else paintTile();
+            if(rendererContext)rendererContext.withContext(context,function(){return rendererContext.withScope(paintTile);});else paintTile();
           }
           painted = true;
         }
@@ -45666,7 +45667,7 @@ type deformer</textarea>
         )
       };
 
-      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&typeof Worker!=='undefined'?globalThis.TypeDeformerRenderJobs.create({onState:function(state){
+      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&typeof Worker!=='undefined'?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(state.error&&status)status.textContent=state.error;
         if(!studioRendererMode&&(state.ready||state.error))scheduleCompositionDraw();
       }}):null;
@@ -46244,7 +46245,7 @@ type deformer</textarea>
         var presentation=globalThis.TypeDeformerCompositionPresentation||{density:1},density=presentation.density||1;
         var targetW=Math.max(1,Math.ceil(width*density)),targetH=Math.max(1,Math.ceil(height*density));
         var limit=state.gl.getParameter(state.gl.MAX_TEXTURE_SIZE);
-        if(targetW>limit||targetH>limit||targetW*targetH*8>192*1024*1024){var error=new Error('Composeの光学描画がGPUまたは192 MBの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        if(targetW>limit||targetH>limit||targetW*targetH*8>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.composeBytes:512*1024*1024)){var error=new Error('Composeの光学描画がGPUまたは512 MBの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         if (state.canvas.width !== targetW) state.canvas.width = targetW;
         if (state.canvas.height !== targetH) state.canvas.height = targetH;
         var gl = state.gl;
@@ -46321,7 +46322,7 @@ type deformer</textarea>
       function updateCompositionWebGLTextTexture(state) {
         var gl = state.gl;
         var maskSize = 1024,density=(globalThis.TypeDeformerCompositionPresentation||{}).density||1,physicalSize=Math.max(1,Math.ceil(maskSize*density));
-        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>96*1024*1024){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.textureBytes:256*1024*1024)){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         var key = textInput.value + '|' + params.fontFamily + '|' + params.fontWeight + '|' + params.vertical+'|'+density;
         if (state.maskKey === key && state.maskCanvas) return;
         state.maskKey = key;
@@ -48147,7 +48148,7 @@ type deformer</textarea>
         var preflight = TypeDeformerExportPreflight.evaluate({
           mode: 'video', format: params.videoFormat, width: dims.w, height: dims.h,
           region: 'Current view', fps: params.videoFps, duration: actualDuration,
-          bitrate: bitrate, memoryBudget: 192 * 1024 * 1024,
+          bitrate: bitrate, memoryBudget: globalThis.TypeDeformerRenderContext ? TypeDeformerRenderContext.budgets.videoBytes : 512 * 1024 * 1024,
           compositionEnabled: compositionState.enabled, videoAvailable: videoAvailable
         });
         renderExportPreflight('videoExportPreflight', preflight, 'Motion preflight / 映像確認');
@@ -48608,7 +48609,7 @@ type deformer</textarea>
         try {
           setVideoStatus('Preparing ' + params.videoFormat.toUpperCase() + ' encoder…', 'recording');
           var encoder = await TypeDeformerVideoEncoder.create(output.canvas, {
-            format: params.videoFormat, fps: fps, bitrate: bitrate, memoryBudget: 192 * 1024 * 1024
+            format: params.videoFormat, fps: fps, bitrate: bitrate, memoryBudget: globalThis.TypeDeformerRenderContext ? TypeDeformerRenderContext.budgets.videoBytes : 512 * 1024 * 1024
           });
           if (!videoExportState.active || videoExportState.cancelled) { await encoder.cancel(); return; }
           videoExportState.encoder = encoder;
@@ -50022,6 +50023,7 @@ type deformer</textarea>
       var parameterRows = [];
       var parameterChangedOnly = false;
       var parameterRefreshFrame = 0;
+      var parameterFullRefresh = true, parameterDirtyEntries = new Set(), parameterEntryByControl = new WeakMap(), parameterModifiedCount = 0;
       var mobileStepperPairs = [];
       var mobileStepperInputs = new WeakSet();
 
@@ -50316,26 +50318,36 @@ type deformer</textarea>
         parameterRefreshFrame = 0;
         if (window.TypeDeformerNumericControls && window.TypeDeformerNumericControls.editing()) return;
         syncOperatorParameterAvailability();
-        var changed = 0;
-        for (var i = 0; i < parameterEntries.length; i++) {
-          var entry = parameterEntries[i];
+        var full = parameterFullRefresh || !parameterDirtyEntries.size;
+        var entries = full ? parameterEntries : Array.from(parameterDirtyEntries);
+        var rows = full ? parameterRows : Array.from(new Set(entries.map(function(entry){return entry.row;}).filter(Boolean)));
+        var changed = full ? 0 : parameterModifiedCount;
+        for (var i = 0; i < entries.length; i++) {
+          var entry = entries[i], wasModified = entry.modified;
           entry.modified = parameterRawValue(entry.control) !== entry.defaultRaw;
           entry.searchText = (entry.label + ' ' + entry.group + ' ' + entry.control.id + ' ' + parameterValue(entry.control)).toLowerCase();
-          if (entry.modified) changed++;
+          changed += (entry.modified ? 1 : 0) - (!full && wasModified ? 1 : 0);
         }
-        for (var r = 0; r < parameterRows.length; r++) {
-          var row = parameterRows[r];
+        for (var r = 0; r < rows.length; r++) {
+          var row = rows[r];
           var rowModified=row.parameterEntries.some(function (entry) { return entry.modified; });
           row.element.classList.toggle('is-parameter-modified', rowModified);
           syncParameterRowReset(row,rowModified);
         }
+        parameterModifiedCount = changed;
+        parameterFullRefresh = false; parameterDirtyEntries.clear();
         var count = document.getElementById('parameterChangedCount');
         if (count) count.textContent = String(changed);
         syncMobileStepperStates();
         renderParameterResults();
       }
 
-      function scheduleParameterUIRefresh() {
+      function scheduleParameterUIRefresh(eventOrControl) {
+        var input = eventOrControl && (eventOrControl.target || eventOrControl);
+        if (input && input.dataset && input.dataset.parameterCompanion) return;
+        var entry = input && parameterEntryByControl.get(input);
+        if (entry && (input.type === 'range' || input.type === 'number' || input.type === 'color')) parameterDirtyEntries.add(entry);
+        else parameterFullRefresh = true;
         if (!parameterRefreshFrame) parameterRefreshFrame = requestAnimationFrame(refreshParameterUI);
       }
 
@@ -50368,6 +50380,7 @@ type deformer</textarea>
             searchText: ''
           };
           parameterEntries.push(entry);
+          parameterEntryByControl.set(control, entry);
           var rowElement = control.closest('.row');
           if (!rowElement) return;
           var row = rowMap.get(rowElement);
@@ -50376,7 +50389,7 @@ type deformer</textarea>
             rowMap.set(rowElement, row);
             parameterRows.push(row);
           }
-          row.parameterEntries.push(entry);
+          row.parameterEntries.push(entry); entry.row = row;
         });
         for (var rowIndex = 0; rowIndex < parameterRows.length; rowIndex++) {
           var parameterRow = parameterRows[rowIndex];
@@ -50932,7 +50945,7 @@ type deformer</textarea>
           val.textContent = fmt(value);
           // The edited profile is already current. Rebuilding all controls here
           // interrupts range gestures and invalidates active numeric drafts.
-          if(typeof scheduleParameterUIRefresh==='function')scheduleParameterUIRefresh();
+          if(typeof scheduleParameterUIRefresh==='function')scheduleParameterUIRefresh(input);
           if (onChange) onChange();
         });
         val.textContent = fmt(parseFloat(input.value));
@@ -56091,7 +56104,7 @@ type deformer</textarea>
       controlPanel.addEventListener('change',invalidateSurfaceWorkerFrame,true);
       if (window.TypeDeformerNumericControls) TypeDeformerNumericControls.configure({
         begin: function(input) { beginControlHistory({target:input}); },
-        onEnd: function(input) { commitControlHistory({target:input,type:'change'}); scheduleParameterUIRefresh(); }
+        onEnd: function(input) { commitControlHistory({target:input,type:'change'}); scheduleParameterUIRefresh(input); }
       });
       hydrateInitialParameterControls();
       syncLookMemoryUI();

@@ -831,13 +831,14 @@ function surfaceScratch(name, width, height, readFrequently) {
         var canvas = surfaceFxScratchCanvases[name];
         var renderContext=globalThis.TypeDeformerRenderContext,contextKey=renderContext?renderContext.key():'analysis';
         if (!canvas || canvas._tdScratchKey !== contextKey) {
+          if(canvas && renderContext) renderContext.release(canvas);
           canvas = renderContext ? renderContext.createCanvas(width,height,{tiled:true}) : (globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas'));
           canvas._tdScratchKey=contextKey;
           surfaceFxScratchCanvases[name] = canvas;
         }
-        if (renderContext) renderContext.account(canvas);
         if (canvas.width !== width) canvas.width = width;
         if (canvas.height !== height) canvas.height = height;
+        if (renderContext) renderContext.account(canvas);
         var ctx = canvas.getContext('2d', readFrequently ? { willReadFrequently: true } : undefined);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
@@ -27904,7 +27905,7 @@ function ensureCompositionWebGL(width, height) {
         var presentation=globalThis.TypeDeformerCompositionPresentation||{density:1},density=presentation.density||1;
         var targetW=Math.max(1,Math.ceil(width*density)),targetH=Math.max(1,Math.ceil(height*density));
         var limit=state.gl.getParameter(state.gl.MAX_TEXTURE_SIZE);
-        if(targetW>limit||targetH>limit||targetW*targetH*8>192*1024*1024){var error=new Error('Composeの光学描画がGPUまたは192 MBの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        if(targetW>limit||targetH>limit||targetW*targetH*8>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.composeBytes:512*1024*1024)){var error=new Error('Composeの光学描画がGPUまたは512 MBの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         if (state.canvas.width !== targetW) state.canvas.width = targetW;
         if (state.canvas.height !== targetH) state.canvas.height = targetH;
         var gl = state.gl;
@@ -27981,7 +27982,7 @@ function webglHexColor(hex) {
 function updateCompositionWebGLTextTexture(state) {
         var gl = state.gl;
         var maskSize = 1024,density=(globalThis.TypeDeformerCompositionPresentation||{}).density||1,physicalSize=Math.max(1,Math.ceil(maskSize*density));
-        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>96*1024*1024){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
+        var limit=gl.getParameter(gl.MAX_TEXTURE_SIZE);if(physicalSize>limit||physicalSize*physicalSize*4>(globalThis.TypeDeformerRenderContext?TypeDeformerRenderContext.budgets.textureBytes:256*1024*1024)){var error=new Error('Composeの文字テクスチャがGPUの作業予算を超えます。設定値は保持されています。');error.code='RENDER_BUDGET_EXCEEDED';throw error;}
         var key = textInput.value + '|' + params.fontFamily + '|' + params.fontWeight + '|' + params.vertical+'|'+density;
         if (state.maskKey === key && state.maskCanvas) return;
         state.maskKey = key;

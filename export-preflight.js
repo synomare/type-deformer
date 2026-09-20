@@ -21,12 +21,12 @@
       var fps=Math.max(1,Math.round(finite(input.fps,24))),duration=Math.max(0,finite(input.duration,0));
       var frames=Math.max(1,Math.round(fps*duration));
       var bitrate=Math.max(0,finite(input.bitrate,0)),workingBytes=Math.max(0,width*height*4*3+bitrate*duration/8);
-      var memoryBudget=Math.max(1,finite(input.memoryBudget,192*1024*1024));
+      var memoryBudget=Math.max(1,finite(input.memoryBudget,root.TypeDeformerRenderContext?root.TypeDeformerRenderContext.budgets.videoBytes:512*1024*1024));
       items.push({label:'Frame',value:frames+' frames · '+fps+' fps'});
       items.push({label:'作業メモリ目安',value:formatBytes(workingBytes)});
       if(!input.compositionEnabled)blockers.push('先にComposeをApplyしてください。');
       if(!input.videoAvailable)blockers.push('動画出力には現行ChromeまたはEdgeが必要です。');
-      if(workingBytes>memoryBudget)blockers.push('推定メモリが192 MBの作業予算を超えています。Frameサイズまたは長さを下げてください。');
+      if(workingBytes>memoryBudget)blockers.push('推定メモリが'+formatBytes(memoryBudget)+'の作業予算を超えています。Frameサイズまたは長さを下げてください。');
     }
     return {status:blockers.length?'blocked':warnings.length?'warning':'ready',items:items,blockers:blockers,warnings:warnings};
   }
