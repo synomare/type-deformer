@@ -55507,7 +55507,7 @@ type deformer</textarea>
         return !!(data.composition && data.composition.enabled) || (Array.isArray(data.letters) && data.letters.some(function(s){return s && (s.t || s.mx || s.my || s.d || s.o && Object.keys(s.o).length); }));
       }
       function plainStartupProject(data) {
-        return {app:data.app,version:data.version,text:data.text,params:{},letters:[],composition:{enabled:false}};
+        return {app:data.app,version:data.version,text:data.text,params:{},letters:[],composition:{enabled:false},lookMemory:data.lookMemory};
       }
       function tryRestoreAutosave() {
         var keys = [AUTOSAVE_KEY, AUTOSAVE_BACKUP_KEY];

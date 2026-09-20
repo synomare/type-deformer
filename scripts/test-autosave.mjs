@@ -151,3 +151,8 @@ test('refresh warning is independent of autosave success and performs no seriali
  f.events['window:beforeunload'](event);assert.equal(warnings,0);c.markAutosaveDirty();c.saveAutosave();const count=f.serializations();f.events['window:beforeunload'](event);assert.equal(warnings,1);assert.equal(event.returnValue,'');assert.equal(f.serializations(),count);
  c.autosaveSuspended=true;f.events['window:beforeunload'](event);assert.equal(warnings,1);
 });
+
+test('plain startup retains saved Look Memory takes without applying their rendering state',()=>{
+ const f=autosaveFixture(),{c}=f,takes={schemaVersion:1,active:0,slots:[{name:'保存した構図',state:{params:{fontSize:5000},letters:[{o:{tensorFiligree:{t:1}}}]}},null,null,null]},raw=JSON.stringify({app:'type-deformer',version:50,text:'文字',params:{},letters:[],lookMemory:takes});
+ f.memory.set(c.AUTOSAVE_KEY,raw);assert.equal(c.tryRestoreAutosave(),true);assert.deepEqual(JSON.parse(JSON.stringify(c.data.lookMemory)),takes);assert.equal(c.data.letters.length,0);assert.equal(c.data.composition.enabled,false);
+});
