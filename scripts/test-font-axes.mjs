@@ -53,3 +53,9 @@ test('font import policy accepts a large lazy library and rejects only declared 
  assert.equal(plan([{name:'oversize.woff2',size:L.maxFileBytes+1}]).issue,'file');
  assert.equal(plan(Array.from({length:65},(_,i)=>({name:i+'.ttc',size:L.maxFileBytes}))).issue,'total');
 });
+test('font selection accepts MIME-identified provider files, rejects empty downloads and ignores metadata sidecars',()=>{
+ const plan=importPolicy.fontImportPlan;
+ assert.equal(plan([{name:'provider-file',type:'font/ttf',size:900}]).files.length,1);
+ assert.equal(plan([{name:'empty.ttf',size:0}]).issue,'unreadable');
+ assert.equal(plan([{name:'._font.ttf',size:128},{name:'font.ttf',size:900}]).files.length,1);
+});

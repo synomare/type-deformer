@@ -63,10 +63,10 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Install dependencies and Chromium
+      - name: Install dependencies and browsers
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
 
       - name: Run browser smoke
         run: npm run test:e2e

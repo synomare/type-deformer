@@ -1587,6 +1587,8 @@
     .font-import-actions button:not([hidden]):last-of-type:nth-child(3) {
       grid-column: 1 / -1;
     }
+    #btnFontRetry { margin: 0.35rem 0 0.55rem; box-shadow: none; }
+    .font-status[data-state="error"] { color: var(--red); }
     .font-advanced {
       margin: 0 0 0.65rem;
       border-top: 1px solid var(--line);
@@ -3385,14 +3387,17 @@ type deformer</textarea>
             <option value='"Space Mono", Menlo, monospace'>Space Mono</option>
           </select>
         </div>
+        <div class="row"><label for="fontLibrarySearch">Find font</label><input type="search" id="fontLibrarySearch" placeholder="読み込んだ書体を検索" autocomplete="off" disabled></div>
         <div class="row"><label for="pImportedFont">Library</label><select id="pImportedFont" disabled><option value="">Importしたフォントを選択…</option></select></div>
         <div class="btns font-import-actions">
           <button type="button" id="btnFontFile">Import files</button>
           <button type="button" id="btnFontFolder">Import folder</button>
           <button type="button" id="btnSystemFonts" hidden>Installed fonts</button>
         </div>
-        <input type="file" id="pFontFile" accept=".otf,.ttf,.woff,.woff2,.ttc,.otc,font/otf,font/ttf,font/woff,font/woff2,application/font-woff" multiple hidden>
-        <input type="file" id="pFontFolder" accept=".otf,.ttf,.woff,.woff2,.ttc,.otc" webkitdirectory multiple hidden>
+        <input type="file" id="pFontFile" multiple hidden>
+        <input type="file" id="pFontFolder" webkitdirectory multiple hidden>
+        <p class="note">1ファイルなら選択後すぐ適用。複数ファイルはLibraryから選択できます。iPhoneではFiles内のフォントを選び、ZIPは先に展開してください。</p>
+        <button type="button" id="btnFontRetry" hidden>書体の読み込みを再試行</button>
         <p class="font-status" id="fontStatus" aria-live="polite">最大4,096書体をLibraryへ一括登録できます。選択した書体だけ端末内で読み込み、サーバーには送信しません。</p>
         <details class="font-advanced">
           <summary>Advanced · installed font name</summary>
@@ -6093,6 +6098,7 @@ type deformer</textarea>
   <script src="document-layout.js"></script>
   <script src="document-editor.js"></script>
   <script src="operator-inspector.js"></script>
+  <script src="font-loading.js"></script>
   <script src="font-axes.js"></script>
   <script src="font-axis-editor.js"></script>
   <script src="exploration.js"></script>
@@ -16578,7 +16584,7 @@ type deformer</textarea>
       var surfaceEnvelopeError = '';
       var SURFACE_WORKER_IDS=["dataMosh","copyDecay","misregistration","risoSeparation","calligraphicStress","asemicDuctus","spectralType","counterformEngine","terminalExcess","ligatureBody","fiberBody","glyphMutation","suspendedSyntax","livingTextField","innerEruption","recursiveGraft","structuralCollision","peelWeave","voidPressure","ornamentReserve","tensionMembrane","diffractiveGlyph","dendriteCast","quasicrystalBody","nematicFilm","hyperbolicAtlas","loadpathFoundry","nodalGlaze","spinodalAlloy","densityRecast","hopfLoom","miuraVault","vortexBath","rationalCusp","bladeBody","blackBastion","inktrapAbyss","strangulation","gillArray","screwExtrusion","harmonicCage","beltramiFlow","riemannRamification","linkedTwist","enneperBody","nibRecast","anatomyWarp","kreslingShell","growthBuckle","inversionBody","gravityLens","liquidRope","wulffBody","repulsiveCurves","wassersteinLetters","stressGlass","tensorFiligree","chromaticSwarm","gyroidSculpture","causticGlass","rubyUsurper","punctuationLoom","counterpage","rendererDebt","ligatureContagion","strokeCommons","chromeReliquary","naveCutter","cloisterFold","prismSacrament","texturaMatrix","voidPortal","recursiveShrine","morphProcession","chimeraGraft","moireChoir","ligatureCrypt","cipherLiturgy","ribbonEcho","slitSweep","cellFracture","rasterPress","hatchEngrave","contourEtch","monolithCast","pressureStroke","sinewTorque","boneScaffold","thornCrown","softBlob","blobTrack","etchantBloom","webbing","roseEngine","sigilForge","plotterTrace","differentialType","conformalType","auxeticType","marblingType"];
       var surfaceWorkerClockHold=false,surfaceWorkerFrameResult=null,surfaceWorkerParameterKeys={},surfaceWorkerBoundsCache=null;
-      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&typeof Worker!=='undefined'?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
+      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(status)status.textContent=state.error|| (state.busy?'描画中…':state.ready?'表示を更新しました。':'');
         if(state.ready&&state.result&&state.result.kind==='envelope'){
           surfaceWorkerFrameResult=null;if(surfaceFxCanvas)surfaceFxCanvas.hidden=true;
@@ -16593,6 +16599,11 @@ type deformer</textarea>
         var compact=glyphs.map(function(g){var copy=Object.assign({},g),values={};Object.keys(g.surface||{}).forEach(function(key){if(g.surface[key]!==params[key])values[key]=g.surface[key];});copy.surface=g.surface?values:null;return copy;});
         return {fontCss:Array.from(document.querySelectorAll('link[rel=stylesheet][href]')).map(function(link){return link.href;}).filter(function(url){return /^https:\/\/fonts.googleapis.com\//.test(url);}),params:Object.assign({},params),composition:JSON.parse(JSON.stringify(compositionState)),text:renderedSourceText,
           surfacePhase:surfaceFxPhase,dataMoshFrame:dataMoshFrame,blobTrack:JSON.parse(JSON.stringify({blobs:blobTrackState.blobs,trails:blobTrackState.trails})),glyphs:compact,fm:fm,operatorKeys:surfaceWorkerParameterKeys};
+      }
+      function surfaceWorkerFontRecords(frame) {
+        if (typeof studioFontBuffers === 'undefined') return [];
+        var families = [frame.params.fontFamily].concat(frame.glyphs.map(function(g){return g.fontFamily || ''; })).join(',');
+        return Array.from(studioFontBuffers.values()).filter(function(record){return families.indexOf(record.family) !== -1;});
       }
       function workerPending(message){var error=new Error(message||'効果を出力解像度で描画しています。');error.code='SURFACE_RENDER_PENDING';return error;}
       function requestSurfaceEnvelopeExpansion(contact, requestedScale) {
@@ -16622,7 +16633,7 @@ type deformer</textarea>
         var frame=surfaceWorkerSnapshot(glyphs,fm);
         Object.assign(frame,{kind:'frame',scale:scale,layout:L,width:width,height:height,plan:surfaceCanonicalRasterPlan(glyphs),operators:operators,
           purpose:purpose,presentation:purpose==='edit'&&globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.mode():'standard'});
-        var key=JSON.stringify(frame);frame.fonts=typeof studioFontBuffers!=='undefined'?Array.from(studioFontBuffers.values()):[];
+        var key=JSON.stringify(frame);frame.fonts=surfaceWorkerFontRecords(frame);
         var state=surfaceRenderJobs.request(key,frame);surfaceWorkerClockHold=!state.ready;
         if(state.error){if(purpose!=='edit')throw new Error(state.error);return false;}
         if(!state.ready||state.result&&state.result.kind==='envelope')return false;
@@ -16631,7 +16642,7 @@ type deformer</textarea>
       function workerFieldBodyBounds(glyphs,bounds,fm){
         var frame=surfaceWorkerSnapshot(glyphs,fm),key=JSON.stringify([frame,bounds]);
         if(surfaceWorkerBoundsCache&&surfaceWorkerBoundsCache.key===key)return surfaceWorkerBoundsCache.bounds;
-        Object.assign(frame,{kind:'bounds',bounds:bounds,geometryKey:key,operators:SURFACE_WORKER_IDS.filter(function(id){return surfaceEffectPresent(glyphs,id);}),fonts:Array.from(studioFontBuffers.values())});
+        Object.assign(frame,{kind:'bounds',bounds:bounds,geometryKey:key,operators:SURFACE_WORKER_IDS.filter(function(id){return surfaceEffectPresent(glyphs,id);}),fonts:surfaceWorkerFontRecords(frame)});
         var state=surfaceRenderJobs.request(key,frame);
         if(state.error)throw new Error(state.error);
         if(state.ready){surfaceWorkerBoundsCache={key:key,bounds:state.result.bounds};return state.result.bounds;}
@@ -45667,7 +45678,7 @@ type deformer</textarea>
         )
       };
 
-      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&typeof Worker!=='undefined'?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
+      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,cacheFonts:true,onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(state.error&&status)status.textContent=state.error;
         if(!studioRendererMode&&(state.ready||state.error))scheduleCompositionDraw();
       }}):null;
@@ -45677,7 +45688,7 @@ type deformer</textarea>
         var inputs=createCompositionInputBus(tokens,width,height,createLoopClock(compositionState.phase,240,compositionState.seed,compositionState.direction));
         var frame=surfaceWorkerSnapshot(glyphs,fontMetrics());
         Object.assign(frame,{kind:'composition',purpose:studioRendererMode?'export':'edit',density:studioRendererMode?Math.max(1,Number(params.exportScale)||1):(globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.density(width,height,window.devicePixelRatio||1):1),width:width,height:height,quality:quality,inputs:inputs,mobile:window.matchMedia('(max-width: 760px)').matches});
-        var key=JSON.stringify(frame);frame.fonts=Array.from(studioFontBuffers.values());var state=compositionRenderJobs.request(key,frame);
+        var key=JSON.stringify(frame);frame.fonts=surfaceWorkerFontRecords(frame);var state=compositionRenderJobs.request(key,frame);
         compositionWorkerHold=!state.ready;
         if(state.error)throw new Error(state.error);
         if(!state.ready)throw workerPending('Composeの文字配置を計算しています。');
@@ -53228,7 +53239,10 @@ type deformer</textarea>
       var studioFontBuffers = new Map();
       var runtimeFontFiles = new Map();
       var runtimeFontLoads = new Map();
-      var fontSelectionRevision = 0;
+      var fontSelectionRevision = 0, fontImportRevision = 0, fontRetryFamily = '';
+      var runtimeFontOptions = new Map();
+      var fontLibrarySearch = document.getElementById('fontLibrarySearch');
+      var btnFontRetry = document.getElementById('btnFontRetry');
       var operatorInspector = TypeDeformerOperatorInspector.create({
         label: function (id) { return OPERATOR_DEFS[id].label; },
         sheetOpen: function () { return controlPanel.classList.contains('mobile-open'); },
@@ -53250,7 +53264,7 @@ type deformer</textarea>
         setProfile: function (key, value) { writeBatchParameter(key, value); },
         disabled: setParameterDisabledReason,
         measure: scheduleMeasure,
-        importFont: function () { document.getElementById('pFontFile').click(); },
+        importFont: function () { fontFileInput.value=''; fontFileInput.click(); },
         chooseFont: setImportedFont,
         redraw: function () { applyAllOperatorVisuals(); scheduleMeasure(); },
         controls: function () { refreshBatchProfileControls(); }
@@ -53266,6 +53280,8 @@ type deformer</textarea>
       var fontCustomHistoryOpen = false;
 
       function setFontStatus(message, loaded) {
+        btnFontRetry.hidden = true;
+        fontStatus.dataset.state = loaded ? 'ready' : 'idle';
         fontStatus.textContent = message;
         fontStatus.classList.toggle('is-loaded', !!loaded);
       }
@@ -53313,29 +53329,28 @@ type deformer</textarea>
       function registerRuntimeFont(family, label, source) {
         runtimeFontLabels[family] = label;
         runtimeFontSources[family] = source;
-        var exists = false;
-        for (var i = 1; i < importedFontSelect.options.length; i++) {
-          if (importedFontSelect.options[i].value === family) {
-            importedFontSelect.options[i].textContent = label;
-            exists = true;
-            break;
-          }
-        }
-        if (!exists) {
-          var option = document.createElement('option');
-          option.value = family;
-          option.textContent = label;
-          importedFontSelect.appendChild(option);
-        }
+        var option = runtimeFontOptions.get(family);
+        if (!option) { option = document.createElement('option'); option.value = family; runtimeFontOptions.set(family, option); }
+        option.textContent = label;
+        if (!option.parentNode) importedFontSelect.appendChild(option);
         importedFontSelect.disabled = false;
+        fontLibrarySearch.disabled = false;
       }
 
       function sortRuntimeFontOptions() {
-        var current = importedFontSelect.value;
-        var options = Array.prototype.slice.call(importedFontSelect.options, 1);
-        options.sort(function (a, b) { return a.textContent.localeCompare(b.textContent, 'ja'); });
-        options.forEach(function (option) { importedFontSelect.appendChild(option); });
+        var current = importedFontSelect.value || primaryFontName();
+        var query = fontLibrarySearch.value.trim().normalize('NFKC').toLocaleLowerCase();
+        var options = Array.from(runtimeFontOptions.values()).filter(function(option) {
+          return option.value === current || !query || option.textContent.normalize('NFKC').toLocaleLowerCase().includes(query);
+        });
+        options.sort(function(a,b){ return a.textContent.localeCompare(b.textContent, 'ja'); });
+        var placeholder = importedFontSelect.options[0];
+        placeholder.textContent = query ? (options.length ? options.length + '書体 · 選択して適用' : '該当する書体がありません') : 'Importしたフォントを選択…';
+        var fragment = document.createDocumentFragment(); fragment.appendChild(placeholder);
+        options.forEach(function(option){ fragment.appendChild(option); });
+        importedFontSelect.replaceChildren(fragment);
         importedFontSelect.value = current;
+        if (importedFontSelect.selectedIndex < 0) importedFontSelect.value = '';
       }
 
       function applyImportedFont(family, recordHistory) {
@@ -53349,47 +53364,58 @@ type deformer</textarea>
       }
 
       function ensureRuntimeFontLoaded(family) {
-        if (studioFontBuffers.has(family) || runtimeFontSources[family] !== 'file-pending') return Promise.resolve(true);
+        if (studioFontBuffers.has(family) || runtimeFontSources[family] === 'system') return Promise.resolve(true);
         if (runtimeFontLoads.has(family)) return runtimeFontLoads.get(family);
-        var pending = runtimeFontFiles.get(family);
+        var pending = runtimeFontFiles.get(family), installedFace;
         if (!pending) return Promise.reject(new Error('フォントファイルを再度Importしてください。'));
-        var load = pending.file.arrayBuffer().then(function (buffer) {
-          var face = new FontFace(family, buffer);
-          return face.load().then(function (loadedFace) {
-            var record = { family: family, label: pending.label, buffer: buffer };
-            studioFontBuffers.set(family, record);
-            return axisFieldEditor.register(record).then(function () { return loadedFace; });
+        var load = Promise.resolve().then(function(){return pending.getFile ? pending.getFile() : pending.file;}).then(function(file){return TypeDeformerFontLoading.read(file);}).then(function(buffer) {
+          var prepared = TypeDeformerFontLoading.prepare(buffer);
+          return TypeDeformerFontLoading.loadFace(family, prepared.buffer).then(function(face) {
+            installedFace = face;
+            document.fonts.add(face);
+            var label = pending.label + (prepared.collectionCount > 1 ? ' · collection先頭書体 / ' + prepared.collectionCount : '');
+            var record = { family:family, label:label, buffer:prepared.buffer };
+            return axisFieldEditor.register(record).then(function() {
+              // Publish only after the face and its optional axis metadata are
+              // installed. Failed attempts must remain retryable.
+              studioFontBuffers.set(family,record);
+              runtimeFontFaces.push(face);
+              registerRuntimeFont(family,label,'file');
+              runtimeFontFiles.delete(family);
+              return true;
+            });
           });
-        }).then(function (face) {
-          document.fonts.add(face);
-          runtimeFontFaces.push(face);
-          runtimeFontSources[family] = 'file';
-          runtimeFontFiles.delete(family);
-          return true;
-        }).finally(function () {
-          runtimeFontLoads.delete(family);
-        });
-        runtimeFontLoads.set(family, load);
+        }).catch(function(error) {
+          if (installedFace) document.fonts.delete(installedFace);
+          studioFontBuffers.delete(family);
+          throw error;
+        }).finally(function() { runtimeFontLoads.delete(family); });
+        runtimeFontLoads.set(family,load);
         return load;
+      }
+
+      function showFontLoadError(family,error) {
+        setFontStatus('Import failed: 「' + runtimeFontLabels[family] + '」 — ' + TypeDeformerFontLoading.message(error) + ' 現在の書体は保持しています。', false);
+        fontStatus.dataset.state = 'error';
+        fontRetryFamily = family; btnFontRetry.hidden = false;
       }
 
       function setImportedFont(family) {
         if (!family || !runtimeFontLabels[family]) return Promise.resolve(false);
         var revision = ++fontSelectionRevision;
+        importedFontSelect.value = family;
         if (runtimeFontSources[family] !== 'file-pending') {
-          applyImportedFont(family, true);
+          applyImportedFont(family,true);
           return Promise.resolve(true);
         }
-        setFontStatus('「' + runtimeFontLabels[family] + '」を端末内で読み込み中…', false);
-        return ensureRuntimeFontLoaded(family).then(function () {
+        setFontStatus('「' + runtimeFontLabels[family] + '」を端末内で読み込み中…',false);
+        fontStatus.dataset.state = 'loading';
+        return ensureRuntimeFontLoaded(family).then(function() {
           if (revision !== fontSelectionRevision || importedFontSelect.value !== family) return false;
-          applyImportedFont(family, true);
+          applyImportedFont(family,true);
           return true;
-        }).catch(function () {
-          if (revision === fontSelectionRevision && importedFontSelect.value === family) {
-            importedFontSelect.value = '';
-            setFontStatus('Import failed: 「' + runtimeFontLabels[family] + '」を読み込めませんでした。別のフォントを選ぶか、同じファイルを再Importしてください。', false);
-          }
+        }).catch(function(error) {
+          if (revision === fontSelectionRevision && importedFontSelect.value === family) showFontLoadError(family,error);
           return false;
         });
       }
@@ -53402,10 +53428,11 @@ type deformer</textarea>
 
       function fontImportPlan(fileList) {
         var allFiles = Array.prototype.slice.call(fileList || []);
-        var valid = allFiles.filter(function (file) { return /\.(otf|ttf|woff2?|ttc|otc)$/i.test(file.name); });
+        var valid = allFiles.filter(function (file) { return !/^\._/.test(file.name || '') && (/\.(otf|ttf|woff2?|ttc|otc)$/i.test(file.name || '') || /^(font\/|application\/(?:font-|x-font-))/.test(file.type || ''));  });
         var totalBytes = valid.reduce(function (sum, file) { return sum + file.size; }, 0);
         var issue = '';
         if (!valid.length) issue = 'empty';
+        else if (valid.some(function(file){return !Number.isFinite(file.size) || file.size <= 0;})) issue = 'unreadable';
         else if (valid.length > FONT_IMPORT_LIMITS.maxFiles) issue = 'count';
         else if (totalBytes > FONT_IMPORT_LIMITS.maxTotalBytes) issue = 'total';
         else if (valid.some(function (file) { return file.size > FONT_IMPORT_LIMITS.maxFileBytes; })) issue = 'file';
@@ -53415,15 +53442,18 @@ type deformer</textarea>
       window.TypeDeformerFontImport = Object.freeze({ limits: FONT_IMPORT_LIMITS, plan: fontImportPlan });
 
       function importFontCollection(fileList, sourceLabel, input) {
+        if (!fileList || !fileList.length) return;
         var plan = fontImportPlan(fileList);
         var valid = plan.files;
         if (!valid.length) {
-          setFontStatus('Import failed: OTF / TTF / WOFF / WOFF2 / TTC / OTCが見つかりませんでした。', false);
+          setFontStatus('Import failed: OTF / TTF / WOFF / WOFF2 / TTC / OTCを選択してください。ZIPはFilesで展開してから選びます。', false);
+          fontStatus.dataset.state = 'error';
           input.value = '';
           return;
         }
         if (plan.issue) {
-          setFontStatus('Import failed: 最大4,096書体・合計8GB・1ファイル128MBまでです。', false);
+          setFontStatus(plan.issue === 'unreadable' ? 'Import failed: 空のファイルが含まれています。Filesで端末にダウンロードしてから再選択してください。' : 'Import failed: 最大4,096書体・合計8GB・1ファイル128MBまでです。', false);
+          fontStatus.dataset.state = 'error';
           input.value = '';
           return;
         }
@@ -53432,18 +53462,21 @@ type deformer</textarea>
           input.value = '';
           return;
         }
+        var importRevision = ++fontImportRevision, selectionRevision = fontSelectionRevision;
+        fontLibrarySearch.value = '';
         setFontStatus(sourceLabel + 'をLibraryへ登録中… 0 / ' + valid.length, false);
-        input.value = '';
         var added = 0;
         var existing = 0;
-        var index = 0;
+        var index = 0, firstFamily = '';
         function registerChunk() {
+          if (importRevision !== fontImportRevision) return;
           var stop = Math.min(valid.length, index + 128);
           for (; index < stop; index++) {
             var file = valid[index];
             var sourcePath = file.webkitRelativePath || file.name;
             var fileBase = file.name.replace(/\.[^.]+$/, '').replace(/[^0-9A-Za-z\u00A0-\uFFFF _-]+/g, ' ').trim().slice(0, 72) || 'User Font';
             var family = 'Type Deformer ' + fileBase + ' ' + fontLibraryHash(sourcePath + '|' + file.size + '|' + Number(file.lastModified || 0));
+            if (!firstFamily) firstFamily = family;
             if (runtimeFontLabels[family]) {
               existing++;
               if (runtimeFontSources[family] === 'file-pending') runtimeFontFiles.set(family, { file: file, label: file.name });
@@ -53461,7 +53494,9 @@ type deformer</textarea>
           sortRuntimeFontOptions();
           var current = primaryFontName();
           var resultText = added + '書体をLibraryへ追加' + (existing ? '・' + existing + '件は登録済み' : '');
-          if (runtimeFontSources[current] === 'file-pending') {
+          if (valid.length === 1 && selectionRevision === fontSelectionRevision) {
+            setImportedFont(firstFamily);
+          } else if (runtimeFontSources[current] === 'file-pending') {
             setFontStatus(resultText + '。使用中の「' + runtimeFontLabels[current] + '」を読み込み中…', false);
             ensureRuntimeFontLoaded(current).then(function () {
               if (primaryFontName() !== current) return;
@@ -53469,8 +53504,8 @@ type deformer</textarea>
               refreshConfuseFontCandidates();
               scheduleCompositionDraw();
               setFontStatus(resultText + ' · Active: ' + runtimeFontLabels[current], true);
-            }).catch(function () {
-              setFontStatus(resultText + '。使用中の書体は読み込めませんでした。Libraryから別の書体を選べます。', false);
+            }).catch(function (error) {
+              if (primaryFontName() === current && importRevision === fontImportRevision) showFontLoadError(current,error);
             });
           } else {
             setFontStatus(resultText + '。Libraryから選ぶと、その書体だけ端末内で読み込みます。', added > 0 || existing > 0);
@@ -53480,6 +53515,7 @@ type deformer</textarea>
       }
 
       function applyFontChange() {
+        fontSelectionRevision++;
         applyStyle();
         refreshConfuseFontCandidates();
         markAutosaveDirty();
@@ -53516,6 +53552,7 @@ type deformer</textarea>
 
       fontCustom.addEventListener('focus', function () { fontCustomHistoryOpen = false; });
       fontCustom.addEventListener('input', function () {
+        fontSelectionRevision++;
         if (!fontCustomHistoryOpen) {
           pushHistory();
           fontCustomHistoryOpen = true;
@@ -53540,13 +53577,18 @@ type deformer</textarea>
         applyFontChange();
       });
 
+      fontLibrarySearch.addEventListener('input', sortRuntimeFontOptions);
+      btnFontRetry.addEventListener('click', function(){ if(fontRetryFamily)setImportedFont(fontRetryFamily); });
+      btnFontFolder.hidden = !('webkitdirectory' in fontFolderInput);
       btnFontFile.addEventListener('click', function () {
+        fontFileInput.value = '';
         fontFileInput.click();
       });
       fontFileInput.addEventListener('change', function () {
         importFontCollection(fontFileInput.files, 'Font files', fontFileInput);
       });
       btnFontFolder.addEventListener('click', function () {
+        fontFolderInput.value = '';
         fontFolderInput.click();
       });
       fontFolderInput.addEventListener('change', function () {
@@ -53561,19 +53603,22 @@ type deformer</textarea>
         }
         setFontStatus('端末のフォント一覧への許可を待っています…', false);
         window.queryLocalFonts().then(function (fonts) {
-          var families = Object.create(null);
-          fonts.forEach(function (font) {
-            var family = safeFontFamily(font.family);
-            if (family) families[family] = true;
-          });
-          var names = Object.keys(families).sort(function (a, b) { return a.localeCompare(b); });
-          names.forEach(function (family) {
-            registerRuntimeFont(family, family + ' · Installed', 'system');
+          // Keep FontData lazy, but load the selected face's actual bytes so
+          // the editor, workers and export frames all use the same typeface.
+          var added = 0;
+          fonts.forEach(function(font) {
+            var label = font.fullName || font.family, name = safeFontFamily(label);
+            if (!name || typeof font.blob !== 'function') return;
+            var family = 'Type Deformer Installed ' + name.slice(0,72) + ' ' + fontLibraryHash(font.postscriptName || label);
+            if (!runtimeFontLabels[family]) {
+              runtimeFontFiles.set(family,{label:label + ' · Installed',getFile:function(){return font.blob();}});
+              registerRuntimeFont(family,label + ' · Installed','file-pending'); added++;
+            }
           });
           sortRuntimeFontOptions();
           syncFontStatus();
           var activeName = primaryFontName();
-          setFontStatus(names.length + '書体を参照可能にしました。' + (runtimeFontLabels[activeName] ? 'Active: ' + runtimeFontLabels[activeName] : 'Libraryから選ぶと適用されます。'), names.length > 0);
+          setFontStatus(added + '書体をLibraryへ追加しました。検索して選ぶと、その書体だけを読み込みます。', added > 0);
         }).catch(function () {
           setFontStatus('端末フォントの参照が許可されませんでした。Import folderは引き続き使えます。', false);
         });

@@ -20,11 +20,29 @@
     "tests/preview.spec.js",
     "scripts/serve-static.mjs",
     "scripts/render-caesura-field.mjs",
-    "scripts/test-video-browser.mjs"
+    "scripts/test-video-browser.mjs",
+    "tests/interaction.spec.js",
+    "tests/fonts.spec.js",
+    "tests/fixtures/fonts/narrow.ttf",
+    "tests/fixtures/fonts/narrow.otf",
+    "tests/fixtures/fonts/narrow.woff",
+    "tests/fixtures/fonts/narrow.woff2",
+    "tests/fixtures/fonts/pair.ttc",
+    "tests/fixtures/fonts/README.md",
+    "tests/fixtures/fonts/wide.ttf"
   ],
   "catalogAssets": [
-    { "directory": "assets/operator-previews", "extension": ".png", "expected": 116, "manifest": "assets/operator-previews/manifest.json" },
-    { "directory": "assets/presets", "extension": ".jpg", "expected": 436 }
+    {
+      "directory": "assets/operator-previews",
+      "extension": ".png",
+      "expected": 116,
+      "manifest": "assets/operator-previews/manifest.json"
+    },
+    {
+      "directory": "assets/presets",
+      "extension": ".jpg",
+      "expected": 436
+    }
   ],
   "vendor": [
     "assets/vendor/mediabunny-1.56.1.mjs",

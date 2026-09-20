@@ -4,6 +4,10 @@
   function dispose(value){if(!value)return;if(value.layers)Object.values(value.layers).forEach(function(image){if(image&&image.close)image.close();});if(value.bitmap&&value.bitmap.close)value.bitmap.close();if(value.transfers)value.transfers.forEach(function(image){if(image&&image.close)image.close();});}
   // One running request and one replaceable waiting request. Only the newest
   // request may publish a result, including when an older job finishes later.
+  function supportsSurfaceWorker(){
+    if(typeof root.Worker!=='function'||typeof root.OffscreenCanvas!=='function'||typeof root.FontFace!=='function')return false;
+    try{return !!new root.OffscreenCanvas(1,1).getContext('2d');}catch(error){return false;}
+  }
   function create(options){
     options=options||{};
     var worker=null,active=null,waiting=null,desired=null,completed=null,failure=null,sequence=0,disposed=false,interruptTimer=null;
@@ -79,5 +83,5 @@
     function close(){disposed=true;stopWorker();active=waiting=desired=null;dispose(completed&&completed.result);completed=null;queues.delete(api);}
     var api={request:request,status:status,invalidate:invalidate,cancel:cancel,retry:retry,dispose:close};queues.add(api);return api;
   }
-  root.TypeDeformerRenderJobs={create:create,disposeResult:dispose,inspect:function(){return Array.from(queues).map(function(q){var s=q.status();return {busy:s.busy,ready:s.ready,error:s.error,counters:s.counters,duration:s.result&&s.result.duration,peakBytes:s.result&&s.result.peakBytes,resultBytes:s.result&&s.result.resultBytes,cacheBytes:s.result&&s.result.cacheBytes,workBudget:s.result&&s.result.workBudget,timings:s.result&&s.result.timings};});}};
+  root.TypeDeformerRenderJobs={supportsSurfaceWorker:supportsSurfaceWorker,create:create,disposeResult:dispose,inspect:function(){return Array.from(queues).map(function(q){var s=q.status();return {busy:s.busy,ready:s.ready,error:s.error,counters:s.counters,duration:s.result&&s.result.duration,peakBytes:s.result&&s.result.peakBytes,resultBytes:s.result&&s.result.resultBytes,cacheBytes:s.result&&s.result.cacheBytes,workBudget:s.result&&s.result.workBudget,timings:s.result&&s.result.timings};});}};
 })(typeof globalThis!=='undefined'?globalThis:this);
