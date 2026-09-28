@@ -1,3 +1,4 @@
+import '../numerical-kernels.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -85,7 +86,7 @@ test('new operators integrate independent source/effect mixing, per-glyph profil
 });
 
 test('seeded raster cache is bounded and clearable',()=>{
- api.clearCache();assert.deepEqual(api.cacheStats(),{entries:0,bytes:0,maxBytes:32*1024*1024});
+ api.clearCache();assert.deepEqual(api.cacheStats(),{entries:0,bytes:0,maxBytes:32*1024*1024,sourceEntries:0,hits:0,sourceHits:0,misses:0});
  const source=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');
  assert.ok(source.includes('while(cacheBytes+bytes>MAX_BYTES&&cache.size)'));new vm.Script(source);
 });

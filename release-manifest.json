@@ -13,7 +13,9 @@
     "PRIVACY.md",
     "THIRD_PARTY_NOTICES.md",
     "ASSETS_LICENSE.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/runtime-pipeline.md",
+    "docs/operator-performance.md"
   ],
   "tests": [
     "playwright.config.js",
@@ -30,7 +32,9 @@
     "tests/fixtures/fonts/pair.ttc",
     "tests/fixtures/fonts/README.md",
     "tests/fixtures/fonts/wide.ttf",
-    "tests/restart.spec.js"
+    "tests/restart.spec.js",
+    "tests/wasserstein.spec.js",
+    "scripts/measure-operators.mjs"
   ],
   "catalogAssets": [
     {

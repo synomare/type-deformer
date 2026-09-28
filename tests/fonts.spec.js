@@ -44,3 +44,25 @@ test('Installed fonts lazily loads the selected face bytes and preserves its exa
  const errors=await open(page);await page.locator('#btnSystemFonts').click();await expect(page.locator('#fontStatus')).toContainText('1書体をLibraryへ追加');expect(await page.evaluate(()=>__systemFontReads)).toBe(0);
  await page.locator('#pImportedFont').selectOption({label:'Test installed Regular · Installed'});await active(page,95);expect(await page.evaluate(()=>__systemFontReads)).toBe(1);expect(errors).toEqual([]);
 });
+
+
+test('material rendering follows font changes and restores the same pixels from a warm cache',async({page})=>{
+ const errors=await open(page);
+ await page.locator('#pFontFile').setInputFiles([fontPath('narrow.ttf'),fontPath('wide.ttf')]);
+ await page.locator('#pImportedFont').selectOption({label:'wide.ttf'});const wide=await active(page,95);
+ const project=await projectData(page);project.text='AA';project.lookMemory=null;
+ Object.assign(project.params,{fontSize:90,tensorSpacing:5,randomness:0,seed:41,textMeasure:0,artboard:'auto',exportScale:1});
+ project.letters=[0,1].map(()=>({t:0,l:0,i:0,o:{tensorFiligree:{t:1,i:1}}}));project.composition.enabled=false;
+ await page.locator('#projFile').setInputFiles({name:'cache-fonts.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
+ async function pixels(){return page.evaluate(async()=>{
+  const job=TypeDeformerRenderJobs.inspect()[0];if(job&&(job.busy||!job.ready||job.error))return null;
+  const c=document.querySelector('#surfaceFxCanvas');if(!c||c.hidden||!c.width||!c.height)return null;
+  const data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;if(!data.some((v,i)=>i%4===3&&v>8))return null;
+  return [c.width,c.height,Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data))).join(',')].join('/');
+ });}
+ await expect.poll(pixels).not.toBeNull();const first=await pixels();
+ await page.locator('#pImportedFont').selectOption({label:'narrow.ttf'});await active(page,35);
+ await expect.poll(async()=>{const value=await pixels();return value&&value!==first;}).toBe(true);
+ await page.locator('#pImportedFont').selectOption(wide);await active(page,95);
+ await expect.poll(pixels,{timeout:30000}).toBe(first);expect(errors).toEqual([]);
+});

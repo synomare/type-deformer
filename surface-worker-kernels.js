@@ -453,12 +453,12 @@ function batchProfileForKey(key, glyph) {
         var definition = BATCH_TARGETS.byKey[key];
         var parent = definition && definition.test ? definition.parent : key;
         var base = batchProfiles[parent] || params;
-        var candidates = text ? BATCH_TARGETS.keys(text) : [key];
         var cacheKey = key + '\u0000' + text;
         if (batchResolvedProfiles.has(cacheKey)) {
           var cached = batchResolvedProfiles.get(cacheKey);
           return glyph && glyph.localParams ? sourceParameterProfile(cached, glyph) : cached;
         }
+        var candidates = text ? BATCH_TARGETS.keys(text) : [key];
         var resolved = base;
         for (var i = 0; i < candidates.length; i++) {
           var target = candidates[i];
@@ -848,6 +848,17 @@ function surfaceScratch(name, width, height, readFrequently) {
         return { canvas: canvas, ctx: ctx };
       }
 
+function surfaceGlyphTextSpec(g, fm) {
+        var spec = { text: g.ch,
+          font: g.fontAxes ? glyphFontSpec(g, params.fontSize).font : params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily,
+          align: params.vertical || g.grid ? 'center' : 'left',
+          baseline: params.vertical ? 'middle' : 'alphabetic',
+          x: params.vertical || g.grid ? g.x + g.w / 2 : g.x,
+          y: params.vertical ? g.y + g.h / 2 : g.y + baselineOffset(g, fm),
+          angle: params.vertical && !g.upright ? Math.PI / 2 : 0 };
+        return spec;
+      }
+
 function drawSurfaceGlyph(ctx, g, pixelScale, L, fm, alpha, color) {
         if (alpha <= 0.001) return;
         ctx.save();
@@ -860,23 +871,16 @@ function drawSurfaceGlyph(ctx, g, pixelScale, L, fm, alpha, color) {
         ctx.scale(g.scaleX, g.scaleY);
         ctx.translate(-g.ox, -g.oy);
         ctx.globalAlpha = alpha * (g.opacity == null ? 1 : g.opacity);
-        ctx.font = g.fontAxes ? glyphFontSpec(g, params.fontSize).font : params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+        var spec = surfaceGlyphTextSpec(g, fm);
+        ctx.font = spec.font;
         ctx.fillStyle = color || '#fff';
-        if (params.vertical) {
-          var cx = g.x + g.w / 2;
-          var cy = g.y + g.h / 2;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          if (!g.upright) {
-            ctx.translate(cx, cy);
-            ctx.rotate(Math.PI / 2);
-            ctx.fillText(g.ch, 0, 0);
-          } else ctx.fillText(g.ch, cx, cy);
-        } else {
-          ctx.textAlign = g.grid ? 'center' : 'left';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
-        }
+        ctx.textAlign = spec.align;
+        ctx.textBaseline = spec.baseline;
+        if (spec.angle) {
+          ctx.translate(spec.x, spec.y);
+          ctx.rotate(spec.angle);
+          ctx.fillText(spec.text, 0, 0);
+        } else ctx.fillText(spec.text, spec.x, spec.y);
         ctx.restore();
       }
 
@@ -4744,7 +4748,7 @@ var DifferentialGrowth = (function () {
         if (!Number.isFinite(cellSize) || cellSize <= 0) throw new RangeError('Expected positive contact cell size');
         const edgePool = [], rows = new Map(), rowPool = [], bucketPool = [];
         let contacts = 0, stops = 0;
-        function* grid(rings) {
+        function* grid(rings, yielding = true) {
           rows.clear(); let edgeCount = 0, rowCount = 0, bucketCount = 0;
           for (const ring of rings) for (let i = 0; i < ring.points.length; i++) {
             const a = ring.points[i], b = ring.points[(i + 1) % ring.points.length];
@@ -4764,24 +4768,28 @@ var DifferentialGrowth = (function () {
                 bucket.push(edge);
               }
             }
-            if (edgeCount % 128 === 0) yield;
+            if (yielding && edgeCount % 128 === 0) yield;
           }
         }
         function hit(a, b) {
           if (a.a === b.a || a.a === b.b || a.b === b.a || a.b === b.b) return null;
           if (a.minX > b.maxX || a.maxX < b.minX || a.minY > b.maxY || a.maxY < b.minY) return null;
           let earliest = null;
-          for (const candidate of [vertexEdgeHit(a.a, b.a, b.b), vertexEdgeHit(a.b, b.a, b.b),
-            vertexEdgeHit(b.a, a.a, a.b), vertexEdgeHit(b.b, a.a, a.b)]) {
-            if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
-          }
+          let candidate = vertexEdgeHit(a.a, b.a, b.b);
+          if (candidate) earliest = candidate;
+          candidate = vertexEdgeHit(a.b, b.a, b.b);
+          if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
+          candidate = vertexEdgeHit(b.a, a.a, a.b);
+          if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
+          candidate = vertexEdgeHit(b.b, a.a, a.b);
+          if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
           return earliest;
         }
         return {
           // A read-only test for a proposed history chord. Ordinary floating-point
           // tolerances and the same valid-input limitations as the growth guard.
           intersects(rings) {
-            for (const pause of grid(rings)) { /* drain the read-only broad phase */ }
+            for (const pause of grid(rings, false)) { /* drain the read-only broad phase */ }
             for (const [cy, row] of rows) for (const [cx, bucket] of row)
               for (let i = 0; i < bucket.length; i++) for (let j = i + 1; j < bucket.length; j++) {
                 const a = bucket[i], b = bucket[j];
@@ -25008,11 +25016,13 @@ function structuralSurfaceRenderer(id) {
         };
       }
 
+function fieldMaterialSourceKey(g, fm) { return surfaceGlyphTextSpec(g, fm); }
+
 function fieldMaterialRenderer(id) {
         return function(ctx, glyphs, width, height, pixelScale, L, fm) {
           return TypeDeformerFieldMaterials.render(id, ctx, glyphs, width, height, pixelScale, L, fm, {
             params: params, renderContext: globalThis.TypeDeformerRenderContext && globalThis.TypeDeformerRenderContext.current(), strength: surfaceGlyphStrength, color: surfaceEffectColor,
-            scratch: surfaceScratch, drawGlyph: drawSurfaceGlyph, traceContours: spectralTraceContours, font: glyphFontSpec, charInfo: charInfo, bounds: contentBounds
+            scratch: surfaceScratch, drawGlyph: drawSurfaceGlyph, sourceKey: fieldMaterialSourceKey, traceContours: spectralTraceContours, font: glyphFontSpec, charInfo: charInfo, bounds: contentBounds
           });
         };
       }

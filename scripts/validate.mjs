@@ -174,7 +174,7 @@ if (html) {
     'Raster Press', 'Hatch Engrave', 'Contour Etch', 'Pressure Stroke', 'Sinew Torque', 'Cell Fracture', 'Ribbon Echo',
     'Copy Decay', 'Riso Separation', 'Slit Sweep'
   ];
-  const surfaceSnapshotBody = html.match(/var surface = (?:hasVisibleSurfaceOperator\(m\) \? )?\{([\s\S]*?)\n\s*\}(?: : null)?;\n\s*var w =/)?.[1] || '';
+  const surfaceSnapshotBody = html.match(/var surface = snapshotSurfaceState\(m, deform, misreg, surfaceSnapshots, function\(\) \{ return \{([\s\S]*?)\n\s*\}; \}\);/)?.[1] || '';
   const surfaceSnapshotKeys = [...surfaceSnapshotBody.matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)].map((match) => match[1]);
   const duplicateSurfaceSnapshotKeys = [...new Set(surfaceSnapshotKeys.filter((key, index) => surfaceSnapshotKeys.indexOf(key) !== index))];
   if (!surfaceSnapshotBody || duplicateSurfaceSnapshotKeys.length) {

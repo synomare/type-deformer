@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.2.0-preview.1 — 2026-09-28 Wasserstein execution
+
+- Fuse Sinkhorn matrix traversals, reuse convergence products and convert the
+  kernel to its transport plan in place, preserving every numerical operation.
+- Split source analysis, target rasterization, transport and reconstruction into
+  independently reusable stages within the existing combined 64 MiB allowance.
+- Reuse densities and Tracks contours on colour/Edge changes; skip transport
+  entirely at Ink/Density endpoints and skip unchanged glyph/group readbacks.
+- Fix disappearing target endpoints after a render scope closes, including
+  separate proof-density targets and explicit font invalidation.
+- Add scalar-reference, ownership and cache-key regressions plus reproducible
+  editing sequences and optional stage profiling to the operator benchmark.
+
+
+## 0.2.0-preview.1 — 2026-09-28 operator computation
+
+- Share exact nearest-site search, planned FFTs and byte-bounded numerical caches.
+- Separate fluid/optical solutions from colour, relief and exposure; compact mask
+  identities losslessly and verify candidates even under a hash collision.
+- Reduce Repulsive Curves pair work without removing global forces or changing
+  the accepted optimization trajectory.
+- Reuse material outputs before source rasterization, share the glyph text spec
+  with the painter and invalidate caches when fonts are installed.
+- Keep dense Chromatic Swarm paths on a deterministic software canvas to avoid
+  observed accelerated-canvas stalls and empty output on Windows Chrome.
+- Add a reproducible Worker benchmark and numerical/cache regression tests.
+  See [operator computation](docs/operator-performance.md) for limits and sources.
+
+## 0.2.0-preview.1 — 2026-09-28 runtime improvements
+
+- Share immutable Surface profiles within each glyph snapshot and transmit each
+  profile once per Worker frame. Keep frame identity strings on the editor side.
+- Coalesce range-control visual updates, flush them on commit/output, and wait
+  until numeric gestures finish before idle autosave.
+- Visit authored effects during Undo/Project serialization, cache repeated ink
+  measurements, and avoid updating discarded glyphs during text reconstruction.
+- Protect explicit proof/export jobs from background preview invalidation; recover
+  from Worker message/decode failures and dispose aliased bitmaps once.
+- Refresh image preflight after Compose finishes so temporary calculation waits
+  do not leave PNG/SVG controls permanently disabled.
+- Document runtime ownership and invalidation in [runtime pipeline](docs/runtime-pipeline.md).
+
 ## 0.2.0-preview.1 — 2026-09-21 restart safety
 
 - 起動・更新時は自動保存の文字だけを復元し、エフェクト・Compose・大きな書式設定を持ち越さない。前回のエフェクト付き作品は描画せずProjectメニューからJSONで退避可能。

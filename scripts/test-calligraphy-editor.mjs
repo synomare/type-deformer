@@ -7,7 +7,7 @@ const block=html.match(/\/\/ BEGIN CALLIGRAPHY FIELD GENERATED[\s\S]*?\/\/ END C
 const params={fontSize:192,fontWeight:700,fontFamily:'serif',vertical:false,calligraphyTool:'broad',calligraphyExpansion:0,calligraphyContrast:.4,calligraphyAngle:32,calligraphyPulse:.2,calligraphyWetness:.2};
 const runtime=vm.createContext({params,compositionState:{enabled:true,phase:0},BATCH_PARAM_OPTIONS:{calligraphyTool:['legacy','broad','brush','split','chisel']},
   surfaceGlyphStrength:g=>g.surface?.calligraphicStress||0,surfaceOutputOpacity:()=>1,baselineOffset:()=>0});
-new vm.Script(block+'\n'+extract('spectralGlyphFrame')+'\n'+extract('drawSurfaceGlyph')).runInContext(runtime);
+new vm.Script(block+'\n'+extract('spectralGlyphFrame')+'\n'+extract('surfaceGlyphTextSpec') + '\n' + extract('drawSurfaceGlyph')).runInContext(runtime);
 const context=()=>({matrix:[1,0,0,1,0,0],stack:[],native:[],
   setTransform(...m){this.matrix=m;},transform(a,b,c,d,e,f){const[A,B,C,D,E,F]=this.matrix;this.matrix=[A*a+C*b,B*a+D*b,A*c+C*d,B*c+D*d,A*e+C*f+E,B*e+D*f+F];},
   translate(x,y){this.transform(1,0,0,1,x,y);},scale(x,y){this.transform(x,0,0,y,0,0);},rotate(r){this.transform(Math.cos(r),Math.sin(r),-Math.sin(r),Math.cos(r),0,0);},

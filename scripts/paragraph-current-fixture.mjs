@@ -30,6 +30,7 @@ export function fixture(extra = {}) {
   });
   vm.runInContext(['STRENGTH_MODES', 'EVALUATION_LAYERS', 'OPERATOR_DEFS', 'params'].map(objectSource).join('\n')
     + '\nvar OPERATOR_IDS = Object.keys(OPERATOR_DEFS); var OPERATOR_BY_SHORT = {}; OPERATOR_IDS.forEach(id => OPERATOR_BY_SHORT[OPERATOR_DEFS[id].short] = id);', c);
+  vm.runInContext(fs.readFileSync(new URL('../surface-state.js', import.meta.url), 'utf8'), c);
   const emptyOperatorStateSource = declarationSource('EMPTY_OPERATOR_STATE');
   assert.ok(emptyOperatorStateSource, 'editor declaration EMPTY_OPERATOR_STATE');
   vm.runInContext(emptyOperatorStateSource + '\n' + ['readingLayoutFrame', 'parameterDisabledReasons', 'updateParameterRowAvailability',
@@ -41,10 +42,10 @@ export function fixture(extra = {}) {
     'buildGutterFugueFrames', 'gutterFugueRole', 'gutterFugueStrength', 'gutterFugueValues', 'applyGutterFugueVisual',
     'caesuraPunctuationStrength', 'caesuraClosingMark', 'caesuraSourceAdjacent', 'caesuraBoundaryStrength', 'buildCaesuraFieldFrames', 'caesuraFieldStrength', 'caesuraFieldValues', 'applyCaesuraFieldVisual',
     'createOperatorState', 'createOperatorStates', 'readOperatorState', 'operatorState', 'numericManual', 'pairManual',
-    'surfaceOperatorStrength', 'hasVisibleSurfaceOperator', 'cssNumber', 'hasVisibleOperatorDeform', 'snapshotGlyphs', 'measureLayout',
+    'surfaceOperatorStrength', 'hasVisibleSurfaceOperator', 'cssNumber', 'hasVisibleOperatorDeform', 'snapshotSurfaceState', 'snapshotGlyphs', 'measureLayout',
     'glyphLinearMatrix', 'findNearestLetter', 'clampFinite', 'normalizeOperatorManual', 'cloneManualValue',
     'sparseOperatorState', 'restoreOperatorStates', 'encodeOperatorStates', 'decodeOperatorStates',
-    'manualValueAtDragStart', 'compositionGlyph', 'applyTextMeasure', 'applyParagraphSpacing', 'drawGlyphs', 'drawSurfaceGlyph', 'baselineOffset',
+    'manualValueAtDragStart', 'compositionGlyph', 'applyTextMeasure', 'applyParagraphSpacing', 'drawGlyphs', 'surfaceGlyphTextSpec', 'drawSurfaceGlyph', 'baselineOffset',
     'formFieldContext', 'formFieldSignal'
   ].map(extract).join('\n'), c);
   return c;

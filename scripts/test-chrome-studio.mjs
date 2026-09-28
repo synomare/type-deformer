@@ -15,8 +15,8 @@ function install(c){
   Object.assign(c.params,{chromeModel:'studio',chromeOpacity:1,chromeSourceOpacity:0,chromeBlend:'source-over'});return c;
 }
 test('Studio kernel is integrated exactly, selectable and keeps the prior Acid default',()=>{
-  const prototype=fs.readFileSync(new URL('../.codex/prototypes/chrome-studio/kernel.js',import.meta.url),'utf8');
-  for(const name of kernelNames.filter(name=>name!=='chromeStudioPlate'))assert.ok(prototype.includes(extract(name)),'integrated '+name);
+  const prototype=fs.readFileSync(new URL('../.codex/prototypes/chrome-studio/kernel.js',import.meta.url),'utf8').replace(/\r\n/g,'\n');
+  for(const name of kernelNames.filter(name=>name!=='chromeStudioPlate'))assert.ok(prototype.includes(extract(name).replace(/\r\n/g,'\n')),'integrated '+name);
   const original=vm.createContext({Math});vm.runInContext(extract('surfaceBoundaryDistance')+'\n'+prototype,original);
   const current=core(),shape=mask();
   for(const variant of [settings,{...settings,phase:1.7,roughness:.9},{...settings,bevel:4,bands:18}])assert.deepEqual(Array.from(current.chromeStudioPlate(shape,shape,160,150,variant)),Array.from(original.chromeStudioPlate(shape,shape,160,150,variant)),'reference-resolution pixels remain identical');

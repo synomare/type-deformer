@@ -156,3 +156,12 @@ test('plain startup retains saved Look Memory takes without applying their rende
  const f=autosaveFixture(),{c}=f,takes={schemaVersion:1,active:0,slots:[{name:'保存した構図',state:{params:{fontSize:5000},letters:[{o:{tensorFiligree:{t:1}}}]}},null,null,null]},raw=JSON.stringify({app:'type-deformer',version:50,text:'文字',params:{},letters:[],lookMemory:takes});
  f.memory.set(c.AUTOSAVE_KEY,raw);assert.equal(c.tryRestoreAutosave(),true);assert.deepEqual(JSON.parse(JSON.stringify(c.data.lookMemory)),takes);assert.equal(c.data.letters.length,0);assert.equal(c.data.composition.enabled,false);
 });
+
+
+test('idle autosave waits for active numeric gestures, then saves the committed state',()=>{
+  const f=autosaveFixture(),{c}=f;let editing=true;
+  c.TypeDeformerNumericControls={editing:()=>editing};c.markAutosaveDirty();c.scheduleAutosave();f.runTimer();
+  assert.equal(f.serializations(),0);assert.equal(f.timers.size,1);
+  c.data.text='Committed';editing=false;f.runTimer();assert.equal(f.serializations(),1);
+  assert.equal(JSON.parse(f.memory.get(c.AUTOSAVE_KEY)).text,'Committed');
+});

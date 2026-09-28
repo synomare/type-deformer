@@ -91,7 +91,7 @@ test('all controls change actual plates/output; endpoints and closed time orbit 
 
 test('actual per-glyph masks keep unequal assignment, exclude unapplied text and do not mutate glyphs', () => {
   const c=fixture(canvas.createCanvas(600,200),{fontFamily:'Arial',fontSize:90,fontWeight:700,risoScreenPitch:1,risoRegister:0,risoGrain:0});
-  vm.runInContext(extract('buildSurfaceMask')+'\n'+extract('drawSurfaceGlyph'),c);c.baselineOffset=()=>90;
+  vm.runInContext(extract('buildSurfaceMask')+'\n'+extract('surfaceGlyphTextSpec')+'\n'+extract('drawSurfaceGlyph'),c);c.baselineOffset=()=>90;
   const glyph=(x,strength)=>({ch:'H',x,y:45,w:85,h:90,ox:x,oy:45,tx:0,ty:0,scaleX:1,scaleY:1,surface:{...c.params,risoSeparation:strength}});
   const glyphs=[glyph(25,1),glyph(225,.25),glyph(425,0)], before=JSON.stringify(glyphs), output=canvas.createCanvas(600,200);
   let plates;const original=c.risoDuotonePlates;c.risoDuotonePlates=(...args)=>(plates=original(...args));

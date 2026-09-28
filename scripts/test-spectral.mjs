@@ -206,7 +206,7 @@ const makeContext = () => ({
 });
 Object.assign(runtime, { params: { fontSize: 96, fontWeight: 700, fontFamily: 'serif', seed: 7 },
   baselineOffset: () => 78 });
-new vm.Script(['spectralGlyphFrame', 'drawSurfaceGlyph', 'surfaceGlyphStrength', 'renderSpectralType'].map(extract).join('\n')).runInContext(runtime);
+new vm.Script(['spectralGlyphFrame', 'surfaceGlyphTextSpec', 'drawSurfaceGlyph', 'surfaceGlyphStrength', 'renderSpectralType'].map(extract).join('\n')).runInContext(runtime);
 const glyph = { ch: 'R', x: 26, y: 31, w: 84, h: 120, ox: 68, oy: 91, tx: 33, ty: -27,
   rot: 33, skewX: -19, skewY: 12, scaleX: -1.3, scaleY: 0.8, opacity: 0.6 };
 const data = { advance: 180, middleOffset: 70, contours, variants: new Map() };

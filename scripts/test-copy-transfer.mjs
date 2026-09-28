@@ -40,7 +40,7 @@ test('assignment opacity is transported linearly, independently of developed sha
 test('real per-glyph mask retains unequal assignments and excludes unapplied glyphs', () => {
   const c = fixture(canvas.createCanvas(600, 240), { fontFamily: 'Arial', fontSize: 110, fontWeight: 700,
     copyMotion: 0, copyInstability: 0, copyGenerations: 8 });
-  vm.runInContext(extract('buildSurfaceMask') + '\n' + extract('drawSurfaceGlyph'), c);
+  vm.runInContext(extract('buildSurfaceMask') + '\n' + extract('surfaceGlyphTextSpec') + '\n' + extract('drawSurfaceGlyph'), c);
   c.baselineOffset = () => 110;
   const glyph = (x, strength) => ({ ch: 'H', x, y: 50, w: 100, h: 110, ox: x, oy: 50, tx: 0, ty: 0,
     scaleX: 1, scaleY: 1, surface: { copyDecay: strength, ...c.params } });

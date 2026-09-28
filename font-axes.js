@@ -100,7 +100,7 @@
       if(!meta.axes.length)return entry;
       if(typeof FontFace==='undefined'||!('variationSettings' in FontFace.prototype)){entry.reason='このブラウザはCanvasの可変フォントに未対応です。';return entry;}
       const family='TypeDeformer Axis Canvas '+(++sequence),face=new FontFace(family,record.buffer,{variationSettings:css(coordinates(meta,{},400))});
-      try{await face.load();document.fonts.add(face);entry.face=face;entry.family=family;}
+      try{await face.load();document.fonts.add(face); if(globalThis.TypeDeformerFieldMaterials)globalThis.TypeDeformerFieldMaterials.invalidateSources();entry.face=face;entry.family=family;}
       catch{entry.reason='可変字形を読み込めませんでした。別のフォントをお試しください。';}
       return entry;
     }

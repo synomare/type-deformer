@@ -20,10 +20,10 @@ export function installHatchOutput(c) {
     vm.runInContext(html.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
   }
   vm.runInContext(html.match(/      var SURFACE_BLEND_MODES = \[[^\n]+/)[0],c);
-  vm.runInContext(['buildSurfaceMask','drawSurfaceGlyph','surfaceEffectColor','surfaceOutputOpacity','surfaceSourceOpacity','surfaceSourceMode',
+  vm.runInContext(['buildSurfaceMask','surfaceGlyphTextSpec', 'drawSurfaceGlyph','surfaceEffectColor','surfaceOutputOpacity','surfaceSourceOpacity','surfaceSourceMode',
     'surfaceReplacementStrength','surfaceBlendMode','surfaceRenderOrder','normalizedSurfaceRenderOrder',
     'surfaceEffectPresent','surfaceAnyEffectPresent','surfaceCanonicalRasterPlan',
-    'structuralSurfaceRenderer','conditionSurfaceRenderer','fieldMaterialRenderer','renderSurfaceFxLayer'].map(extract).join('\n'),c);
+    'structuralSurfaceRenderer','conditionSurfaceRenderer','fieldMaterialSourceKey','fieldMaterialRenderer','renderSurfaceFxLayer'].map(extract).join('\n'),c);
   Object.assign(c.params,{hatchOpacity:1,hatchSourceOpacity:0,hatchBlend:'source-over',hatchGrammar:'copperplate'});
   return c;
 }

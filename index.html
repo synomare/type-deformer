@@ -6089,6 +6089,8 @@ type deformer</textarea>
   <script src="render-context.js"></script>
   <script src="render-envelope.js"></script>
   <script src="render-jobs.js"></script>
+  <script src="surface-state.js"></script>
+  <script src="edit-scheduler.js"></script>
   <script src="preview-quality.js"></script>
   <script src="parameter-model.js"></script>
   <script src="parameter-definitions.js"></script>
@@ -6110,6 +6112,7 @@ type deformer</textarea>
   <script src="sculpture-jobs.js"></script>
   <script src="sculpture-editor.js"></script>
   <script src="structural-operators.js"></script>
+  <script src="numerical-kernels.js"></script>
   <script src="pattern-tension-operators.js"></script>
   <script src="wave-growth-operators.js"></script>
   <script src="order-matter-operators.js"></script>
@@ -10062,12 +10065,12 @@ type deformer</textarea>
         var definition = BATCH_TARGETS.byKey[key];
         var parent = definition && definition.test ? definition.parent : key;
         var base = batchProfiles[parent] || params;
-        var candidates = text ? BATCH_TARGETS.keys(text) : [key];
         var cacheKey = key + '\u0000' + text;
         if (batchResolvedProfiles.has(cacheKey)) {
           var cached = batchResolvedProfiles.get(cacheKey);
           return glyph && glyph.localParams ? sourceParameterProfile(cached, glyph) : cached;
         }
+        var candidates = text ? BATCH_TARGETS.keys(text) : [key];
         var resolved = base;
         for (var i = 0; i < candidates.length; i++) {
           var target = candidates[i];
@@ -11520,6 +11523,8 @@ type deformer</textarea>
       function createSpans(text, preparedTokenLines, preserveHistory) {
         clearEditSelection(); // old spans are being discarded
         stageWorld.innerHTML = '';
+        metrics = [];
+        metricByElement = new WeakMap();
         letters = [];
         lineEnds = [];
         var lines = preparedTokenLines || tokenizeSourceLines(text);
@@ -13237,6 +13242,7 @@ type deformer</textarea>
         var compositionDistances = flow && compositionState.enabled ? compositionDistancesBySource(px, py) : null;
 
         var keepAnimating = pointerDriving || pointer.strength > 0.002;
+        var anyVisualChanged = false;
 
         for (var i = 0; i < metrics.length; i++) {
           var info = metrics[i];
@@ -13301,9 +13307,10 @@ type deformer</textarea>
               delete info.operatorStates[dormantOperatorIds[dormantIndex]];
             }
           }
-          if (visualChanged) applyOperatorVisual(info);
+          if (visualChanged) { applyOperatorVisual(info, true); anyVisualChanged = true; }
         }
 
+        if (anyVisualChanged) flushOperatorVisuals();
         pointer.pulse = false;
         if (keepAnimating) schedule();
       }
@@ -13695,7 +13702,7 @@ type deformer</textarea>
         if (!confusing && el.dataset.confuseHoldW) delete el.dataset.confuseHoldW;
       }
 
-      function applyOperatorVisual(info) {
+      function applyOperatorVisual(info, deferInvalidation) {
         var el = info.el, style = el.style;
         var documentStrength = readOperatorState(info,'counterspaceFlow').current + ':' + readOperatorState(info,'concordanceField').current;
         if (info.documentStrength !== documentStrength) { info.documentStrength=documentStrength; if (documentStrength !== '0:0' || info.layoutX || info.layoutY) scheduleMeasure(); }
@@ -13751,6 +13758,10 @@ type deformer</textarea>
         applyDataMoshVisual(info, deform);
         applyMisregistrationVisual(info, deform);
         applySurfaceSourceVisual(info);
+        if (!deferInvalidation) flushOperatorVisuals();
+      }
+
+      function flushOperatorVisuals() {
         invalidateCompositionSource();
         scheduleVisualOverscan();
         scheduleSurfaceFxDraw();
@@ -13760,8 +13771,9 @@ type deformer</textarea>
       function applyAllOperatorVisuals(includeLocked) {
         for (var i = 0; i < metrics.length; i++) {
           if (!includeLocked && metrics[i].locked) continue;
-          applyOperatorVisual(metrics[i]);
+          applyOperatorVisual(metrics[i], true);
         }
+        flushOperatorVisuals();
         updateAllSurfaceSourceVisuals();
         if (typeof documentEditor !== 'undefined' && documentEditor && metrics.some(function(m){ return readOperatorState(m,'counterspaceFlow').current > .001 || readOperatorState(m,'concordanceField').current > .001; })) scheduleMeasure();
         scheduleEffectStatusUpdate();
@@ -15101,9 +15113,10 @@ type deformer</textarea>
 
       function sparseOperatorState(m) {
         var result = {};
-        for (var i = 0; i < OPERATOR_IDS.length; i++) {
-          var id = OPERATOR_IDS[i];
-          if (id === 'stretch') continue;
+        var ids = Object.keys(m.operatorStates || {}).filter(function(id) { return id !== 'stretch' && OPERATOR_DEFS[id]; })
+          .sort(function(a, b) { return OPERATOR_IDS.indexOf(a) - OPERATOR_IDS.indexOf(b); });
+        for (var i = 0; i < ids.length; i++) {
+          var id = ids[i];
           var state = readOperatorState(m, id);
           if (!state.toggled && state.current < 0.0005 && state.manual == null) continue;
           var saved = { t: state.toggled ? 1 : 0, i: params.frozenMoment ? state.current : Math.round(state.current * 1000) / 1000 };
@@ -15135,9 +15148,10 @@ type deformer</textarea>
 
       function encodeOperatorStates(m) {
         var rows = [];
-        for (var i = 0; i < OPERATOR_IDS.length; i++) {
-          var id = OPERATOR_IDS[i];
-          if (id === 'stretch') continue;
+        var ids = Object.keys(m.operatorStates || {}).filter(function(id) { return id !== 'stretch' && OPERATOR_DEFS[id]; })
+          .sort(function(a, b) { return OPERATOR_IDS.indexOf(a) - OPERATOR_IDS.indexOf(b); });
+        for (var i = 0; i < ids.length; i++) {
+          var id = ids[i];
           var state = readOperatorState(m, id);
           if (!state.toggled && state.current < 0.0005 && state.manual == null) continue;
           var manual = '';
@@ -15701,12 +15715,24 @@ type deformer</textarea>
       }
 
       // Snapshot of every visible glyph: layout box + effective transform.
+      function snapshotSurfaceState(metric, profile, misreg, cache, build) {
+        if (!hasVisibleSurfaceOperator(metric)) return null;
+        var strengths = [];
+        for (var id in metric.operatorStates) {
+          if (!isSurfaceOperator(id)) continue;
+          var strength = surfaceOperatorStrength(metric, id);
+          if (strength) strengths.push([id, strength]);
+        }
+        return TypeDeformerSurfaceState.snapshot(profile, strengths, [misreg.x,misreg.y], cache, build);
+      }
+
       function snapshotGlyphs(forceAll) {
+        if (globalThis.TypeDeformerEditScheduler) TypeDeformerEditScheduler.flush();
         if (metricsDirty) measureLayout();
         if (forceAll && snapshotGlyphs.cache && snapshotGlyphs.cache.revision === compositionSourceRevision) {
           return snapshotGlyphs.cache.glyphs;
         }
-        var glyphs = [];
+        var glyphs = [], surfaceSnapshots = new WeakMap(), inkMeasurements = new Map();
         var measureCanvas = snapshotGlyphs.measureCanvas || (snapshotGlyphs.measureCanvas = (globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas')));
         var measureCtx = measureCanvas.getContext('2d');
         var measuredFm = fontMetrics();
@@ -15741,7 +15767,7 @@ type deformer</textarea>
           // block is intentionally materialized only once a Surface strength
           // is visible; otherwise long prose duplicates hundreds of dormant
           // properties per cached glyph snapshot.
-          var surface = hasVisibleSurfaceOperator(m) ? {
+          var surface = snapshotSurfaceState(m, deform, misreg, surfaceSnapshots, function() { return {
             plotterTrace: surfaceOperatorStrength(m, 'plotterTrace'),
             webbing: surfaceOperatorStrength(m, 'webbing'),
             blobTrack: surfaceOperatorStrength(m, 'blobTrack'),
@@ -16493,7 +16519,7 @@ type deformer</textarea>
             slitFrequency: deform.slitFrequency,
             slitMemory: deform.slitMemory,
             slitSpeed: deform.slitSpeed
-          } : null;
+          }; });
           var w = el.offsetWidth, h = el.offsetHeight;
           var objectScale = m.objectScale || 1;
           tx += (objectScale - 1) * (cssNumber(cs, '--tx', 0) + cssNumber(cs, '--op-baseline-x', 0)) * params.fontSize;
@@ -16516,7 +16542,9 @@ type deformer</textarea>
             var centerX = x + w / 2, centerY = y + h / 2;
             measureCtx.textAlign = params.vertical || isGridGlyph ? 'center' : 'left';
             measureCtx.textBaseline = params.vertical ? 'middle' : 'alphabetic';
-            var tm = measureCtx.measureText(el.textContent);
+            var inkKey = JSON.stringify([measureCtx.font, measureCtx.textAlign, measureCtx.textBaseline, el.textContent, m.fontAxes]);
+            var tm = inkMeasurements.get(inkKey);
+            if (!tm) { tm = measureCtx.measureText(el.textContent); inkMeasurements.set(inkKey, tm); }
             var inkLeft = Number(tm.actualBoundingBoxLeft);
             var inkRight = Number(tm.actualBoundingBoxRight);
             var inkAscent = Number(tm.actualBoundingBoxAscent);
@@ -16588,7 +16616,7 @@ type deformer</textarea>
       var surfaceEnvelopeError = '';
       var SURFACE_WORKER_IDS=["dataMosh","copyDecay","misregistration","risoSeparation","calligraphicStress","asemicDuctus","spectralType","counterformEngine","terminalExcess","ligatureBody","fiberBody","glyphMutation","suspendedSyntax","livingTextField","innerEruption","recursiveGraft","structuralCollision","peelWeave","voidPressure","ornamentReserve","tensionMembrane","diffractiveGlyph","dendriteCast","quasicrystalBody","nematicFilm","hyperbolicAtlas","loadpathFoundry","nodalGlaze","spinodalAlloy","densityRecast","hopfLoom","miuraVault","vortexBath","rationalCusp","bladeBody","blackBastion","inktrapAbyss","strangulation","gillArray","screwExtrusion","harmonicCage","beltramiFlow","riemannRamification","linkedTwist","enneperBody","nibRecast","anatomyWarp","kreslingShell","growthBuckle","inversionBody","gravityLens","liquidRope","wulffBody","repulsiveCurves","wassersteinLetters","stressGlass","tensorFiligree","chromaticSwarm","gyroidSculpture","causticGlass","rubyUsurper","punctuationLoom","counterpage","rendererDebt","ligatureContagion","strokeCommons","chromeReliquary","naveCutter","cloisterFold","prismSacrament","texturaMatrix","voidPortal","recursiveShrine","morphProcession","chimeraGraft","moireChoir","ligatureCrypt","cipherLiturgy","ribbonEcho","slitSweep","cellFracture","rasterPress","hatchEngrave","contourEtch","monolithCast","pressureStroke","sinewTorque","boneScaffold","thornCrown","softBlob","blobTrack","etchantBloom","webbing","roseEngine","sigilForge","plotterTrace","differentialType","conformalType","auxeticType","marblingType"];
       var surfaceWorkerClockHold=false,surfaceWorkerFrameResult=null,surfaceWorkerParameterKeys={},surfaceWorkerBoundsCache=null;
-      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,onState:function(state){
+      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,encode:function(job){return {id:job.id,payload:job.payload};},onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(status)status.textContent=state.error|| (state.busy?'描画中…':state.ready?'表示を更新しました。':'');
         if(state.ready&&state.result&&state.result.kind==='envelope'){
           surfaceWorkerFrameResult=null;if(surfaceFxCanvas)surfaceFxCanvas.hidden=true;
@@ -16600,9 +16628,9 @@ type deformer</textarea>
         if(!studioRendererMode&&(state.ready||state.error)){scheduleSurfaceFxDraw();if(compositionState.enabled)scheduleCompositionDraw();}
       }}):null;
       function surfaceWorkerSnapshot(glyphs,fm){
-        var compact=glyphs.map(function(g){var copy=Object.assign({},g),values={};Object.keys(g.surface||{}).forEach(function(key){if(g.surface[key]!==params[key])values[key]=g.surface[key];});copy.surface=g.surface?values:null;return copy;});
+        var packed=TypeDeformerSurfaceState.pack(glyphs,params);
         return {fontCss:Array.from(document.querySelectorAll('link[rel=stylesheet][href]')).map(function(link){return link.href;}).filter(function(url){return /^https:\/\/fonts.googleapis.com\//.test(url);}),params:Object.assign({},params),composition:JSON.parse(JSON.stringify(compositionState)),text:renderedSourceText,
-          surfacePhase:surfaceFxPhase,dataMoshFrame:dataMoshFrame,blobTrack:JSON.parse(JSON.stringify({blobs:blobTrackState.blobs,trails:blobTrackState.trails})),glyphs:compact,fm:fm,operatorKeys:surfaceWorkerParameterKeys};
+          surfacePhase:surfaceFxPhase,dataMoshFrame:dataMoshFrame,blobTrack:JSON.parse(JSON.stringify({blobs:blobTrackState.blobs,trails:blobTrackState.trails})),glyphs:packed.glyphs,surfaces:packed.surfaces,fm:fm,operatorKeys:surfaceWorkerParameterKeys};
       }
       function pausePreviewRendering(message) {
         previewRenderingPaused = true;
@@ -16947,6 +16975,17 @@ type deformer</textarea>
         return { canvas: canvas, ctx: ctx };
       }
 
+      function surfaceGlyphTextSpec(g, fm) {
+        var spec = { text: g.ch,
+          font: g.fontAxes ? glyphFontSpec(g, params.fontSize).font : params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily,
+          align: params.vertical || g.grid ? 'center' : 'left',
+          baseline: params.vertical ? 'middle' : 'alphabetic',
+          x: params.vertical || g.grid ? g.x + g.w / 2 : g.x,
+          y: params.vertical ? g.y + g.h / 2 : g.y + baselineOffset(g, fm),
+          angle: params.vertical && !g.upright ? Math.PI / 2 : 0 };
+        return spec;
+      }
+
       function drawSurfaceGlyph(ctx, g, pixelScale, L, fm, alpha, color) {
         if (alpha <= 0.001) return;
         ctx.save();
@@ -16959,23 +16998,16 @@ type deformer</textarea>
         ctx.scale(g.scaleX, g.scaleY);
         ctx.translate(-g.ox, -g.oy);
         ctx.globalAlpha = alpha * (g.opacity == null ? 1 : g.opacity);
-        ctx.font = g.fontAxes ? glyphFontSpec(g, params.fontSize).font : params.fontWeight + ' ' + params.fontSize + 'px ' + params.fontFamily;
+        var spec = surfaceGlyphTextSpec(g, fm);
+        ctx.font = spec.font;
         ctx.fillStyle = color || '#fff';
-        if (params.vertical) {
-          var cx = g.x + g.w / 2;
-          var cy = g.y + g.h / 2;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          if (!g.upright) {
-            ctx.translate(cx, cy);
-            ctx.rotate(Math.PI / 2);
-            ctx.fillText(g.ch, 0, 0);
-          } else ctx.fillText(g.ch, cx, cy);
-        } else {
-          ctx.textAlign = g.grid ? 'center' : 'left';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText(g.ch, g.grid ? g.x + g.w / 2 : g.x, g.y + baselineOffset(g, fm));
-        }
+        ctx.textAlign = spec.align;
+        ctx.textBaseline = spec.baseline;
+        if (spec.angle) {
+          ctx.translate(spec.x, spec.y);
+          ctx.rotate(spec.angle);
+          ctx.fillText(spec.text, 0, 0);
+        } else ctx.fillText(spec.text, spec.x, spec.y);
         ctx.restore();
       }
 
@@ -21031,7 +21063,7 @@ type deformer</textarea>
         if (!Number.isFinite(cellSize) || cellSize <= 0) throw new RangeError('Expected positive contact cell size');
         const edgePool = [], rows = new Map(), rowPool = [], bucketPool = [];
         let contacts = 0, stops = 0;
-        function* grid(rings) {
+        function* grid(rings, yielding = true) {
           rows.clear(); let edgeCount = 0, rowCount = 0, bucketCount = 0;
           for (const ring of rings) for (let i = 0; i < ring.points.length; i++) {
             const a = ring.points[i], b = ring.points[(i + 1) % ring.points.length];
@@ -21051,24 +21083,28 @@ type deformer</textarea>
                 bucket.push(edge);
               }
             }
-            if (edgeCount % 128 === 0) yield;
+            if (yielding && edgeCount % 128 === 0) yield;
           }
         }
         function hit(a, b) {
           if (a.a === b.a || a.a === b.b || a.b === b.a || a.b === b.b) return null;
           if (a.minX > b.maxX || a.maxX < b.minX || a.minY > b.maxY || a.maxY < b.minY) return null;
           let earliest = null;
-          for (const candidate of [vertexEdgeHit(a.a, b.a, b.b), vertexEdgeHit(a.b, b.a, b.b),
-            vertexEdgeHit(b.a, a.a, a.b), vertexEdgeHit(b.b, a.a, a.b)]) {
-            if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
-          }
+          let candidate = vertexEdgeHit(a.a, b.a, b.b);
+          if (candidate) earliest = candidate;
+          candidate = vertexEdgeHit(a.b, b.a, b.b);
+          if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
+          candidate = vertexEdgeHit(b.a, a.a, a.b);
+          if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
+          candidate = vertexEdgeHit(b.b, a.a, a.b);
+          if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
           return earliest;
         }
         return {
           // A read-only test for a proposed history chord. Ordinary floating-point
           // tolerances and the same valid-input limitations as the growth guard.
           intersects(rings) {
-            for (const pause of grid(rings)) { /* drain the read-only broad phase */ }
+            for (const pause of grid(rings, false)) { /* drain the read-only broad phase */ }
             for (const [cy, row] of rows) for (const [cx, bucket] of row)
               for (let i = 0; i < bucket.length; i++) for (let j = i + 1; j < bucket.length; j++) {
                 const a = bucket[i], b = bucket[j];
@@ -42566,11 +42602,15 @@ type deformer</textarea>
         };
       }
 
+      // The cache and Canvas consume the same text spec, so a new font or
+      // positioning input cannot be added to one without the other seeing it.
+      function fieldMaterialSourceKey(g, fm) { return surfaceGlyphTextSpec(g, fm); }
+
       function fieldMaterialRenderer(id) {
         return function(ctx, glyphs, width, height, pixelScale, L, fm) {
           return TypeDeformerFieldMaterials.render(id, ctx, glyphs, width, height, pixelScale, L, fm, {
             params: params, renderContext: globalThis.TypeDeformerRenderContext && globalThis.TypeDeformerRenderContext.current(), strength: surfaceGlyphStrength, color: surfaceEffectColor,
-            scratch: surfaceScratch, drawGlyph: drawSurfaceGlyph, traceContours: spectralTraceContours, font: glyphFontSpec, charInfo: charInfo, bounds: contentBounds
+            scratch: surfaceScratch, drawGlyph: drawSurfaceGlyph, sourceKey: fieldMaterialSourceKey, traceContours: spectralTraceContours, font: glyphFontSpec, charInfo: charInfo, bounds: contentBounds
           });
         };
       }
@@ -45698,7 +45738,7 @@ type deformer</textarea>
         )
       };
 
-      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,onState:function(state){
+      var compositionRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,encode:function(job){return {id:job.id,payload:job.payload};},onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(state.error&&status)status.textContent=state.error;
         if(!studioRendererMode&&(state.ready||state.error))scheduleCompositionDraw();
       }}):null;
@@ -46598,6 +46638,7 @@ type deformer</textarea>
         });
         updateCompositionStatus();
         scheduleEffectStatusUpdate();
+        if (latestImagePreflight && latestImagePreflight.pending) updateExportInfo();
         surfaceWorkerClockHold=false;
         updateCompositionAutoQuality(performance.now() - renderStarted);
       }
@@ -46702,7 +46743,7 @@ type deformer</textarea>
           if(studioRendererMode&&surfaceRenderJobs&&(TypeDeformerFieldMaterials.needsBodyBounds(scene.glyphs,surfaceGlyphStrength)||['differentialType','conformalType','auxeticType','marblingType'].some(function(id){return surfaceEffectPresent(scene.glyphs,id);})))bounds=workerFieldBodyBounds(scene.glyphs,bounds,fontMetrics());
           else bounds = TypeDeformerFieldMaterials.bodyBounds(scene.glyphs, bounds, fontMetrics(), {
             params: params, strength: surfaceGlyphStrength, color: surfaceEffectColor,
-            scratch: surfaceScratch, drawGlyph: drawSurfaceGlyph, traceContours: spectralTraceContours, font: glyphFontSpec, charInfo: charInfo, bounds: contentBounds
+            scratch: surfaceScratch, drawGlyph: drawSurfaceGlyph, sourceKey: fieldMaterialSourceKey, traceContours: spectralTraceContours, font: glyphFontSpec, charInfo: charInfo, bounds: contentBounds
           });
         }
         if (surfaceEffectPresent(scene.glyphs, 'scrollType')) bounds = sculptureEditor.bounds('scrollType', scene.glyphs, bounds);
@@ -47433,7 +47474,7 @@ type deformer</textarea>
           fonts: function () { return Array.from(studioFontBuffers.values()).filter(function (f) { return params.fontFamily.indexOf(f.family) !== -1; }); },
           importFonts: async function (fonts) {
             for (var font of (fonts || [])) {
-              var face = new FontFace(font.family, font.buffer); await face.load(); document.fonts.add(face);
+              var face = new FontFace(font.family, font.buffer); await face.load(); document.fonts.add(face); if(globalThis.TypeDeformerFieldMaterials)globalThis.TypeDeformerFieldMaterials.invalidateSources();
               runtimeFontFaces.push(face); studioFontBuffers.set(font.family, font); registerRuntimeFont(font.family, font.label, 'file');
               await axisFieldEditor.register(font);
             }
@@ -47879,7 +47920,7 @@ type deformer</textarea>
             hasRasterSurface: surfaceAnyEffectPresent(scene.glyphs)
           });
         } catch (error) {
-          result = { status: 'blocked', items: [], blockers: [error.message || '出力条件を確認できません。'], warnings: [] };
+          result = { status: 'blocked', pending: /_PENDING$/.test(error.code || ''), items: [], blockers: [error.message || '出力条件を確認できません。'], warnings: [] };
         }
         latestImagePreflight = result;
         renderExportPreflight('imageExportPreflight', result, 'Preflight / 書き出し前確認');
@@ -50979,8 +51020,12 @@ type deformer</textarea>
           // The edited profile is already current. Rebuilding all controls here
           // interrupts range gestures and invalidates active numeric drafts.
           if(typeof scheduleParameterUIRefresh==='function')scheduleParameterUIRefresh(input);
-          if (onChange) onChange();
+          if (onChange) {
+            if (globalThis.TypeDeformerEditScheduler) TypeDeformerEditScheduler.schedule(onChange);
+            else onChange();
+          }
         });
+        input.addEventListener('change', function() { if (globalThis.TypeDeformerEditScheduler) TypeDeformerEditScheduler.flush(); });
         val.textContent = fmt(parseFloat(input.value));
         rangeControls.push({ input: input, val: val, key: key, fmt: fmt, profiled: profiled });
       }
@@ -53394,7 +53439,7 @@ type deformer</textarea>
           var prepared = TypeDeformerFontLoading.prepare(buffer);
           return TypeDeformerFontLoading.loadFace(family, prepared.buffer).then(function(face) {
             installedFace = face;
-            document.fonts.add(face);
+            document.fonts.add(face); if(globalThis.TypeDeformerFieldMaterials)globalThis.TypeDeformerFieldMaterials.invalidateSources();
             var label = pending.label + (prepared.collectionCount > 1 ? ' · collection先頭書体 / ' + prepared.collectionCount : '');
             var record = { family:family, label:label, buffer:prepared.buffer };
             return axisFieldEditor.register(record).then(function() {
@@ -55487,6 +55532,11 @@ type deformer</textarea>
           // Avoid serializing a large project in the middle of typing or
           // real-time playback. Pause schedules an idle save; pagehide flushes.
           if (compositionPlayRaf !== null) return;
+          if (globalThis.TypeDeformerNumericControls && TypeDeformerNumericControls.editing()) {
+            autosaveIdleKind = 'timer';
+            autosaveIdleHandle = setTimeout(runAutosave, 750);
+            return;
+          }
           if (rebuildTimer !== null && document.activeElement === textInput) {
             autosaveIdleKind = 'timer';
             autosaveIdleHandle = setTimeout(runAutosave, 750);

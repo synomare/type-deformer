@@ -1,7 +1,11 @@
 (function(root){
   'use strict';
   var queues=new Set();
-  function dispose(value){if(!value)return;if(value.layers)Object.values(value.layers).forEach(function(image){if(image&&image.close)image.close();});if(value.bitmap&&value.bitmap.close)value.bitmap.close();if(value.transfers)value.transfers.forEach(function(image){if(image&&image.close)image.close();});}
+  function dispose(value){
+    if(!value)return;
+    var images=new Set([value.bitmap,...Object.values(value.layers||{}),...(value.transfers||[])]);
+    for(var image of images)if(image&&image.close)image.close();
+  }
   // One running request and one replaceable waiting request. Only the newest
   // request may publish a result, including when an older job finishes later.
   function supportsSurfaceWorker(){
@@ -18,6 +22,7 @@
     function clearDeadline(){if(deadlineTimer!==null){clearTimeout(deadlineTimer);deadlineTimer=null;}}
     function stopWorker(){clearInterrupt();clearDeadline();if(worker)worker.terminate();worker=null;knownFonts.clear();}
     function editable(job){return job&&job.payload&&job.payload.purpose==='edit';}
+    function explicit(job){return job&&job.payload&&['proof','export'].includes(job.payload.purpose);}
     function armInterrupt(){
       // Input invalidation can abandon obsolete work. Animation alone must not
       // continually restart a slow frame, and proof/export jobs must finish.
@@ -31,8 +36,17 @@
     function ensure(){
       if(worker)return worker;
       var instance=options.workerFactory?options.workerFactory():new Worker(new URL('surface-worker.js',document.baseURI));worker=instance;
+      function failed(event){
+        if(instance!==worker||disposed)return;
+        var finished=active,next=waiting;active=waiting=null;stopWorker();
+        if(next)launch(next);
+        else if(finished&&desired===finished)failure={key:finished.key,message:event.message||'描画Workerから結果を受け取れませんでした。再試行してください。'};
+        notify();
+      }
       instance.onmessage=function(event){
-        var message=options.decode?options.decode(event.data):event.data;if(!message)return;
+        var message;
+        try{message=options.decode?options.decode(event.data):event.data;}catch(error){dispose(event.data&&event.data.result);failed(error);return;}
+        if(!message)return;
         if(instance!==worker||disposed){dispose(message.result);return;}
         if(message.type==='progress'){if(active&&message.id===active.id&&desired===active&&options.onProgress)options.onProgress(message.value);return;}
         if(message.type!=='result'&&message.type!=='error')return;
@@ -47,13 +61,8 @@
         }else{dispose(message.result);counters.discarded++;}
         if(waiting){var next=waiting;waiting=null;launch(next);}notify();
       };
-      instance.onerror=function(event){
-        if(instance!==worker||disposed)return;
-        var finished=active,next=waiting;active=waiting=null;stopWorker();
-        if(next)launch(next);
-        else if(finished&&desired===finished)failure={key:finished.key,message:event.message||'描画Workerを起動できませんでした。'};
-        notify();
-      };
+      instance.onerror=failed;
+      instance.onmessageerror=failed;
       return instance;
     }
     function launch(job){
@@ -77,6 +86,9 @@
     }
     function request(key,payload){
       if(disposed)throw new Error('Render queue is disposed');
+      // Preview events cannot discard an explicit output that another caller
+      // is awaiting. The next preview redraw reads the latest editor state.
+      if(payload&&payload.purpose==='edit'&&(explicit(active)||explicit(waiting)))return status(key);
       if(desired&&desired.key===key)return status(key);
       failure=null;
       if(active&&active.key===key){desired=active;active.invalidated=false;waiting=null;clearInterrupt();notify();return status(key);}
@@ -86,7 +98,7 @@
       notify();return status(key);
     }
     function status(key){key=key==null?desired&&desired.key:key;return {key:key,busy:!!active||!!waiting,ready:!!completed&&completed.key===key,result:completed&&completed.key===key?completed.result:null,error:failure&&failure.key===key?failure.message:null,counters:Object.assign({},counters)};}
-    function invalidate(){desired=null;waiting=null;failure=null;if(active)active.invalidated=true;notify();}
+    function invalidate(){if(explicit(active)||explicit(waiting))return;desired=null;waiting=null;failure=null;if(active)active.invalidated=true;notify();}
     function cancel(){if(!worker&&!active&&!waiting&&!desired&&!completed&&!failure)return;stopWorker();active=waiting=desired=null;failure=null;dispose(completed&&completed.result);completed=null;notify();}
     function cancelEditing(){if([active,waiting,desired].some(function(job){return job&&!editable(job);}))return;cancel();}
     function retry(){if(!desired)return;var key=desired.key,payload=desired.payload;cancel();return request(key,payload);}

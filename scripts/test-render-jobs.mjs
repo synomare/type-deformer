@@ -11,6 +11,30 @@ function fixture(options={}){
  return {q,workers,tick(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},timers};
 }
 const edit={purpose:'edit'};
+test('preview invalidation cannot replace active or queued explicit output',()=>{
+ for(const purpose of ['proof','export'])for(const queued of [false,true]){
+  const {q,workers}=fixture();if(queued)q.request('edit',edit);
+  q.request('output',{purpose});q.invalidate();q.request('preview',edit);
+  if(queued)workers[0].result(0);
+  const index=queued?1:0;assert.equal(workers[0].sent[index].key,'output');workers[0].result(index);
+  assert.equal(q.status('output').ready,true);assert.equal(q.status().busy,false);
+  q.request('preview',edit);workers[0].result(index+1);assert.equal(q.status('preview').ready,true);q.dispose();
+ }
+});
+test('message deserialization and decode failures release the worker and allow recovery',()=>{
+ for(const decode of [false,true]){
+  const {q,workers,timers}=fixture(decode?{decode(){throw Error('decode failed');}}:{});
+  q.request('output',{purpose:'export'});
+  if(decode)workers[0].result();else workers[0].onmessageerror({});
+  assert.equal(q.status().busy,false);assert.ok(q.status().error);assert.equal(workers[0].terminated,true);assert.equal(timers.size,0);q.dispose();
+ }
+ const {q,workers}=fixture();q.request('a',edit);q.request('b',edit);workers[0].onmessageerror({});
+ assert.equal(workers[1].sent[0].key,'b');workers[1].result();assert.equal(q.status().ready,true);q.dispose();
+});
+test('a bitmap referenced through multiple result fields is released exactly once',()=>{
+ const {q,workers}=fixture();let closed=0;const bitmap={close(){closed++;}};
+ q.request('a',edit);workers[0].result(0,{bitmap,layers:{a:bitmap},transfers:[bitmap]});q.cancel();assert.equal(closed,1);q.dispose();
+});
 test('input replaces obsolete heavy work within one grace period and isolates late worker callbacks',()=>{
  const {q,workers,tick,timers}=fixture();let closed=0;
  q.request('last',edit);workers[0].result(0,{bitmap:{close(){closed++;}}});
@@ -24,7 +48,7 @@ test('input replaces obsolete heavy work within one grace period and isolates la
 test('animation and proof/export requests finish without starvation or interruption',()=>{
  for(const [purpose,invalidate,nextPurpose] of [['edit',false,'edit'],['proof',true,'edit'],['export',true,'edit'],['edit',true,'export']]){
   const {q,workers,tick}=fixture();q.request('a',{purpose});if(invalidate)q.invalidate();q.request('b',{purpose:nextPurpose});tick();
-  assert.equal(workers.length,1);assert.equal(workers[0].terminated,undefined);workers[0].result();assert.equal(workers[0].sent[1].key,'b');workers[0].result(1);assert.equal(q.status().ready,true);q.dispose();
+  assert.equal(workers.length,1);assert.equal(workers[0].terminated,undefined);workers[0].result();if(purpose!=='edit'&&nextPurpose==='edit'){assert.equal(q.status('a').ready,true);q.request('b',{purpose:nextPurpose});}assert.equal(workers[0].sent[1].key,'b');workers[0].result(1);assert.equal(q.status().ready,true);q.dispose();
  }
 });
 test('returning to the running input reuses its work and clears pending interruption',()=>{

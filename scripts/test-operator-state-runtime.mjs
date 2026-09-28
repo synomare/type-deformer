@@ -81,6 +81,6 @@ test('hot paths iterate instantiated glyph states instead of every Operator', ()
   assert.match(sourceAlpha, /for \(var id in states\)/);
   assert.match(visible, /for \(var id in states\)/);
   assert.doesNotMatch(create, /OPERATOR_IDS/);
-  assert.match(snapshot, /var surface = hasVisibleSurfaceOperator\(m\) \? \{/);
-  assert.match(snapshot, /\} : null;/);
+  assert.match(snapshot, /var surface = snapshotSurfaceState\(m, deform, misreg, surfaceSnapshots/);
+  assert.match(functionSource('snapshotSurfaceState'), /if \(!hasVisibleSurfaceOperator\(metric\)\) return null/);
 });

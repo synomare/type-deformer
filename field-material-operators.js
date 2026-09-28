@@ -65,7 +65,7 @@
   var wassersteinLetters = root.TypeDeformerWassersteinLetters;
   if(wassersteinLetters)Object.assign(schemas,wassersteinLetters.schemas);
   var boundedBodyIds=(excessBody?excessBody.ids:[]).concat(ramifiedBody?ramifiedBody.ids:[],foldedBody?foldedBody.ids:[],letterformBody?letterformBody.ids:[],metamorphicBody?metamorphicBody.ids:[],gravityLens?gravityLens.ids:[],liquidRope?liquidRope.ids:[],wulffBody?wulffBody.ids:[],repulsiveCurves?repulsiveCurves.ids:[],wassersteinLetters?wassersteinLetters.ids:[]);
-  var ids=Object.keys(schemas), cache=new Map(), cacheBytes=0, MAX_BYTES=32*1024*1024;
+  var ids=Object.keys(schemas), cache=new Map(), sourceEntries=new Map(), sourceRevision=0, cacheHits=0, sourceHits=0, cacheMisses=0, cacheBytes=0, MAX_BYTES=32*1024*1024;
   function clamp(v,a,b){v=Number(v);return Math.max(a,Math.min(b,isFinite(v)?v:a));}
   function rand(seed){var s=seed>>>0;return function(){s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
   function rgb(s){s=/^#[0-9a-f]{6}$/i.test(s)?s:'#254953';return [1,3,5].map(function(i){return parseInt(s.slice(i,i+2),16);});}
@@ -73,8 +73,12 @@
   function css(a){return 'rgb('+a.join(',')+')';}
   function scoped(fn){var R=root.TypeDeformerRenderContext;return R&&R.withScope?R.withScope(fn):fn();}
   function releaseCanvas(c){if(root.TypeDeformerRenderContext)root.TypeDeformerRenderContext.release(c);else c.width=c.height=1;}
+  function releaseEntry(entry){releaseCanvas(entry.canvas);entry.alpha=null;}
+  function alphaIdentity(data){var alpha=new Uint8Array(data.length/4);for(var i=0;i<alpha.length;i++)alpha[i]=data[i*4+3];return alpha;}
+  function matchesSource(entry,data){if(!entry.alpha||entry.alpha.length!==data.length/4)return false;for(var i=0;i<entry.alpha.length;i++)if(entry.alpha[i]!==data[i*4+3])return false;return true;}
+  function invalidateSources(){sourceEntries.clear();sourceRevision++;if(wassersteinLetters&&wassersteinLetters.invalidateFonts)wassersteinLetters.invalidateFonts();}
   function retainCanvas(c){var R=root.TypeDeformerRenderContext;if(R&&R.retain)R.retain(c);}
-  function canvas(w,h){var c=(globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas'));c.width=w;c.height=h;return c;}
+  function canvas(w,h,options){var c=(globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas(1,1,options) : document.createElement('canvas'));c.width=w;c.height=h;if(options&&options.willReadFrequently)c.getContext('2d',{willReadFrequently:true});return c;}
   function fingerprint(a){var h=2166136261;for(var i=3;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;}
   // Eight-neighbour chamfer metric: bounded O(n), subpixel input retained for
   // compositing. Not advertised as an exact Euclidean distance transform.
@@ -86,7 +90,7 @@
   function sample(a,w,h,x,y){x=clamp(x,0,w-1.001);y=clamp(y,0,h-1.001);var ix=x|0,iy=y|0,fx=x-ix,fy=y-iy,p=iy*w+ix;return (a[p]*(1-fx)+a[p+1]*fx)*(1-fy)+(a[p+w]*(1-fx)+a[p+w+1]*fx)*fy;}
   function settings(id,g,env){var s=schemas[id],v={};Object.keys(s.defaults).forEach(function(k){var raw=g.surface&&g.surface[k];if(s.options[k])v[k]=s.options[k].indexOf(raw)>=0?raw:s.defaults[k];else{v[k]=raw==null?s.defaults[k]:(root.TypeDeformerParameters?root.TypeDeformerParameters.normalize(k,raw,s.defaults[k],s.limits[k][0],s.limits[k][1],(s.integers||[]).indexOf(k)>=0):clamp(raw,s.limits[k][0],s.limits[k][1]));if((s.integers||[]).indexOf(k)>=0)v[k]=Math.round(v[k]);}});return v;}
   function requestedPad(id,g,p){return Math.ceil(wassersteinLetters&&wassersteinLetters.ids.indexOf(id)>=0?wassersteinLetters.effectPad(id,g):repulsiveCurves&&repulsiveCurves.ids.indexOf(id)>=0?repulsiveCurves.effectPad(id,g):wulffBody&&wulffBody.ids.indexOf(id)>=0?wulffBody.effectPad(id,g):liquidRope&&liquidRope.ids.indexOf(id)>=0?liquidRope.effectPad(id,g):gravityLens&&gravityLens.ids.indexOf(id)>=0?gravityLens.effectPad(id,g):metamorphicBody&&metamorphicBody.ids.indexOf(id)>=0?metamorphicBody.effectPad(id,g):letterformBody&&letterformBody.ids.indexOf(id)>=0?letterformBody.effectPad(id,g,p):foldedBody&&foldedBody.ids.indexOf(id)>=0?foldedBody.effectPad(id,g):ramifiedBody&&ramifiedBody.ids.indexOf(id)>=0?ramifiedBody.effectPad(id,g):excessBody&&excessBody.ids.indexOf(id)>=0?excessBody.effectPad(id,g):nodalGlaze&&nodalGlaze.ids.indexOf(id)>=0?nodalGlaze.effectPad(id):spinodalAlloy&&spinodalAlloy.ids.indexOf(id)>=0?spinodalAlloy.effectPad(id):densityRecast&&densityRecast.ids.indexOf(id)>=0?densityRecast.effectPad(id):hopfLoom&&hopfLoom.ids.indexOf(id)>=0?hopfLoom.effectPad(id):miuraVault&&miuraVault.ids.indexOf(id)>=0?miuraVault.effectPad(id):vortexBath&&vortexBath.ids.indexOf(id)>=0?vortexBath.effectPad(id):stressGlass&&stressGlass.ids.indexOf(id)>=0?stressGlass.effectPad(id):loadpathFoundry&&loadpathFoundry.ids.indexOf(id)>=0?loadpathFoundry.effectPad(id):hyperbolicAtlas&&hyperbolicAtlas.ids.indexOf(id)>=0?hyperbolicAtlas.effectPad(id):orderMatter&&orderMatter.ids.indexOf(id)>=0?orderMatter.effectPad(id):waveGrowth&&waveGrowth.ids.indexOf(id)>=0?waveGrowth.effectPad(id):patternTension&&patternTension.ids.indexOf(id)>=0?patternTension.effectPad(id):id==='causticGlass'?90:id==='gyroidSculpture'?40:16);}
-  function source(g,L,fm,env,id,p,padOverride){
+  function sourceGeometry(g,id,p,padOverride){
     var scale=2, pad=padOverride==null?requestedPad(id,g,p):Math.ceil(padOverride);
     // Keep the whole measured ink envelope, not only the CSS line box, inside
     // the glyph-local raster. Long swashes and descenders must survive Surface
@@ -101,18 +105,23 @@
     // branched extents reduce analysis scale continuously instead of clipping.
     if(((ramifiedBody&&ramifiedBody.ids.indexOf(id)>=0)||(foldedBody&&foldedBody.ids.indexOf(id)>=0)||(letterformBody&&letterformBody.ids.indexOf(id)>=0)||(metamorphicBody&&metamorphicBody.ids.indexOf(id)>=0)||(gravityLens&&gravityLens.ids.indexOf(id)>=0)||(liquidRope&&liquidRope.ids.indexOf(id)>=0)||(wulffBody&&wulffBody.ids.indexOf(id)>=0)||(repulsiveCurves&&repulsiveCurves.ids.indexOf(id)>=0)||(wassersteinLetters&&wassersteinLetters.ids.indexOf(id)>=0))&&w*h>2400000){scale=Math.sqrt(2380000/(worldW*worldH));w=Math.ceil(worldW*scale);h=Math.ceil(worldH*scale);}
     if(w*h>2400000)throw new Error('Field material: glyph raster exceeds 2.4M pixels; reduce text size.');
+    return {w:w,h:h,scale:scale,pad:pad,x:x,y:y};
+  }
+  function wassersteinTarget(g,env){
+    var partner=env.params.wassersteinPartner||'X',target={partner:partner,targetFont:env.font?env.font(g,320).font:env.params.fontWeight+' 320px '+env.params.fontFamily,targetAngle:0};
+    if(env.params.vertical){target.targetAngle=env.charInfo&&!env.charInfo(partner,partner.codePointAt(0)).upright?Math.PI/2:0;
+      if(wassersteinLetters.characters(partner).length>1)target.targetAngles=wassersteinLetters.characters(partner).map(function(ch){return env.charInfo&&!env.charInfo(ch,ch.codePointAt(0)).upright?Math.PI/2:0;});}
+    return target;
+  }
+  function source(g,L,fm,env,id,p,padOverride){
+    var geometry=sourceGeometry(g,id,p,padOverride),w=geometry.w,h=geometry.h,scale=geometry.scale,pad=geometry.pad,x=geometry.x,y=geometry.y;
     var tile=env.scratch('field-material-source',w,h,true), local=Object.assign({},g,{x:g.x-x,y:g.y-y,ox:0,oy:0,tx:0,ty:0,rot:0,skewX:0,skewY:0,scaleX:1,scaleY:1,opacity:1});
     env.drawGlyph(tile.ctx,local,scale,{dx:0,dy:0,s:1},fm,1,'#ffffff');
     var data=tile.ctx.getImageData(0,0,w,h).data,alpha=new Float32Array(w*h);
     for(var i=0;i<alpha.length;i++)alpha[i]=data[i*4+3]/255;
     var result={canvas:tile.canvas,data:data,alpha:alpha,w:w,h:h,scale:scale,pad:pad,x:x,y:y,key:fingerprint(data),trace:env.traceContours};
-    if(id==='wassersteinLetters'){
-      result.partner=env.params.wassersteinPartner||'X';
-      result.targetFont=env.font?env.font(g,320).font:env.params.fontWeight+' 320px '+env.params.fontFamily;
-      result.targetAngle=env.params.vertical&&env.charInfo&&!env.charInfo(result.partner,result.partner.codePointAt(0)).upright?Math.PI/2:0;
-      if(env.params.vertical&&wassersteinLetters.characters(result.partner).length>1) result.targetAngles=wassersteinLetters.characters(result.partner).map(function(ch){return env.charInfo&&!env.charInfo(ch,ch.codePointAt(0)).upright?Math.PI/2:0;});
-      result.key+='/'+result.targetAngles+'/'+result.partner+'/'+result.targetFont+'/'+result.targetAngle+'/'+wassersteinLetters.fontRevision();
-    }
+    if(id==='wassersteinLetters'){Object.assign(result,wassersteinTarget(g,env));result.key+='/'+JSON.stringify([result.partner,result.targetFont,result.targetAngle,result.targetAngles,wassersteinLetters.fontRevision()]);}
+
     return result;
   }
   function masked(out,s){var c=out.getContext('2d');c.globalCompositeOperation='destination-in';c.drawImage(s.canvas,0,0);c.globalCompositeOperation='source-over';}
@@ -149,8 +158,10 @@
   }
   // Weighted Lloyd relaxation. Samples are source-mask cells, weights increase
   // toward thick stroke interiors. Empty cells keep their previous location.
-  function lloyd(points,samples,iterations){points=points.map(function(p){return p.slice();});for(var t=0;t<iterations;t++){var sums=points.map(function(){return [0,0,0];});samples.forEach(function(s){var best=0,min=Infinity;for(var j=0;j<points.length;j++){var dx=s[0]-points[j][0],dy=s[1]-points[j][1],ds=dx*dx+dy*dy;if(ds<min){min=ds;best=j;}}sums[best][0]+=s[0]*s[2];sums[best][1]+=s[1]*s[2];sums[best][2]+=s[2];});points=points.map(function(p,i){return sums[i][2]?[sums[i][0]/sums[i][2],sums[i][1]/sums[i][2]]:p;});}return points;}
-  function swarm(s,p,color,accent,seed){var out=canvas(s.w,s.h),ctx=out.getContext('2d'),d=distance(s.alpha,s.w,s.h),random=rand(seed),cell=p.swarmCell*s.scale,samples=[],area=0;
+  function lloyd(points,samples,iterations){points=points.map(function(p){return p.slice();});for(var t=0;t<iterations;t++){var sums=points.map(function(){return [0,0,0];}),nearest=points.length>=24?root.TypeDeformerNumerics.nearestIndex(points):null;samples.forEach(function(s){var best=0,min=Infinity;if(nearest)best=nearest(s[0],s[1]);else for(var j=0;j<points.length;j++){var dx=s[0]-points[j][0],dy=s[1]-points[j][1],ds=dx*dx+dy*dy;if(ds<min){min=ds;best=j;}}sums[best][0]+=s[0]*s[2];sums[best][1]+=s[1]*s[2];sums[best][2]+=s[2];});points=points.map(function(p,i){return sums[i][2]?[sums[i][0]/sums[i][2],sums[i][1]/sums[i][2]]:p;});}return points;}
+  // Dense multiply-composited micro-paths can stall or lose the accelerated
+  // canvas on Windows. Select the CPU context before either raster is created.
+  function swarm(s,p,color,accent,seed){var out=canvas(s.w,s.h,{willReadFrequently:true}),ctx=out.getContext('2d'),d=distance(s.alpha,s.w,s.h),random=rand(seed),cell=p.swarmCell*s.scale,samples=[],area=0;
     for(var i=0;i<s.alpha.length;i++)area+=s.alpha[i];
     var stride=Math.max(2,Math.ceil(Math.sqrt(s.w*s.h/6500)));
     for(var y=1;y<s.h-1;y+=stride)for(var x=1;x<s.w-1;x+=stride)if(s.alpha[y*s.w+x]>.5)samples.push([x,y,1+p.swarmBias*Math.min(3,d[y*s.w+x]/cell*3)]);
@@ -255,20 +266,33 @@
   if(wulffBody)Object.assign(renderers,wulffBody.renderers);
   if(repulsiveCurves)Object.assign(renderers,repulsiveCurves.renderers);
   if(wassersteinLetters)Object.assign(renderers,wassersteinLetters.renderers);
-  function touchesRasterEdge(c,gutter){var w=c.width,h=c.height;if(!w||!h)return false;var data=c.getContext('2d').getImageData(0,0,w,h).data,g=Math.max(1,Math.min(gutter||3,Math.floor(Math.min(w,h)/2)));for(var y=0;y<h;y++)for(var x=0;x<w;x++)if((x<g||y<g||x>=w-g||y>=h-g)&&data[(y*w+x)*4+3]>1)return true;return false;}
+  function touchesRasterEdge(c,gutter){var w=c.width,h=c.height;if(!w||!h)return false;var data=c.getContext('2d').getImageData(0,0,w,h).data,g=Math.max(1,Math.min(gutter||3,Math.floor(Math.min(w,h)/2)));
+    for(var y=0;y<h;y++){if(y<g||y>=h-g){for(var x=0;x<w;x++)if(data[(y*w+x)*4+3]>1)return true;}else for(var x=0;x<g;x++)if(data[(y*w+x)*4+3]>1||data[(y*w+w-1-x)*4+3]>1)return true;}return false;}
   function nextPad(s,result){var diagnostics=result&&result._lensDiagnostics,viewScale=diagnostics&&Number(diagnostics.viewScale);if(Number.isFinite(viewScale)&&viewScale>0&&viewScale<.997)return Math.ceil(s.pad/viewScale*1.06+8);if(touchesRasterEdge(result,3))return Math.ceil(s.pad*1.7+16);return 0;}
   function entryFor(id,g,L,fm,env){
     var p=settings(id,g,env),color=env.color(id),accent=env.params.accent||'#b52254',seed=(env.params.seed||17),pad=null,s,entry,key;
+    var context=root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current(),factor=context?context.factor:1,purpose=context?context.purpose:'analysis';
+    var material=[id,JSON.stringify(p),color,accent,seed,factor,purpose].join('|'),geometry=sourceGeometry(g,id,p),sourceKey=null;
+    // The host supplies the complete drawGlyph identity. Unknown/custom hosts
+    // retain the pixel-verified path. Never cache a live scratch source canvas.
+    if(env.sourceKey){var targetIdentity=id==='wassersteinLetters'?[wassersteinTarget(g,env),wassersteinLetters.fontRevision()]:null;sourceKey=JSON.stringify([sourceRevision,material,geometry,env.sourceKey(g,fm),targetIdentity]);var quick=sourceEntries.get(sourceKey);
+      if(quick&&quick.drawGlyph===env.drawGlyph&&cache.get(quick.key)===quick.entry){sourceEntries.delete(sourceKey);sourceEntries.set(sourceKey,quick);cache.delete(quick.key);cache.set(quick.key,quick.entry);sourceHits++;return {source:sourceGeometry(g,id,p,quick.pad),entry:quick.entry};}
+    }
     // Some bounded-body solvers can expand far beyond their nominal source.
     // Grow their local world envelope before caching instead of shrinking or
     // clipping the effect into a small, invisible per-glyph rectangle.
     for(var attempt=0;attempt<4;attempt++){
-      s=source(g,L,fm,env,id,p,pad);key=[id,s.w,s.h,s.x,s.y,s.key,JSON.stringify(p),color,accent,seed,root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()?root.TypeDeformerRenderContext.current().factor:1,root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()?root.TypeDeformerRenderContext.current().purpose:'analysis'].join('|');entry=cache.get(key);
-      if(entry){cache.delete(key);cache.set(key,entry);break;}
+      s=source(g,L,fm,env,id,p,pad);
+      var localIdentity=env.sourceKey?env.sourceKey(Object.assign({},g,{x:g.x-s.x,y:g.y-s.y}),fm):null;
+      key=JSON.stringify([id,s.w,s.h,s.scale,s.key,localIdentity,sourceRevision,p,color,accent,seed,factor,purpose]);entry=cache.get(key);
+      if(entry&&!matchesSource(entry,s.data)){cacheBytes-=entry.bytes;releaseEntry(entry);cache.delete(key);entry=null;}
+      if(entry){cacheHits++;cache.delete(key);cache.set(key,entry);break;}
+      cacheMisses++;
       var result=renderers[id](s,p,rgb(color),rgb(accent),seed),expanded=boundedBodyIds.indexOf(id)>=0&&attempt<3?nextPad(s,result):0;
       if(expanded>s.pad){if(root.TypeDeformerRenderContext&&result!==s.canvas)root.TypeDeformerRenderContext.release(result);pad=Math.min(16384,expanded);continue;}
-      var bytes=root.TypeDeformerRenderContext?root.TypeDeformerRenderContext.byteSize(result):result.width*result.height*4;while(cacheBytes+bytes>MAX_BYTES&&cache.size){var first=cache.keys().next().value;cacheBytes-=cache.get(first).bytes;releaseCanvas(cache.get(first).canvas);cache.delete(first);}entry={canvas:result,bytes:bytes};if(bytes<=MAX_BYTES){cache.set(key,entry);cacheBytes+=bytes;retainCanvas(result);}break;
+      var identity=alphaIdentity(s.data),bytes=(root.TypeDeformerRenderContext?root.TypeDeformerRenderContext.byteSize(result):result.width*result.height*4)+identity.byteLength;while(cacheBytes+bytes>MAX_BYTES&&cache.size){var first=cache.keys().next().value;cacheBytes-=cache.get(first).bytes;releaseEntry(cache.get(first));cache.delete(first);}entry={canvas:result,bytes:bytes,alpha:identity};if(bytes<=MAX_BYTES){cache.set(key,entry);cacheBytes+=bytes;retainCanvas(result);}break;
     }
+    if(sourceKey&&cache.get(key)===entry){if(sourceEntries.size>=512)sourceEntries.delete(sourceEntries.keys().next().value);sourceEntries.set(sourceKey,{key:key,entry:entry,pad:s.pad,drawGlyph:env.drawGlyph});}
     if(root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()&&entry.canvas!==s.canvas)root.TypeDeformerRenderContext.release(s.canvas);
     return {source:s,entry:entry};
   }
@@ -276,15 +300,21 @@
     if(!wassersteinLetters||env.params.wassersteinScope!=='text')return null;
     var selected=glyphs.filter(function(g){return env.strength(g,'wassersteinLetters')>.002&&(g.opacity==null||g.opacity>.002);});if(!selected.length)return null;
     var box=env.bounds(selected,0),pad=Math.ceil(Math.max(box.w,box.h)*.55+16),x=box.x-pad,y=box.y-pad,W=box.w+2*pad,H=box.h+2*pad,scale=Math.min(2,Math.sqrt(2300000/(W*H))),w=Math.max(4,Math.ceil(W*scale)),h=Math.max(4,Math.ceil(H*scale));
+    var p=settings('wassersteinLetters',selected[0],env),color=env.color('wassersteinLetters'),context=root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current(),groupKey=null;
+    if(env.sourceKey){groupKey=JSON.stringify(['wasserstein-text-source',sourceRevision,wassersteinLetters.fontRevision(),w,h,scale,x,y,p,color,context?context.factor:1,context?context.purpose:'analysis',wassersteinTarget(selected[0],env),selected.map(function(g){return [g,env.sourceKey(g,fm),env.strength(g,'wassersteinLetters')];})]);
+      var quick=sourceEntries.get(groupKey);if(quick&&quick.drawGlyph===env.drawGlyph&&cache.get(quick.key)===quick.entry){sourceEntries.delete(groupKey);sourceEntries.set(groupKey,quick);cache.delete(quick.key);cache.set(quick.key,quick.entry);sourceHits++;return {source:{w:w,h:h,scale:scale},entry:quick.entry,x:x,y:y,opacity:quick.opacity};}}
     var c=canvas(w,h),ctx=c.getContext('2d',{willReadFrequently:true}),opacity=Math.max.apply(null,selected.map(function(g){return env.strength(g,'wassersteinLetters')*(g.opacity==null?1:g.opacity);}));
     selected.forEach(function(g){env.drawGlyph(ctx,g,scale,{dx:-x,dy:-y,s:1},fm,env.strength(g,'wassersteinLetters')/opacity,'#ffffff');});
     var data=ctx.getImageData(0,0,w,h).data,alpha=Float32Array.from({length:w*h},function(_,i){return data[i*4+3]/255;}),first=selected[0],partner=env.params.wassersteinPartner||'X',font=env.font(first,320).font;
     var s={canvas:c,data:data,alpha:alpha,w:w,h:h,scale:scale,pad:pad,partner:partner,targetFont:font,multiple:selected.length>1,key:'text/'+fingerprint(data)};
     if(env.params.vertical){var chars=wassersteinLetters.characters(partner),angles=chars.map(function(ch){return env.charInfo&&!env.charInfo(ch,ch.codePointAt(0)).upright?Math.PI/2:0;});if(chars.length>1)s.targetAngles=angles;else s.targetAngle=angles[0];}
     s.key+='/'+partner+'/'+font+'/'+s.targetAngle+'/'+s.targetAngles+'/'+wassersteinLetters.fontRevision();
-    var p=settings('wassersteinLetters',first,env),color=env.color('wassersteinLetters'),key=['wasserstein-text',s.w,s.h,s.key,JSON.stringify(p),color,root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()?root.TypeDeformerRenderContext.current().factor:1,root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()?root.TypeDeformerRenderContext.current().purpose:'analysis'].join('|'),entry=cache.get(key);
-    if(!entry){var result=renderers.wassersteinLetters(s,p,rgb(color),rgb(color)),bytes=root.TypeDeformerRenderContext?root.TypeDeformerRenderContext.byteSize(result):result.width*result.height*4;while(cacheBytes+bytes>MAX_BYTES&&cache.size){var old=cache.keys().next().value;cacheBytes-=cache.get(old).bytes;releaseCanvas(cache.get(old).canvas);cache.delete(old);}entry={canvas:result,bytes:bytes};if(bytes<=MAX_BYTES){cache.set(key,entry);cacheBytes+=bytes;retainCanvas(result);}}
+    var key=['wasserstein-text',s.w,s.h,s.scale,sourceRevision,s.key,JSON.stringify(p),color,root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()?root.TypeDeformerRenderContext.current().factor:1,root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()?root.TypeDeformerRenderContext.current().purpose:'analysis'].join('|'),entry=cache.get(key);
+    if(entry&&!matchesSource(entry,data)){cacheBytes-=entry.bytes;releaseEntry(entry);cache.delete(key);entry=null;}
+    if(!entry){var result=renderers.wassersteinLetters(s,p,rgb(color),rgb(color)),identity=alphaIdentity(data),bytes=(root.TypeDeformerRenderContext?root.TypeDeformerRenderContext.byteSize(result):result.width*result.height*4)+identity.byteLength;while(cacheBytes+bytes>MAX_BYTES&&cache.size){var old=cache.keys().next().value;cacheBytes-=cache.get(old).bytes;releaseEntry(cache.get(old));cache.delete(old);}entry={canvas:result,bytes:bytes,alpha:identity};if(bytes<=MAX_BYTES){cache.set(key,entry);cacheBytes+=bytes;retainCanvas(result);}}
     else{cache.delete(key);cache.set(key,entry);}
+    if(groupKey&&cache.get(key)===entry){if(sourceEntries.size>=512)sourceEntries.delete(sourceEntries.keys().next().value);sourceEntries.set(groupKey,{key:key,entry:entry,opacity:opacity,drawGlyph:env.drawGlyph});}
+    if(root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current()&&entry.canvas!==c)root.TypeDeformerRenderContext.release(c);
     return {source:s,entry:entry,x:x,y:y,opacity:opacity};
   }
   function rasterBounds(entry){if(!entry.bodyBounds){var c=entry.canvas,w=c.width,h=c.height,data=c.getContext('2d').getImageData(0,0,w,h).data,x0=w,y0=h,x1=-1,y1=-1;for(var y=0;y<h;y++)for(var x=0;x<w;x++)if(data[(y*w+x)*4+3]>1){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}entry.bodyBounds=[x0-2,y0-2,x1+2,y1+2];}return entry.bodyBounds;}
@@ -316,5 +346,6 @@
       glyphs.forEach(function(g){if(env.strength(g,id)>.002)env.drawGlyph(ctx,Object.assign({},g,{opacity:1}),pixelScale,L,fm,1,'#ffffff');});
       ctx.restore();finalTarget.save();finalTarget.setTransform(1,0,0,1,0,0);finalTarget.drawImage(ctx.canvas,0,0);finalTarget.restore();
     }return true;}
-  root.TypeDeformerFieldMaterials={ids:ids,schemas:schemas,needsBodyBounds:function(glyphs,strength){return glyphs.some(function(g){return boundedBodyIds.some(function(id){return strength(g,id)>.002;});});},render:render,bodyBounds:bodyBounds,effectPad:function(id){return wassersteinLetters&&wassersteinLetters.ids.indexOf(id)>=0?wassersteinLetters.effectPad(id):repulsiveCurves&&repulsiveCurves.ids.indexOf(id)>=0?repulsiveCurves.effectPad(id):wulffBody&&wulffBody.ids.indexOf(id)>=0?wulffBody.effectPad(id):liquidRope&&liquidRope.ids.indexOf(id)>=0?liquidRope.effectPad(id):gravityLens&&gravityLens.ids.indexOf(id)>=0?gravityLens.effectPad(id):metamorphicBody&&metamorphicBody.ids.indexOf(id)>=0?metamorphicBody.effectPad(id):letterformBody&&letterformBody.ids.indexOf(id)>=0?letterformBody.effectPad(id):foldedBody&&foldedBody.ids.indexOf(id)>=0?foldedBody.effectPad(id):ramifiedBody&&ramifiedBody.ids.indexOf(id)>=0?ramifiedBody.effectPad(id):excessBody&&excessBody.ids.indexOf(id)>=0?excessBody.effectPad(id):nodalGlaze&&nodalGlaze.ids.indexOf(id)>=0?nodalGlaze.effectPad(id):spinodalAlloy&&spinodalAlloy.ids.indexOf(id)>=0?spinodalAlloy.effectPad(id):densityRecast&&densityRecast.ids.indexOf(id)>=0?densityRecast.effectPad(id):hopfLoom&&hopfLoom.ids.indexOf(id)>=0?hopfLoom.effectPad(id):miuraVault&&miuraVault.ids.indexOf(id)>=0?miuraVault.effectPad(id):vortexBath&&vortexBath.ids.indexOf(id)>=0?vortexBath.effectPad(id):stressGlass&&stressGlass.ids.indexOf(id)>=0?stressGlass.effectPad(id):loadpathFoundry&&loadpathFoundry.ids.indexOf(id)>=0?loadpathFoundry.effectPad(id):hyperbolicAtlas&&hyperbolicAtlas.ids.indexOf(id)>=0?hyperbolicAtlas.effectPad(id):orderMatter&&orderMatter.ids.indexOf(id)>=0?orderMatter.effectPad(id):waveGrowth&&waveGrowth.ids.indexOf(id)>=0?waveGrowth.effectPad(id):patternTension&&patternTension.ids.indexOf(id)>=0?patternTension.effectPad(id):id==='causticGlass'?90:id==='gyroidSculpture'?40:16;},clearCache:function(){cache.forEach(function(entry){releaseCanvas(entry.canvas);});cache.clear();cacheBytes=0;},cacheStats:function(){return {entries:cache.size,bytes:cacheBytes,maxBytes:MAX_BYTES};},internals:{distance:distance,lloyd:lloyd,implicit:implicit,refract:refract,settings:settings,source:source,touchesRasterEdge:touchesRasterEdge,nextPad:nextPad}};
+  if(root.document&&root.document.fonts&&root.document.fonts.addEventListener)root.document.fonts.addEventListener('loadingdone',invalidateSources);
+  root.TypeDeformerFieldMaterials={ids:ids,schemas:schemas,needsBodyBounds:function(glyphs,strength){return glyphs.some(function(g){return boundedBodyIds.some(function(id){return strength(g,id)>.002;});});},render:render,bodyBounds:bodyBounds,effectPad:function(id){return wassersteinLetters&&wassersteinLetters.ids.indexOf(id)>=0?wassersteinLetters.effectPad(id):repulsiveCurves&&repulsiveCurves.ids.indexOf(id)>=0?repulsiveCurves.effectPad(id):wulffBody&&wulffBody.ids.indexOf(id)>=0?wulffBody.effectPad(id):liquidRope&&liquidRope.ids.indexOf(id)>=0?liquidRope.effectPad(id):gravityLens&&gravityLens.ids.indexOf(id)>=0?gravityLens.effectPad(id):metamorphicBody&&metamorphicBody.ids.indexOf(id)>=0?metamorphicBody.effectPad(id):letterformBody&&letterformBody.ids.indexOf(id)>=0?letterformBody.effectPad(id):foldedBody&&foldedBody.ids.indexOf(id)>=0?foldedBody.effectPad(id):ramifiedBody&&ramifiedBody.ids.indexOf(id)>=0?ramifiedBody.effectPad(id):excessBody&&excessBody.ids.indexOf(id)>=0?excessBody.effectPad(id):nodalGlaze&&nodalGlaze.ids.indexOf(id)>=0?nodalGlaze.effectPad(id):spinodalAlloy&&spinodalAlloy.ids.indexOf(id)>=0?spinodalAlloy.effectPad(id):densityRecast&&densityRecast.ids.indexOf(id)>=0?densityRecast.effectPad(id):hopfLoom&&hopfLoom.ids.indexOf(id)>=0?hopfLoom.effectPad(id):miuraVault&&miuraVault.ids.indexOf(id)>=0?miuraVault.effectPad(id):vortexBath&&vortexBath.ids.indexOf(id)>=0?vortexBath.effectPad(id):stressGlass&&stressGlass.ids.indexOf(id)>=0?stressGlass.effectPad(id):loadpathFoundry&&loadpathFoundry.ids.indexOf(id)>=0?loadpathFoundry.effectPad(id):hyperbolicAtlas&&hyperbolicAtlas.ids.indexOf(id)>=0?hyperbolicAtlas.effectPad(id):orderMatter&&orderMatter.ids.indexOf(id)>=0?orderMatter.effectPad(id):waveGrowth&&waveGrowth.ids.indexOf(id)>=0?waveGrowth.effectPad(id):patternTension&&patternTension.ids.indexOf(id)>=0?patternTension.effectPad(id):id==='causticGlass'?90:id==='gyroidSculpture'?40:16;},invalidateSources:invalidateSources,clearCache:function(){cache.forEach(function(entry){releaseEntry(entry);});cache.clear();sourceEntries.clear();cacheBytes=0;cacheHits=sourceHits=cacheMisses=0;},cacheStats:function(){return {entries:cache.size,bytes:cacheBytes,maxBytes:MAX_BYTES,sourceEntries:sourceEntries.size,hits:cacheHits,sourceHits:sourceHits,misses:cacheMisses};},internals:{distance:distance,lloyd:lloyd,nearestIndex:function(points){return root.TypeDeformerNumerics.nearestIndex(points);},implicit:implicit,refract:refract,settings:settings,sourceGeometry:sourceGeometry,entryFor:entryFor,source:source,touchesRasterEdge:touchesRasterEdge,nextPad:nextPad}};
 })(typeof globalThis!=='undefined'?globalThis:this);

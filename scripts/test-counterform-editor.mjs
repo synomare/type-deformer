@@ -165,7 +165,7 @@ runtime.counterformSourceData('Q'); assert.equal(captures, 3);
 
 // Compare the actual cropped-mask draw transform with native text placement.
 const frameRuntime = vm.createContext({ params, baselineOffset: () => 17 });
-new vm.Script(extract('spectralGlyphFrame') + '\n' + extract('drawSurfaceGlyph') + '\n' + extract('counterformDrawVariant')).runInContext(frameRuntime);
+new vm.Script(extract('spectralGlyphFrame') + '\n' + extract('surfaceGlyphTextSpec') + '\n' + extract('drawSurfaceGlyph') + '\n' + extract('counterformDrawVariant')).runInContext(frameRuntime);
 function frameContext() {
   return {
     matrix: [1, 0, 0, 1, 0, 0], stack: [], globalAlpha: .73,

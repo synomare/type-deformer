@@ -46,7 +46,7 @@ export function createContactGuard(cellSize) {
   if (!Number.isFinite(cellSize) || cellSize <= 0) throw new RangeError('Expected positive contact cell size');
   const edgePool = [], rows = new Map(), rowPool = [], bucketPool = [];
   let contacts = 0, stops = 0;
-  function* grid(rings) {
+  function* grid(rings, yielding = true) {
     rows.clear(); let edgeCount = 0, rowCount = 0, bucketCount = 0;
     for (const ring of rings) for (let i = 0; i < ring.points.length; i++) {
       const a = ring.points[i], b = ring.points[(i + 1) % ring.points.length];
@@ -66,24 +66,28 @@ export function createContactGuard(cellSize) {
           bucket.push(edge);
         }
       }
-      if (edgeCount % 128 === 0) yield;
+      if (yielding && edgeCount % 128 === 0) yield;
     }
   }
   function hit(a, b) {
     if (a.a === b.a || a.a === b.b || a.b === b.a || a.b === b.b) return null;
     if (a.minX > b.maxX || a.maxX < b.minX || a.minY > b.maxY || a.maxY < b.minY) return null;
     let earliest = null;
-    for (const candidate of [vertexEdgeHit(a.a, b.a, b.b), vertexEdgeHit(a.b, b.a, b.b),
-      vertexEdgeHit(b.a, a.a, a.b), vertexEdgeHit(b.b, a.a, a.b)]) {
-      if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
-    }
+    let candidate = vertexEdgeHit(a.a, b.a, b.b);
+    if (candidate) earliest = candidate;
+    candidate = vertexEdgeHit(a.b, b.a, b.b);
+    if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
+    candidate = vertexEdgeHit(b.a, a.a, a.b);
+    if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
+    candidate = vertexEdgeHit(b.b, a.a, a.b);
+    if (candidate && (!earliest || candidate.time < earliest.time)) earliest = candidate;
     return earliest;
   }
   return {
     // A read-only test for a proposed history chord. Ordinary floating-point
     // tolerances and the same valid-input limitations as the growth guard.
     intersects(rings) {
-      for (const pause of grid(rings)) { /* drain the read-only broad phase */ }
+      for (const pause of grid(rings, false)) { /* drain the read-only broad phase */ }
       for (const [cy, row] of rows) for (const [cx, bucket] of row)
         for (let i = 0; i < bucket.length; i++) for (let j = i + 1; j < bucket.length; j++) {
           const a = bucket[i], b = bucket[j];

@@ -17,12 +17,7 @@
   function canvas(w,h){var c=(globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas'));c.width=w;c.height=h;c.getContext('2d',{willReadFrequently:true});return c;}
   function mix(a,b,t){return a.map(function(v,i){return v+(b[i]-v)*t;});}
   function power2(n){var p=1;while(p<n)p*=2;return p;}
-  function fftLine(re,im,n,offset,stride,inverse){
-    for(var i=1,j=0;i<n;i++){var bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){var a=offset+i*stride,b=offset+j*stride,t=re[a];re[a]=re[b];re[b]=t;t=im[a];im[a]=im[b];im[b]=t;}}
-    for(var len=2;len<=n;len*=2){var angle=(inverse?2:-2)*Math.PI/len,wr=Math.cos(angle),wi=Math.sin(angle);for(var start=0;start<n;start+=len){var ur=1,ui=0;for(var k=0;k<len/2;k++){var a=offset+(start+k)*stride,b=offset+(start+k+len/2)*stride,vr=re[b]*ur-im[b]*ui,vi=re[b]*ui+im[b]*ur;re[b]=re[a]-vr;im[b]=im[a]-vi;re[a]+=vr;im[a]+=vi;var next=ur*wr-ui*wi;ui=ur*wi+ui*wr;ur=next;}}}
-    if(inverse)for(var i=0;i<n;i++){re[offset+i*stride]/=n;im[offset+i*stride]/=n;}
-  }
-  function fft2(re,im,w,h,inverse){if(w<1||h<1||(w&(w-1))||(h&(h-1))||re.length!==w*h||im.length!==w*h)throw Error('FFT dimensions must be powers of two');for(var y=0;y<h;y++)fftLine(re,im,w,y*w,1,inverse);for(var x=0;x<w;x++)fftLine(re,im,h,x,w,inverse);}
+  function fft2(re,im,w,h,inverse){root.TypeDeformerNumerics.fft2(re,im,w,h,inverse);}
   function propagate(re,im,w,h,beta,pupil){
     fft2(re,im,w,h,false);
     for(var y=0;y<h;y++){var fy=(y<=h/2?y:y-h)/h;for(var x=0;x<w;x++){var fx=(x<=w/2?x:x-w)/w,f2=fx*fx+fy*fy,phase=-Math.PI*beta*f2,c=Math.cos(phase),s=Math.sin(phase),i=y*w+x,a=re[i],window=1;if(pupil&&Math.sqrt(f2)>pupil*.75)window=.5+.5*Math.cos(Math.PI*clamp((Math.sqrt(f2)/pupil-.75)/.25,0,1));re[i]=(a*c-im[i]*s)*window;im[i]=(a*s+im[i]*c)*window;}}
@@ -57,8 +52,12 @@
     propagate(re,im,w,h,beta,pupil);
     var intensity=new Float32Array(w*h);for(var i=0;i<intensity.length;i++)intensity[i]=re[i]*re[i]+im[i]*im[i];return {intensity:intensity,w:w,h:h};
   }
+  var opticalSolutions=root.TypeDeformerNumerics.createMaskedCache(16*1024*1024,'diffractiveGlyph');
+  function opticalBands(s,p){return opticalSolutions.get(s,[s.pad,p.diffractionMode,p.diffractionDistance,p.diffractionPhase,p.diffractionPeriod,p.diffractionSpectrum],
+    function(){var grid=opticalGrid(s),spread=p.diffractionSpectrum;return [1-.24*spread,1,1+.32*spread].map(function(w){return opticalField(s,p,w,grid);});},
+    function(bands){return bands.reduce(function(bytes,band){return bytes+band.intensity.byteLength;},0);});}
   function diffraction(s,p,color,accent){
-    var spread=p.diffractionSpectrum,grid=opticalGrid(s),bands=[1-.24*spread,1,1+.32*spread].map(function(w){return opticalField(s,p,w,grid);}),out=canvas(s.w,s.h),ctx=out.getContext('2d',{willReadFrequently:true}),im=ctx.createImageData(s.w,s.h);
+    var bands=opticalBands(s,p),out=canvas(s.w,s.h),ctx=out.getContext('2d',{willReadFrequently:true}),im=ctx.createImageData(s.w,s.h);
     var inks=[mix(color,accent,.78),mix(color,[35,116,85],.62),mix(color,[56,57,196],.72)],b0=bands[0],b1=bands[1],b2=bands[2];
     for(var y=0;y<s.h;y++)for(var x=0;x<s.w;x++){var u=(x+.5)/s.scale-.5,v=(y+.5)/s.scale-.5,i0=Math.max(0,sample(b0.intensity,b0.w,b0.h,u,v)),i1=Math.max(0,sample(b1.intensity,b1.w,b1.h,u,v)),i2=Math.max(0,sample(b2.intensity,b2.w,b2.h,u,v)),sum=i0+i1+i2,max=Math.max(i0,i1,i2),alpha=1-Math.exp(-max*p.diffractionExposure*1.7);if(alpha<.004)continue;var at=(y*s.w+x)*4,contrast=(max-Math.min(i0,i1,i2))/(max||1);
       for(var k=0;k<3;k++){var v=(inks[0][k]*i0+inks[1][k]*i1+inks[2][k]*i2)/(sum||1);im.data[at+k]=clamp(v*(.6+.85*contrast),0,255);}im.data[at+3]=alpha*255;
@@ -110,5 +109,5 @@
     });
     return out;
   }
-  root.TypeDeformerWaveGrowth={schemas:schemas,ids:Object.keys(schemas),renderers:{diffractiveGlyph:diffraction,dendriteCast:dendrite},effectPad:function(){return 112;},internals:{fft2:fft2,propagate:propagate,opticalField:opticalField,thin:thin,aggregate:aggregate}};
+  root.TypeDeformerWaveGrowth={schemas:schemas,ids:Object.keys(schemas),clearCache:opticalSolutions.clear,cacheStats:opticalSolutions.stats,renderers:{diffractiveGlyph:diffraction,dendriteCast:dendrite},effectPad:function(){return 112;},internals:{fft2:fft2,propagate:propagate,opticalField:opticalField,opticalBands:opticalBands,thin:thin,aggregate:aggregate}};
 })(typeof globalThis!=='undefined'?globalThis:this);

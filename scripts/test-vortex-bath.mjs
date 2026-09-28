@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../vortex-bath-operator.js'),'utf8'),ctx);
+const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../numerical-kernels.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(here,'../vortex-bath-operator.js'),'utf8'),ctx);
 const api=ctx.TypeDeformerVortexBath,I=api.internals,defaults=api.schemas.vortexBath.defaults;
 const maxDiff=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i])));
 const field=(n,fn)=>Float64Array.from({length:n*n},(_,i)=>fn(i%n,Math.floor(i/n)));

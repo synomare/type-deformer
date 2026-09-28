@@ -1,3 +1,5 @@
+import '../numerical-kernels.js';
+import {evaluate as referenceEnergy,minimize as referenceMinimize} from './repulsive-reference.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import '../metamorphic-body-operators.js';import '../repulsive-curves-body.js';
 const A=globalThis.TypeDeformerRepulsiveCurves,I=A.internals,D=A.schemas.repulsiveCurves.defaults,near=(a,b,e=1e-7)=>assert.ok(Math.abs(a-b)<=e*Math.max(1,Math.abs(a),Math.abs(b)),`${a} != ${b}`);
 function model(offset=.32,zgap=.11){const x=[],edges=[],loops=[];for(let l=0;l<2;l++){const start=x.length/3;loops.push({start,count:9,radius:.004});for(let j=0;j<9;j++){const a=j*2*Math.PI/9;x.push(.19*Math.cos(a)+(l-.5)*offset,.13*Math.sin(a),l*zgap+Math.cos(a*2)*.023);}}for(let l=0;l<2;l++)for(let j=0;j<9;j++){const a=l*9+j,b=l*9+(j+1)%9;edges.push({a,b,loop:l,radius:.004,rest:Math.hypot(...x.slice(a*3,a*3+3).map((v,k)=>v-x[b*3+k]))});}return {x:Float64Array.from(x),edges,loops,halfDepth:10,domain:{R:1,ox:20,oy:20,w:40,h:40,field:new Float64Array(1600).fill(5)},baseLength:edges.reduce((s,e)=>s+e.rest,0)};}
@@ -13,3 +15,16 @@ test('domain keeps holes, components and empty inputs; preparation is finite acr
 test('display refinement and transported tube frames produce finite, closed indexed geometry',()=>{const m=model(),r=I.minimize(m,{...D,repulsiveLength:1.1},25),mesh=I.tubeMesh(m,r),edges=new Map();assert.ok(mesh.v.length>m.x.length/3);for(const v of mesh.v){assert.ok(v.every(Number.isFinite));near(Math.hypot(...v.slice(5)),1);}for(const t of mesh.t){assert.ok(t.every(v=>Number.isInteger(v)&&v>=0&&v<mesh.v.length));for(let i=0;i<3;i++){const a=t[i],b=t[(i+1)%3],k=[Math.min(a,b),Math.max(a,b)].join(',');edges.set(k,(edges.get(k)||0)+1);}}assert.ok([...edges.values()].every(n=>n===2));});
 test('camera-only changes reuse the geometry, while source and physical controls participate in its key',()=>{const s=src('thin'),a=I.construct(s,D,17),b=I.construct(s,{...D,repulsiveYaw:80,repulsiveTilt:12},17);assert.equal(a.result.initialValid,true);assert.equal(b.cached,true);assert.equal(a.result,b.result);const c=I.construct(s,{...D,repulsiveLength:1.1},17);assert.notEqual(c.result,a.result);assert.ok(c.result.diagnostics.actualLength>0);});
 test('native per-glyph state, controls, version and output metadata carry every Repulsive Curves parameter',()=>{const h=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');for(const key of Object.keys(D)){const c=key[0].toUpperCase()+key.slice(1);for(const text of [`id="p${c}"`,`${key}: deform.${key}`,`${key}: params.${key}`,`'${key}'`])assert.ok(h.includes(text),text);}assert.ok(h.includes("repulsiveCurves: fieldMaterialRenderer('repulsiveCurves')"));assert.ok(h.includes('version: 92'));});
+
+test('pruned clearance and shared endpoint powers preserve the direct all-pairs solve',()=>{
+ for(const gap of [.014,.11,.4])for(const offset of [.013,.32,.9]){
+  const m=model(offset,gap);for(const gradient of [false,true])for(const factor of [1,1.55]){
+   const expected=referenceEnergy(m.x,m,factor,D,gradient),actual=I.evaluate(m.x,m,factor,D,gradient);
+   assert.deepEqual(actual,expected,'all energy terms, gradients and minimum clearances must agree exactly');
+  }
+ }
+ for(const p of [{...D,repulsiveLength:1},{...D,repulsiveLength:1.55}]){
+  const m=model(),expected=referenceMinimize(m,p,40),actual=I.minimize(m,p,40);
+  assert.deepEqual(actual,expected,'accepted-state reuse must preserve Armijo history and final coordinates');
+ }
+});

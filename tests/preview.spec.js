@@ -1,6 +1,30 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 
+test('Compose completion refreshes pending image preflight and enables a real PNG export', async ({ page }) => {
+  const errors = [];
+  await openPreview(page, errors);
+  const savedEvent = page.waitForEvent('download');
+  await page.locator('#btnSaveProj').evaluate(element => element.click());
+  const project = JSON.parse(fs.readFileSync(await (await savedEvent).path(), 'utf8'));
+  project.text = 'TYPE'; project.lookMemory = null;
+  Object.assign(project.params, { fontFamily: 'Arial', fontWeight: 600, fontSize: 80, textMeasure: 0,
+    activeOperator: 'tensorFiligree', tensorSpacing: 12, seed: 41, exportScale: 1 });
+  project.letters = Array.from(project.text, () => ({ t: 0, l: 0, i: 0, o: { tensorFiligree: { t: 1, i: 1 } } }));
+  Object.assign(project.composition, { enabled: true, type: 'field', phase: 0 });
+  Object.assign(project.composition.field, { cols: 3, rows: 3 });
+  await page.locator('#projFile').setInputFiles({ name: 'compose.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  await expect(page.locator('#compositionStatus')).toContainText('9 instances');
+  await expect(page.locator('#btnPng')).toBeEnabled();
+  await expect(page.locator('#btnSvg')).toBeEnabled();
+  const pngEvent = page.waitForEvent('download', { timeout: 60000 });
+  await page.locator('#btnPng').evaluate(element => element.click());
+  const png = fs.readFileSync(await (await pngEvent).path());
+  expect(png.subarray(1, 4).toString()).toBe('PNG');
+  expect(png.length).toBeGreaterThan(1000);
+  expect(errors).toEqual([]);
+});
+
 async function openPreview(page, errors) {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
@@ -472,4 +496,21 @@ test('wide Contour field is not cut by the shared raster in preview, Output Prev
   expect(svgText).toContain('data-effect-layer="surface-fx"');
   expect(svgText).toContain('data:image/png;base64,');
   expect(errors).toEqual([]);
+});
+
+test('dense Chromatic Swarm stays nonblank and deterministic through repeated ink edits',async({page})=>{
+ const errors=[];await openPreview(page,errors);const saved=page.waitForEvent('download');await page.locator('#btnSaveProj').evaluate(e=>e.click());const project=JSON.parse(fs.readFileSync(await(await saved).path(),'utf8'));
+ project.text='AB字形';project.lookMemory=null;project.composition.enabled=false;
+ Object.assign(project.params,{fontFamily:'Arial, sans-serif',fontWeight:400,fontSize:180,textMeasure:0,randomness:0,seed:41,activeOperator:'chromaticSwarm',swarmCell:5,swarmRelax:8,artboard:'auto',exportScale:1});
+ project.letters=Array.from(project.text,()=>({t:0,l:0,i:0,o:{chromaticSwarm:{t:1,i:1}}}));
+ await page.locator('#projFile').setInputFiles({name:'dense-swarm.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
+ async function pixels(){return page.evaluate(async()=>{const q=TypeDeformerRenderJobs.inspect()[0];if(q&&(q.busy||!q.ready||q.error))return null;const c=document.querySelector('#surfaceFxCanvas');if(!c||c.hidden)return null;const data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let ink=0;for(let i=3;i<data.length;i+=4)if(data[i]>8)ink++;if(ink<3000)return null;return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data))).join(',');});}
+ await expect.poll(pixels,{timeout:30000}).not.toBeNull();const first=await pixels();
+ for(let round=0;round<2;round++){
+  await page.locator('#pSurfaceEffectColor').evaluate(e=>{e.value='#743b51';e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));});
+  await expect.poll(async()=>{const p=await pixels();return p&&p!==first;},{timeout:30000}).toBe(true);
+  await page.locator('#pSurfaceEffectColor').evaluate((e,color)=>{e.value=color;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},project.params.chromaticSwarmColor);
+  await expect.poll(pixels,{timeout:30000}).toBe(first);
+ }
+ expect(errors).toEqual([]);
 });

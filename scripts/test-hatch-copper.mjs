@@ -107,7 +107,7 @@ test('modern Hatch Engrave reserves its exterior plate and relief at declared ex
 
 test('actual per-glyph masks retain unequal amounts and exclude unassigned or invisible glyphs', () => {
   const c=fixture(canvas.createCanvas(600,200),{fontFamily:'Arial',fontSize:90,fontWeight:700,hatchWarp:0,hatchSpacing:1});
-  vm.runInContext(extract('buildSurfaceMask')+'\n'+extract('drawSurfaceGlyph'),c);c.baselineOffset=()=>90;
+  vm.runInContext(extract('buildSurfaceMask')+'\n'+extract('surfaceGlyphTextSpec') + '\n' + extract('drawSurfaceGlyph'),c);c.baselineOffset=()=>90;
   const glyph=(x,strength,opacity=1)=>({ch:'H',x,y:45,w:85,h:90,ox:x,oy:45,tx:0,ty:0,scaleX:1,scaleY:1,opacity,surface:{...c.params,hatchEngrave:strength}});
   const glyphs=[glyph(25,1),glyph(175,.25),glyph(325,0),glyph(475,1,0)],saved=JSON.stringify(glyphs),output=canvas.createCanvas(600,200);
   let source,shape;const original=c.hatchCopperPlate;c.hatchCopperPlate=(...args)=>{[source,shape]=args;return original(...args);};

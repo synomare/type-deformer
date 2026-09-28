@@ -77,9 +77,10 @@
     if(t<0){t=0;s=clamp(-dd/(aa||1),0,1);}else if(t>1){t=1;s=clamp((bb-dd)/(aa||1),0,1);}var dx=wx+s*ux-t*vx,dy=wy+s*uy-t*vy,dz=wz+s*uz-t*vz;
     return {distance:Math.hypot(dx,dy,dz),s:s,t:t,dx:dx,dy:dy,dz:dz};
   }
-  function evaluate(x,model,factor,p,gradient){var n=x.length,g=gradient?new Float64Array(n):null,E=0,edges=model.edges,len=new Float64Array(edges.length),tx=new Float64Array(edges.length),ty=new Float64Array(edges.length),tz=new Float64Array(edges.length),rp=2e-5*p.repulsiveForce,minGap=Infinity,boundaryGap=Infinity;
+  function evaluationScratch(model){var count=model.x.length/3;return count<=512?{r2:new Float64Array(count*count),inv6:new Float64Array(count*count),inv8:new Float64Array(count*count)}:null;}
+  function evaluate(x,model,factor,p,gradient,scratch){var n=x.length,g=gradient?new Float64Array(n):null,E=0,edges=model.edges,len=new Float64Array(edges.length),tx=new Float64Array(edges.length),ty=new Float64Array(edges.length),tz=new Float64Array(edges.length),rp=2e-5*p.repulsiveForce,minGap=Infinity,boundaryGap=Infinity,boxes=new Float64Array(edges.length*6);
     function add(i,xv,yv,zv){if(g){g[i*3]+=xv;g[i*3+1]+=yv;g[i*3+2]+=zv;}}
-    for(var i=0;i<edges.length;i++){var e=edges[i],a=e.a*3,b=e.b*3,dx=x[b]-x[a],dy=x[b+1]-x[a+1],dz=x[b+2]-x[a+2],l=Math.hypot(dx,dy,dz);if(l<1e-9)return {energy:Infinity,gradient:g,minGap:0,boundaryGap:0};len[i]=l;tx[i]=dx/l;ty[i]=dy/l;tz[i]=dz/l;var target=e.rest*factor,k=35/e.rest,err=l-target;E+=.5*k*err*err;add(e.a,-k*err*tx[i],-k*err*ty[i],-k*err*tz[i]);add(e.b,k*err*tx[i],k*err*ty[i],k*err*tz[i]);
+    for(var i=0;i<edges.length;i++){var e=edges[i],a=e.a*3,b=e.b*3,dx=x[b]-x[a],dy=x[b+1]-x[a+1],dz=x[b+2]-x[a+2],l=Math.hypot(dx,dy,dz);if(l<1e-9)return {energy:Infinity,gradient:g,minGap:0,boundaryGap:0};boxes[i*6]=Math.min(x[a],x[b]);boxes[i*6+1]=Math.max(x[a],x[b]);boxes[i*6+2]=Math.min(x[a+1],x[b+1]);boxes[i*6+3]=Math.max(x[a+1],x[b+1]);boxes[i*6+4]=Math.min(x[a+2],x[b+2]);boxes[i*6+5]=Math.max(x[a+2],x[b+2]);len[i]=l;tx[i]=dx/l;ty[i]=dy/l;tz[i]=dz/l;var target=e.rest*factor,k=35/e.rest,err=l-target;E+=.5*k*err*err;add(e.a,-k*err*tx[i],-k*err*ty[i],-k*err*tz[i]);add(e.b,k*err*tx[i],k*err*ty[i],k*err*tz[i]);
       // Five samples per polygon edge constrain the actual displayed segments.
       for(var sample=0;sample<5;sample++){var t=sample/4,qx=x[a]+dx*t,qy=x[a+1]+dy*t,qz=x[a+2]+dz*t,f=fieldAt(model.domain,qx,qy),gap=f.value-e.radius,zgap=model.halfDepth-Math.abs(qz)-e.radius;boundaryGap=Math.min(boundaryGap,gap,zgap);if(gap<=0||zgap<=0)return {energy:Infinity,gradient:g,minGap:minGap,boundaryGap:boundaryGap};
         var delta=.018,weight=2*e.rest/5;
@@ -87,27 +88,38 @@
         if(zgap<delta){E+=weight*(-Math.log(zgap/delta)+zgap/delta-1);var gz=weight*(1/delta-1/zgap)*(-Math.sign(qz));add(e.a,0,0,gz*(1-t));add(e.b,0,0,gz*t);}
       }
     }
+    // Each endpoint pair belongs to several edge pairs. Reuse its exact
+    // powers and reciprocals, without dropping any long-range interaction.
+    var count=n/3;if(scratch)for(var a=0;a<count;a++)for(var b=a+1;b<count;b++){
+      var dx=x[a*3]-x[b*3],dy=x[a*3+1]-x[b*3+1],dz=x[a*3+2]-x[b*3+2],r2=dx*dx+dy*dy+dz*dz,r6=r2*r2*r2,inv6=1/r6,inv8=inv6/r2,ij=a*count+b,ji=b*count+a;
+      scratch.r2[ij]=scratch.r2[ji]=r2;scratch.inv6[ij]=scratch.inv6[ji]=inv6;scratch.inv8[ij]=scratch.inv8[ji]=inv8;
+    }
     for(var i=0;i<edges.length;i++)for(var j=i+1;j<edges.length;j++){var A=edges[i],B=edges[j];if(A.a===B.a||A.a===B.b||A.b===B.a||A.b===B.b)continue;
-      var close=segmentDistance(x,A,B),gap=close.distance-1e-5,isLocal=localPair(A,B,model);if(!isLocal){minGap=Math.min(minGap,gap);if(gap<=0)return {energy:Infinity,gradient:g,minGap:minGap,boundaryGap:boundaryGap};}
+      var isLocal=localPair(A,B,model),close,gap=Infinity;
+      // The exact segment distance is only needed if it can lower minGap or
+      // enter the short-range barrier. Keep every tangent-point energy pair.
+      var limit=Math.max(minGap+1e-5,.018+1e-5)+1e-12,ia=i*6,ib=j*6;
+      if(!isLocal&&!(boxes[ia]-boxes[ib+1]>limit||boxes[ib]-boxes[ia+1]>limit||boxes[ia+2]-boxes[ib+3]>limit||boxes[ib+2]-boxes[ia+3]>limit||boxes[ia+4]-boxes[ib+5]>limit||boxes[ib+4]-boxes[ia+5]>limit)){close=segmentDistance(x,A,B);gap=close.distance-1e-5;minGap=Math.min(minGap,gap);if(gap<=0)return {energy:Infinity,gradient:g,minGap:minGap,boundaryGap:boundaryGap};}
       var delta=.018,weight=.2*Math.sqrt(A.rest*B.rest);
       if(!isLocal&&gap<delta){E+=weight*(-Math.log(gap/delta)+gap/delta-1);var v=weight*(1/delta-1/gap)/close.distance,gx=v*close.dx,gy=v*close.dy,gz=v*close.dz;add(A.a,gx*(1-close.s),gy*(1-close.s),gz*(1-close.s));add(A.b,gx*close.s,gy*close.s,gz*close.s);add(B.a,-gx*(1-close.t),-gy*(1-close.t),-gz*(1-close.t));add(B.b,-gx*close.t,-gy*close.t,-gz*close.t);}
-      var sum=0,dti=[0,0,0],dtj=[0,0,0],w=rp*.25*len[i]*len[j];
-      for(var ai=0;ai<2;ai++)for(var bj=0;bj<2;bj++){var a=(ai?A.b:A.a),b=(bj?B.b:B.a),dx=x[a*3]-x[b*3],dy=x[a*3+1]-x[b*3+1],dz=x[a*3+2]-x[b*3+2],R2=dx*dx+dy*dy+dz*dz,R6=R2*R2*R2,inv6=1/R6,inv8=inv6/R2,gx=0,gy=0,gz=0;
-        for(var side=0;side<2;side++){var k=side?j:i,Tdx=tx[k]*dx+ty[k]*dy+tz[k]*dz,C=Math.max(0,R2-Tdx*Tdx),rt=Math.sqrt(C),val=C*rt*inv6;sum+=val;
-          if(g){var v=3*rt*inv6,zv=6*C*rt*inv8;gx+=v*(dx-Tdx*tx[k])-zv*dx;gy+=v*(dy-Tdx*ty[k])-zv*dy;gz+=v*(dz-Tdx*tz[k])-zv*dz;var dt=side?dtj:dti;dt[0]-=v*Tdx*dx;dt[1]-=v*Tdx*dy;dt[2]-=v*Tdx*dz;}
-        }
-        add(a,w*gx,w*gy,w*gz);add(b,-w*gx,-w*gy,-w*gz);
+      var sum=0,dti0=0,dti1=0,dti2=0,dtj0=0,dtj1=0,dtj2=0,w=rp*.25*len[i]*len[j];
+      for(var ai=0;ai<2;ai++)for(var bj=0;bj<2;bj++){var a=(ai?A.b:A.a),b=(bj?B.b:B.a),dx=x[a*3]-x[b*3],dy=x[a*3+1]-x[b*3+1],dz=x[a*3+2]-x[b*3+2],pair=a*count+b,R2=scratch?scratch.r2[pair]:dx*dx+dy*dy+dz*dz,R6=R2*R2*R2,inv6=scratch?scratch.inv6[pair]:1/R6,inv8=scratch?scratch.inv8[pair]:inv6/R2,gx=0,gy=0,gz=0;
+        var Tdx=tx[i]*dx+ty[i]*dy+tz[i]*dz,C=Math.max(0,R2-Tdx*Tdx),rt=Math.sqrt(C),val=C*rt*inv6;sum+=val;
+        if(g){var v=3*rt*inv6,zv=6*C*rt*inv8;gx+=v*(dx-Tdx*tx[i])-zv*dx;gy+=v*(dy-Tdx*ty[i])-zv*dy;gz+=v*(dz-Tdx*tz[i])-zv*dz;dti0-=v*Tdx*dx;dti1-=v*Tdx*dy;dti2-=v*Tdx*dz;}
+        Tdx=tx[j]*dx+ty[j]*dy+tz[j]*dz;C=Math.max(0,R2-Tdx*Tdx);rt=Math.sqrt(C);val=C*rt*inv6;sum+=val;
+        if(g){var v=3*rt*inv6,zv=6*C*rt*inv8;gx+=v*(dx-Tdx*tx[j])-zv*dx;gy+=v*(dy-Tdx*ty[j])-zv*dy;gz+=v*(dz-Tdx*tz[j])-zv*dz;dtj0-=v*Tdx*dx;dtj1-=v*Tdx*dy;dtj2-=v*Tdx*dz;}
+        if(g){g[a*3]+=w*gx;g[a*3+1]+=w*gy;g[a*3+2]+=w*gz;g[b*3]+=-w*gx;g[b*3+1]+=-w*gy;g[b*3+2]+=-w*gz;}
       }
       E+=w*sum;
-      if(g){for(var side=0;side<2;side++){var k=side?j:i,e=side?B:A,dt=side?dtj:dti,td=dt[0]*tx[k]+dt[1]*ty[k]+dt[2]*tz[k],wl=w/len[k],gx=wl*((dt[0]-td*tx[k])+sum*tx[k]),gy=wl*((dt[1]-td*ty[k])+sum*ty[k]),gz=wl*((dt[2]-td*tz[k])+sum*tz[k]);add(e.a,-gx,-gy,-gz);add(e.b,gx,gy,gz);}}
+      if(g){for(var side=0;side<2;side++){var k=side?j:i,e=side?B:A,dt0=side?dtj0:dti0,dt1=side?dtj1:dti1,dt2=side?dtj2:dti2,td=dt0*tx[k]+dt1*ty[k]+dt2*tz[k],wl=w/len[k],gx=wl*((dt0-td*tx[k])+sum*tx[k]),gy=wl*((dt1-td*ty[k])+sum*ty[k]),gz=wl*((dt2-td*tz[k])+sum*tz[k]);add(e.a,-gx,-gy,-gz);add(e.b,gx,gy,gz);}}
     }
     var bend=.025*p.repulsiveBend;
     if(bend)model.loops.forEach(function(loop){for(var j=0;j<loop.count;j++){var a=loop.start+(j+loop.count-1)%loop.count,b=loop.start+j,c=loop.start+(j+1)%loop.count,k=bend/Math.pow(edges[b].rest,2);for(var axis=0;axis<3;axis++){var v=x[a*3+axis]-2*x[b*3+axis]+x[c*3+axis];E+=.5*k*v*v;if(g){g[a*3+axis]+=k*v;g[b*3+axis]-=2*k*v;g[c*3+axis]+=k*v;}}}});
     return {energy:E,gradient:g,minGap:minGap,boundaryGap:boundaryGap};
   }
-  function minimize(model,p,iterations){var x=Float64Array.from(model.x),history=[],memory=[],factor=1,iterations=iterations||170,accepted=0,rejected=0,start=evaluate(x,model,1,p,true);
+  function minimize(model,p,iterations){var x=Float64Array.from(model.x),history=[],memory=[],factor=1,iterations=iterations||170,scratch=evaluationScratch(model),accepted=0,rejected=0,start=evaluate(x,model,1,p,true,scratch),cachedState=start,cachedFactor=1;
     if(!Number.isFinite(start.energy))return {x:x,history:[],initialValid:false,diagnostics:{energy:start.energy,minGap:start.minGap,boundaryGap:start.boundaryGap,vertices:x.length/3,loops:model.loops.length}};
-    for(var step=0;step<iterations;step++){factor=1+(p.repulsiveLength-1)*Math.min(1,(step+1)/(iterations*.72));var state=evaluate(x,model,factor,p,true);if(!Number.isFinite(state.energy))break;var grad=state.gradient,q=Float64Array.from(grad),alphas=[];
+    for(var step=0;step<iterations;step++){factor=1+(p.repulsiveLength-1)*Math.min(1,(step+1)/(iterations*.72));var state=cachedState&&cachedFactor===factor?cachedState:evaluate(x,model,factor,p,true,scratch);if(!Number.isFinite(state.energy))break;var grad=state.gradient,q=Float64Array.from(grad),alphas=[];
       for(var m=memory.length-1;m>=0;m--){var item=memory[m],a=item.rho*dot(item.s,q);alphas[m]=a;for(var k=0;k<q.length;k++)q[k]-=a*item.y[k];}
       var scale=memory.length?1/memory[memory.length-1].rho/dot(memory[memory.length-1].y,memory[memory.length-1].y):.0003;
       for(var k=0;k<q.length;k++)q[k]*=scale;
@@ -116,9 +128,9 @@
       if(!(gd<0)){memory=[];q=Float64Array.from(grad,function(v){return -v*.0003;});gd=-dot(grad,grad)*.0003;max=0;for(var k=0;k<q.length;k+=3)max=Math.max(max,Math.hypot(q[k],q[k+1],q[k+2]));}
       // Armijo decrease with a displacement cap. This is not continuous collision detection; no isotopy guarantee.
       var tau=Math.min(1,.012/Math.max(max,1e-12)),next,trial;
-      for(var back=0;back<12;back++){next=Float64Array.from(x,function(v,k){return v+q[k]*tau;});trial=evaluate(next,model,factor,p,false);if(trial.energy<=state.energy+1e-4*tau*gd)break;tau*=.5;rejected++;}
+      for(var back=0;back<12;back++){next=Float64Array.from(x,function(v,k){return v+q[k]*tau;});trial=evaluate(next,model,factor,p,false,scratch);if(trial.energy<=state.energy+1e-4*tau*gd)break;tau*=.5;rejected++;}
       if(!(trial.energy<=state.energy+1e-4*tau*gd))continue;
-      var nextGrad=evaluate(next,model,factor,p,true).gradient,ss=Float64Array.from(x,function(v,k){return next[k]-v;}),yy=Float64Array.from(grad,function(v,k){return nextGrad[k]-v;}),sy=dot(ss,yy);
+      cachedState=evaluate(next,model,factor,p,true,scratch);cachedFactor=factor;var nextGrad=cachedState.gradient,ss=Float64Array.from(x,function(v,k){return next[k]-v;}),yy=Float64Array.from(grad,function(v,k){return nextGrad[k]-v;}),sy=dot(ss,yy);
       if(sy>1e-14){memory.push({s:ss,y:yy,rho:1/sy});if(memory.length>5)memory.shift();}x=next;accepted++;
       if(step%20===0||step===iterations-1)history.push({step:step,energy:trial.energy,minGap:trial.minGap,boundaryGap:trial.boundaryGap,factor:factor});
     }
@@ -150,9 +162,10 @@
       for(var j=0;j<count;j++)for(var k=0;k<sides;k++){var a=base+j*sides+k,b=base+j*sides+(k+1)%sides,c=base+(j+1)%count*sides+k,d=base+(j+1)%count*sides+(k+1)%sides;mesh.t.push([a,b,d],[a,d,c]);}
     });return mesh;
   }
-  var cache=new Map();
+  var cache=new Map(),domains=root.TypeDeformerNumerics.createMaskedCache(4*1024*1024,'repulsiveDomain');
+  function cachedDomain(s){return domains.get(s,144,function(){return domainFromSource(s);},function(d){return d.empty?32:d.mask.byteLength+d.field.byteLength+d.labels.byteLength+d.components.reduce(function(bytes,c){return bytes+c.cells.length*8;},0);});}
   function prepareModel(domain,p,seed){var model=initialize(domain,p,seed);model.initialization='contours';if(!Number.isFinite(evaluate(model.x,model,1,p,false).energy)){model=initializeDisks(domain,p,seed);model.initialization='interior rings';}return model;}
-  function construct(s,p,seed){var domain=domainFromSource(s);if(domain.empty)return {empty:true,domain:domain};seed=seed==null?17:seed;var h=2166136261;for(var i=0;i<domain.mask.length;i++)h=Math.imul(h^domain.mask[i],16777619);var key=[h,domain.w,domain.h,p.repulsiveLength,p.repulsiveForce,p.repulsiveWidth,p.repulsiveDepth,p.repulsiveStrands,p.repulsiveBend,seed].join('|'),hit=cache.get(key);if(hit)return {domain:domain,model:hit.model,result:hit.result,cached:true};var model=prepareModel(domain,p,seed),result=minimize(model,p);result.diagnostics.initialization=model.initialization;if(!result.initialValid)return {empty:true,domain:domain,failure:result.diagnostics};if(cache.size>=12)cache.delete(cache.keys().next().value);cache.set(key,{model:model,result:result});return {domain:domain,model:model,result:result,cached:false};}
+  function construct(s,p,seed){var domain=cachedDomain(s);if(domain.empty)return {empty:true,domain:domain};seed=seed==null?17:seed;var h=2166136261;for(var i=0;i<domain.mask.length;i++)h=Math.imul(h^domain.mask[i],16777619);var key=[h,domain.w,domain.h,p.repulsiveLength,p.repulsiveForce,p.repulsiveWidth,p.repulsiveDepth,p.repulsiveStrands,p.repulsiveBend,seed].join('|'),hit=cache.get(key);if(hit)return {domain:domain,model:hit.model,result:hit.result,cached:true};var model=prepareModel(domain,p,seed),result=minimize(model,p);result.diagnostics.initialization=model.initialization;if(!result.initialValid)return {empty:true,domain:domain,failure:result.diagnostics};if(cache.size>=12)cache.delete(cache.keys().next().value);cache.set(key,{model:model,result:result});return {domain:domain,model:model,result:result,cached:false};}
   function render(s,p,color,accent,seed){var q=construct(s,p,seed==null?17:seed);if(q.empty){var c=(globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas'));c.width=s.w;c.height=s.h;c._repulsiveDiagnostics=q.failure||{empty:true};return c;}var template=q.result.meshTemplate||(q.result.meshTemplate=tubeMesh(q.model,q.result)),mesh={v:template.v.map(function(v){return v.slice();}),t:template.t,diagnostics:template.diagnostics},out=root.TypeDeformerMetamorphicBody.internals.renderMesh(s,q.domain.b,mesh,color,p.repulsiveYaw,p.repulsiveTilt);out._repulsiveDiagnostics=q.result.diagnostics;return out;}
   root.TypeDeformerRepulsiveCurves={schemas:{repulsiveCurves:schema},ids:['repulsiveCurves'],renderers:{repulsiveCurves:render},effectPad:function(id,g){return Math.ceil((g?Math.max(g.w,g.h):180)*1.1+12);},internals:{distanceTransform:distanceTransform,domainFromSource:domainFromSource,fieldAt:fieldAt,contourLoops:contourLoops,resample:resample,initialize:initialize,prepareModel:prepareModel,segmentDistance:segmentDistance,localPair:localPair,evaluate:evaluate,minimize:minimize,displayCurve:displayCurve,tubeMesh:tubeMesh,construct:construct}};
 })(typeof globalThis!=='undefined'?globalThis:this);

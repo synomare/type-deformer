@@ -33,3 +33,35 @@ test('a real Worker abandons obsolete edit work and completes the latest input',
  });
  expect(result.key).toBe('latest');expect(result.counters.interrupted).toBe(1);expect(result.elapsed).toBeLessThan(1500);
 });
+
+test('a slider burst commits the latest value with one visual update and survives Undo',async({page})=>{
+ const errors=await open(page),slider=page.locator('#pRotateAngle'),before=await slider.inputValue();
+ await slider.focus();
+ const observed=await slider.evaluate(input=>{
+  const q=TypeDeformerEditScheduler,original=q.schedule,wrappers=new Map();let calls=0;
+  q.schedule=callback=>{if(!wrappers.has(callback))wrappers.set(callback,()=>{calls++;callback();});original(wrappers.get(callback));};
+  try{
+   for(let value=100;value<260;value+=2){input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));}
+   const pending=q.pending(),beforeCommit=calls;
+   input.dispatchEvent(new Event('change',{bubbles:true}));
+   return {pending,beforeCommit,calls,remaining:q.pending(),value:input.value};
+  }finally{q.schedule=original;}
+ });
+ expect(observed).toEqual({pending:1,beforeCommit:0,calls:1,remaining:0,value:'258'});
+ await expect(page.locator('#pRotateAngleNumber')).toHaveValue('258');
+ await page.locator('#btnHeaderUndo').click();await expect(slider).toHaveValue(before);
+ await page.locator('#btnHeaderRedo').click();await expect(slider).toHaveValue('258');
+ expect(errors).toEqual([]);
+});
+
+test('a real Worker completes explicit output while editing requests arrive',async({page})=>{
+ await open(page);
+ const result=await page.evaluate(async()=>{
+  const source=`onmessage=e=>{const m=e.data;setTimeout(()=>postMessage({type:'result',id:m.id,result:{key:m.key}}),m.payload.ms);}`;
+  const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));let resolve;
+  const ready=new Promise(r=>resolve=r),q=TypeDeformerRenderJobs.create({workerFactory:()=>new Worker(url),onState:s=>{if(s.ready)resolve(s);}});
+  try{q.request('export',{purpose:'export',ms:60});q.invalidate();q.request('edit',{purpose:'edit',ms:0});const state=await ready;return {key:state.result.key,completed:state.counters.completed,busy:state.busy};}
+  finally{q.dispose();URL.revokeObjectURL(url);}
+ });
+ expect(result).toEqual({key:'export',completed:1,busy:false});
+});

@@ -245,7 +245,7 @@ function profileSliderFixture() {
   const classifier = html.slice(html.indexOf('      // BEGIN DETAILED BATCH TARGETS'), html.indexOf('      var PROOF_AXIS_DEFS'));
   const profiles = html.slice(html.indexOf('      var batchProfiles = {};'), html.indexOf('      // Saved projects and URL payloads'));
   vm.runInContext(classifier + '\n' + profiles + '\n' + [
-    'applyStretch', 'mirrorGrammarMask', 'applyOperatorVisual', 'applyAllOperatorVisuals',
+    'applyStretch', 'mirrorGrammarMask', 'flushOperatorVisuals', 'applyOperatorVisual', 'applyAllOperatorVisuals',
     'refreshBatchProfileControls', 'bindRange', 'bindProfileSelect', 'updateMirrorAxis'
   ].map(extract).join('\n'), c);
   function bind(key, operator) {

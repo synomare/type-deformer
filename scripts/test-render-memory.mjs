@@ -10,7 +10,7 @@ const root = new URL('../', import.meta.url);
 function fixture() {
   const canvases = [];
   const c = vm.createContext({ document: { createElement() { const canvas = native.createCanvas(1, 1); canvases.push(canvas); return canvas; } }, DOMMatrix: native.DOMMatrix, ArrayBuffer, Uint8Array, Uint8ClampedArray, Float32Array, Float64Array });
-  for (const name of ['render-context.js', 'field-material-operators.js']) {
+  for (const name of ['render-context.js', 'numerical-kernels.js', 'field-material-operators.js']) {
     const path = process.env.TD_MEMORY_BASELINE ? new URL(name, 'file:///' + process.env.TD_MEMORY_BASELINE.replaceAll('\\', '/') + '/') : new URL(name, root);
     vm.runInContext(fs.readFileSync(path, 'utf8'), c);
   }
@@ -123,4 +123,15 @@ test('editing uses bounded desktop/mobile budgets while proof/export keep larger
 test('iPhone and touch Mac platform reporting both select the mobile edit budget',()=>{
  const source=fs.readFileSync(new URL('render-context.js',root),'utf8');
  for(const navigator of [{platform:'iPhone',userAgent:'WebKit'},{platform:'MacIntel',userAgent:'Macintosh',maxTouchPoints:5}]){const c=vm.createContext({navigator});vm.runInContext(source,c);assert.equal(c.TypeDeformerRenderContext.make().memoryBudget,128*1024*1024);}
+});
+
+test('explicit software canvas preference reaches both rasters on the first context call',()=>{
+ const observed=[];
+ const c=vm.createContext({document:{createElement(){const record={calls:[]};observed.push(record);return {width:1,height:1,getContext(_type,attributes){record.calls.push(attributes);return {setTransform(){}};}};}}});
+ vm.runInContext(fs.readFileSync(new URL('render-context.js',root),'utf8'),c);const R=c.TypeDeformerRenderContext;
+ for(const factor of [1,2])R.withContext(R.make({factor}),()=>{
+  const start=observed.length,canvas=R.createCanvas(20,30,{willReadFrequently:true});canvas.width=40;canvas.getContext('2d');
+  const created=observed.slice(start);assert.equal(created.length,factor===1?1:2);
+  for(const record of created)assert.equal(record.calls[0].willReadFrequently,true,'context attributes must be supplied before implicit initialization');R.release(canvas);
+ });
 });

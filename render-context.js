@@ -55,9 +55,10 @@
   function drawImage(ctx,source){var args=Array.prototype.slice.call(arguments,2),resolved=imageRect(source,args,true);if(resolved)ctx.drawImage.apply(ctx,resolved);}
   function createCanvas(w,h,options){
     if(current&&Math.max(1,w||1)*Math.max(1,h||1)>current.maxCanvasPixels)throw new Error('描画面が表示用メモリ予算を超えました。文字サイズや効果を軽くしてください。設定値は保持されています。');
+    var preferred=options&&options.willReadFrequently?{willReadFrequently:true}:undefined;
     var requestedFactor=options&&Number.isFinite(options.factor)&&options.factor>0?options.factor:current&&current.factor;
     assertAllocation(Math.max(1,w||1)*Math.max(1,h||1)*4);
-    if(!current || (Math.abs(requestedFactor-1)<1e-8&&!current.tile)){var normal=nativeCanvas(w,h);try{account(normal);}catch(error){release(normal);throw error;}return normal;}
+    if(!current || (Math.abs(requestedFactor-1)<1e-8&&!current.tile)){var normal=nativeCanvas(w,h);if(preferred)normal.getContext('2d',preferred);try{account(normal);}catch(error){release(normal);throw error;}return normal;}
     var context=current,logical=nativeCanvas(w,h),visual=nativeCanvas(1,1),m={logical:logical,visual:visual,factor:requestedFactor,originX:0,originY:0,context:context},proxy,ctxProxy;
     function resize(){
       var tile=context.tile,clipped=options&&options.tiled&&tile&&logical.width===context.referenceWidth&&logical.height===context.referenceHeight;
@@ -67,11 +68,12 @@
       if(width*height>context.maxCanvasPixels)throw new Error('効果の描画面 '+width+' × '+height+' px が1枚の作業上限を超えました。分割できる出力領域を選ぶか、文字サイズを調整してください。設定値は保持されています。');
       if(proxy)account(proxy,(logical.width*logical.height+width*height)*4);
       visual.width=width;visual.height=height;
-      visual.getContext('2d').setTransform(m.factor,0,0,m.factor,-m.originX*m.factor,-m.originY*m.factor);
+      visual.getContext('2d',preferred).setTransform(m.factor,0,0,m.factor,-m.originX*m.factor,-m.originY*m.factor);
     }
     function context2d(options){
       if(ctxProxy)return ctxProxy;
-      var low=logical.getContext('2d',options),high=visual.getContext('2d',options);
+      var attributes=preferred?Object.assign({},options,preferred):options;
+      var low=logical.getContext('2d',attributes),high=visual.getContext('2d',attributes);
       var readers=new Set(['getImageData','createImageData','measureText','getTransform','getLineDash','isPointInPath','isPointInStroke','getContextAttributes','isContextLost']);
       var methods=new Map();
       function pair(value,which){var p=gradientPairs.get(value);return p?p[which]:value;}
