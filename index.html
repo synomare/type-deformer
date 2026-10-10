@@ -16637,11 +16637,11 @@ type deformer</textarea>
       function clipSurfaceOutput(output){var r=output.canvas.tdSurfaceClip;if(r){output.ctx.setTransform(1,0,0,1,0,0);output.ctx.beginPath();output.ctx.rect(r.x,r.y,r.w,r.h);output.ctx.clip();}}
       function acceptSurfaceOutputLayer(layer,key){
         var output=surfaceWorkerOutput;if(!output||output.key!==key)throw new Error('書き出しの描画領域が失われました。再試行してください。');
-        TypeDeformerRenderContext.assertCanvas(output.canvas);
+        TypeDeformerRenderContext.assertCanvas(output.canvas,output);
         var index=output.order.indexOf(layer.operator,output.cursor);if(index<0)throw new Error('効果の重ね順を確認できませんでした。再試行してください。');
         paintSurfaceOutputUntil(index);
         output.ctx.save();clipSurfaceOutput(output);output.ctx.setTransform(1,0,0,1,0,0);output.ctx.globalAlpha=surfaceOutputOpacity(layer.operator);output.ctx.globalCompositeOperation=surfaceBlendMode(layer.operator);
-        try{output.ctx.drawImage(layer.bitmap,0,0);TypeDeformerRenderContext.assertCanvas(output.canvas);}finally{output.ctx.restore();}
+        try{output.ctx.drawImage(layer.bitmap,0,0);TypeDeformerRenderContext.assertCanvas(output.canvas,output);}finally{output.ctx.restore();}
         output.cursor=index+1;output.completed++;
       }
       function acceptSurfaceOutputProgress(value,key){surfaceWorkerPreparation=value;if(surfaceWorkerOutput&&surfaceWorkerOutput.key===key)surfaceWorkerOutput.progress=value;}
@@ -16719,12 +16719,20 @@ type deformer</textarea>
           software:!!studioOutputOptions?.software,streamLayers:purpose!=='edit'&&!!targetCtx,backdrop:targetCtx&&targetCtx.canvas.tdSurfaceBackdrop||'effects',
           purpose:purpose,mobile:isIOS||/Android/.test(navigator.userAgent),presentation:purpose==='edit'&&globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.mode():'standard'});
         var key=JSON.stringify(frame);frame.fonts=surfaceWorkerFontRecords(frame);
+        // A same-size destination may still belong to an older scene. Releasing
+        // it here would resize the caller's own canvas to 1x1, then stream the
+        // replacement into that cleared canvas. Let the caller allocate and
+        // initialize a fresh destination before starting the new frame.
+        if(frame.streamLayers&&surfaceWorkerOutput&&surfaceWorkerOutput.key!==key&&surfaceWorkerOutput.canvas===targetCtx.canvas){
+          surfaceRenderJobs.cancel();
+          releaseSurfaceWorkerOutput();return false;
+        }
         if(frame.streamLayers&&(!surfaceWorkerOutput||surfaceWorkerOutput.key!==key)){
           releaseSurfaceWorkerOutput();
           // Own the pending destination, including its paper/bands and clip.
           // Reusing that context also preserves Canvas blend rounding.
           var canvas=targetCtx.canvas,ctx=targetCtx;
-          surfaceWorkerOutput={key:key,canvas:canvas,ctx:ctx,glyphs:glyphs,scale:scale,layout:L,fm:fm,order:order,cursor:0,completed:0,total:operators.length,complete:false};
+          surfaceWorkerOutput={key:key,canvas:canvas,ctx:ctx,width:width,height:height,glyphs:glyphs,scale:scale,layout:L,fm:fm,order:order,cursor:0,completed:0,total:operators.length,complete:false};
         }else if(!frame.streamLayers)releaseSurfaceWorkerOutput();
         var state=surfaceRenderJobs.request(key,frame);surfaceWorkerClockHold=!state.ready;
         if(state.error){if(purpose!=='edit')throw Object.assign(new Error(state.error),{code:state.errorCode||''});return false;}
@@ -42700,7 +42708,7 @@ type deformer</textarea>
         if(!selectedOrder&&!livePreview && typeof surfaceRenderJobs!=='undefined' && surfaceRenderJobs) {
           if(!prepareSurfaceWorkerFrame(glyphs,scale,L,fm,targetCtx.canvas.width,targetCtx.canvas.height,targetCtx.canvas.tdRenderPurpose||'export',targetCtx))throw workerPending();
           if(surfaceWorkerFrameResult&&surfaceWorkerFrameResult.streamed){
-            TypeDeformerRenderContext.assertCanvas(surfaceWorkerOutput.canvas);
+            TypeDeformerRenderContext.assertCanvas(surfaceWorkerOutput.canvas,surfaceWorkerOutput);
             if(targetCtx.canvas===surfaceWorkerOutput.canvas)return true;
             targetCtx.save();targetCtx.setTransform(1,0,0,1,0,0);targetCtx.globalAlpha=1;targetCtx.globalCompositeOperation='copy';
             try{targetCtx.drawImage(surfaceWorkerOutput.canvas,0,0);}finally{targetCtx.restore();}return true;
@@ -48083,10 +48091,38 @@ type deformer</textarea>
       function sculptureUsesIsolatedOutput() {
         return !studioRendererMode && !!globalThis.TypeDeformerExplorer && metrics.length>0;
       }
+      function snapshotOutputReference() {
+        // A custom frame/crop may deliberately omit all ink. Only compare a
+        // ready, visible Surface preview when Auto includes the whole artwork.
+        if(compositionState.enabled||params.artboard!=='auto'||params.exportRegion!=='work'||params.deformedOnly||!surfaceFxCanvas||surfaceFxCanvas.hidden)return null;
+        var status=surfaceRenderJobs&&surfaceRenderJobs.status();
+        if(status&&(!status.ready||status.busy||status.error))return null;
+        var background=params.transparentBg?null:surfaceHexRgb(params.paper);
+        try{return TypeDeformerRenderContext.hasVisiblePixels(surfaceFxCanvas,background)?{background:background}:null;}catch(error){return null;}
+      }
+      async function verifySnapshotContent(result,reference,guard) {
+        if(!reference)return;
+        var url=URL.createObjectURL(result.blob),image=new Image(),canvas=document.createElement('canvas');
+        canvas.width=1024;canvas.height=128;var ctx=canvas.getContext('2d',{willReadFrequently:true});
+        try{
+          image.src=url;
+          try{await image.decode();}catch(error){throw Object.assign(new Error('完成した画像を読み戻せませんでした。'),{code:'PNG_ENCODE_FAILED'});}
+          guard();
+          for(var y=0;y<image.naturalHeight;y+=128){
+            for(var x=0;x<image.naturalWidth;x+=1024){
+              var w=Math.min(1024,image.naturalWidth-x),h=Math.min(128,image.naturalHeight-y);
+              ctx.clearRect(0,0,1024,128);ctx.drawImage(image,x,y,w,h,0,0,w,h);
+              if(TypeDeformerRenderContext.hasVisiblePixels(canvas,reference.background))return;
+            }
+            await new Promise(function(resolve){setTimeout(resolve,0);});guard();
+          }
+          throw Object.assign(new Error('編集画面にある文字・効果が出力画像に残っていません。空の画像は保存していません。'),{code:'RENDER_EMPTY_OUTPUT'});
+        }finally{URL.revokeObjectURL(url);canvas.width=canvas.height=1;}
+      }
       async function isolatedSnapshotOutput(format,purpose) {
         if(snapshotOutputRequest)throw Object.assign(new Error('書き出し中です。完了を待つか取り消してください。'),{code:'EXPORT_BUSY'});
         purpose=purpose||'export';snapshotOutputLastFormat=format;snapshotOutputLastPurpose=purpose;
-        var client=null,cancelled=false,failed=false;
+        var client=null,cancelled=false,failed=false,reference=snapshotOutputReference();
         var job={dispose:function(){cancelled=true;if(client)client.dispose();}};snapshotOutputRequest=job;
         var panel=document.getElementById('snapshotOutputStatus');panel.hidden=false;panel.dataset.state='working';
         document.getElementById('snapshotOutputProgress').hidden=false;document.getElementById('btnCancelSnapshotOutput').hidden=false;
@@ -48113,12 +48149,22 @@ type deformer</textarea>
           for(var attempt=0;attempt<2;attempt++){
             if(cancelled)throw Object.assign(new Error('生成を取り消しました。'),{code:'RENDER_CANCELLED'});
             client=TypeDeformerExplorer.rendererClient({viewport:function(){return viewport;},fonts:function(){return fonts;}});
-            try{return await client.render({state:state,viewport:viewport,output:{format:format,purpose:purpose,software:attempt>0,deadline:deadline}},updateProgress);}
+            try{
+              var result=await client.render({state:state,viewport:viewport,output:{format:format,purpose:purpose,software:attempt>0,deadline:deadline}},updateProgress);
+              client.dispose();client=null;
+              if(reference)updateProgress({text:'完成した画像に文字と効果が残っているか確認しています。',fraction:null});
+              await verifySnapshotContent(result,reference,function(){
+                if(cancelled)throw Object.assign(new Error('生成を取り消しました。'),{code:'RENDER_CANCELLED'});
+                if(Date.now()>=deadline)throw Object.assign(new Error('出力画像の確認が時間上限を超えました。'),{code:'RENDER_TIMEOUT'});
+              });
+              if(cancelled)throw Object.assign(new Error('生成を取り消しました。'),{code:'RENDER_CANCELLED'});
+              return result;
+            }
             catch(error){
-              var recoverable=['RENDER_WORKER_FAILED','RENDER_MEMORY_EXCEEDED','CANVAS_CONTEXT_LOST','PNG_ENCODE_FAILED','RENDER_START_FAILED','RENDER_TRANSPORT_FAILED'].includes(error.code);
+              var recoverable=['RENDER_WORKER_FAILED','RENDER_MEMORY_EXCEEDED','CANVAS_CONTEXT_LOST','PNG_ENCODE_FAILED','RENDER_START_FAILED','RENDER_TRANSPORT_FAILED','RENDER_EMPTY_OUTPUT'].includes(error.code);
               if(cancelled||attempt||!recoverable||Date.now()>=deadline)throw error;
               updateProgress({text:'描画領域を解放し、同じ設定を安定した描画方式で再計算しています（再試行 1 / 1）。',fraction:null});
-            }finally{client.dispose();client=null;}
+            }finally{if(client)client.dispose();client=null;}
             await new Promise(function(resolve){setTimeout(resolve,100);});
           }
         }catch(error){failed=error.code!=='RENDER_CANCELLED';if(failed)showSnapshotOutputFailure('書き出しを完了できませんでした · '+error.message);throw error;}

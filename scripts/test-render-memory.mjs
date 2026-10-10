@@ -188,6 +188,34 @@ test('lost or unavailable canvases fail explicitly instead of publishing empty l
  assert.equal(messages.at(-1).type,'error');assert.equal(messages.at(-1).code,'CANVAS_CONTEXT_LOST');assert.equal(images.live,0);
 });
 
+test('a cleared retained destination is invalid even when its context is healthy',()=>{
+ const {R}=fixture(),canvas=R.createCanvas(32,24),expected={width:32,height:24};
+ assert.equal(R.assertCanvas(canvas,expected),canvas);
+ canvas.width=canvas.height=1;
+ assert.throws(()=>R.assertCanvas(canvas,expected),{code:'CANVAS_CONTEXT_LOST'});
+});
+
+test('output readback distinguishes blank paper from thin ink without downsampling',()=>{
+ const {R}=fixture(),canvas=R.createCanvas(1030,140),ctx=canvas.getContext('2d');
+ assert.equal(R.hasVisiblePixels(canvas),false);
+ ctx.fillStyle='#123456';ctx.fillRect(0,0,1030,140);
+ assert.equal(R.hasVisiblePixels(canvas,[18,52,86]),false);
+ ctx.fillStyle='#abcdef';ctx.fillRect(1029,139,1,1);
+ assert.equal(R.hasVisiblePixels(canvas,[18,52,86]),true);
+ ctx.clearRect(0,0,1030,140);ctx.fillRect(1029,139,1,1);
+ assert.equal(R.hasVisiblePixels(canvas),true);
+});
+
+test('software retry is inherited by nested render contexts and has a separate cache key',()=>{
+ const {R}=fixture(),cpu=R.make({purpose:'export',software:true});
+ R.withContext(cpu,()=>{
+  const inherited=R.make({purpose:'export'}),explicit=R.make({purpose:'export',software:false});
+  assert.equal(inherited.software,true);assert.equal(explicit.software,false);
+  assert.notEqual(inherited.key,explicit.key);
+ });
+ assert.equal(R.make({purpose:'export'}).software,false);
+});
+
 test('allocation failures carry a retryable code and software retry initializes CPU contexts',()=>{
  const {R}=fixture();assert.throws(()=>R.withContext(R.make({memoryBudget:10}),()=>R.createCanvas(100,100)),{code:'RENDER_MEMORY_EXCEEDED'});
  const calls=[],c=vm.createContext({document:{createElement(){return {width:1,height:1,getContext(_type,attributes){calls.push(attributes);return {setTransform(){}};}};}}});

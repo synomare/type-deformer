@@ -17,11 +17,11 @@
     var c={purpose:purpose,presentation:options.presentation==='low'&&purpose==='edit'?'low':'standard',
       width:Math.max(1,Number(options.width)||1),height:Math.max(1,Number(options.height)||1),
       viewScale:Math.max(.000001,Number(options.viewScale)||1),factor:Math.max(.000001,Number(options.factor)||1),
-      precision:purpose==='edit'?'display':'output',software:!!options.software,memoryBudget:options.memoryBudget||budget.workBytes,
+      precision:purpose==='edit'?'display':'output',software:options.software==null?!!(current&&current.software):!!options.software,memoryBudget:options.memoryBudget||budget.workBytes,
       maxCanvasPixels:options.maxCanvasPixels||budget.maxCanvasPixels,tile:options.tile||null,
       referenceWidth:options.referenceWidth||0,referenceHeight:options.referenceHeight||0,overscan:options.overscan||0,
       accounted:new WeakMap(),bytes:0,peakBytes:0,created:0};
-    c.key=[purpose,c.presentation,c.factor,c.tile&&[c.tile.x,c.tile.y,c.tile.width,c.tile.height].join(',')].join('/');return c;
+    c.key=[purpose,c.presentation,c.software?'cpu':'auto',c.factor,c.tile&&[c.tile.x,c.tile.y,c.tile.width,c.tile.height].join(',')].join('/');return c;
   }
   function withContext(context,fn){var before=current;current=context;try{return fn();}finally{current=before;}}
   // Renderers are synchronous. Reclaim a glyph/tile's temporaries even when
@@ -60,7 +60,19 @@
     if(!ctx||ctx.isContextLost&&ctx.isContextLost())throw Object.assign(new Error('画像の描画領域が不足したか、描画中に失われました。'),{code:'CANVAS_CONTEXT_LOST'});
     return ctx;
   }
-  function assertCanvas(canvas){for(var source of new Set([physical(canvas),analysis(canvas)]))requireContext(source.getContext('2d'));return canvas;}
+  function assertCanvas(canvas,expected){
+    if(expected&&(canvas.width!==expected.width||canvas.height!==expected.height))throw Object.assign(new Error('出力用の描画領域が描画中に変更されました。同じ設定で再計算してください。'),{code:'CANVAS_CONTEXT_LOST'});
+    for(var source of new Set([physical(canvas),analysis(canvas)]))requireContext(source.getContext('2d'));return canvas;
+  }
+  function hasVisiblePixels(canvas,background){
+    var source=physical(canvas),ctx=requireContext(source.getContext('2d'));
+    // Bound readback memory even for a large output; do not downsample thin ink.
+    for(var y=0;y<source.height;y+=128)for(var x=0;x<source.width;x+=1024){
+      var data=ctx.getImageData(x,y,Math.min(1024,source.width-x),Math.min(128,source.height-y)).data;
+      for(var i=0;i<data.length;i+=4)if(data[i+3]&&(!background||Math.max(Math.abs(data[i]-background[0]),Math.abs(data[i+1]-background[1]),Math.abs(data[i+2]-background[2]))*data[i+3]>255))return true;
+    }
+    return false;
+  }
   function createCanvas(w,h,options){
     if(current&&Math.max(1,w||1)*Math.max(1,h||1)>current.maxCanvasPixels)throw Object.assign(new Error('描画面が作業メモリ予算を超えました。文字サイズや効果を軽くしてください。設定値は保持されています。'),{code:'RENDER_MEMORY_EXCEEDED'});
     var preferred=options&&options.willReadFrequently||current&&current.software?{willReadFrequently:true}:undefined;
@@ -193,4 +205,5 @@
   }
   function tiles(width,height,size){size=size||2048;var out=[];for(var y=0;y<height;y+=size)for(var x=0;x<width;x+=size)out.push({x:x,y:y,width:Math.min(size,width-x),height:Math.min(size,height-y)});return out;}
   root.TypeDeformerRenderContext={assertCanvas:assertCanvas,budgets:budgets,limits:limits,make:make,withContext:withContext,withScope:withScope,retain:retain,current:function(){return current;},createCanvas:createCanvas,physical:physical,analysis:analysis,byteSize:byteSize,drawImage:drawImage,account:account,release:release,tiles:tiles,field:field,copyField:copyField,sample:sample,alphaSampler:alphaSampler,rasterSample:rasterSample,signed:signed,normal:normal,present:present,applyAlpha:applyAlpha,mesh:mesh,shadedMesh:shadedMesh,key:function(){return current?current.key:'analysis';}};
+  root.TypeDeformerRenderContext.hasVisiblePixels=hasVisiblePixels;
 })(typeof globalThis!=='undefined'?globalThis:this);

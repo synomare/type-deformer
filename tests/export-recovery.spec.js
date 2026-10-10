@@ -14,11 +14,16 @@ async function difference(a,b){
  for(let i=0;i<x.length;i+=4){let max=0;for(let j=0;j<4;j++){const d=Math.abs(x[i+j]-y[i+j]);total+=d;max=Math.max(max,d);}if(max>8)large++;}
  return {mean:total/x.length,large:large/(x.length/4)};
 }
-async function setup(page,context) {
+async function setup(page,context,options={}) {
  await context.addInitScript(()=>{
   const lost=CanvasRenderingContext2D.prototype.isContextLost;
   const toBlob=HTMLCanvasElement.prototype.toBlob;
   HTMLCanvasElement.prototype.toBlob=function(...args){
+   const fault=sessionStorage.getItem('outputFault');
+   if(this.tdRenderPurpose&&['empty-once','empty-always'].includes(fault)){
+    if(fault==='empty-once')sessionStorage.removeItem('outputFault');
+    this.width=this.width;
+   }
    if(this.tdRenderPurpose&&sessionStorage.getItem('outputFault')==='encoding-loss-once'){
     sessionStorage.removeItem('outputFault');this.width=this.width;this.__testLost=true;
    }return toBlob.apply(this,args);
@@ -37,6 +42,14 @@ async function setup(page,context) {
    }return super.postMessage(message,...rest);
   }};
  });
+ await page.route('**/*',async route=>{
+  if(route.request().resourceType()!=='document')return route.continue();
+  const response=await route.fetch();let html=await response.text();
+  html=html.replace('var studioOutputOptions','window.__outputReference=snapshotOutputReference;var studioOutputOptions');
+  if(options.updateFrame)html=html.replace('var frame=surfaceWorkerSnapshot(glyphs,fm);',
+   'var frame=surfaceWorkerSnapshot(glyphs,fm);if(studioRendererMode){if(surfaceWorkerOutput&&surfaceWorkerOutput.completed>0)window.__frameUpdated=true;if(window.__frameUpdated&&frame.glyphs[0])frame.glyphs[0].tx+=0.00001;}');
+  return route.fulfill({response,body:html});
+ });
  await page.route(/fonts\.googleapis\.com/,r=>r.fulfill({status:200,contentType:'text/css',body:''}));
  await page.goto('/');await page.waitForFunction(()=>document.querySelector('#stageWorld')?.children.length>0);
  const saved=page.waitForEvent('download');await page.locator('#btnSaveProj').evaluate(e=>e.click());
@@ -45,6 +58,7 @@ async function setup(page,context) {
  project.text='AB';project.composition.enabled=false;
  Object.assign(project.params,{fontFamily:'Arial',fontSize:240,seed:41,artboard:'custom',abW:1536,abH:1536,exportScale:1,transparentBg:false,paper:'#e2d9c9',ink:'#304f67',surfaceOrder:ids.join(','),tensorFiligreeOpacity:.63,tensorFiligreeBlend:'multiply',copyOpacity:.72,copyBlend:'screen',risoOpacity:.48,risoBlend:'multiply',frozenMoment:JSON.stringify({schema:1,phase:0,surfacePhase:0,dataMoshFrame:0,quality:'high',logicalWidth:960,logicalHeight:680})});
  project.letters=Array.from(project.text,()=>({t:0,l:0,i:0,o:Object.fromEntries(ids.map(id=>[id,{t:1,i:1}]))}));
+ if(options.auto)Object.assign(project.params,{artboard:'auto',exportRegion:'work',deformedOnly:false,transparentBg:true,fontSize:100});
  await page.locator('#projFile').setInputFiles({name:'five-effects.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
  return project;
 }
@@ -71,6 +85,30 @@ test('five effects retain their pixels in proof, PNG, and a fresh software retry
  expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('outputAttempts')).map(a=>a.software))).toEqual([false,true]);
  await expect(page.locator('#snapshotOutputStatus')).toBeHidden();expect(page.frames()).toHaveLength(1);expect(errors).toEqual([]);
  }
+});
+
+test('a same-size scene update keeps the streamed output destination intact',async({page,context})=>{
+ test.setTimeout(180000);await setup(page,context,{updateFrame:true});
+ const bytes=await png(page);expect((await pixels(bytes)).changed).toBeGreaterThan(5000);
+ expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('outputAttempts')).map(a=>a.software))).toEqual([false,false]);
+ await page.locator('#btnPreview').evaluate(e=>e.click());await expect(page.locator('#previewOverlay')).toBeVisible();
+ const proof=await page.locator('#previewImg').evaluate(async img=>Array.from(new Uint8Array(await (await fetch(img.src)).arrayBuffer())));
+ expect(await pixels(Buffer.from(proof))).toEqual(await pixels(bytes));
+});
+
+test('healthy but empty encoded output is retried, and repeated emptiness is not downloaded',async({page,context})=>{
+ test.setTimeout(180000);await setup(page,context,{auto:true});
+ await page.waitForFunction(()=>window.__outputReference?.());
+ await page.evaluate(()=>{sessionStorage.setItem('outputFault','empty-once');sessionStorage.setItem('outputAttempts','[]');});
+ const recovered=await png(page);expect((await pixels(recovered)).changed).toBeGreaterThan(1000);
+ expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('outputAttempts')).map(a=>a.software))).toEqual([false,true]);
+ await page.waitForFunction(()=>window.__outputReference?.());
+ let downloads=0;page.on('download',()=>downloads++);
+ await page.evaluate(()=>sessionStorage.setItem('outputFault','empty-always'));
+ await page.locator('#btnPng').evaluate(e=>e.click());
+ await expect(page.locator('#snapshotOutputStatus')).toHaveAttribute('data-state','error');
+ await expect(page.locator('#snapshotOutputText')).toContainText('空の画像は保存していません');
+ expect(downloads).toBe(0);expect(page.frames()).toHaveLength(1);
 });
 
 test('persistent failures stay visible and a manual retry succeeds without changing the artwork',async({page,context})=>{
