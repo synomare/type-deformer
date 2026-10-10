@@ -104,3 +104,24 @@ test('overlapping detailed profiles, local overrides and partial source ranges s
   c.sourceTarget.mode = 'all'; c.rangeControls[0].input.disabled = true;
   assert.match(c.studioAxes('test')[0].reason, /文法/);
 });
+
+test('isolated export accepts structured progress and waits thirty minutes, while comparison/proof retain their shorter deadline',async()=>{
+ for(const purpose of ['export','proof',null]){
+  const timers=new Map(),events=new Map(),sent=[];let next=0,frame;
+  const c=vm.createContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){},contentWindow:{postMessage:m=>sent.push(m)}};return frame;},body:{appendChild(){}}}});
+  vm.runInContext(fs.readFileSync(new URL('../render-context.js',import.meta.url),'utf8'),c);vm.runInContext(fs.readFileSync(new URL('../exploration.js',import.meta.url),'utf8'),c);
+  const client=c.TypeDeformerExplorer.rendererClient({viewport:()=>({windowWidth:960,windowHeight:680}),fonts:()=>[]}),progress=[];
+  const waiting=client.render(purpose?{output:{format:'png',purpose}}:{state:{}},v=>progress.push(v));
+  frame.onload();let m=sent.at(-1);events.get('message')({source:frame.contentWindow,data:{token:m.token,id:m.id,result:{}}});await Promise.resolve();await Promise.resolve();await Promise.resolve();
+  assert.equal(sent.at(-1).type,'render');assert.equal([...timers.values()][0].ms,purpose==='export'?1800000:120000);
+  m=sent.at(-1);const value={text:'効果を描画中',fraction:.4};events.get('message')({source:frame.contentWindow,data:{token:m.token,id:m.id,progress:value}});assert.deepEqual(progress,[value]);
+  events.get('message')({source:frame.contentWindow,data:{token:m.token,id:m.id,result:{complete:true}}});await waiting;assert.equal(timers.size,0);client.dispose();assert.equal(events.size,0);
+ }
+});
+
+test('export progress counts native effects in their actual position between streamed layers',()=>{
+ const c=vm.createContext({surfaceWorkerOutput:{order:['tensor','native','copy','riso'],progress:{operator:'tensor',operatorIndex:0,totalOperators:3,completed:2,total:6}},operatorOption:id=>({textContent:id})});
+ const fn=html.match(/^      function surfaceOutputProgress\([\s\S]*?^      \}/m)?.[0];assert.ok(fn);vm.runInContext(fn,c);
+ assert.equal(c.surfaceOutputProgress().fraction,.25);assert.match(c.surfaceOutputProgress().text,/1 \/ 4/);
+ Object.assign(c.surfaceWorkerOutput.progress,{operator:'copy',operatorIndex:1,completed:3});assert.equal(c.surfaceOutputProgress().fraction,.625);assert.match(c.surfaceOutputProgress().text,/3 \/ 4/);
+});

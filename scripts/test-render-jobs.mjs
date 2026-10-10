@@ -92,3 +92,24 @@ test('an edit deadline hands a queued proof/export to a new worker without cance
 test('pausing the editor releases edits but leaves explicit output work running',()=>{
  for(const purpose of ['edit','proof','export']){const {q,workers}=fixture();q.request('a',{purpose});q.cancelEditing();assert.equal(q.status().busy,purpose!=='edit');assert.equal(!!workers[0].terminated,purpose==='edit');q.dispose();}
 });
+
+test('streamed output paints and closes each layer before acknowledging; obsolete and late layers close without painting',()=>{
+ let painted=0,closed=0;
+ const {q,workers}=fixture({onLayer(layer,key){assert.equal(key,'output');assert.equal(closed,painted);assert.equal(layer.operator,'ink');painted++;}});
+ const layer=()=>({operator:'ink',bitmap:{close(){closed++;}}});
+ q.request('output',{purpose:'export',streamLayers:true});
+ workers[0].onmessage({data:{type:'layer',id:1,result:layer()}});
+ assert.equal(painted,1);assert.equal(closed,1);assert.equal(workers[0].sent[1].type,'layerAck');assert.equal(workers[0].sent[1].operator,'ink');assert.equal(q.status().busy,true);
+ q.request('new-output',{purpose:'export'});
+ workers[0].onmessage({data:{type:'layer',id:1,result:layer()}});
+ assert.equal(painted,1);assert.equal(closed,2);assert.equal(workers[0].sent[2].type,'layerAck');
+ q.cancel();workers[0].onmessage({data:{type:'layer',id:1,result:layer()}});
+ assert.equal(painted,1);assert.equal(closed,3);assert.equal(workers[0].sent.length,3);q.dispose();
+});
+
+test('a layer consumer failure closes its bitmap, terminates the producer and permits retry',()=>{
+ let closed=0;const {q,workers}=fixture({onLayer(){throw Error('cannot paint');}});
+ q.request('output',{purpose:'export'});workers[0].onmessage({data:{type:'layer',id:1,result:{operator:'ink',bitmap:{close(){closed++;}}}}});
+ assert.equal(closed,1);assert.equal(workers[0].terminated,true);assert.equal(q.status().busy,false);assert.equal(q.status().error,'cannot paint');
+ q.retry();workers[1].result();assert.equal(q.status().ready,true);q.dispose();
+});

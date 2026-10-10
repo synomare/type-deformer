@@ -48,7 +48,15 @@
         try{message=options.decode?options.decode(event.data):event.data;}catch(error){dispose(event.data&&event.data.result);failed(error);return;}
         if(!message)return;
         if(instance!==worker||disposed){dispose(message.result);return;}
-        if(message.type==='progress'){if(active&&message.id===active.id&&desired===active&&options.onProgress)options.onProgress(message.value);return;}
+        // Explicit output transfers one layer at a time. Acknowledge only after
+        // the consumer has painted and closed it, bounding in-flight bitmaps.
+        if(message.type==='layer'){
+          try{if(active&&message.id===active.id&&desired===active&&options.onLayer)options.onLayer(message.result,active.key);}
+          catch(error){dispose(message.result);failed(error);return;}
+          dispose(message.result);
+          instance.postMessage({type:'layerAck',id:message.id,operator:message.result.operator});return;
+        }
+        if(message.type==='progress'){if(active&&message.id===active.id&&desired===active&&options.onProgress)options.onProgress(message.value,active.key);return;}
         if(message.type!=='result'&&message.type!=='error')return;
         var finished=active;if(!finished||message.id!==finished.id){dispose(message.result);return;}
         active=null;clearInterrupt();clearDeadline();

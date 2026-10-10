@@ -1678,6 +1678,8 @@
     .differential-work-status progress { flex: 0 1 120px; width: 120px; height: 6px; accent-color: currentColor; }
     .differential-work-status button { min-height: 44px; padding: 6px 12px; }
     .differential-work-status span { flex: 1 1 240px; }
+    #snapshotOutputStatus { z-index: 10; }
+    @media(max-width:760px) { #snapshotOutputStatus { top:6px;left:6px;right:6px;max-width:none; } }
     .conformal-work-status { top: 12px; }
     #differentialWorkStatus:not([hidden]) + .conformal-work-status { top: 76px; }
     #surfaceFxCanvas {
@@ -5931,6 +5933,7 @@ type deformer</textarea>
       </div>
       <div id="snapshotOutputStatus" class="differential-work-status conformal-work-status" hidden>
         <span id="snapshotOutputText" role="status" aria-live="polite"></span>
+        <progress id="snapshotOutputProgress" max="1" aria-label="書き出しの描画進捗"></progress>
         <button type="button" id="btnCancelSnapshotOutput">書き出しを取り消す</button>
       </div>
       <div class="canvas-view-hint" id="canvasViewHint" role="status" aria-live="polite" aria-hidden="true">UNBOUNDED VIEW · DRAG TO PAN · WHEEL / PINCH TO ZOOM · DOUBLE TAP TO RESET</div>
@@ -16616,8 +16619,30 @@ type deformer</textarea>
       var surfaceEnvelopeError = '';
       var SURFACE_WORKER_IDS=["dataMosh","copyDecay","misregistration","risoSeparation","calligraphicStress","asemicDuctus","spectralType","counterformEngine","terminalExcess","ligatureBody","fiberBody","glyphMutation","suspendedSyntax","livingTextField","innerEruption","recursiveGraft","structuralCollision","peelWeave","voidPressure","ornamentReserve","tensionMembrane","diffractiveGlyph","dendriteCast","quasicrystalBody","nematicFilm","hyperbolicAtlas","loadpathFoundry","nodalGlaze","spinodalAlloy","densityRecast","hopfLoom","miuraVault","vortexBath","rationalCusp","bladeBody","blackBastion","inktrapAbyss","strangulation","gillArray","screwExtrusion","harmonicCage","beltramiFlow","riemannRamification","linkedTwist","enneperBody","nibRecast","anatomyWarp","kreslingShell","growthBuckle","inversionBody","gravityLens","liquidRope","wulffBody","repulsiveCurves","wassersteinLetters","stressGlass","tensorFiligree","chromaticSwarm","gyroidSculpture","causticGlass","rubyUsurper","punctuationLoom","counterpage","rendererDebt","ligatureContagion","strokeCommons","chromeReliquary","naveCutter","cloisterFold","prismSacrament","texturaMatrix","voidPortal","recursiveShrine","morphProcession","chimeraGraft","moireChoir","ligatureCrypt","cipherLiturgy","ribbonEcho","slitSweep","cellFracture","rasterPress","hatchEngrave","contourEtch","monolithCast","pressureStroke","sinewTorque","boneScaffold","thornCrown","softBlob","blobTrack","etchantBloom","webbing","roseEngine","sigilForge","plotterTrace","differentialType","conformalType","auxeticType","marblingType"];
       var surfaceWorkerClockHold=false,surfaceWorkerFrameResult=null,surfaceWorkerParameterKeys={},surfaceWorkerBoundsCache=null;
-      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,encode:function(job){return {id:job.id,payload:job.payload};},onState:function(state){
+      var surfaceWorkerOutput=null;
+      function releaseSurfaceWorkerOutput(){if(surfaceWorkerOutput){var key=surfaceWorkerOutput.key;surfaceWorkerOutput.canvas.width=surfaceWorkerOutput.canvas.height=1;surfaceWorkerOutput=null;if(surfaceRenderJobs&&!surfaceRenderJobs.status().busy&&surfaceRenderJobs.status(key).result?.streamed)surfaceRenderJobs.cancel();}}
+      function paintSurfaceOutputUntil(end){
+        var output=surfaceWorkerOutput,order=output.order.slice(output.cursor,end);
+        if(order.length)renderSurfaceFxLayer(output.ctx,output.glyphs,output.scale,output.layout,output.fm,false,1100,false,order);
+        output.cursor=end;
+      }
+      function acceptSurfaceOutputLayer(layer,key){
+        var output=surfaceWorkerOutput;if(!output||output.key!==key)throw new Error('書き出しの描画領域が失われました。再試行してください。');
+        var index=output.order.indexOf(layer.operator,output.cursor);if(index<0)throw new Error('効果の重ね順を確認できませんでした。再試行してください。');
+        paintSurfaceOutputUntil(index);
+        output.ctx.save();output.ctx.setTransform(1,0,0,1,0,0);output.ctx.globalAlpha=surfaceOutputOpacity(layer.operator);output.ctx.globalCompositeOperation=surfaceBlendMode(layer.operator);
+        try{output.ctx.drawImage(layer.bitmap,0,0);}finally{output.ctx.restore();}
+        output.cursor=index+1;output.completed++;
+      }
+      function acceptSurfaceOutputProgress(value,key){if(surfaceWorkerOutput&&surfaceWorkerOutput.key===key)surfaceWorkerOutput.progress=value;}
+      function surfaceOutputProgress(){
+        var output=surfaceWorkerOutput,value=output&&output.progress;
+        if(value&&value.total>0){var option=operatorOption(value.operator),index=output.order.indexOf(value.operator),tiles=value.total/value.totalOperators,within=(value.completed-value.operatorIndex*tiles)/tiles;return {text:'効果を描画中（'+(index+1)+' / '+output.order.length+'）'+(option?' · '+option.textContent:''),fraction:(index+within)/output.order.length};}
+        return {text:output?'効果を描画中（'+output.completed+' / '+output.total+' 完了）':'固定した形を出力解像度で描き直しています。',fraction:null};
+      }
+      var surfaceRenderJobs=globalThis.TypeDeformerRenderJobs&&TypeDeformerRenderJobs.supportsSurfaceWorker()?globalThis.TypeDeformerRenderJobs.create({interruptAfter:180,editTimeout:8000,onTimeout:pausePreviewRendering,cacheFonts:true,onLayer:acceptSurfaceOutputLayer,onProgress:acceptSurfaceOutputProgress,encode:function(job){return {id:job.id,payload:job.payload};},onState:function(state){
         var status=document.getElementById('renderQualityStatus');if(status)status.textContent=state.error|| (state.busy?'描画中…':state.ready?'表示を更新しました。':'');
+        if(state.error&&surfaceWorkerOutput&&surfaceWorkerOutput.key===state.key)releaseSurfaceWorkerOutput();
         if(state.ready&&state.result&&state.result.kind==='envelope'){
           surfaceWorkerFrameResult=null;if(surfaceFxCanvas)surfaceFxCanvas.hidden=true;
           if(requestSurfaceEnvelopeExpansion(state.result.contact,state.result.requiredScale)){if(status)status.textContent='作品全体を収めるため描画領域を拡張しています。';scheduleSurfaceFxDraw();if(compositionState.enabled)scheduleCompositionDraw();return;}
@@ -16672,17 +16697,27 @@ type deformer</textarea>
         error.code = 'SURFACE_ENVELOPE_FAILED';
         return error;
       }
-      function prepareSurfaceWorkerFrame(glyphs,scale,L,fm,width,height,purpose) {
+      function prepareSurfaceWorkerFrame(glyphs,scale,L,fm,width,height,purpose,targetCtx) {
         purpose=purpose||'edit';if(!surfaceRenderJobs || (studioRendererMode&&purpose==='edit'))return true;
-        var operators=SURFACE_WORKER_IDS.filter(function(id){return surfaceEffectPresent(glyphs,id);});
-        if(!operators.length){surfaceRenderJobs.cancel();surfaceWorkerFrameResult=null;surfaceWorkerClockHold=false;return true;}
+        var order=surfaceRenderOrder().filter(function(id){return surfaceEffectPresent(glyphs,id);});
+        var operators=order.filter(function(id){return SURFACE_WORKER_IDS.includes(id);});
+        if(!operators.length){surfaceRenderJobs.cancel();releaseSurfaceWorkerOutput();surfaceWorkerFrameResult=null;surfaceWorkerClockHold=false;return true;}
         var frame=surfaceWorkerSnapshot(glyphs,fm);
         Object.assign(frame,{kind:'frame',scale:scale,layout:L,width:width,height:height,plan:surfaceCanonicalRasterPlan(glyphs),operators:operators,
+          streamLayers:purpose==='export'&&!!targetCtx,backdrop:targetCtx&&targetCtx.canvas.tdSurfaceBackdrop||'effects',
           purpose:purpose,mobile:isIOS||/Android/.test(navigator.userAgent),presentation:purpose==='edit'&&globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.mode():'standard'});
         var key=JSON.stringify(frame);frame.fonts=surfaceWorkerFontRecords(frame);
+        if(frame.streamLayers&&(!surfaceWorkerOutput||surfaceWorkerOutput.key!==key)){
+          releaseSurfaceWorkerOutput();
+          // Own the pending destination, including its paper/bands and clip.
+          // Reusing that context also preserves Canvas blend rounding.
+          var canvas=targetCtx.canvas,ctx=targetCtx;canvas.tdRenderPurpose='export';
+          surfaceWorkerOutput={key:key,canvas:canvas,ctx:ctx,glyphs:glyphs,scale:scale,layout:L,fm:fm,order:order,cursor:0,completed:0,total:operators.length,complete:false};
+        }else if(!frame.streamLayers)releaseSurfaceWorkerOutput();
         var state=surfaceRenderJobs.request(key,frame);surfaceWorkerClockHold=!state.ready;
         if(state.error){if(purpose!=='edit')throw new Error(state.error);return false;}
         if(!state.ready||state.result&&state.result.kind==='envelope')return false;
+        if(state.result.streamed&&!surfaceWorkerOutput.complete){paintSurfaceOutputUntil(order.length);surfaceWorkerOutput.complete=true;}
         surfaceWorkerFrameResult=state.result;return true;
       }
       function workerFieldBodyBounds(glyphs,bounds,fm){
@@ -42644,14 +42679,18 @@ type deformer</textarea>
         };
       }
 
-      function renderSurfaceFxLayer(targetCtx, glyphs, scale, L, fm, coverBase, maxDimension, previewOnly) {
+      function renderSurfaceFxLayer(targetCtx, glyphs, scale, L, fm, coverBase, maxDimension, previewOnly, selectedOrder) {
         var livePreview = targetCtx && (targetCtx.canvas === compositionCanvas || targetCtx.canvas === surfaceFxCanvas);
         if (livePreview) sculptureEditor.clearInactive(glyphs);
         if (livePreview) { differentialPrepare(glyphs); conformalPrepare(glyphs); auxeticPrepare(glyphs); counterformResetInactive(glyphs); marblingPrepare(glyphs); }
         else { differentialAssertReady(glyphs); conformalAssertReady(glyphs); auxeticAssertReady(glyphs); marblingAssertReady(glyphs); }
         if (!targetCtx || !glyphs.length || !surfaceAnyEffectPresent(glyphs)) return false;
-        if(!livePreview && typeof surfaceRenderJobs!=='undefined' && surfaceRenderJobs) {
-          if(!prepareSurfaceWorkerFrame(glyphs,scale,L,fm,targetCtx.canvas.width,targetCtx.canvas.height,targetCtx.canvas.tdRenderPurpose||'export'))throw workerPending();
+        if(!selectedOrder&&!livePreview && typeof surfaceRenderJobs!=='undefined' && surfaceRenderJobs) {
+          if(!prepareSurfaceWorkerFrame(glyphs,scale,L,fm,targetCtx.canvas.width,targetCtx.canvas.height,targetCtx.canvas.tdRenderPurpose||'export',targetCtx))throw workerPending();
+          if(surfaceWorkerFrameResult&&surfaceWorkerFrameResult.streamed){
+            targetCtx.save();targetCtx.setTransform(1,0,0,1,0,0);targetCtx.globalAlpha=1;targetCtx.globalCompositeOperation='copy';
+            try{targetCtx.drawImage(surfaceWorkerOutput.canvas,0,0);}finally{targetCtx.restore();}return true;
+          }
         }
         var plan = surfaceCanonicalRasterPlan(glyphs);
         var width = plan.width;
@@ -42777,7 +42816,7 @@ type deformer</textarea>
         var viewW=Math.max(0,Math.min(fullWidth,Math.ceil(targetCtx.canvas.width-projectedX))-viewX);
         var viewH=Math.max(0,Math.min(fullHeight,Math.ceil(targetCtx.canvas.height-projectedY))-viewY);
         var rasterTiles=rendererContext?rendererContext.tiles(viewW,viewH,1024).map(function(tile){tile.x+=viewX;tile.y+=viewY;return tile;}):[null];
-        var order = surfaceRenderOrder();
+        var order = selectedOrder || surfaceRenderOrder();
         var painted = false;
         for (var i = 0; i < order.length; i++) {
           var id = order[i];
@@ -47238,7 +47277,9 @@ type deformer</textarea>
         var renderScale = previewMode ? previewScaleForLayout(L.w, L.h, requestedScale) : requestedScale;
         var output = createSafeCanvas(L.w, L.h, renderScale);
         var canvas = output.canvas, ctx = output.ctx;
+        try {
         canvas.tdRenderPurpose=purpose||(previewMode?'proof':'export');
+        canvas.tdSurfaceBackdrop='scene';
         canvas.dataset.previewRequestedWidth = String(Math.max(1, Math.round(L.w * requestedScale)));
         canvas.dataset.previewRequestedHeight = String(Math.max(1, Math.round(L.h * requestedScale)));
         canvas.dataset.exportRegionLabel = plan.region.label;
@@ -47257,6 +47298,7 @@ type deformer</textarea>
           });
         } finally { ctx.restore(); }
         return canvas;
+        } catch(error) { if(typeof surfaceWorkerOutput==='undefined'||!surfaceWorkerOutput||surfaceWorkerOutput.canvas!==canvas)canvas.width=canvas.height=1; throw error; }
       }
 
       var proofStatusLockUntil = 0;
@@ -47383,6 +47425,7 @@ type deformer</textarea>
       async function studioRenderCandidate(payload, progress) {
         if (!studioRendererMode) throw new Error('Candidate rendering requires an isolated document.');
         var state = payload.state, viewport = payload.viewport;
+        var renderTimeout=payload.output&&(payload.output.purpose||'export')==='export'?TypeDeformerRenderContext.limits('export').timeoutMs:110000;
         var frozen = TypeDeformerExplorer.normalizeMoment(state.params.frozenMoment);
         if (!frozen) throw new Error('固定した瞬間の情報がありません。');
         for (var f of frozen.fonts) if (!studioFontBuffers.has(f.family)) throw new Error('フォント「' + f.label + '」を再読込してください。代替書体では候補を生成しません。');
@@ -47395,7 +47438,7 @@ type deformer</textarea>
         measureLayout(); applyAllOperatorVisuals(true);
         if (compositionState.enabled) renderCompositionPreview(); else renderSurfaceFxPreview();
         var scene,compositionStarted=performance.now();
-        while(true){try{scene=snapshotRenderableScene();break;}catch(error){if(!/_PENDING$/.test(error.code||''))throw error;if(performance.now()-compositionStarted>110000)throw new Error('Composeの準備が時間内に完了しませんでした。');progress(error.message);await new Promise(function(resolve){setTimeout(resolve,40);});}}
+        while(true){try{scene=snapshotRenderableScene();break;}catch(error){if(!/_PENDING$/.test(error.code||''))throw error;if(performance.now()-compositionStarted>renderTimeout)throw new Error('Composeの準備が時間内に完了しませんでした。');progress(error.message);await new Promise(function(resolve){setTimeout(resolve,40);});}}
         differentialPrepare(scene.glyphs); conformalPrepare(scene.glyphs); auxeticPrepare(scene.glyphs); marblingPrepare(scene.glyphs);
         var started = performance.now(), progressAt = 0;
         while (true) {
@@ -47405,7 +47448,7 @@ type deformer</textarea>
           try { studioAssertReady(scene); break; }
           catch (error) {
             if (!/_PENDING$/.test(error.code || '')) throw error;
-            if (performance.now() - started > 110000) throw new Error('字形の準備が長すぎるため停止しました。文字数・複製数を減らして再試行できます。');
+            if (performance.now() - started > renderTimeout) throw new Error('字形の準備が長すぎるため停止しました。文字数・複製数を減らして再試行できます。');
             if (differentialController.state.memoryPaused) throw new Error('成長履歴のメモリ上限です。文字数・成長量を減らして再試行してください。');
             if (differentialController.state.error) throw new Error(differentialController.state.error);
             if (performance.now() - progressAt > 400) { progress(error.message); progressAt = performance.now(); }
@@ -47423,10 +47466,14 @@ type deformer</textarea>
           var outputStarted = performance.now();
           while (true) {
             try {
+              // Do not allocate a fresh full-size destination on every pending
+              // poll while the worker is still producing the same output.
+              if(surfaceRenderJobs&&surfaceRenderJobs.status().busy)throw workerPending();
               if (format === 'png') {
                 var fullCanvas;
                 if(payload.output.video){var dims=payload.output.video;fullCanvas=createSafeCanvas(dims.width,dims.height,1).canvas;renderVideoFrame(fullCanvas,dims.width,dims.height);fullCanvas.dataset.exportRegionSuffix='-frame';}
                 else fullCanvas = renderCanvas(params.exportScale, false,payload.output.purpose||'export');
+                progress({text:'描画が完了しました。PNG画像を生成しています。',fraction:null});
                 var fullBlob = await new Promise(function (resolve, reject) { fullCanvas.toBlob(function (blob) { if (blob) resolve(blob); else reject(new Error('PNGを生成できませんでした。')); }, 'image/png'); });
                 return { blob: fullBlob, name: 'type-deform-' + stamp() + fullCanvas.dataset.exportRegionSuffix + '.png', width: fullCanvas.width, height: fullCanvas.height };
               }
@@ -47436,8 +47483,8 @@ type deformer</textarea>
               if (!captured) throw new Error('SVGを生成できませんでした。'); return captured;
             } catch (error) {
               if (!/_PENDING$/.test(error.code || '')) throw error;
-              if (performance.now() - outputStarted > 110000) throw new Error('高解像度描画が時間内に完了しませんでした。文字数や出力倍率を下げてください。');
-              progress('固定した形を出力解像度で描き直しています。'); await new Promise(function (resolve) { setTimeout(resolve, 40); });
+              if (performance.now() - outputStarted > renderTimeout) throw new Error('高解像度描画が時間内に完了しませんでした。設定値は保持されています。出力範囲や効果を調整してください。');
+              progress(surfaceOutputProgress()); await new Promise(function (resolve) { setTimeout(resolve, 100); });
             }
           }
         }
@@ -48009,15 +48056,25 @@ type deformer</textarea>
         var state = studioCaptureState(true), bridge = studioBridge(), viewport = bridge.viewport();
         var fonts = bridge.fonts(), client = TypeDeformerExplorer.rendererClient({ viewport: function () { return viewport; }, fonts: function () { return fonts; } });
         snapshotOutputRequest = client; document.getElementById('snapshotOutputStatus').hidden = false;
-        document.getElementById('snapshotOutputText').textContent = '固定した作品を別の描画領域で書き出しています。編集は続けられます。';
-        try { return await client.render({ state: state, viewport: viewport, output: { format: format, purpose:purpose||'export' } }, function (message) { document.getElementById('snapshotOutputText').textContent = message; }); }
-        finally { client.dispose(); if (snapshotOutputRequest === client) { snapshotOutputRequest = null; document.getElementById('snapshotOutputStatus').hidden = true; } }
+        var started=Date.now(),latest={text:'書き出しを準備しています。編集は続けられます。',fraction:null};
+        function updateProgress(message){
+          if(snapshotOutputRequest!==client)return;
+          if(message)latest=typeof message==='string'?{text:message,fraction:null}:message;
+          var bar=document.getElementById('snapshotOutputProgress'),fraction=latest.fraction;
+          if(typeof fraction==='number'&&isFinite(fraction)){bar.value=Math.max(0,Math.min(1,fraction));bar.setAttribute('aria-valuetext',Math.floor(bar.value*100)+'%');}
+          else{bar.removeAttribute('value');bar.setAttribute('aria-valuetext',latest.text);}
+          var seconds=Math.floor((Date.now()-started)/1000),elapsed=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+          document.getElementById('snapshotOutputText').textContent=latest.text+(typeof fraction==='number'?' · '+Math.floor(bar.value*100)+'%':'')+' · 経過 '+elapsed;
+        }
+        updateProgress();var progressTimer=setInterval(function(){updateProgress();},1000);
+        try { return await client.render({ state: state, viewport: viewport, output: { format: format, purpose:purpose||'export' } }, updateProgress); }
+        finally { clearInterval(progressTimer);client.dispose(); if (snapshotOutputRequest === client) { snapshotOutputRequest = null; document.getElementById('snapshotOutputStatus').hidden = true; } }
       }
       function writeIsolatedSnapshot(format) {
         setExportActionStatus('固定した瞬間を高解像度で描画しています…', 'working');
         return isolatedSnapshotOutput(format).then(function (result) {
           var mode = download(result.blob, result.name); setExportActionStatus(exportReadyMessage(format.toUpperCase(), result.width, result.height, mode), 'done');
-        }).catch(function (error) { setExportActionStatus('書き出しを完了できませんでした · ' + error.message, 'error'); });
+        }).catch(function (error) { if(error.code==='RENDER_CANCELLED')setExportActionStatus('書き出しを取り消しました。設定値は保持されています。','done');else setExportActionStatus('書き出しを完了できませんでした · ' + error.message, 'error'); });
       }
       function exportPng() {
         if (nothingToExport()) return;
@@ -49490,6 +49547,7 @@ type deformer</textarea>
           var surfaceSvgOutput = createSafeCanvas(W, H, solidSvgScale,
             'SVGのFX画像が大きすぎます。書き出し倍率またはOutput frameを調整してください。');
           var surfaceSvgCanvas = surfaceSvgOutput.canvas, surfaceSvgCtx = surfaceSvgOutput.ctx;
+          try {
           clipExportCanvas(surfaceSvgCtx, plan, solidSvgScale);
           if (withSceneRenderClock(scene, function () {
             return renderSurfaceFxLayer(surfaceSvgCtx, glyphs, solidSvgScale, L, fm, false, 1600);
@@ -49497,6 +49555,7 @@ type deformer</textarea>
             parts.push('<image data-effect-layer="surface-fx" x="0" y="0" width="' + W + '" height="' + H
               + '" href="' + escXmlAttr(surfaceSvgCanvas.toDataURL('image/png')) + '"/>');
           }
+          } finally { if(typeof surfaceWorkerOutput==='undefined'||!surfaceWorkerOutput||surfaceWorkerOutput.canvas!==surfaceSvgCanvas)surfaceSvgCanvas.width=surfaceSvgCanvas.height=1; }
         }
         parts.push('<g transform="translate(' + L.dx.toFixed(2) + ' ' + L.dy.toFixed(2) + ') scale(' + L.s.toFixed(5) + ')">');
         for (var bandIndex = 0; bandIndex < scene.bands.length; bandIndex++) {

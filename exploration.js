@@ -110,9 +110,11 @@
     function call(type, payload, progress) {
       return new Promise((resolve, reject) => {
         const id = ++seq;
+        const exporting = type === 'render' && payload?.output && (payload.output.purpose || 'export') === 'export';
+        const timeout = exporting ? (root.TypeDeformerRenderContext?.limits('export').timeoutMs || 30 * 60 * 1000) : 120000;
         const timer = setTimeout(() => {
-          pending.delete(id); reject(new Error('字形の準備が時間内に完了しませんでした。文字数や複製数を減らして再試行してください。'));
-        }, 120000);
+          pending.delete(id); reject(new Error(exporting ? '書き出しが30分を超えたため停止しました。設定値は保持されています。出力範囲や効果を調整して再試行できます。' : '字形の準備が時間内に完了しませんでした。文字数や複製数を減らして再試行してください。'));
+        }, timeout);
         pending.set(id, { resolve, reject, progress, timer });
         frame.contentWindow.postMessage({ channel: 'td-exploration', token, id, type, payload }, '*');
       });
@@ -138,8 +140,9 @@
     return {
       async render(payload, progress) { await start(); return call('render', payload, progress); },
       dispose() {
-        clearTimeout(loadTimer); loadTimer = null; rejectLoad?.(new Error('生成を取り消しました。')); rejectLoad = null;
-        for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error('生成を取り消しました。')); }
+        const cancelled = Object.assign(new Error('生成を取り消しました。'), { code: 'RENDER_CANCELLED' });
+        clearTimeout(loadTimer); loadTimer = null; rejectLoad?.(cancelled); rejectLoad = null;
+        for (const request of pending.values()) { clearTimeout(request.timer); request.reject(cancelled); }
         pending.clear(); frame?.remove(); frame = null; ready = null;
         root.removeEventListener('message', receive);
       }

@@ -65,6 +65,29 @@ Image preflight distinguishes pending asynchronous scene preparation from a
 permanent blocker. When Compose finishes painting, a pending preflight is
 evaluated again so output controls recover without an unrelated settings change.
 
+## Explicit image output
+
+PNG/SVG export allows 30 minutes across the isolated renderer request instead of
+the comparison renderer's two-minute deadline. Its work budget is 2 GiB on
+desktop and 1 GiB on mobile; editing stays at 256/128 MiB and proof at 768 MiB.
+These are application allocation ceilings, not reserved RAM or an OS guarantee.
+
+Export Surface layers travel individually with a `layerAck` handshake. The queue
+paints each incoming bitmap and closes it before acknowledging. The worker never
+retains a full-size bitmap for every active effect. The destination is seeded
+with its actual paper and scene bands, preserving blend operations and opacity.
+Native-only effects are drawn between worker layers in the saved Surface order.
+Progress reports completed render tiles in that order, including intervening
+native effects in the displayed effect count. The export panel shows the current
+effect, percent, elapsed time and cancellation. Preparation/PNG encoding use an
+indeterminate bar rather than invented percentages. On narrow screens the panel
+stays above preview controls so they cannot intercept the cancel button.
+No partially composed image is published: an envelope expansion restarts the
+assembly, and errors/cancellation discard the isolated output. Pending polls do
+not repeatedly allocate full-size PNG destinations; failed destinations and SVG
+raster canvases are explicitly released. Existing output dimensions, source
+settings, solver accuracy and alpha envelope validation remain independent.
+
 ## Regression checks
 
 - `npm run test:shared-rendering`: scheduler, profile sharing/transport, worker

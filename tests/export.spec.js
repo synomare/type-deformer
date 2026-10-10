@@ -1,0 +1,31 @@
+import {test,expect} from '@playwright/test';
+import fs from 'node:fs';
+
+test('nine 4K effects export beyond the old layer cap with real progress and cancellable isolated output',async({page})=>{
+ test.setTimeout(180000);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route(/fonts\.googleapis\.com/,r=>r.fulfill({status:200,contentType:'text/css',body:''}));
+ await page.goto('/');await page.waitForFunction(()=>document.querySelector('#stageWorld')?.children.length>0);
+ const saved=page.waitForEvent('download');await page.locator('#btnSaveProj').evaluate(e=>e.click());
+ const project=JSON.parse(fs.readFileSync(await (await saved).path(),'utf8'));
+ const ids=['misregistration','risoSeparation','slitSweep','copyDecay','plotterTrace','sigilForge','webbing','ribbonEcho','asemicDuctus'];
+ project.text='AB';project.composition.enabled=false;
+ Object.assign(project.params,{fontFamily:'Arial',fontSize:90,seed:41,artboard:'custom',abW:4096,abH:4096,exportScale:1,transparentBg:false,surfaceOrder:ids.join(','),frozenMoment:JSON.stringify({schema:1,phase:0,surfacePhase:0,dataMoshFrame:0,quality:'high',logicalWidth:960,logicalHeight:680})});
+ project.letters=Array.from(project.text,()=>({t:0,l:0,i:0,o:Object.fromEntries(ids.map(id=>[id,{t:1,i:1}]))}));
+ await page.locator('#projFile').setInputFiles({name:'nine-layers.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
+ const event=page.waitForEvent('download',{timeout:150000});await page.locator('#btnPng').evaluate(e=>e.click());
+ await page.waitForFunction(()=>document.querySelector('#snapshotOutputProgress')?.hasAttribute('value'));
+ await expect(page.locator('#snapshotOutputText')).toContainText(/効果を描画中.*%.*経過/);
+ await page.evaluate(()=>{window.__exportProgress=[];new MutationObserver(()=>{const bar=document.querySelector('#snapshotOutputProgress');if(bar.hasAttribute('value'))window.__exportProgress.push(bar.value);}).observe(document.querySelector('#snapshotOutputStatus'),{subtree:true,attributes:true,childList:true,characterData:true});});
+ const bytes=fs.readFileSync(await (await event).path());
+ expect(bytes.readUInt32BE(16)).toBe(4096);expect(bytes.readUInt32BE(20)).toBe(4096);
+ const progress=await page.evaluate(()=>window.__exportProgress);expect(progress.length).toBeGreaterThan(2);expect(Math.max(...progress)).toBeGreaterThan(.8);expect(progress.every((v,i)=>!i||v>=progress[i-1])).toBe(true);
+ await expect(page.locator('#snapshotOutputStatus')).toBeHidden();
+ await page.setViewportSize({width:390,height:844});
+ let downloads=0;page.on('download',()=>downloads++);await page.locator('#btnPng').evaluate(e=>e.click());
+ await page.waitForFunction(()=>document.querySelector('#snapshotOutputProgress').hasAttribute('value')&&document.querySelector('#snapshotOutputProgress').value>.1);
+ await page.locator('#btnCancelSnapshotOutput').click();await expect(page.locator('#snapshotOutputStatus')).toBeHidden();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBe(0);
+ await expect(page.locator('#exportActionStatus')).toContainText('書き出しを取り消しました');
+ expect(page.frames().length).toBe(1);expect(downloads).toBe(0);expect(errors).toEqual([]);
+});

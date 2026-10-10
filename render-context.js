@@ -4,9 +4,12 @@
   var nativeCreate=typeof document!=='undefined'?document.createElement.bind(document):null;
   var MiB=1024*1024;
   var budgets=Object.freeze({workBytes:768*MiB,layerBytes:512*MiB,composeBytes:512*MiB,textureBytes:256*MiB,videoBytes:512*MiB,maxCanvasPixels:64*MiB});
+  var exportBudgets=Object.freeze({workBytes:2048*MiB,layerBytes:1024*MiB,composeBytes:1024*MiB,textureBytes:512*MiB,videoBytes:budgets.videoBytes,maxCanvasPixels:128*MiB,timeoutMs:30*60*1000});
+  var mobileExportBudgets=Object.freeze({workBytes:1024*MiB,layerBytes:384*MiB,composeBytes:512*MiB,textureBytes:256*MiB,videoBytes:budgets.videoBytes,maxCanvasPixels:64*MiB,timeoutMs:exportBudgets.timeoutMs});
   function limits(purpose,mobile){
-    if(purpose==='export'||purpose==='proof')return budgets;
+    if(purpose==='proof')return budgets;
     if(mobile==null)mobile=!!(root.navigator&&(/Android|iPhone|iPad|iPod/.test((root.navigator.userAgent||'')+' '+(root.navigator.platform||''))||/Mac/.test(root.navigator.userAgent||'')&&(root.navigator.maxTouchPoints>1||root.document&&'ontouchend' in root.document)));
+    if(purpose==='export')return mobile?mobileExportBudgets:exportBudgets;
     return {workBytes:(mobile?128:256)*MiB,layerBytes:(mobile?64:128)*MiB,composeBytes:(mobile?96:192)*MiB,textureBytes:64*MiB,videoBytes:budgets.videoBytes,maxCanvasPixels:(mobile?8:16)*MiB};
   }
   function nativeCanvas(w,h){var c=nativeCreate?nativeCreate('canvas'):new OffscreenCanvas(w||1,h||1);c.width=w||1;c.height=h||1;return c;}

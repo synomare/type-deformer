@@ -90,7 +90,7 @@ test('larger work budgets admit a 320 MiB raster and reject oversized allocation
   const c = vm.createContext({ document: { createElement() { const canvas = { width: 1, height: 1, getContext: () => ({ setTransform() {} }) }; allocated.push(canvas); return canvas; } } });
   vm.runInContext(fs.readFileSync(new URL('render-context.js', root), 'utf8'), c);
   const R = c.TypeDeformerRenderContext, context = R.make({ purpose: 'export', factor: 2 });
-  assert.equal(context.memoryBudget, 768 * 1024 * 1024);
+  assert.equal(context.memoryBudget, 2048 * 1024 * 1024);
   assert.equal(R.budgets.layerBytes, 512 * 1024 * 1024);
   assert.equal(R.budgets.composeBytes, 512 * 1024 * 1024);
   R.withContext(context, () => R.withScope(() => {
@@ -118,6 +118,8 @@ test('video preflight uses the raised budget and names an explicit lower overrid
 test('editing uses bounded desktop/mobile budgets while proof/export keep larger explicit capacity',()=>{
  const {R}=fixture();assert.equal(R.make({purpose:'edit',mobile:false}).memoryBudget,256*1024*1024);assert.equal(R.make({purpose:'edit',mobile:true}).memoryBudget,128*1024*1024);assert.equal(R.make({purpose:'proof',mobile:true}).memoryBudget,768*1024*1024);assert.equal(R.limits('edit',true).layerBytes,64*1024*1024);
  const context=R.make({purpose:'edit',mobile:true});assert.throws(()=>R.withContext(context,()=>R.createCanvas(4000,4000)),/予算/);assert.equal(context.bytes,0);
+ assert.equal(R.make({purpose:'export',mobile:false}).memoryBudget,2048*1024*1024);assert.equal(R.make({purpose:'export',mobile:true}).memoryBudget,1024*1024*1024);
+ assert.equal(R.limits('export',false).timeoutMs,1800000);assert.equal(R.limits('export',true).timeoutMs,1800000);
 });
 
 test('iPhone and touch Mac platform reporting both select the mobile edit budget',()=>{
@@ -134,4 +136,39 @@ test('explicit software canvas preference reaches both rasters on the first cont
   const created=observed.slice(start);assert.equal(created.length,factor===1?1:2);
   for(const record of created)assert.equal(record.calls[0].willReadFrequently,true,'context attributes must be supplied before implicit initialization');R.release(canvas);
  });
+});
+
+function workerFixture(){
+ const images={live:0,peak:0,closed:0},messages=[];
+ class Canvas{
+  constructor(w,h){this.width=w;this.height=h;}
+  getContext(){return {save(){},restore(){},setTransform(){},drawImage(){}};}
+  transferToImageBitmap(){images.live++;images.peak=Math.max(images.peak,images.live);let closed=false;return {width:this.width,height:this.height,close(){assert.equal(closed,false);closed=true;images.live--;images.closed++;}};}
+ }
+ const noop=()=>{},c=vm.createContext({OffscreenCanvas:Canvas,performance,importScripts:noop,TypeDeformerAxes:{createRuntime:()=>({})},TypeDeformerSurfaceState:{unpack:noop},TypeDeformerParameters:{assertBudget:noop},TypeDeformerFieldMaterials:{cacheStats:()=>({bytes:0})},TypeDeformerNumerics:{cacheStats:()=>({})},TypeDeformerRenderEnvelope:{scanCanvas:()=>({}),touches:()=>false},surfaceGlyphStrength:()=>0,differentialPrepare:noop,conformalPrepare:noop,auxeticPrepare:noop,marblingPrepare:noop,differentialAssertReady:noop,conformalAssertReady:noop,auxeticAssertReady:noop,marblingAssertReady:noop});
+ c.self=c;c.postMessage=m=>messages.push(m);vm.runInContext(fs.readFileSync(new URL('render-context.js',root),'utf8'),c);vm.runInContext(fs.readFileSync(new URL('surface-worker.js',root),'utf8'),c);
+ c.surfaceScratch=(_name,w,h)=>{const canvas=c.TypeDeformerRenderContext.createCanvas(w,h);return {canvas,ctx:canvas.getContext('2d')};};
+ const ids=Array.from({length:9},(_,i)=>'ink'+i);c.workerRenderers=Object.fromEntries(ids.map(id=>[id,noop]));
+ const frame={kind:'frame',purpose:'export',mobile:false,params:{fontFamily:'Arial'},composition:{phase:0},text:'A',glyphs:[],fm:{},operators:ids,operatorKeys:{},scale:1,layout:{s:1,dx:0,dy:0},width:4096,height:4096,plan:{width:16,height:16,density:1,bounds:{x:0,y:0},layout:{}}};
+ // Keep the original 512 MiB layer cap to isolate streaming from the raised cap.
+ const limits=c.TypeDeformerRenderContext.limits;c.TypeDeformerRenderContext.limits=(purpose,mobile)=>({...limits(purpose,mobile),layerBytes:512*1024*1024});
+ return {c,images,messages,frame};
+}
+
+test('nine 4K layers exceed the former cap together but export individually with one live bitmap and measured progress',async()=>{
+ const legacy=workerFixture();await assert.rejects(legacy.c.renderFrame(legacy.frame),/メモリ予算/);assert.equal(legacy.images.live,0);
+ const {c,images,frame}=workerFixture(),order=[],progress=[];
+ const result=await c.renderFrame({...frame,streamLayers:true},async(id,bitmap)=>{order.push(id);assert.equal(images.live,1);bitmap.close();},v=>progress.push(v));
+ assert.deepEqual(order,frame.operators);assert.equal(result.streamed,true);assert.equal(Object.keys(result.layers).length,0);assert.equal(result.resultBytes,4096*4096*4);assert.equal(images.peak,1);assert.equal(images.live,0);assert.equal(images.closed,9);
+ assert.equal(progress.length,9);assert.equal(progress.at(-1).completed,progress.at(-1).total);assert.ok(progress.every((v,i)=>v.completed===i+1));
+});
+
+test('the worker waits for a matching consumed-layer acknowledgement before allocating the next bitmap',async()=>{
+ const {c,images,messages,frame}=workerFixture();frame.operators=frame.operators.slice(0,2);
+ const run=c.onmessage({data:{id:41,payload:{...frame,streamLayers:true}}});await Promise.resolve();await Promise.resolve();
+ let layers=messages.filter(m=>m.type==='layer');assert.equal(layers.length,1);assert.equal(images.live,1);
+ await c.onmessage({data:{type:'layerAck',id:40,operator:layers[0].result.operator}});await Promise.resolve();assert.equal(messages.filter(m=>m.type==='layer').length,1);
+ layers[0].result.bitmap.close();await c.onmessage({data:{type:'layerAck',id:41,operator:layers[0].result.operator}});await Promise.resolve();
+ layers=messages.filter(m=>m.type==='layer');assert.equal(layers.length,2);assert.equal(images.peak,1);layers[1].result.bitmap.close();await c.onmessage({data:{type:'layerAck',id:41,operator:layers[1].result.operator}});await run;
+ assert.equal(messages.at(-1).type,'result');assert.equal(images.live,0);
 });

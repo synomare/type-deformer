@@ -30,7 +30,7 @@ async function loadFonts(records,frame){
     await Promise.all(tasks);
   }
 }
-async function renderFrame(frame){
+async function renderFrame(frame,emitLayer,emitProgress){
   var jobStarted=performance.now(),budget=TypeDeformerRenderContext.limits(frame.purpose,frame.mobile);
   params=frame.params;compositionState=frame.composition;renderedSourceText=frame.text;surfaceFxPhase=frame.surfacePhase;dataMoshFrame=frame.dataMoshFrame;blobTrackState=frame.blobTrack||{blobs:[]};
   TypeDeformerSurfaceState.unpack(frame.glyphs,frame.surfaces,params);
@@ -39,7 +39,7 @@ async function renderFrame(frame){
   if(frame.kind!=='composition'){
     differentialPrepare(frame.glyphs);conformalPrepare(frame.glyphs);auxeticPrepare(frame.glyphs);marblingPrepare(frame.glyphs);
     var solverStarted=performance.now();while(true){
-      try{differentialAssertReady(frame.glyphs);conformalAssertReady(frame.glyphs);auxeticAssertReady(frame.glyphs);marblingAssertReady(frame.glyphs);break;}catch(error){if(!/_PENDING$/.test(error.code||''))throw error;if(performance.now()-solverStarted>100000)throw new Error('字形の準備が計算時間の予算を超えました。設定値は保持しています。');if(differentialController.state.memoryPaused||differentialController.state.error)throw new Error(differentialController.state.error||'成長履歴のメモリ予算を超えました。');}
+      try{differentialAssertReady(frame.glyphs);conformalAssertReady(frame.glyphs);auxeticAssertReady(frame.glyphs);marblingAssertReady(frame.glyphs);break;}catch(error){if(!/_PENDING$/.test(error.code||''))throw error;if(performance.now()-solverStarted>(frame.purpose==='export'?budget.timeoutMs:100000))throw new Error('字形の準備が計算時間の予算を超えました。設定値は保持しています。');if(differentialController.state.memoryPaused||differentialController.state.error)throw new Error(differentialController.state.error||'成長履歴のメモリ予算を超えました。');}
       differentialController.advance(50);conformalPool.advance();auxeticPool.advance();marblingPool.advance({maxWork:65536,maxMs:30});
     }
   }
@@ -66,12 +66,15 @@ async function renderFrame(frame){
   var viewX=Math.max(0,Math.floor(-projectedX)),viewY=Math.max(0,Math.floor(-projectedY));
   var viewW=Math.max(0,Math.min(Math.ceil(width*factor),Math.ceil(frame.width-projectedX))-viewX),viewH=Math.max(0,Math.min(Math.ceil(height*factor),Math.ceil(frame.height-projectedY))-viewY);
   var tiles=R.tiles(viewW,viewH,1024).map(function(t){t.x+=viewX;t.y+=viewY;return t;}),layers={},timings={},peakBytes=0,resultBytes=0;
+  var streamLayers=frame.purpose==='export'&&frame.streamLayers&&emitLayer,layerBytes=frame.width*frame.height*4;
+  var progressAt=0,operatorIndex=0;
   try{for(var id of frame.operators){
     if(!workerRenderers[id])throw new Error('Worker renderer missing: '+id);
     for(var key of frame.operatorKeys[id]||[])for(var glyph of frame.glyphs){if(surfaceGlyphStrength(glyph,id)>.002&&glyph.surface&&typeof glyph.surface[key]==='number')TypeDeformerParameters.assertBudget(key,glyph.surface[key]);}
     var start=performance.now();
-    resultBytes+=frame.width*frame.height*4;if(resultBytes>budget.layerBytes)throw new Error('重ねた効果が表示用メモリ予算を超えました。低負荷表示に切り替えるか、効果を減らしてください。設定値は保持されています。');
+    resultBytes=streamLayers?layerBytes:resultBytes+layerBytes;if(resultBytes>budget.layerBytes)throw new Error(frame.purpose==='export'?'効果の画像が書き出し用メモリ予算を超えました。出力倍率や出力範囲を調整してください。設定値は保持されています。':'重ねた効果が表示用メモリ予算を超えました。低負荷表示に切り替えるか、効果を減らしてください。設定値は保持されています。');
     var canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d');
+    var tileIndex=0;
     for(var tile of tiles){
       var context=R.make({purpose:frame.purpose,mobile:frame.mobile,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
       R.withContext(context,function(){return R.withScope(function(){
@@ -85,10 +88,20 @@ async function renderFrame(frame){
       });});
       if(envelopeResult){Object.values(layers).forEach(function(bitmap){bitmap.close();});canvas.width=canvas.height=1;return envelopeResult;}
       peakBytes=Math.max(peakBytes,context.peakBytes);
+      tileIndex++;
+      if(streamLayers&&emitProgress&&(performance.now()-progressAt>100||tileIndex===tiles.length)){
+        emitProgress({stage:'effects',operator:id,operatorIndex:operatorIndex,totalOperators:frame.operators.length,completed:operatorIndex*tiles.length+tileIndex,total:frame.operators.length*tiles.length});progressAt=performance.now();
+      }
     }
-    layers[id]=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
+    var bitmap=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
+    if(streamLayers)await emitLayer(id,bitmap);else layers[id]=bitmap;
+    operatorIndex++;
   }
-  return {layers:layers,timings:timings,duration:performance.now()-jobStarted,paintDuration:performance.now()-started,peakBytes:peakBytes,resultBytes:resultBytes,cacheBytes:TypeDeformerFieldMaterials.cacheStats().bytes,numericalCache:TypeDeformerNumerics.cacheStats(),workBudget:budget.workBytes};
+  return {layers:layers,streamed:!!streamLayers,timings:timings,duration:performance.now()-jobStarted,paintDuration:performance.now()-started,peakBytes:peakBytes,resultBytes:resultBytes,cacheBytes:TypeDeformerFieldMaterials.cacheStats().bytes,numericalCache:TypeDeformerNumerics.cacheStats(),workBudget:budget.workBytes};
   }catch(error){if(canvas)canvas.width=canvas.height=1;Object.values(layers).forEach(function(bitmap){bitmap.close();});throw error;}
 }
-self.onmessage=async function(event){var message=event.data;try{var result=await renderFrame(message.payload);self.postMessage({type:'result',id:message.id,result:result},Object.values(result.layers).concat(result.transfers||[]));}catch(error){self.postMessage({type:'error',id:message.id,message:error.message,stack:error.stack});}};
+var layerAck=null;
+self.onmessage=async function(event){var message=event.data;
+  if(message.type==='layerAck'){if(layerAck&&layerAck.id===message.id&&layerAck.operator===message.operator){var resolve=layerAck.resolve;layerAck=null;resolve();}return;}
+  try{var result=await renderFrame(message.payload,function(operator,bitmap){return new Promise(function(resolve,reject){layerAck={id:message.id,operator:operator,resolve:resolve};try{self.postMessage({type:'layer',id:message.id,result:{operator:operator,bitmap:bitmap}},[bitmap]);}catch(error){layerAck=null;bitmap.close();reject(error);}});},function(value){self.postMessage({type:'progress',id:message.id,value:value});});self.postMessage({type:'result',id:message.id,result:result},Object.values(result.layers).concat(result.transfers||[]));}catch(error){self.postMessage({type:'error',id:message.id,message:error.message,stack:error.stack});}
+};
