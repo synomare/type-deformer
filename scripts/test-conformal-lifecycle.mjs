@@ -7,7 +7,7 @@ const elements=new Map(), rafs=new Map();let raf=0, native=0, history=0;
 const params={fontFamily:'Synthetic',fontWeight:400,fontSize:192,conformalAmount:.82,conformalPower:-1,
   conformalSpiral:0,conformalAngle:-35,conformalMotion:.55};
 let fx=1;
-const runtime=vm.createContext({studioRendererMode:false,params,compositionState:{enabled:false,phase:0},
+const runtime=vm.createContext({studioRendererMode:false,snapshotOutputRequest:null,params,compositionState:{enabled:false,phase:0},
   surfaceGlyphStrength:(g,id)=>g.surface?.[id]||0,surfaceOutputOpacity:()=>fx,
   surfaceEffectColor:()=> '#000',drawSurfaceGlyph(){native++;},
   scheduleSurfaceFxDraw(){},scheduleCompositionDraw(){},

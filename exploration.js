@@ -96,34 +96,46 @@
   // params/leases with the artwork. Validate source as well as request identity;
   // file:// uses an opaque origin, so checking origin alone is insufficient.
   function rendererClient(api) {
-    let frame = null, ready = null, seq = 0, pending = new Map(), loadTimer = null, rejectLoad = null;
+    let frame = null, ready = null, seq = 0, pending = new Map(), loadTimer = null, rejectLoad = null, closedError = null;
     const token = Array.from(root.crypto.getRandomValues(new Uint32Array(4))).join('-');
+    const failure = (message, code) => Object.assign(new Error(message), { code });
+    function stop(error) {
+      if (closedError) return;
+      closedError = error;
+      clearTimeout(loadTimer); loadTimer = null; rejectLoad?.(error); rejectLoad = null;
+      for (const request of pending.values()) { clearTimeout(request.timer); request.reject(error); }
+      pending.clear();
+      if (frame) { frame.onload = frame.onerror = null; frame.remove(); frame = null; }
+      root.removeEventListener('message', receive);
+    }
     function receive(event) {
-      if (!frame || event.source !== frame.contentWindow || event.data?.token !== token) return;
+      if (!frame || closedError || event.source !== frame.contentWindow || event.data?.token !== token) return;
       const message = event.data, request = pending.get(message.id);
       if (!request) return;
       if (message.progress) { request.progress?.(message.progress); return; }
       pending.delete(message.id); clearTimeout(request.timer);
-      if (message.error) request.reject(new Error(message.error)); else request.resolve(message.result);
+      if (message.error) request.reject(failure(message.error, message.code || '')); else request.resolve(message.result);
     }
     root.addEventListener('message', receive);
     function call(type, payload, progress) {
       return new Promise((resolve, reject) => {
+        if (closedError) { reject(closedError); return; }
         const id = ++seq;
         const exporting = type === 'render' && payload?.output && (payload.output.purpose || 'export') === 'export';
-        const timeout = exporting ? (root.TypeDeformerRenderContext?.limits('export').timeoutMs || 30 * 60 * 1000) : 120000;
-        const timer = setTimeout(() => {
-          pending.delete(id); reject(new Error(exporting ? '書き出しが30分を超えたため停止しました。設定値は保持されています。出力範囲や効果を調整して再試行できます。' : '字形の準備が時間内に完了しませんでした。文字数や複製数を減らして再試行してください。'));
-        }, timeout);
+        const limit = exporting ? (root.TypeDeformerRenderContext?.limits('export').timeoutMs || 30 * 60 * 1000) : 120000;
+        const timeout = payload?.output?.deadline ? Math.max(1, Math.min(limit, payload.output.deadline - Date.now())) : limit;
+        const timer = setTimeout(() => stop(failure(exporting ? '書き出しが30分を超えたため停止しました。設定値は保持されています。出力範囲や効果を調整して再試行できます。' : '字形の準備が時間内に完了しませんでした。文字数や複製数を減らして再試行してください。', 'RENDER_TIMEOUT')), timeout);
         pending.set(id, { resolve, reject, progress, timer });
-        frame.contentWindow.postMessage({ channel: 'td-exploration', token, id, type, payload }, '*');
+        try { frame.contentWindow.postMessage({ channel: 'td-exploration', token, id, type, payload }, '*'); }
+        catch (error) { stop(failure(error.message || '描画画面へ設定を送信できませんでした。', 'RENDER_TRANSPORT_FAILED')); }
       });
     }
     function start() {
+      if (closedError) return Promise.reject(closedError);
       if (ready) return ready;
       ready = new Promise((resolve, reject) => {
         rejectLoad = reject;
-        loadTimer = setTimeout(() => reject(new Error('比較用の描画画面を読み込めませんでした。接続を確認して再試行してください。')), 30000);
+        loadTimer = setTimeout(() => stop(failure('描画画面を読み込めませんでした。接続を確認して再試行してください。', 'RENDER_START_FAILED')), 120000);
         frame = document.createElement('iframe');
         frame.title = 'Type Deformer isolated renderer'; frame.setAttribute('aria-hidden', 'true'); frame.tabIndex = -1;
         // Non-zero layout is necessary to measure native fonts in Chromium and Safari.
@@ -131,21 +143,20 @@
           height: api.viewport().windowHeight + 'px', opacity: '0', pointerEvents: 'none', zIndex: '-1000', border: '0' });
         const url = new URL(location.href); url.hash = ''; url.search = '?td-renderer=1';
         frame.src = url.href;
-        frame.onload = () => { clearTimeout(loadTimer); loadTimer = null; call('init', { fonts: api.fonts() }).then(resolve, reject); };
-        frame.onerror = () => { clearTimeout(loadTimer); loadTimer = null; reject(new Error('比較用の描画画面を読み込めませんでした。')); };
+        frame.onload = () => {
+          if (closedError) return;
+          clearTimeout(loadTimer); loadTimer = null;
+          try { call('init', { fonts: api.fonts() }).then(result => { rejectLoad = null; resolve(result); }, stop); }
+          catch (error) { stop(error); }
+        };
+        frame.onerror = () => stop(failure('描画画面を読み込めませんでした。', 'RENDER_START_FAILED'));
         document.body.appendChild(frame);
       });
       return ready;
     }
     return {
-      async render(payload, progress) { await start(); return call('render', payload, progress); },
-      dispose() {
-        const cancelled = Object.assign(new Error('生成を取り消しました。'), { code: 'RENDER_CANCELLED' });
-        clearTimeout(loadTimer); loadTimer = null; rejectLoad?.(cancelled); rejectLoad = null;
-        for (const request of pending.values()) { clearTimeout(request.timer); request.reject(cancelled); }
-        pending.clear(); frame?.remove(); frame = null; ready = null;
-        root.removeEventListener('message', receive);
-      }
+      async render(payload, progress) { await start(); if (closedError) throw closedError; return call('render', payload, progress); },
+      dispose() { stop(failure('生成を取り消しました。', 'RENDER_CANCELLED')); }
     };
   }
   function installRenderer(api) {
@@ -164,7 +175,7 @@
           : m.type === 'render' ? await api.render(m.payload, progress => respond({ progress }))
             : (() => { throw new Error('Unknown exploration request'); })();
         respond({ result });
-      } catch (error) { respond({ error: error.message || '候補を描画できませんでした。' }); }
+      } catch (error) { respond({ error: error.message || '候補を描画できませんでした。', code: error.code || '' }); }
       finally { busy = false; }
     });
   }

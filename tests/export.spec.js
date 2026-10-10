@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
+import {loadImage,createCanvas} from '@napi-rs/canvas';
 
 test('nine 4K effects export beyond the old layer cap with real progress and cancellable isolated output',async({page})=>{
  test.setTimeout(180000);
@@ -19,6 +20,9 @@ test('nine 4K effects export beyond the old layer cap with real progress and can
  await page.evaluate(()=>{window.__exportProgress=[];new MutationObserver(()=>{const bar=document.querySelector('#snapshotOutputProgress');if(bar.hasAttribute('value'))window.__exportProgress.push(bar.value);}).observe(document.querySelector('#snapshotOutputStatus'),{subtree:true,attributes:true,childList:true,characterData:true});});
  const bytes=fs.readFileSync(await (await event).path());
  expect(bytes.readUInt32BE(16)).toBe(4096);expect(bytes.readUInt32BE(20)).toBe(4096);
+ const img=await loadImage(bytes),check=createCanvas(512,512),ctx=check.getContext('2d');ctx.drawImage(img,0,0,512,512);
+ const rgba=ctx.getImageData(0,0,512,512).data;let content=0;for(let i=4;i<rgba.length;i+=4)if(rgba[i]!==rgba[0]||rgba[i+1]!==rgba[1]||rgba[i+2]!==rgba[2]||rgba[i+3]!==rgba[3])content++;
+ expect(content).toBeGreaterThan(100);
  const progress=await page.evaluate(()=>window.__exportProgress);expect(progress.length).toBeGreaterThan(2);expect(Math.max(...progress)).toBeGreaterThan(.8);expect(progress.every((v,i)=>!i||v>=progress[i-1])).toBe(true);
  await expect(page.locator('#snapshotOutputStatus')).toBeHidden();
  await page.setViewportSize({width:390,height:844});

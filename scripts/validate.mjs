@@ -1017,7 +1017,7 @@ if (html) {
   }
   if (!html.includes('function hasExportDeformation()')
     || !html.includes('function updateExportActionAvailability()')
-    || !html.includes("var actionIds = ['btnPng', 'btnSvg', 'btnCopy', 'btnPreview', 'btnQuickPreview', 'btnQuickPng', 'btnQuickSvg', 'btnMobilePreview', 'btnHeaderPreview'];")
+    || !html.includes("var actionIds = ['btnPng', 'btnSvg', 'btnCopy', 'btnPreview', 'btnQuickPreview', 'btnQuickPng', 'btnQuickSvg', 'btnMobilePreview', 'btnHeaderPreview', 'btnHighQualityCheck'];")
     || !html.includes("'変形のみ：対象なし'")
     || !html.includes('updateExportActionAvailability();')) {
     noteFailure('Deformed-only export actions still open a blocking alert when the artwork has no deformation.');

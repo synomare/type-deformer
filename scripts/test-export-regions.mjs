@@ -8,7 +8,27 @@ import { extract } from './paragraph-current-fixture.mjs';
 import { setMeasuredPageSource } from './page-layout-fixture.mjs';
 import { installHatchOutput } from './hatch-copper-fixture.mjs';
 const plain = v => JSON.parse(JSON.stringify(v));
+
+test('asynchronous worker and native layers restore the output crop after the initial draw unwinds',()=>{
+ const output=canvas.createCanvas(80,80),bitmap=canvas.createCanvas(80,80),ctx=output.getContext('2d');
+ bitmap.getContext('2d').fillRect(0,0,80,80);output.tdSurfaceClip={x:20,y:25,w:30,h:20};
+ const c=vm.createContext({surfaceWorkerOutput:{key:'frame',canvas:output,ctx,order:['native','worker','native2'],cursor:0,completed:0},studioOutputOptions:null,surfaceOutputOpacity:()=>1,surfaceBlendMode:()=>'source-over',TypeDeformerRenderContext:{assertCanvas(){},make:()=>({}),withContext:(_c,fn)=>fn(),withScope:fn=>fn()},renderSurfaceFxLayer(target){target.fillStyle='red';target.fillRect(0,0,80,80);}});
+ const start=html.indexOf('      function paintSurfaceOutputUntil('),end=html.indexOf('      function acceptSurfaceOutputProgress(',start);vm.runInContext(html.slice(start,end),c);
+ c.acceptSurfaceOutputLayer({operator:'worker',bitmap},'frame');c.paintSurfaceOutputUntil(3);
+ const data=ctx.getImageData(0,0,80,80).data;let filled=0;
+ for(let y=0;y<80;y++)for(let x=0;x<80;x++){const inside=x>=20&&x<50&&y>=25&&y<45;assert.equal(data[(y*80+x)*4+3],inside?255:0);if(inside)filled++;}
+ assert.equal(filled,600);assert.equal(c.surfaceWorkerOutput.cursor,3);
+});
 const passage = 'WAVE & BODY 永書\nSmall forms in a wide field.\n'.repeat(6);
+
+test('an exhausted edit renderer does not disable independent output, while invalid output stays blocked',()=>{
+ const button={},c=vm.createContext({params:{},snapshotOutputRequest:null,exportRegionState:()=>({}),updateExportRegionUI(){},renderExportPreflight(){},document:{getElementById:()=>button,querySelector:()=>null}});
+ vm.runInContext(['updateImageExportPreflight','updateExportActionAvailability'].map(extract).join('\n'),c);
+ for(const code of ['SURFACE_RENDER_PENDING','RENDER_MEMORY_EXCEEDED','CANVAS_CONTEXT_LOST','RENDER_WORKER_FAILED','INVALID_OUTPUT']){
+  c.snapshotRenderableScene=()=>{throw Object.assign(new Error('original reason'),{code});};
+  c.updateImageExportPreflight();c.updateExportActionAvailability();assert.equal(button.disabled,code==='INVALID_OUTPUT');assert.equal(c.latestImagePreflight.blockers[0],'original reason');
+ }
+});
 function setup(settings = {}, source = passage) {
   const env = exportFixture(), c = env.c;
   Object.assign(c.params, { fontSize:20, textMeasure:8, lineHeight:1.25, pageDepth:5, pageKeepLines:1,

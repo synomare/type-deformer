@@ -40,7 +40,7 @@
         if(instance!==worker||disposed)return;
         var finished=active,next=waiting;active=waiting=null;stopWorker();
         if(next)launch(next);
-        else if(finished&&desired===finished)failure={key:finished.key,message:event.message||'描画Workerから結果を受け取れませんでした。再試行してください。'};
+        else if(finished&&desired===finished)failure={key:finished.key,message:event.message||'描画Workerから結果を受け取れませんでした。再試行してください。',code:event.code||'RENDER_WORKER_FAILED'};
         notify();
       }
       instance.onmessage=function(event){
@@ -54,7 +54,7 @@
           try{if(active&&message.id===active.id&&desired===active&&options.onLayer)options.onLayer(message.result,active.key);}
           catch(error){dispose(message.result);failed(error);return;}
           dispose(message.result);
-          instance.postMessage({type:'layerAck',id:message.id,operator:message.result.operator});return;
+          try{instance.postMessage({type:'layerAck',id:message.id,operator:message.result.operator});}catch(error){failed(error);}return;
         }
         if(message.type==='progress'){if(active&&message.id===active.id&&desired===active&&options.onProgress)options.onProgress(message.value,active.key);return;}
         if(message.type!=='result'&&message.type!=='error')return;
@@ -64,7 +64,7 @@
         // obsolete. Keep caller-owned buffers intact; never transfer them.
         if(options.cacheFonts&&message.type==='result')for(var font of finished.sentFonts||[])knownFonts.set(font.family,font.buffer);
         if(desired&&finished.id===desired.id){
-          if(message.type==='error')failure={key:finished.key,message:message.message};
+          if(message.type==='error')failure={key:finished.key,message:message.message,code:message.code||''};
           else{dispose(completed&&completed.result);completed={key:finished.key,result:message.result};failure=null;counters.completed++;}
         }else{dispose(message.result);counters.discarded++;}
         if(waiting){var next=waiting;waiting=null;launch(next);}notify();
@@ -90,7 +90,7 @@
           messageJob=Object.assign({},job,{payload:Object.assign({},job.payload,{fonts:job.sentFonts})});
         }
         instance.postMessage(options.encode?options.encode(messageJob):{id:job.id,key:job.key,payload:messageJob.payload});
-      }catch(error){clearDeadline();active=null;failure={key:job.key,message:error.message};notify();}
+      }catch(error){stopWorker();active=null;failure={key:job.key,message:error.message,code:error.code||'RENDER_WORKER_FAILED'};notify();}
     }
     function request(key,payload){
       if(disposed)throw new Error('Render queue is disposed');
@@ -105,7 +105,7 @@
       if(active){if(waiting)counters.replaced++;waiting=job;counters.maxWaiting=1;armInterrupt();}else launch(job);
       notify();return status(key);
     }
-    function status(key){key=key==null?desired&&desired.key:key;return {key:key,busy:!!active||!!waiting,ready:!!completed&&completed.key===key,result:completed&&completed.key===key?completed.result:null,error:failure&&failure.key===key?failure.message:null,counters:Object.assign({},counters)};}
+    function status(key){key=key==null?desired&&desired.key:key;return {key:key,busy:!!active||!!waiting,ready:!!completed&&completed.key===key,result:completed&&completed.key===key?completed.result:null,error:failure&&failure.key===key?failure.message:null,errorCode:failure&&failure.key===key?failure.code:null,counters:Object.assign({},counters)};}
     function invalidate(){if(explicit(active)||explicit(waiting))return;desired=null;waiting=null;failure=null;if(active)active.invalidated=true;notify();}
     function cancel(){if(!worker&&!active&&!waiting&&!desired&&!completed&&!failure)return;stopWorker();active=waiting=desired=null;failure=null;dispose(completed&&completed.result);completed=null;notify();}
     function cancelEditing(){if([active,waiting,desired].some(function(job){return job&&!editable(job);}))return;cancel();}

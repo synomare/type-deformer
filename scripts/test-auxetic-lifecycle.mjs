@@ -16,7 +16,7 @@ const params = {
   auxeticAxis: 0, auxeticLigament: .75, auxeticMotion: .65
 };
 const runtime = vm.createContext({
-  params, studioRendererMode: false, compositionState: { enabled: false, phase: 0 }, metrics: [],
+  params, studioRendererMode: false, snapshotOutputRequest: null, compositionState: { enabled: false, phase: 0 }, metrics: [],
   surfaceGlyphStrength: (g, id) => g.surface?.[id] || 0,
   surfaceOperatorStrength: (g, id) => g.surface?.[id] || 0,
   surfaceOutputOpacity: () => fx,

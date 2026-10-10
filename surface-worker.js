@@ -34,12 +34,22 @@ async function renderFrame(frame,emitLayer,emitProgress){
   var jobStarted=performance.now(),budget=TypeDeformerRenderContext.limits(frame.purpose,frame.mobile);
   params=frame.params;compositionState=frame.composition;renderedSourceText=frame.text;surfaceFxPhase=frame.surfacePhase;dataMoshFrame=frame.dataMoshFrame;blobTrackState=frame.blobTrack||{blobs:[]};
   TypeDeformerSurfaceState.unpack(frame.glyphs,frame.surfaces,params);
+  if(emitProgress)emitProgress({stage:'fonts',text:'描画用のフォントを準備しています。'});
   await loadFonts(frame.fonts,frame);workerFontMetrics=frame.fm;
   for(var op of frame.operators||[])for(var key of frame.operatorKeys[op]||[])for(var g of frame.glyphs)if(surfaceGlyphStrength(g,op)>.002&&typeof g.surface[key]==='number')TypeDeformerParameters.assertBudget(key,g.surface[key]);
   if(frame.kind!=='composition'){
     differentialPrepare(frame.glyphs);conformalPrepare(frame.glyphs);auxeticPrepare(frame.glyphs);marblingPrepare(frame.glyphs);
-    var solverStarted=performance.now();while(true){
-      try{differentialAssertReady(frame.glyphs);conformalAssertReady(frame.glyphs);auxeticAssertReady(frame.glyphs);marblingAssertReady(frame.glyphs);break;}catch(error){if(!/_PENDING$/.test(error.code||''))throw error;if(performance.now()-solverStarted>(frame.purpose==='export'?budget.timeoutMs:100000))throw new Error('字形の準備が計算時間の予算を超えました。設定値は保持しています。');if(differentialController.state.memoryPaused||differentialController.state.error)throw new Error(differentialController.state.error||'成長履歴のメモリ予算を超えました。');}
+    var solverStarted=performance.now(),prepareProgressAt=0;
+    while(true){
+      try{differentialAssertReady(frame.glyphs);conformalAssertReady(frame.glyphs);auxeticAssertReady(frame.glyphs);marblingAssertReady(frame.glyphs);break;}
+      catch(error){
+        if(!/_PENDING$/.test(error.code||''))throw error;
+        if(performance.now()-solverStarted>(frame.purpose==='export'?budget.timeoutMs:100000))throw Object.assign(new Error('字形の準備が計算時間の予算を超えました。設定値は保持しています。'),{code:'RENDER_TIMEOUT'});
+        var growth=differentialController.state;
+        if(growth.memoryPaused&&frame.purpose==='export'&&growth.historyLimit<budget.workBytes/4)differentialController.allowMoreMemory();
+        else if(growth.memoryPaused||growth.error)throw Object.assign(new Error(growth.error||'成長履歴のメモリ予算を超えました。'),{code:growth.error?'':'RENDER_MEMORY_EXCEEDED'});
+        if(performance.now()-prepareProgressAt>150){if(emitProgress)emitProgress({stage:'prepare',text:error.message});prepareProgressAt=performance.now();await new Promise(function(resolve){setTimeout(resolve,0);});}
+      }
       differentialController.advance(50);conformalPool.advance();auxeticPool.advance();marblingPool.advance({maxWork:65536,maxMs:30});
     }
   }
@@ -55,10 +65,11 @@ async function renderFrame(frame,emitLayer,emitProgress){
     return {kind:'composition',scene:scene,layers:{},transfers:transfers,duration:performance.now()-jobStarted,paintDuration:performance.now()-composeStarted,presentation:{purpose:frame.purpose,density:frame.density,gpu:scene.bands.some(function(b){return b.webgl;}),gpuWidth:compositionWebGLState.canvas?.width||0,gpuHeight:compositionWebGLState.canvas?.height||0,maskWidth:compositionWebGLState.maskCanvas?.width||0}};
   }
   if(frame.kind==='bounds'){
-    var boundsStarted=performance.now();
+    var boundsStarted=performance.now();if(emitProgress)emitProgress({stage:'bounds',text:'効果を含む作品全体の範囲を計算しています。'});
     for(var op of frame.operators)for(var fieldKey of frame.operatorKeys[op]||[])for(var item of frame.glyphs)if(surfaceGlyphStrength(item,op)>.002&&typeof item.surface[fieldKey]==='number')TypeDeformerParameters.assertBudget(fieldKey,item.surface[fieldKey]);
     var pad=Math.max(differentialEffectPad(frame.glyphs),conformalEffectPad(frame.glyphs),auxeticEffectPad(frame.glyphs),marblingEffectPad(frame.glyphs,frame.composition.phase)),grown=contentBounds(frame.glyphs,pad),b=frame.bounds;var merged={x:Math.min(b.x,grown.x),y:Math.min(b.y,grown.y),w:0,h:0};merged.w=Math.max(b.x+b.w,grown.x+grown.w)-merged.x;merged.h=Math.max(b.y+b.h,grown.y+grown.h)-merged.y;
-    var bodyBounds=TypeDeformerFieldMaterials.bodyBounds(frame.glyphs,merged,frame.fm,{params:params,strength:surfaceGlyphStrength,color:surfaceEffectColor,scratch:surfaceScratch,drawGlyph:drawSurfaceGlyph,sourceKey:fieldMaterialSourceKey,traceContours:spectralTraceContours,font:glyphFontSpec,charInfo:charInfo,bounds:contentBounds});
+    var boundsContext=TypeDeformerRenderContext.make({purpose:frame.purpose,mobile:frame.mobile,software:frame.software});
+    var bodyBounds=TypeDeformerRenderContext.withContext(boundsContext,function(){return TypeDeformerRenderContext.withScope(function(){return TypeDeformerFieldMaterials.bodyBounds(frame.glyphs,merged,frame.fm,{params:params,strength:surfaceGlyphStrength,color:surfaceEffectColor,scratch:surfaceScratch,drawGlyph:drawSurfaceGlyph,sourceKey:fieldMaterialSourceKey,traceContours:spectralTraceContours,font:glyphFontSpec,charInfo:charInfo,bounds:contentBounds});});});
     return {kind:'bounds',geometryKey:frame.geometryKey,bounds:bodyBounds,layers:{},duration:performance.now()-jobStarted,paintDuration:performance.now()-boundsStarted};
   }
   var started=performance.now(),R=TypeDeformerRenderContext,plan=frame.plan||surfaceCanonicalRasterPlan(frame.glyphs),L=frame.layout,scale=frame.scale,width=plan.width,height=plan.height,envelopeResult=null;
@@ -66,20 +77,21 @@ async function renderFrame(frame,emitLayer,emitProgress){
   var viewX=Math.max(0,Math.floor(-projectedX)),viewY=Math.max(0,Math.floor(-projectedY));
   var viewW=Math.max(0,Math.min(Math.ceil(width*factor),Math.ceil(frame.width-projectedX))-viewX),viewH=Math.max(0,Math.min(Math.ceil(height*factor),Math.ceil(frame.height-projectedY))-viewY);
   var tiles=R.tiles(viewW,viewH,1024).map(function(t){t.x+=viewX;t.y+=viewY;return t;}),layers={},timings={},peakBytes=0,resultBytes=0;
-  var streamLayers=frame.purpose==='export'&&frame.streamLayers&&emitLayer,layerBytes=frame.width*frame.height*4;
+  var streamLayers=frame.purpose!=='edit'&&frame.streamLayers&&emitLayer,layerBytes=frame.width*frame.height*4;
   var progressAt=0,operatorIndex=0;
   try{for(var id of frame.operators){
     if(!workerRenderers[id])throw new Error('Worker renderer missing: '+id);
     for(var key of frame.operatorKeys[id]||[])for(var glyph of frame.glyphs){if(surfaceGlyphStrength(glyph,id)>.002&&glyph.surface&&typeof glyph.surface[key]==='number')TypeDeformerParameters.assertBudget(key,glyph.surface[key]);}
     var start=performance.now();
     resultBytes=streamLayers?layerBytes:resultBytes+layerBytes;if(resultBytes>budget.layerBytes)throw new Error(frame.purpose==='export'?'効果の画像が書き出し用メモリ予算を超えました。出力倍率や出力範囲を調整してください。設定値は保持されています。':'重ねた効果が表示用メモリ予算を超えました。低負荷表示に切り替えるか、効果を減らしてください。設定値は保持されています。');
-    var canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d');
+    var canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d',frame.software?{willReadFrequently:true}:undefined);R.assertCanvas(canvas);
     var tileIndex=0;
     for(var tile of tiles){
-      var context=R.make({purpose:frame.purpose,mobile:frame.mobile,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
+      var context=R.make({purpose:frame.purpose,mobile:frame.mobile,software:frame.software,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
       R.withContext(context,function(){return R.withScope(function(){
         var layer=surfaceScratch('worker-layer',width,height,true);
         workerRenderers[id](layer.ctx,frame.glyphs,width,height,plan.density,plan.layout,frame.fm,false,false,context);
+        R.assertCanvas(layer.canvas);
         var contact=TypeDeformerRenderEnvelope.scanCanvas(layer.canvas,{gutter:3,threshold:1});
         if(TypeDeformerRenderEnvelope.touches(contact)){envelopeResult={kind:'envelope',contact:contact,requiredScale:TypeDeformerRenderEnvelope.nextScale(plan.envelopeScale||1,contact),layers:{},duration:performance.now()-jobStarted,paintDuration:performance.now()-started};return;}
         target.save();target.setTransform(factor,0,0,factor,projectedX,projectedY);
@@ -93,7 +105,7 @@ async function renderFrame(frame,emitLayer,emitProgress){
         emitProgress({stage:'effects',operator:id,operatorIndex:operatorIndex,totalOperators:frame.operators.length,completed:operatorIndex*tiles.length+tileIndex,total:frame.operators.length*tiles.length});progressAt=performance.now();
       }
     }
-    var bitmap=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
+    R.assertCanvas(canvas);var bitmap=canvas.transferToImageBitmap();canvas.width=canvas.height=1;timings[id]=performance.now()-start;
     if(streamLayers)await emitLayer(id,bitmap);else layers[id]=bitmap;
     operatorIndex++;
   }
@@ -103,5 +115,5 @@ async function renderFrame(frame,emitLayer,emitProgress){
 var layerAck=null;
 self.onmessage=async function(event){var message=event.data;
   if(message.type==='layerAck'){if(layerAck&&layerAck.id===message.id&&layerAck.operator===message.operator){var resolve=layerAck.resolve;layerAck=null;resolve();}return;}
-  try{var result=await renderFrame(message.payload,function(operator,bitmap){return new Promise(function(resolve,reject){layerAck={id:message.id,operator:operator,resolve:resolve};try{self.postMessage({type:'layer',id:message.id,result:{operator:operator,bitmap:bitmap}},[bitmap]);}catch(error){layerAck=null;bitmap.close();reject(error);}});},function(value){self.postMessage({type:'progress',id:message.id,value:value});});self.postMessage({type:'result',id:message.id,result:result},Object.values(result.layers).concat(result.transfers||[]));}catch(error){self.postMessage({type:'error',id:message.id,message:error.message,stack:error.stack});}
+  try{var result=await renderFrame(message.payload,function(operator,bitmap){return new Promise(function(resolve,reject){layerAck={id:message.id,operator:operator,resolve:resolve};try{self.postMessage({type:'layer',id:message.id,result:{operator:operator,bitmap:bitmap}},[bitmap]);}catch(error){layerAck=null;bitmap.close();reject(error);}});},function(value){self.postMessage({type:'progress',id:message.id,value:value});});self.postMessage({type:'result',id:message.id,result:result},Object.values(result.layers).concat(result.transfers||[]));}catch(error){self.postMessage({type:'error',id:message.id,message:error.message,code:error.code||((error instanceof RangeError||/allocation|out of memory/i.test(error.message))?'RENDER_MEMORY_EXCEEDED':''),stack:error.stack});}
 };

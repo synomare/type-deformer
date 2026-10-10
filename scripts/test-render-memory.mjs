@@ -160,7 +160,7 @@ test('nine 4K layers exceed the former cap together but export individually with
  const {c,images,frame}=workerFixture(),order=[],progress=[];
  const result=await c.renderFrame({...frame,streamLayers:true},async(id,bitmap)=>{order.push(id);assert.equal(images.live,1);bitmap.close();},v=>progress.push(v));
  assert.deepEqual(order,frame.operators);assert.equal(result.streamed,true);assert.equal(Object.keys(result.layers).length,0);assert.equal(result.resultBytes,4096*4096*4);assert.equal(images.peak,1);assert.equal(images.live,0);assert.equal(images.closed,9);
- assert.equal(progress.length,9);assert.equal(progress.at(-1).completed,progress.at(-1).total);assert.ok(progress.every((v,i)=>v.completed===i+1));
+ assert.equal(progress[0].stage,'fonts');const drawing=progress.filter(v=>v.stage==='effects');assert.equal(drawing.length,9);assert.equal(drawing.at(-1).completed,drawing.at(-1).total);assert.ok(drawing.every((v,i)=>v.completed===i+1));
 });
 
 test('the worker waits for a matching consumed-layer acknowledgement before allocating the next bitmap',async()=>{
@@ -171,4 +171,26 @@ test('the worker waits for a matching consumed-layer acknowledgement before allo
  layers[0].result.bitmap.close();await c.onmessage({data:{type:'layerAck',id:41,operator:layers[0].result.operator}});await Promise.resolve();
  layers=messages.filter(m=>m.type==='layer');assert.equal(layers.length,2);assert.equal(images.peak,1);layers[1].result.bitmap.close();await c.onmessage({data:{type:'layerAck',id:41,operator:layers[1].result.operator}});await run;
  assert.equal(messages.at(-1).type,'result');assert.equal(images.live,0);
+});
+
+test('proof also streams nine 4K layers with one bitmap in flight',async()=>{
+ const {c,images,frame}=workerFixture();
+ const result=await c.renderFrame({...frame,purpose:'proof',streamLayers:true},async(_id,bitmap)=>bitmap.close());
+ assert.equal(result.streamed,true);assert.equal(images.peak,1);assert.equal(images.live,0);
+});
+
+test('lost or unavailable canvases fail explicitly instead of publishing empty layers',async()=>{
+ const {R}=fixture();for(const context of [null,{isContextLost:()=>true}])assert.throws(()=>R.assertCanvas({getContext:()=>context}),{code:'CANVAS_CONTEXT_LOST'});
+ const {c,images,frame,messages}=workerFixture();
+ const normal=c.OffscreenCanvas.prototype.getContext;
+ c.OffscreenCanvas.prototype.getContext=function(){return {...normal.call(this),isContextLost:()=>true};};
+ await c.onmessage({data:{id:1,payload:frame}});
+ assert.equal(messages.at(-1).type,'error');assert.equal(messages.at(-1).code,'CANVAS_CONTEXT_LOST');assert.equal(images.live,0);
+});
+
+test('allocation failures carry a retryable code and software retry initializes CPU contexts',()=>{
+ const {R}=fixture();assert.throws(()=>R.withContext(R.make({memoryBudget:10}),()=>R.createCanvas(100,100)),{code:'RENDER_MEMORY_EXCEEDED'});
+ const calls=[],c=vm.createContext({document:{createElement(){return {width:1,height:1,getContext(_type,attributes){calls.push(attributes);return {setTransform(){}};}};}}});
+ vm.runInContext(fs.readFileSync(new URL('render-context.js',root),'utf8'),c);
+ const api=c.TypeDeformerRenderContext;api.withContext(api.make({software:true}),()=>api.createCanvas(10,10));assert.equal(calls[0].willReadFrequently,true);
 });

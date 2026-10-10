@@ -72,7 +72,7 @@ the comparison renderer's two-minute deadline. Its work budget is 2 GiB on
 desktop and 1 GiB on mobile; editing stays at 256/128 MiB and proof at 768 MiB.
 These are application allocation ceilings, not reserved RAM or an OS guarantee.
 
-Export Surface layers travel individually with a `layerAck` handshake. The queue
+Export and high-quality proof Surface layers travel individually with a `layerAck` handshake. The queue
 paints each incoming bitmap and closes it before acknowledging. The worker never
 retains a full-size bitmap for every active effect. The destination is seeded
 with its actual paper and scene bands, preserving blend operations and opacity.
@@ -88,6 +88,25 @@ not repeatedly allocate full-size PNG destinations; failed destinations and SVG
 raster canvases are explicitly released. Existing output dimensions, source
 settings, solver accuracy and alpha envelope validation remain independent.
 
+While an isolated output is running, the editor suspends its competing preview
+jobs and accepts only one output request. The final PNG uses the completed
+assembly canvas directly. Each native effect releases its temporary rasters
+before the next effect; streamed layers restore the requested crop clip.
+Font loading, solver preparation and bounds work also report their current stage.
+Bounds requests use the explicit output budget, including the export solver deadline.
+An exhausted edit renderer does not disable the independent output controls.
+
+Lost/unavailable canvas contexts, worker/transport failures and PNG encoding
+failures are reported as typed errors. A recoverable failure gets one fresh
+isolated renderer with CPU canvas preference, using the same captured settings,
+fonts, moment, dimensions, tile size and original deadline. CPU/GPU edge
+antialiasing can differ slightly. A second failure stays visible with Retry and
+Close controls; cancellation never retries. Cancel, timeout and disposal clear
+all frame listeners and timers, including initialization races. Context loss is
+checked before transferring/encoding images and again after asynchronous PNG
+encoding, so a lost drawing surface is not accepted as a successful empty PNG.
+The proof overlay opens after its image decodes; decode failures stay visible.
+
 ## Regression checks
 
 - `npm run test:shared-rendering`: scheduler, profile sharing/transport, worker
@@ -95,7 +114,8 @@ settings, solver accuracy and alpha envelope validation remain independent.
 - `npm run test:parameters`, `npm run test:autosave`, `npm run test:text-edit`:
   numeric gestures, source/Undo ordering, recovery and persistence.
 - `npm run test:e2e`: actual browser gestures, output, fonts, restart safety and
-  clipping regressions.
+  clipping regressions, five-effect proof/PNG content comparison, injected worker
+  and blank-canvas failures, recovery and repeated clicks during output.
 - `npm test`, `npm run test:preview`, `npm run check:release:local`: complete local
   regression and runtime dependency closure.
 

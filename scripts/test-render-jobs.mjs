@@ -11,6 +11,16 @@ function fixture(options={}){
  return {q,workers,tick(){for(const [id,fn] of [...timers]){timers.delete(id);fn();}},timers};
 }
 const edit={purpose:'edit'};
+
+test('typed failures and failed layer acknowledgements terminate cleanly and permit retry',()=>{
+ const {q,workers,timers}=fixture();q.request('output',{purpose:'export'});
+ workers[0].onmessage({data:{id:workers[0].sent[0].id,type:'error',message:'lost',code:'CANVAS_CONTEXT_LOST'}});
+ assert.equal(q.status().errorCode,'CANVAS_CONTEXT_LOST');q.retry();
+ let closed=0;workers[1].postMessage=()=>{throw Error('transport gone');};
+ workers[1].onmessage({data:{id:workers[1].sent[0].id,type:'layer',result:{operator:'ink',bitmap:{close(){closed++;}}}}});
+ assert.equal(closed,1);assert.equal(workers[1].terminated,true);assert.equal(q.status().errorCode,'RENDER_WORKER_FAILED');assert.equal(q.status().busy,false);assert.equal(timers.size,0);
+ q.retry();workers[2].result();assert.equal(q.status().ready,true);q.dispose();
+});
 test('preview invalidation cannot replace active or queued explicit output',()=>{
  for(const purpose of ['proof','export'])for(const queued of [false,true]){
   const {q,workers}=fixture();if(queued)q.request('edit',edit);

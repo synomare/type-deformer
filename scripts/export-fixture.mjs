@@ -9,7 +9,7 @@ if (process.platform === 'win32' && !registeredJapaneseTestFont) throw Error('Na
 export function exportFixture() {
   const downloads = [], statuses = [];
   let allocations = 0;
-  const c = fixture({ Blob, isIOS: false, studioRendererMode: false, textComposing: false, textInput: { value: '' },
+  const c = fixture({ Blob, isIOS: false, studioRendererMode: false, snapshotOutputRequest: null, showSnapshotOutputFailure() {}, textComposing: false, textInput: { value: '' },
     document: { getElementById: () => null, createElement(tag) {
       if (tag !== 'canvas') throw Error('Unexpected element: ' + tag);
       allocations++;

@@ -125,3 +125,19 @@ test('export progress counts native effects in their actual position between str
  assert.equal(c.surfaceOutputProgress().fraction,.25);assert.match(c.surfaceOutputProgress().text,/1 \/ 4/);
  Object.assign(c.surfaceWorkerOutput.progress,{operator:'copy',operatorIndex:1,completed:3});assert.equal(c.surfaceOutputProgress().fraction,.625);assert.match(c.surfaceOutputProgress().text,/3 \/ 4/);
 });
+
+test('isolated renderer cancellation and transport failure cannot resurrect frames or leak deadlines',async()=>{
+ for(const phase of ['loading','init','render','transport','fonts']){
+  const timers=new Map(),events=new Map(),sent=[];let next=0,frame,removed=0;
+  const c=vm.createContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){removed++;},contentWindow:{postMessage(m){if(phase==='transport')throw Error('closed port');sent.push(m);}}};return frame;},body:{appendChild(){}}}});
+  vm.runInContext(fs.readFileSync(new URL('../exploration.js',import.meta.url),'utf8'),c);
+  const client=c.TypeDeformerExplorer.rendererClient({viewport:()=>({windowWidth:960,windowHeight:680}),fonts(){if(phase==='fonts')throw Error('font data unavailable');return [];}});
+  const promise=client.render({output:{purpose:'export'}}),rejected=assert.rejects(promise,phase==='transport'?{code:'RENDER_TRANSPORT_FAILED'}:phase==='fonts'?/font data/:{code:'RENDER_CANCELLED'});
+  const lateLoad=frame.onload;
+  if(phase!=='loading')frame.onload();
+  if(phase==='render'){const m=sent[0];events.get('message')({source:frame.contentWindow,data:{token:m.token,id:m.id,result:{}}});await Promise.resolve();await Promise.resolve();await Promise.resolve();assert.equal(sent.at(-1).type,'render');}
+  client.dispose();client.dispose();lateLoad();await rejected;
+  assert.equal(timers.size,0);assert.equal(events.size,0);assert.equal(removed,1);
+  await assert.rejects(client.render({}),phase==='transport'?{code:'RENDER_TRANSPORT_FAILED'}:phase==='fonts'?/font data/:{code:'RENDER_CANCELLED'});
+ }
+});
