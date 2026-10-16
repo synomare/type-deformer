@@ -47271,6 +47271,12 @@ type deformer</textarea>
           ? params.exportLongEdge / Math.max(layout.w, layout.h) : params.exportScale;
       }
 
+      function imageOutputPurpose(purpose) {
+        // A tight proof renders the full requested PNG, so it needs the same
+        // resource budget. Other proof sheets retain their bounded budget.
+        return purpose === 'proof' && tightImageExport() ? 'export' : (purpose || 'export');
+      }
+
       function imageExportPreflightDimensions(layout) {
         // Before measuring ink the safety envelope is not the final aspect
         // ratio. Check the requested side now; check both sides/area at render.
@@ -47280,7 +47286,7 @@ type deformer</textarea>
         return rasterOutputDimensions(layout.w, layout.h, imageExportScale(layout));
       }
 
-      function measuredInkLayout(canvas, layout, scale) {
+      function measuredInkLayout(canvas, layout, scale, details) {
         // Compare the finished composite against its actual paper. Read every
         // pixel in bounded strips: faint lines must not disappear in a thumbnail.
         var ctx = canvas.getContext('2d'), background = null;
@@ -47299,11 +47305,26 @@ type deformer</textarea>
           }
         }
         if (x1 < x0) return null;
+        if (details) details.edges = {left:x0 <= 1,top:y0 <= 1,right:x1 >= canvas.width - 1,bottom:y1 >= canvas.height - 1};
         // Keep a small world-space gutter, including antialiasing and probe
         // precision. This changes the output camera, never the solver's grid.
         var pad = Math.max(4 / scale, Math.max(x1 - x0, y1 - y0) / scale * (Number.isFinite(params.exportPadding) ? params.exportPadding : 1) / 100);
         return { w: (x1 - x0) / scale + pad * 2, h: (y1 - y0) / scale + pad * 2,
           s: layout.s, dx: layout.dx - x0 / scale + pad, dy: layout.dy - y0 / scale + pad };
+      }
+
+      function refineImageInkLayout(canvas, layout, scale, allowTighten) {
+        var details = {}, fitted = measuredInkLayout(canvas, layout, scale, details);
+        if (!fitted) return null;
+        var edges = details.edges, reach = Math.max(layout.w, layout.h), extra = Math.max(16 / scale, reach * .2);
+        if (edges.left || edges.top || edges.right || edges.bottom) {
+          // Native-resolution strokes can extend beyond the low-density probe.
+          // Expand the camera, never crop or downsample the finished bitmap.
+          var left = edges.left ? extra : 0, top = edges.top ? extra : 0;
+          return {expanded:true,layout:{w:layout.w+left+(edges.right?extra:0),h:layout.h+top+(edges.bottom?extra:0),s:layout.s,dx:layout.dx+left,dy:layout.dy+top}};
+        }
+        if (allowTighten && Math.max(Math.abs(fitted.w-layout.w),Math.abs(fitted.h-layout.h),Math.abs(fitted.dx-layout.dx),Math.abs(fitted.dy-layout.dy)) > Math.max(4 / scale,reach * .02)) return {expanded:false,layout:fitted};
+        return null;
       }
 
       function exportClipRect(plan) {
@@ -47563,6 +47584,7 @@ type deformer</textarea>
         scene = snapshotRenderableScene(); studioAssertReady(scene);
         if (payload.output) {
           var format = payload.output.format;
+          var imagePurpose = imageOutputPurpose(payload.output.purpose);
           if (format !== 'png' && format !== 'svg') throw new Error('未知の出力形式です。');
           var outputStarted = performance.now();
           while (true) {
@@ -47574,7 +47596,7 @@ type deformer</textarea>
                 progress({text:'文字と線の外形を測っています。',fraction:null});
                 var measurePlan = exportScenePlan(snapshotRenderableScene());
                 var measureScale = Math.min(2, params.exportScale, 8192 / Math.max(measurePlan.layout.w, measurePlan.layout.h), Math.sqrt(16000000 / (measurePlan.layout.w * measurePlan.layout.h)));
-                var measureCanvas = renderCanvas(measureScale, false, payload.output.purpose || 'export');
+                var measureCanvas = renderCanvas(measureScale, false, imagePurpose);
                 TypeDeformerRenderContext.assertCanvas(measureCanvas);
                 studioOutputOptions.inkLayout = measuredInkLayout(measureCanvas, measurePlan.layout, measureScale);
                 studioOutputOptions.inkMeasured = true;
@@ -47583,10 +47605,29 @@ type deformer</textarea>
                 // when their rounded dimensions happen to be identical.
                 invalidateSurfaceWorkerFrame();
               }
+              var checkedCanvas = null;
+              if (!payload.output.video && tightImageExport() && studioOutputOptions.inkLayout && !studioOutputOptions.inkValidated) {
+                var nativeLayout = exportScenePlan(snapshotRenderableScene()).layout, nativeScale = imageExportScale(nativeLayout);
+                checkedCanvas = renderCanvas(nativeScale, false, imagePurpose);
+                var refinement = refineImageInkLayout(checkedCanvas, nativeLayout, nativeScale, (studioOutputOptions.inkTightenPasses || 0) < 3);
+                if (refinement) {
+                  studioOutputOptions.inkPasses = (studioOutputOptions.inkPasses || 0) + 1;
+                  if (studioOutputOptions.inkPasses > 8) throw Object.assign(new Error('外形が安定しないため画像の保存を止めました。「文字と効果に余白を合わせる」をOFFにして全体を確認できます。'),{code:'INK_BOUNDS_UNSTABLE'});
+                  if (!refinement.expanded) studioOutputOptions.inkTightenPasses = (studioOutputOptions.inkTightenPasses || 0) + 1;
+                  studioOutputOptions.inkLayout = refinement.layout;
+                  releaseSurfaceWorkerOutput(); checkedCanvas.width = checkedCanvas.height = 1;
+                  invalidateSurfaceWorkerFrame();
+                  progress({text:refinement.expanded?'画像端の線を保護するため範囲を広げて描き直しています。':'完成解像度の外形に余白を合わせています。',fraction:null});
+                  await new Promise(function(resolve){setTimeout(resolve,0);});
+                  continue;
+                }
+                studioOutputOptions.inkValidated = true;
+                if (format === 'svg') { releaseSurfaceWorkerOutput(); checkedCanvas.width = checkedCanvas.height = 1; invalidateSurfaceWorkerFrame(); checkedCanvas = null; }
+              }
               if (format === 'png') {
                 var fullCanvas;
                 if(payload.output.video){var dims=payload.output.video;fullCanvas=createSafeCanvas(dims.width,dims.height,1).canvas;renderVideoFrame(fullCanvas,dims.width,dims.height);fullCanvas.dataset.exportRegionSuffix='-frame';}
-                else fullCanvas = renderCanvas(imageExportScale(exportScenePlan(snapshotRenderableScene()).layout), false,payload.output.purpose||'export');
+                else fullCanvas = checkedCanvas || renderCanvas(imageExportScale(exportScenePlan(snapshotRenderableScene()).layout), false,imagePurpose);
                 progress({text:'描画が完了しました。PNG画像を生成しています。',fraction:null});
                 TypeDeformerRenderContext.assertCanvas(fullCanvas);
                 var fullBlob = await new Promise(function (resolve, reject) { fullCanvas.toBlob(function (blob) { if (blob) resolve(blob); else reject(Object.assign(new Error('PNGを生成できませんでした。'),{code:'PNG_ENCODE_FAILED'})); }, 'image/png'); });
@@ -48259,7 +48300,7 @@ type deformer</textarea>
       }
       async function isolatedSnapshotOutput(format,purpose) {
         if(snapshotOutputRequest)throw Object.assign(new Error('書き出し中です。完了を待つか取り消してください。'),{code:'EXPORT_BUSY'});
-        purpose=purpose||'export';snapshotOutputLastFormat=format;snapshotOutputLastPurpose=purpose;
+        purpose=imageOutputPurpose(purpose);snapshotOutputLastFormat=format;snapshotOutputLastPurpose=purpose;
         var client=null,cancelled=false,failed=false,reference=snapshotOutputReference();
         var job={dispose:function(){cancelled=true;if(client)client.dispose();}};snapshotOutputRequest=job;
         var panel=document.getElementById('snapshotOutputStatus');panel.hidden=false;panel.dataset.state='working';

@@ -300,7 +300,8 @@ test('Sinew Torque renders beyond its old reach estimate and keeps a shared-enve
   const project = JSON.parse(fs.readFileSync(savedPath, 'utf8'));
   project.text = 'synomare';
   Object.assign(project.params, {
-    fontSize: 180, textMeasure: 0, artboard: 'auto', exportRegion: 'work', exportScale: 1, transparentBg: true,
+    // Keep this bounds regression at a fixed output size, independent of defaults.
+    fontSize: 180, textMeasure: 0, artboard: 'auto', exportRegion: 'work', exportScale: 1, exportLongEdge: 2048, transparentBg: true,
     sinewSystem: 'legacy', sinewPull: 640, sinewTorque: 58, sinewTension: 1.34,
     sinewWaist: 0.34, sinewAxis: -18, sinewColor: '#343434', sinewSourceMode: 'hide',
     sinewSourceOpacity: 0, sinewOpacity: 1
@@ -378,7 +379,8 @@ test('font ink outside its CSS line box survives Surface preview, Output Preview
     lensMode: 'single', lensEinstein: 0, lensSeparation: 0, lensRatio: 1,
     lensScale: 1, lensSourceX: 0, lensSourceY: 0, lensAngle: 0, lensShear: 0,
     gravityLensColor: '#343434', gravityLensSourceMode: 'hide', gravityLensSourceOpacity: 0,
-    gravityLensOpacity: 1, artboard: 'auto', exportScale: 1
+    // The synthetic 520px descender tests ink bounds, not maximum-density allocation.
+    gravityLensOpacity: 1, artboard: 'auto', exportScale: 1, exportLongEdge: 2048
   });
   project.letters = [{ t: 0, l: 0, i: 0, o: { gravityLens: { t: 1, i: 1 } } }];
   const fixturePath = savedPath + '.overflowing-ink.json';

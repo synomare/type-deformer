@@ -38,7 +38,7 @@ export function exportFixture() {
     'rasterOutputDimensions', 'createSafeCanvas', 'previewScaleForLayout', 'renderCanvas', 'snapshotRenderableScene',
     'markSceneRenderClock', 'withSceneRenderClock', 'exportBoundsPad', 'nothingToExport',
     'hasExportDeformation', 'operatorAffectsMetric', 'sculptureUsesIsolatedOutput', 'exportPng', 'exportSvg', 'runSvgExport', 'exportReadyMessage',
-    'downloadOutcomeLabel', 'cleanExportName', 'imageExportName', 'imageExportPreflightDimensions', 'pngCrc32', 'escXml', 'escXmlAttr', 'stamp'];
+    'downloadOutcomeLabel', 'cleanExportName', 'imageExportName', 'imageExportPreflightDimensions', 'imageOutputPurpose', 'refineImageInkLayout', 'pngCrc32', 'escXml', 'escXmlAttr', 'stamp'];
   if (html.includes('function inspectExport(')) names.push('inspectExport');
   vm.runInContext(names.map(extract).join('\n'), c);
   vm.runInContext(html.match(/      async function pngWithDpi\([^]*?\n      }/)[0], c);

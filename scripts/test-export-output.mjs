@@ -37,6 +37,17 @@ test('Auto margin is adjustable with a minimum anti-clipping gutter', () => {
   c.params.exportName='作品:/test* .'; assert.match(c.imageExportName('png','-page-2'),/^作品--test-.*-page-2\.png$/);
 });
 
+test('native ink at the output edge expands the camera before tightening', () => {
+  const {c}=exportFixture();Object.assign(c.params,{transparentBg:true,exportPadding:1});
+  const {canvas,ctx}=c.createSafeCanvas(800,400,1),L={w:800,h:400,s:1,dx:50,dy:60};
+  ctx.fillRect(0,100,300,100);
+  const result=c.refineImageInkLayout(canvas,L,1,true);
+  assert.equal(result.expanded,true);assert.equal(result.layout.w,960);assert.equal(result.layout.dx,210);assert.equal(result.layout.h,400);
+  ctx.clearRect(0,0,800,400);ctx.fillRect(100,100,300,100);
+  const tight=c.refineImageInkLayout(canvas,L,1,true);assert.equal(tight.expanded,false);assert.ok(tight.layout.w<400);
+  assert.equal(c.refineImageInkLayout(canvas,L,1,false),null,'bounded refinement can retain a safe extra gutter');
+});
+
 test('ink framing keeps distant faint pixels, respects paper and leaves a gutter', () => {
   for (const transparentBg of [false, true]) {
     const { c } = exportFixture(); Object.assign(c.params, { transparentBg, paper: '#102030' });
@@ -58,6 +69,7 @@ test('long-edge output redraws at native density only for eligible Auto artwork'
   Object.assign(c.params, { artboard: 'auto', exportRegion: 'work', exportTight: true, exportLongEdge: 8192, exportScale: 2 });
   const L = { w: 1024, h: 256 };
   assert.equal(c.imageExportScale(L), 8);
+  assert.equal(c.imageOutputPurpose('proof'),'export','full-resolution tight proof uses the PNG budget');
   c.params.exportLongEdge = 16384;
   assert.equal(c.imageExportPreflightDimensions({w:9000,h:8000}).width,16384,'unknown ink aspect ratio must not block a valid narrow export');
   c.studioOutputOptions={inkMeasured:true};
@@ -69,6 +81,7 @@ test('long-edge output redraws at native density only for eligible Auto artwork'
   }
   c.compositionState.enabled = true; assert.equal(c.imageExportScale(L), 2);
   c.compositionState.enabled = false; c.params.exportLongEdge = 0; assert.equal(c.imageExportScale(L), 2);
+  c.params.exportTight=false;assert.equal(c.imageOutputPurpose('proof'),'proof','other proof paths retain their budget');
 });
 
 test('all nine anchors honor zero for top/left, with and without fitting', () => {

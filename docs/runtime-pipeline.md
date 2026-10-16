@@ -123,6 +123,16 @@ embedded Surface image draw again at the requested destination density; they
 do not upscale the measurement bitmap. The shared analysis grid, clock, text
 positions and effect topology stay unchanged. A new destination is allocated
 between measurement and final drawing, including same-size transitions.
+The full-resolution tight PNG proof uses the export resource budget/deadline too;
+otherwise an 8192px image can fail proof's older 64MP intermediate limit even
+when the PNG export is supported. Other proof-sheet budgets remain unchanged.
+Before encoding, a native-density scan checks the composed image again. Ink at
+an edge expands that side of the output camera by 20% and redraws; a safe frame
+can tighten to its measured ink, with at most three tightening steps and eight
+total corrections. Unstable bounds fail explicitly instead of saving clipped
+ink. SVG's raster effect layers use the same validated camera. This additional
+pass preserves thin/density-dependent extensions absent from the first probe;
+extreme local intermediates still obey the export allocation limits.
 
 Tight output sets `nativeLocalDensity` on its render context. Glyph-local Field
 Material canvases use destination pixels per world unit, the largest singular
