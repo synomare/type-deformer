@@ -87,7 +87,7 @@ async function renderFrame(frame,emitLayer,emitProgress){
     var canvas=new OffscreenCanvas(frame.width,frame.height),target=canvas.getContext('2d',frame.software?{willReadFrequently:true}:undefined);R.assertCanvas(canvas);
     var tileIndex=0;
     for(var tile of tiles){
-      var context=R.make({purpose:frame.purpose,mobile:frame.mobile,software:frame.software,presentation:frame.presentation,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
+      var context=R.make({purpose:frame.purpose,mobile:frame.mobile,software:frame.software,presentation:frame.presentation,nativeLocalDensity:frame.nativeLocalDensity,width:frame.width,height:frame.height,viewScale:scale*L.s,factor:factor,tile:tile,referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*factor)});
       R.withContext(context,function(){return R.withScope(function(){
         var layer=surfaceScratch('worker-layer',width,height,true);
         workerRenderers[id](layer.ctx,frame.glyphs,width,height,plan.density,plan.layout,frame.fm,false,false,context);

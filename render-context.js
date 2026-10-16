@@ -17,11 +17,11 @@
     var c={purpose:purpose,presentation:options.presentation==='low'&&purpose==='edit'?'low':'standard',
       width:Math.max(1,Number(options.width)||1),height:Math.max(1,Number(options.height)||1),
       viewScale:Math.max(.000001,Number(options.viewScale)||1),factor:Math.max(.000001,Number(options.factor)||1),
-      precision:purpose==='edit'?'display':'output',software:options.software==null?!!(current&&current.software):!!options.software,memoryBudget:options.memoryBudget||budget.workBytes,
+      precision:purpose==='edit'?'display':'output',nativeLocalDensity:!!options.nativeLocalDensity,software:options.software==null?!!(current&&current.software):!!options.software,memoryBudget:options.memoryBudget||budget.workBytes,
       maxCanvasPixels:options.maxCanvasPixels||budget.maxCanvasPixels,tile:options.tile||null,
       referenceWidth:options.referenceWidth||0,referenceHeight:options.referenceHeight||0,overscan:options.overscan||0,
       accounted:new WeakMap(),bytes:0,peakBytes:0,created:0};
-    c.key=[purpose,c.presentation,c.software?'cpu':'auto',c.factor,c.tile&&[c.tile.x,c.tile.y,c.tile.width,c.tile.height].join(',')].join('/');return c;
+    c.key=[purpose,c.presentation,c.software?'cpu':'auto',c.factor,c.tile&&[c.tile.x,c.tile.y,c.tile.width,c.tile.height].join(',')].join('/');if(c.nativeLocalDensity)c.key+='/local-native';return c;
   }
   function withContext(context,fn){var before=current;current=context;try{return fn();}finally{current=before;}}
   // Renderers are synchronous. Reclaim a glyph/tile's temporaries even when

@@ -255,6 +255,7 @@
         "abW",
         "abH",
         "marginPct",
+        "exportPadding",
         "proofMutation",
         "proofVariant",
         "videoDuration"
@@ -16673,6 +16674,24 @@
         "absolute": 400
       },
       "reason": "演算の成立条件"
+    },
+    {
+      "control": "pExportPadding",
+      "key": "exportPadding",
+      "slider": {
+        "min": 0,
+        "max": 10,
+        "step": 0.5
+      },
+      "domain": {
+        "min": 0,
+        "max": null,
+        "integer": false
+      },
+      "budget": {
+        "absolute": 160
+      },
+      "reason": "非負の寸法・係数"
     },
     {
       "control": "pProofMutation",

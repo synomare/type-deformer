@@ -34,13 +34,14 @@ export function exportFixture() {
     download: (blob, filename) => { downloads.push({ blob, filename }); return 'download'; }
   });
   const names = ['contentBounds', 'contextualBounds', 'sceneContentBounds', 'exportLayout', 'compositionExportLayout',
-    'exportRegionState', 'prepareExportOutput', 'exportScenePlan', 'exportClipRect', 'clipExportCanvas', 'exportRegionSuffix',
+    'exportRegionState', 'prepareExportOutput', 'exportScenePlan', 'tightImageExport', 'imageExportScale', 'measuredInkLayout', 'exportClipRect', 'clipExportCanvas', 'exportRegionSuffix',
     'rasterOutputDimensions', 'createSafeCanvas', 'previewScaleForLayout', 'renderCanvas', 'snapshotRenderableScene',
     'markSceneRenderClock', 'withSceneRenderClock', 'exportBoundsPad', 'nothingToExport',
     'hasExportDeformation', 'operatorAffectsMetric', 'sculptureUsesIsolatedOutput', 'exportPng', 'exportSvg', 'runSvgExport', 'exportReadyMessage',
-    'downloadOutcomeLabel', 'escXml', 'escXmlAttr', 'stamp'];
+    'downloadOutcomeLabel', 'cleanExportName', 'imageExportName', 'imageExportPreflightDimensions', 'pngCrc32', 'escXml', 'escXmlAttr', 'stamp'];
   if (html.includes('function inspectExport(')) names.push('inspectExport');
   vm.runInContext(names.map(extract).join('\n'), c);
+  vm.runInContext(html.match(/      async function pngWithDpi\([^]*?\n      }/)[0], c);
   Object.assign(c.params, { fontFamily: '"Yu Mincho"', fontWeight: 400, fontSize: 18,
     artboard: 'custom', abW: 1200, abH: 1500, anchor: 'cc', fit: true, marginPct: 6,
     deformedOnly: false, exportScale: 1, transparentBg: false });

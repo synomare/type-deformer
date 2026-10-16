@@ -829,6 +829,7 @@
   p.register("pGridCellSize","gridCellSize",16,240,1,true);
   p.register("pGridGap","gridGap",0,40,1,true);
   p.register("pMargin","marginPct",0,25,1,false);
+  p.register("pExportPadding","exportPadding",0,10,0.5,false);
   p.register("pProofMutation","proofMutation",0,1.5,0.05,false);
   p.register("pProofVariant","proofVariant",1,9,1,true);
   p.register("pVideoDuration","videoDuration",1,30,1,true);

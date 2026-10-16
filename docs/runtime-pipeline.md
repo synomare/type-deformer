@@ -107,6 +107,44 @@ checked before transferring/encoding images and again after asynchronous PNG
 encoding, so a lost drawing surface is not accepted as a successful empty PNG.
 The proof overlay opens after its image decodes; decode failures stay visible.
 
+## Auto artwork framing and resolution
+
+For Auto / whole artwork outside Compose, `exportTight` defaults to true and
+`exportLongEdge` defaults to 8192 (2048/4096 presets, custom 256–16384, or 0 for
+the existing scale). Fixed frames and page/spread crops keep their dimensions.
+An isolated output first renders the captured scene at up to 2x, bounded by an
+8192px side / 16MP measurement canvas. It scans every pixel in strips against
+transparency or the selected paper, then keeps a configurable 0–10% gutter of
+the measured long edge (default 1%, at least four measurement pixels). An empty measurement preserves
+the original frame and the existing blank-output validation.
+
+The measured layout is transient to that output request. PNG, proof and SVG's
+embedded Surface image draw again at the requested destination density; they
+do not upscale the measurement bitmap. The shared analysis grid, clock, text
+positions and effect topology stay unchanged. A new destination is allocated
+between measurement and final drawing, including same-size transitions.
+
+Tight output sets `nativeLocalDensity` on its render context. Glyph-local Field
+Material canvases use destination pixels per world unit, the largest singular
+value of the glyph transform, and their own analysis density. They must not
+inherit the global canonical-grid multiplier: that can allocate a much larger
+intermediate than the final image. Local contexts retain the parent's software
+preference, remaining work budget and canvas limits; cache keys separate these
+densities. This changes raster precision, not the material's analysis pixels.
+The normal allocation limits and explicit failure handling still apply; 8192px
+is a requested size, not a guarantee for every combination of effects or device.
+
+Before the ink pass, preflight checks the requested long side without treating
+the unmeasured safety envelope as the final aspect ratio. Final allocation
+still validates both sides, pixel area and memory. PNG `pHYs` stores equal X/Y
+pixels per metre for 72/150/300/600 dpi (default 300); the metadata rewrite leaves
+IDAT, alpha and colour chunks unchanged. DPI controls print dimensions, not
+raster detail. The chosen filename stem is sanitized and timestamped inside the
+captured output state. After a successful download, the parent retains only the
+latest encoded Blob for exact repeat saving, along with its actual dimensions,
+file size and PNG print size. Project files retain output settings; the last
+Blob exists only in the current tab and does not enter Project/autosave data.
+
 ## Regression checks
 
 - `npm run test:shared-rendering`: scheduler, profile sharing/transport, worker

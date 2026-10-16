@@ -58,7 +58,7 @@ async function setup(page,context,options={}) {
  project.text='AB';project.composition.enabled=false;
  Object.assign(project.params,{fontFamily:'Arial',fontSize:240,seed:41,artboard:'custom',abW:1536,abH:1536,exportScale:1,transparentBg:false,paper:'#e2d9c9',ink:'#304f67',surfaceOrder:ids.join(','),tensorFiligreeOpacity:.63,tensorFiligreeBlend:'multiply',copyOpacity:.72,copyBlend:'screen',risoOpacity:.48,risoBlend:'multiply',frozenMoment:JSON.stringify({schema:1,phase:0,surfacePhase:0,dataMoshFrame:0,quality:'high',logicalWidth:960,logicalHeight:680})});
  project.letters=Array.from(project.text,()=>({t:0,l:0,i:0,o:Object.fromEntries(ids.map(id=>[id,{t:1,i:1}]))}));
- if(options.auto)Object.assign(project.params,{artboard:'auto',exportRegion:'work',deformedOnly:false,transparentBg:true,fontSize:100});
+  if(options.auto)Object.assign(project.params,{artboard:'auto',exportRegion:'work',deformedOnly:false,transparentBg:true,fontSize:100,exportTight:true,exportLongEdge:1024});
  await page.locator('#projFile').setInputFiles({name:'five-effects.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
  return project;
 }
@@ -101,7 +101,8 @@ test('healthy but empty encoded output is retried, and repeated emptiness is not
  await page.waitForFunction(()=>window.__outputReference?.());
  await page.evaluate(()=>{sessionStorage.setItem('outputFault','empty-once');sessionStorage.setItem('outputAttempts','[]');});
  const recovered=await png(page);expect((await pixels(recovered)).changed).toBeGreaterThan(1000);
- expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('outputAttempts')).map(a=>a.software))).toEqual([false,true]);
+ // Tight framing adds a measurement render inside each backend attempt.
+ expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('outputAttempts')).map(a=>a.software).filter((value,index,list)=>!index||value!==list[index-1]))).toEqual([false,true]);
  await page.waitForFunction(()=>window.__outputReference?.());
  let downloads=0;page.on('download',()=>downloads++);
  await page.evaluate(()=>sessionStorage.setItem('outputFault','empty-always'));

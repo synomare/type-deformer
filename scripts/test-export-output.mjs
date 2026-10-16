@@ -2,6 +2,75 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exportFixture } from './export-fixture.mjs';
 
+test('PNG print density replaces pHYs without changing encoded image or alpha', async () => {
+  const { c } = exportFixture();
+  const { canvas, ctx } = c.createSafeCanvas(31, 17, 1);
+  ctx.fillStyle = '#40808088'; ctx.fillRect(5, 3, 9, 7);
+  const original = new Blob([canvas.toBuffer('image/png')], {type:'image/png'});
+  function chunks(bytes) {
+    const list=[];
+    for(let offset=8;offset<bytes.length;) {const size=bytes.readUInt32BE(offset), type=bytes.toString('ascii',offset+4,offset+8);list.push({type,data:bytes.subarray(offset+8,offset+8+size),crc:bytes.readUInt32BE(offset+8+size),checked:bytes.subarray(offset+4,offset+8+size)});offset+=size+12;}
+    return list;
+  }
+  let blob = original;
+  for (const dpi of [72, 150, 300, 600]) {
+    blob = await c.pngWithDpi(blob, dpi);
+    const out=chunks(Buffer.from(await blob.arrayBuffer())), phys=out.filter(c=>c.type==='pHYs');
+    assert.equal(phys.length,1); assert.equal(phys[0].data.readUInt32BE(0),Math.round(dpi/.0254));
+    assert.equal(phys[0].data.readUInt32BE(4),Math.round(dpi/.0254)); assert.equal(phys[0].data[8],1);
+    assert.equal(phys[0].crc,c.pngCrc32(phys[0].checked));
+    assert.ok(out.findIndex(c=>c.type==='pHYs')<out.findIndex(c=>c.type==='IDAT'));
+    const imageBytes=cs=>Buffer.concat(cs.filter(c=>c.type!=='pHYs').map(c=>c.checked));
+    assert.deepEqual(imageBytes(out),imageBytes(chunks(Buffer.from(await original.arrayBuffer()))));
+  }
+  assert.equal(c.pngCrc32(new TextEncoder().encode('123456789')),0xcbf43926,'independent CRC reference');
+  await assert.rejects(()=>c.pngWithDpi(new Blob(['bad']),300),/ヘッダー/);
+});
+
+test('Auto margin is adjustable with a minimum anti-clipping gutter', () => {
+  const { c }=exportFixture(); Object.assign(c.params,{transparentBg:true,exportPadding:0});
+  const {canvas,ctx}=c.createSafeCanvas(600,400,1);ctx.fillRect(100,100,300,100);
+  const layout={s:1,dx:0,dy:0}, small=c.measuredInkLayout(canvas,layout,1);
+  assert.equal(small.w,308); assert.equal(small.h,108);
+  c.params.exportPadding=10;const large=c.measuredInkLayout(canvas,layout,1);
+  assert.equal(large.w,360);assert.equal(large.h,160);assert.equal(large.dx,-70);
+  c.params.exportName='作品:/test* .'; assert.match(c.imageExportName('png','-page-2'),/^作品--test-.*-page-2\.png$/);
+});
+
+test('ink framing keeps distant faint pixels, respects paper and leaves a gutter', () => {
+  for (const transparentBg of [false, true]) {
+    const { c } = exportFixture(); Object.assign(c.params, { transparentBg, paper: '#102030' });
+    const { canvas, ctx } = c.createSafeCanvas(900, 600, 1);
+    if (!transparentBg) { ctx.fillStyle = c.params.paper; ctx.fillRect(0, 0, 900, 600); }
+    assert.equal(c.measuredInkLayout(canvas, { s: 1, dx: 100, dy: 200 }, 1), null);
+    ctx.fillStyle = '#408080'; ctx.fillRect(300, 250, 200, 60);
+    const faint = ctx.createImageData(1, 1); faint.data.set(transparentBg ? [64, 128, 128, 1] : [17, 32, 48, 255]);
+    ctx.putImageData(faint, 750, 420);
+    const L = c.measuredInkLayout(canvas, { s: 1, dx: 100, dy: 200 }, 1);
+    assert.ok(L.w < 500 && L.h < 200, 'discard unrelated safety envelope');
+    assert.ok(L.dx + (300 - 100) > 0 && L.dy + (250 - 200) > 0);
+    assert.ok(L.dx + (751 - 100) < L.w && L.dy + (421 - 200) < L.h, 'faint outlier is inside gutter');
+  }
+});
+
+test('long-edge output redraws at native density only for eligible Auto artwork', () => {
+  const { c } = exportFixture();
+  Object.assign(c.params, { artboard: 'auto', exportRegion: 'work', exportTight: true, exportLongEdge: 8192, exportScale: 2 });
+  const L = { w: 1024, h: 256 };
+  assert.equal(c.imageExportScale(L), 8);
+  c.params.exportLongEdge = 16384;
+  assert.equal(c.imageExportPreflightDimensions({w:9000,h:8000}).width,16384,'unknown ink aspect ratio must not block a valid narrow export');
+  c.studioOutputOptions={inkMeasured:true};
+  assert.throws(()=>c.imageExportPreflightDimensions({w:9000,h:8000}),/上限/,'measured dimensions still enforce pixel budget');
+  c.studioOutputOptions=null;c.params.exportLongEdge=8192;
+  for (const patch of [{ artboard: 'custom' }, { exportRegion: 'page' }, { exportTight: false }]) {
+    const before = { ...c.params }; Object.assign(c.params, patch);
+    assert.equal(c.imageExportScale(L), 2); Object.assign(c.params, before);
+  }
+  c.compositionState.enabled = true; assert.equal(c.imageExportScale(L), 2);
+  c.compositionState.enabled = false; c.params.exportLongEdge = 0; assert.equal(c.imageExportScale(L), 2);
+});
+
 test('all nine anchors honor zero for top/left, with and without fitting', () => {
   const { c } = exportFixture();
   const bounds = { x: -35, y: 28, w: 300, h: 120 };

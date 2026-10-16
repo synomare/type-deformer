@@ -5778,6 +5778,14 @@ type deformer</textarea>
       <details class="help-details"><summary>Output frame help</summary><p class="note">ここで指定するのは書き出しだけです。作業キャンバスの位置・倍率・表示範囲は変わりません。Auto以外では指定サイズへ、Fit ONで余白内に収まるよう出力します。</p></details>
 
       <div class="sub-head"><span>Export</span><span class="r">書出</span></div>
+      <div class="row"><label for="pExportTight">文字と効果に余白を合わせる</label><input type="checkbox" id="pExportTight" checked></div>
+      <div class="row"><label for="pExportLongEdge">Autoの画像サイズ</label>
+        <select id="pExportLongEdge"><option value="0">画像倍率を使う</option><option value="2048">長辺 2048 px</option><option value="4096">長辺 4096 px</option><option value="8192" selected>長辺 8192 px（高精細）</option><option value="custom">長辺を指定…</option></select>
+      </div>
+      <div class="row" id="exportCustomSizeRow" hidden><label for="pExportCustomSize">長辺 px</label><input type="number" id="pExportCustomSize" min="256" max="16384" step="1" value="8192"></div>
+      <div class="row"><label for="pExportPadding">外形からの余白</label><input type="range" id="pExportPadding" min="0" max="10" step="0.5" value="1"><span class="val" id="vExportPadding">1%</span></div>
+      <p class="note">余白は文字・効果の長辺に対する片側の割合。0%でも線の欠けを防ぐ最小余白を残します。大きな画像は作品と端末のメモリ上限により出力できない場合があります。</p>
+      <p class="note">Auto・全作品で文字と線の外形を測り、小さな余白を残します。指定した長辺で描き直すため、画面の拡大は不要です。固定サイズ・本文の切り出し・Composeは従来の範囲と画像倍率を使います。</p>
       <div class="row"><label for="pScale">Image scale / 画像倍率</label>
         <select id="pScale">
           <option value="1">1x</option>
@@ -5789,6 +5797,9 @@ type deformer</textarea>
       </div>
       <div class="row"><label for="pTransparent">Transparent BG</label><input type="checkbox" id="pTransparent"></div>
       <div class="row"><label for="pDeformedOnly">Deformed only <span style="color:var(--dim)">変形のみ</span></label><input type="checkbox" id="pDeformedOnly"></div>
+      <div class="row"><label for="pExportName">ファイル名</label><input type="text" id="pExportName" maxlength="80" placeholder="type-deform" autocomplete="off" style="min-width:0;flex:1"></div>
+      <div class="row"><label for="pExportDpi">PNG 印刷解像度</label><select id="pExportDpi"><option value="72">72 dpi</option><option value="150">150 dpi</option><option value="300" selected>300 dpi</option><option value="600">600 dpi</option></select></div>
+      <p class="note">DPIは印刷時の寸法を指定します。画像の細かさは長辺pxで決まります。ファイル名には日時が付きます。</p>
       <section class="export-preflight" id="imageExportPreflight" data-state="ready" aria-live="polite"></section>
       <div class="btns">
         <button id="btnCheckExport" type="button">出力サイズを確認</button>
@@ -5799,6 +5810,10 @@ type deformer</textarea>
         <button id="btnPreview">Preview 校正</button>
       </div>
       <p class="export-action-status" id="exportActionStatus" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+      <section id="lastImageExport" hidden aria-label="直前の書き出し">
+        <p class="note" id="lastImageExportInfo" role="status" style="overflow-wrap:anywhere"></p>
+        <button id="btnSaveLastImage" type="button">直前の画像をもう一度保存</button>
+      </section>
       <details class="proof-export" id="proofSheetPanel">
         <summary><span>Design space sheet</span><span>比較校正</span></summary>
         <div class="row"><label for="pProofCount">Variants</label>
@@ -9107,6 +9122,11 @@ type deformer</textarea>
         fit: true,
         marginPct: 6,
         exportScale: 2,
+        exportTight: true,
+        exportLongEdge: 8192,
+        exportPadding: 1,
+        exportDpi: 300,
+        exportName: '',
         transparentBg: false,
         deformedOnly: false,
         videoSize: 'canvas',
@@ -10862,6 +10882,11 @@ type deformer</textarea>
 
         params.fontWeight = Number(params.fontWeight) === 700 ? 700 : 400;
         params.exportScale = [1, 2, 4, 8].indexOf(Number(params.exportScale)) !== -1 ? Number(params.exportScale) : PARAM_DEFAULTS.exportScale;
+        params.exportTight = params.exportTight !== false;
+        params.exportLongEdge = Number(params.exportLongEdge) === 0 ? 0 : Math.round(Math.max(256, Math.min(16384, Number(params.exportLongEdge) || 8192)));
+        clampParam('exportPadding', 0, 10);
+        params.exportDpi = [72, 150, 300, 600].includes(Number(params.exportDpi)) ? Number(params.exportDpi) : 300;
+        params.exportName = cleanExportName(params.exportName);
         params.videoFps = [24, 30, 60].indexOf(Number(params.videoFps)) !== -1 ? Number(params.videoFps) : PARAM_DEFAULTS.videoFps;
         params.videoLoops = [1, 2, 4, 8].indexOf(Number(params.videoLoops)) !== -1 ? Number(params.videoLoops) : PARAM_DEFAULTS.videoLoops;
         chooseParam('align', ['left', 'center', 'right']);
@@ -16716,6 +16741,7 @@ type deformer</textarea>
         if(!operators.length){surfaceRenderJobs.cancel();releaseSurfaceWorkerOutput();surfaceWorkerFrameResult=null;surfaceWorkerClockHold=false;return true;}
         var frame=surfaceWorkerSnapshot(glyphs,fm);
         Object.assign(frame,{kind:'frame',scale:scale,layout:L,width:width,height:height,plan:surfaceCanonicalRasterPlan(glyphs),operators:operators,
+          nativeLocalDensity:!!studioOutputOptions?.inkLayout,
           software:!!studioOutputOptions?.software,streamLayers:purpose!=='edit'&&!!targetCtx,backdrop:targetCtx&&targetCtx.canvas.tdSurfaceBackdrop||'effects',
           purpose:purpose,mobile:isIOS||/Android/.test(navigator.userAgent),presentation:purpose==='edit'&&globalThis.TypeDeformerPreview?globalThis.TypeDeformerPreview.mode():'standard'});
         var key=JSON.stringify(frame);frame.fonts=surfaceWorkerFontRecords(frame);
@@ -42896,7 +42922,7 @@ type deformer</textarea>
             targetCtx.drawImage(auxeticDirect.canvas, 0, 0); targetCtx.restore(); painted = true; continue;
           }
           for(var tileIndex=0;tileIndex<rasterTiles.length;tileIndex++) {
-            var context=rendererContext&&rendererContext.make({purpose:purpose,presentation:presentation,width:targetCtx.canvas.width,height:targetCtx.canvas.height,viewScale:outputDensity,factor:rasterFactor,tile:rasterTiles[tileIndex],referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*rasterFactor)});
+            var context=rendererContext&&rendererContext.make({purpose:purpose,presentation:presentation,nativeLocalDensity:!!studioOutputOptions?.inkLayout,width:targetCtx.canvas.width,height:targetCtx.canvas.height,viewScale:outputDensity,factor:rasterFactor,tile:rasterTiles[tileIndex],referenceWidth:width,referenceHeight:height,overscan:Math.ceil(64*rasterFactor)});
             var paintTile=function(){
               var layer=surfaceScratch('surface-mixer-layer',width,height,true);
               renderers[id](layer.ctx,glyphs,width,height,pixelScale,canonicalLayout,fm,false,livePreview,context);
@@ -47232,7 +47258,52 @@ type deformer</textarea>
         if (region.error) throw new Error(region.error);
         var bounds = region.frame || sceneContentBounds(scene, exportBoundsPad());
         var layout = region.frame ? exportLayout(bounds) : compositionExportLayout(scene, exportLayout(bounds));
+        if (typeof studioOutputOptions !== 'undefined' && studioOutputOptions && studioOutputOptions.inkLayout && tightImageExport()) layout = studioOutputOptions.inkLayout;
         return { region: region, bounds: bounds, layout: layout };
+      }
+
+      function tightImageExport() {
+        return params.exportTight !== false && params.artboard === 'auto' && (!params.exportRegion || params.exportRegion === 'work') && !compositionState.enabled;
+      }
+
+      function imageExportScale(layout) {
+        return tightImageExport() && params.exportLongEdge > 0
+          ? params.exportLongEdge / Math.max(layout.w, layout.h) : params.exportScale;
+      }
+
+      function imageExportPreflightDimensions(layout) {
+        // Before measuring ink the safety envelope is not the final aspect
+        // ratio. Check the requested side now; check both sides/area at render.
+        if (tightImageExport() && params.exportLongEdge > 0 && !(typeof studioOutputOptions !== 'undefined' && studioOutputOptions && studioOutputOptions.inkMeasured)) {
+          return rasterOutputDimensions(params.exportLongEdge, 1, 1);
+        }
+        return rasterOutputDimensions(layout.w, layout.h, imageExportScale(layout));
+      }
+
+      function measuredInkLayout(canvas, layout, scale) {
+        // Compare the finished composite against its actual paper. Read every
+        // pixel in bounded strips: faint lines must not disappear in a thumbnail.
+        var ctx = canvas.getContext('2d'), background = null;
+        if (!params.transparentBg) {
+          var swatch = document.createElement('canvas'); swatch.width = swatch.height = 1;
+          var swatchCtx = swatch.getContext('2d'); swatchCtx.fillStyle = params.paper; swatchCtx.fillRect(0, 0, 1, 1);
+          background = swatchCtx.getImageData(0, 0, 1, 1).data;
+        }
+        var x0 = canvas.width, y0 = canvas.height, x1 = -1, y1 = -1;
+        for (var y = 0; y < canvas.height; y += 128) {
+          var rows = Math.min(128, canvas.height - y), data = ctx.getImageData(0, y, canvas.width, rows).data;
+          for (var i = 0; i < data.length; i += 4) {
+            if (!data[i + 3] || background && data[i] === background[0] && data[i + 1] === background[1] && data[i + 2] === background[2] && data[i + 3] === background[3]) continue;
+            var pixel = i / 4, px = pixel % canvas.width, py = y + Math.floor(pixel / canvas.width);
+            x0 = Math.min(x0, px); y0 = Math.min(y0, py); x1 = Math.max(x1, px + 1); y1 = Math.max(y1, py + 1);
+          }
+        }
+        if (x1 < x0) return null;
+        // Keep a small world-space gutter, including antialiasing and probe
+        // precision. This changes the output camera, never the solver's grid.
+        var pad = Math.max(4 / scale, Math.max(x1 - x0, y1 - y0) / scale * (Number.isFinite(params.exportPadding) ? params.exportPadding : 1) / 100);
+        return { w: (x1 - x0) / scale + pad * 2, h: (y1 - y0) / scale + pad * 2,
+          s: layout.s, dx: layout.dx - x0 / scale + pad, dy: layout.dy - y0 / scale + pad };
       }
 
       function exportClipRect(plan) {
@@ -47298,7 +47369,7 @@ type deformer</textarea>
         var glyphs = scene.glyphs;
         var plan = exportScenePlan(scene), L = plan.layout;
         var fm = fontMetrics();
-        var requestedScale = Math.max(0.05, Number(scale) || 1);
+        var requestedScale = Math.max(0.000001, Number(scale) || 1);
         var renderScale = previewMode ? previewScaleForLayout(L.w, L.h, requestedScale) : requestedScale;
         var reuse = studioRendererMode && !previewMode && typeof surfaceWorkerOutput!=='undefined' && surfaceWorkerOutput
           && surfaceRenderJobs.status(surfaceWorkerOutput.key).result?.streamed
@@ -47499,22 +47570,35 @@ type deformer</textarea>
               // Do not allocate a fresh full-size destination on every pending
               // poll while the worker is still producing the same output.
               if(surfaceRenderJobs&&surfaceRenderJobs.status().busy)throw workerPending();
+              if (!payload.output.video && tightImageExport() && !studioOutputOptions.inkMeasured) {
+                progress({text:'文字と線の外形を測っています。',fraction:null});
+                var measurePlan = exportScenePlan(snapshotRenderableScene());
+                var measureScale = Math.min(2, params.exportScale, 8192 / Math.max(measurePlan.layout.w, measurePlan.layout.h), Math.sqrt(16000000 / (measurePlan.layout.w * measurePlan.layout.h)));
+                var measureCanvas = renderCanvas(measureScale, false, payload.output.purpose || 'export');
+                TypeDeformerRenderContext.assertCanvas(measureCanvas);
+                studioOutputOptions.inkLayout = measuredInkLayout(measureCanvas, measurePlan.layout, measureScale);
+                studioOutputOptions.inkMeasured = true;
+                releaseSurfaceWorkerOutput(); measureCanvas.width = measureCanvas.height = 1;
+                // Measurement and final output own different destinations even
+                // when their rounded dimensions happen to be identical.
+                invalidateSurfaceWorkerFrame();
+              }
               if (format === 'png') {
                 var fullCanvas;
                 if(payload.output.video){var dims=payload.output.video;fullCanvas=createSafeCanvas(dims.width,dims.height,1).canvas;renderVideoFrame(fullCanvas,dims.width,dims.height);fullCanvas.dataset.exportRegionSuffix='-frame';}
-                else fullCanvas = renderCanvas(params.exportScale, false,payload.output.purpose||'export');
+                else fullCanvas = renderCanvas(imageExportScale(exportScenePlan(snapshotRenderableScene()).layout), false,payload.output.purpose||'export');
                 progress({text:'描画が完了しました。PNG画像を生成しています。',fraction:null});
                 TypeDeformerRenderContext.assertCanvas(fullCanvas);
                 var fullBlob = await new Promise(function (resolve, reject) { fullCanvas.toBlob(function (blob) { if (blob) resolve(blob); else reject(Object.assign(new Error('PNGを生成できませんでした。'),{code:'PNG_ENCODE_FAILED'})); }, 'image/png'); });
                 TypeDeformerRenderContext.assertCanvas(fullCanvas);
-                var result={ blob: fullBlob, name: 'type-deform-' + stamp() + fullCanvas.dataset.exportRegionSuffix + '.png', width: fullCanvas.width, height: fullCanvas.height };
+                var result={ blob: fullBlob, name: imageExportName('png', fullCanvas.dataset.exportRegionSuffix), width: fullCanvas.width, height: fullCanvas.height };
                 releaseSurfaceWorkerOutput();fullCanvas.width=fullCanvas.height=1;
                 return result;
               }
               var captured = null, originalDownload = download;
               try { download = function (blob, name) { captured = { blob: blob, name: name }; return 'download'; }; exportSvg(); }
               finally { download = originalDownload; }
-              if (!captured) throw new Error('SVGを生成できませんでした。'); return captured;
+              if (!captured) throw new Error('SVGを生成できませんでした。'); var svgLayout = exportScenePlan(scene).layout; captured.width = Math.round(svgLayout.w); captured.height = Math.round(svgLayout.h); return captured;
             } catch (error) {
               if (!/_PENDING$/.test(error.code || '')) throw error;
               if (performance.now() - outputStarted > renderTimeout) throw new Error('高解像度描画が時間内に完了しませんでした。設定値は保持されています。出力範囲や効果を調整してください。');
@@ -47994,12 +48078,13 @@ type deformer</textarea>
         try {
           var scene = snapshotRenderableScene();
           var plan = exportScenePlan(scene);
-          var dimensions = rasterOutputDimensions(plan.layout.w, plan.layout.h, params.exportScale);
+          var dimensions = imageExportPreflightDimensions(plan.layout);
           result = TypeDeformerExportPreflight.evaluate({
             mode: 'image', format: 'PNG / SVG', width: dimensions.width, height: dimensions.height,
             region: plan.region.label, transparent: params.transparentBg,
             hasRasterSurface: surfaceAnyEffectPresent(scene.glyphs)
           });
+          if (tightImageExport()) result.items = result.items.map(function(item) { return item.label === '実寸' ? {label:'画像サイズ',value:params.exportLongEdge > 0 ? '長辺 ' + params.exportLongEdge + ' px · 短辺は文字と線を測って決定' : '余白を詰めて ' + params.exportScale + '×'} : item; });
         } catch (error) {
           result = { status: 'blocked', pending: /_PENDING$/.test(error.code || ''), retryable: ['RENDER_WORKER_FAILED','RENDER_MEMORY_EXCEEDED','CANVAS_CONTEXT_LOST'].includes(error.code), items: [], blockers: [error.message || '出力条件を確認できません。'], warnings: [] };
         }
@@ -48016,6 +48101,59 @@ type deformer</textarea>
           if (state) status.dataset.state = state;
           else status.removeAttribute('data-state');
         }
+      }
+
+      function cleanExportName(value) {
+        return String(value || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').replace(/[. ]+$/g, '').trim().slice(0, 80);
+      }
+
+      function imageExportName(extension, suffix) {
+        return (cleanExportName(params.exportName) || 'type-deform') + '-' + stamp() + (suffix || '') + '.' + extension;
+      }
+
+      function pngCrc32(bytes) {
+        var crc = 0xffffffff;
+        for (var i = 0; i < bytes.length; i++) {
+          crc ^= bytes[i];
+          for (var bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+        }
+        return (crc ^ 0xffffffff) >>> 0;
+      }
+
+      async function pngWithDpi(blob, dpi) {
+        // PNG pHYs: equal X/Y pixels per metre; preserve IDAT and all colour chunks.
+        // https://www.w3.org/TR/png-3/#11pHYs
+        var bytes = new Uint8Array(await blob.arrayBuffer()), view = new DataView(bytes.buffer);
+        if (bytes.length < 33 || view.getUint32(0) !== 0x89504e47 || view.getUint32(4) !== 0x0d0a1a0a) throw new Error('PNGのヘッダーが不正です。');
+        var chunk = new Uint8Array(21), v = new DataView(chunk.buffer), ppm = Math.round(dpi / .0254);
+        v.setUint32(0, 9); chunk.set([112, 72, 89, 115], 4);
+        v.setUint32(8, ppm); v.setUint32(12, ppm); chunk[16] = 1;
+        v.setUint32(17, pngCrc32(chunk.subarray(4, 17)));
+        var parts = [bytes.subarray(0, 8)], inserted = false, ended = false;
+        for (var offset = 8; offset + 12 <= bytes.length;) {
+          var length = view.getUint32(offset), end = offset + length + 12;
+          if (end > bytes.length) throw new Error('PNGのチャンクが不正です。');
+          var type = String.fromCharCode.apply(null, bytes.subarray(offset + 4, offset + 8));
+          if (type === 'IDAT' && !inserted) { parts.push(chunk); inserted = true; }
+          if (type !== 'pHYs') parts.push(bytes.subarray(offset, end));
+          offset = end;
+          if (type === 'IEND') { ended = true; break; }
+        }
+        if (!inserted || !ended) throw new Error('PNGの画像データがありません。');
+        return new Blob(parts, {type:'image/png'});
+      }
+
+      var lastImageExport = null;
+      function rememberImageExport(result, format) {
+        // Retain just one encoded image. The renderer and its canvases are disposed.
+        lastImageExport = result;
+        var panel = document.getElementById('lastImageExport');
+        if (!panel) return;
+        var detail = result.width && result.height ? result.width + ' × ' + result.height + ' px · ' : '';
+        detail += (result.blob.size / 1048576).toFixed(2) + ' MB';
+        if (format === 'png' && result.dpi && result.width && result.height) detail += ' · ' + result.dpi + ' dpi / ' + (result.width / result.dpi * 25.4).toFixed(1) + ' × ' + (result.height / result.dpi * 25.4).toFixed(1) + ' mm';
+        document.getElementById('lastImageExportInfo').textContent = '直前の書き出し: ' + result.name + ' — ' + detail;
+        panel.hidden = false;
       }
 
       function exportReadyMessage(kind, width, height, mode) {
@@ -48062,13 +48200,13 @@ type deformer</textarea>
           if (plan.region.frame) messages.push(plan.region.label + ' · 本文版面の外は切り落とします（全体のFX関係は維持）');
           var rasterFx = surfaceAnyEffectPresent(scene.glyphs);
           try {
-            var png = rasterOutputDimensions(layout.w, layout.h, params.exportScale);
-            messages.push('PNG ' + png.width + '×' + png.height + ' px（サイズ検査OK）');
+            var png = imageExportPreflightDimensions(layout);
+            messages.push(tightImageExport() ? 'PNG: 文字と線の外形を出力時に測定 · ' + (params.exportLongEdge > 0 ? '長辺 ' + params.exportLongEdge + ' px' : params.exportScale + '×') : 'PNG ' + png.width + '×' + png.height + ' px（サイズ検査OK）');
           } catch (error) { blocked = true; messages.push('PNG: ' + error.message); }
           if (rasterFx) {
             try {
-              var svg = rasterOutputDimensions(layout.w, layout.h, params.exportScale);
-              messages.push('SVG: 文字＋FX画像 ' + svg.width + '×' + svg.height + ' px');
+              var svg = imageExportPreflightDimensions(layout);
+              messages.push(tightImageExport() ? 'SVG: 同じ余白と解像度のFX画像を内包（短辺は出力時に決定）' : 'SVG: 文字＋FX画像 ' + svg.width + '×' + svg.height + ' px');
             } catch (error) { blocked = true; messages.push('SVGのFX: ' + error.message); }
           } else messages.push('SVG: 文字はベクター（フォントは別途必要）');
           var clipped = bounds.x * layout.s + layout.dx < -0.5 || bounds.y * layout.s + layout.dy < -0.5
@@ -48157,6 +48295,7 @@ type deformer</textarea>
                 if(cancelled)throw Object.assign(new Error('生成を取り消しました。'),{code:'RENDER_CANCELLED'});
                 if(Date.now()>=deadline)throw Object.assign(new Error('出力画像の確認が時間上限を超えました。'),{code:'RENDER_TIMEOUT'});
               });
+              if (format === 'png') { result.dpi = state.params.exportDpi || 300; result.blob = await pngWithDpi(result.blob, result.dpi); }
               if(cancelled)throw Object.assign(new Error('生成を取り消しました。'),{code:'RENDER_CANCELLED'});
               return result;
             }
@@ -48177,6 +48316,7 @@ type deformer</textarea>
         if(snapshotOutputRequest)return;
         setExportActionStatus('固定した瞬間を高解像度で描画しています…', 'working');
         return isolatedSnapshotOutput(format).then(function (result) {
+          rememberImageExport(result, format);
           var mode = download(result.blob, result.name); setExportActionStatus(exportReadyMessage(format.toUpperCase(), result.width, result.height, mode), 'done');
         }).catch(function (error) { if(error.code==='RENDER_CANCELLED')setExportActionStatus('書き出しを取り消しました。設定値は保持されています。','done');else {setExportActionStatus('書き出しを完了できませんでした · ' + error.message, 'error');showSnapshotOutputFailure('書き出しを完了できませんでした · '+error.message);} });
       }
@@ -48188,7 +48328,7 @@ type deformer</textarea>
           var pngCanvas = renderCanvas(params.exportScale);
           pngCanvas.toBlob(function (blob) {
             if (blob) {
-              var mode = download(blob, 'type-deform-' + stamp() + pngCanvas.dataset.exportRegionSuffix + '.png');
+              var mode = download(blob, imageExportName('png', pngCanvas.dataset.exportRegionSuffix));
               setExportActionStatus(exportReadyMessage('PNG', pngCanvas.width, pngCanvas.height, mode) + ' · ' + pngCanvas.dataset.exportRegionLabel, 'done');
             } else {
               setExportActionStatus('PNG generation failed · 出力倍率を下げて再試行', 'error');
@@ -48971,13 +49111,13 @@ type deformer</textarea>
           // FontFace instances are document-local and do not survive in an SVG
           // image document. Redraw at the requested output density; never let a
           // missing external font silently substitute a different axis shape.
-          var axisCanvas = renderCanvas(params.exportScale, false);
+          var axisCanvas = renderCanvas(imageExportScale(L), false);
           var axisMetadata = { app: 'type-deformer', version: 92, renderer: 'native-variable-font-at-output-resolution',
-            rasterScale: params.exportScale, fontAxes: params.fontAxes, state: currentLookState(),
+            rasterScale: imageExportScale(L), fontAxes: params.fontAxes, state: currentLookState(),
             variableGlyphs: glyphs.filter(function (g) { return g.fontAxes; }).map(function (g) { return { text: g.ch, family: g.fontFamily, axes: g.fontAxes }; }) };
           var axisSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><metadata>'
             + escXml(JSON.stringify(axisMetadata)) + '</metadata><image width="' + W + '" height="' + H + '" href="' + axisCanvas.toDataURL('image/png') + '"/></svg>';
-          var axisMode = download(new Blob([axisSvg], { type: 'image/svg+xml' }), 'type-deform-' + stamp() + exportRegionSuffix(plan.region) + '.svg');
+          var axisMode = download(new Blob([axisSvg], { type: 'image/svg+xml' }), imageExportName('svg', exportRegionSuffix(plan.region)));
           setExportActionStatus(exportReadyMessage('SVG', W, H, axisMode) + ' · 可変字形を出力解像度で描画した画像を内包（文字ベクターではありません）', 'done');
           return;
         }
@@ -49647,7 +49787,7 @@ type deformer</textarea>
         if (clip) parts.push('<defs><clipPath id="td-output-region" clipPathUnits="userSpaceOnUse"><rect x="' + clip.x + '" y="' + clip.y
           + '" width="' + clip.w + '" height="' + clip.h + '"/></clipPath></defs><g clip-path="url(#td-output-region)">');
         if (surfaceAnyEffectPresent(glyphs)) {
-          var solidSvgScale = params.exportScale;
+          var solidSvgScale = imageExportScale(L);
           var surfaceSvgOutput = createSafeCanvas(W, H, solidSvgScale,
             'SVGのFX画像が大きすぎます。書き出し倍率またはOutput frameを調整してください。');
           var surfaceSvgCanvas = surfaceSvgOutput.canvas, surfaceSvgCtx = surfaceSvgOutput.ctx;
@@ -49698,7 +49838,7 @@ type deformer</textarea>
         parts.push('</g></g>' + (clip ? '</g>' : '') + '</svg>');
 
         var blob = new Blob([parts.join('\n')], { type: 'image/svg+xml' });
-        var mode = download(blob, 'type-deform-' + stamp() + exportRegionSuffix(plan.region) + '.svg');
+        var mode = download(blob, imageExportName('svg', exportRegionSuffix(plan.region)));
         setExportActionStatus(exportReadyMessage('SVG', W, H, mode) + ' · ' + plan.region.label, 'done');
       }
 
@@ -53929,9 +54069,16 @@ type deformer</textarea>
 
       function updateExportInfo() {
         if(snapshotOutputRequest&&!studioRendererMode){updateExportActionAvailability();return;}
+        document.getElementById('pExportLongEdge').disabled = !tightImageExport();
+        document.getElementById('pExportCustomSize').disabled = !tightImageExport();
+        document.getElementById('pExportPadding').disabled = !tightImageExport();
+        document.getElementById('exportCustomSizeRow').hidden = document.getElementById('pExportLongEdge').value !== 'custom';
+        document.getElementById('pScale').disabled = tightImageExport() && params.exportLongEdge > 0;
+        var scaleRow = document.getElementById('pScale').closest('.row');
+        if (scaleRow) scaleRow.style.display = tightImageExport() && params.exportLongEdge > 0 ? 'none' : '';
         var el = document.getElementById('vExportSize');
         if (params.artboard === 'auto') {
-          el.textContent = 'auto';
+          el.textContent = tightImageExport() && params.exportLongEdge > 0 ? '長辺 ' + params.exportLongEdge + ' px' : 'auto';
         } else {
           el.textContent = Math.round(params.abW * params.exportScale) + '×' + Math.round(params.abH * params.exportScale);
         }
@@ -53939,7 +54086,7 @@ type deformer</textarea>
         if (quick) {
           var frameLabel = params.artboard === 'auto' ? 'Auto' : Math.round(params.abW) + '×' + Math.round(params.abH);
           var unavailable = params.deformedOnly && !hasExportDeformation();
-          quick.textContent = exportRegionState().label + ' · ' + frameLabel + ' · PNG / SVG画像 ' + params.exportScale + '× · '
+          quick.textContent = exportRegionState().label + ' · ' + frameLabel + ' · ' + (tightImageExport() ? '余白を詰める · ' + (params.exportLongEdge > 0 ? '長辺 ' + params.exportLongEdge + ' px' : params.exportScale + '×') : 'PNG / SVG画像 ' + params.exportScale + '×') + ' · '
             + (params.transparentBg ? '透明背景' : '紙色あり') + ' · '
             + (params.deformedOnly ? (unavailable ? '変形のみ：対象なし' : '変形のみ') : '全体');
         }
@@ -53989,6 +54136,19 @@ type deformer</textarea>
         params.exportScale = parseFloat(e.target.value) || 2;
         updateExportInfo();
       });
+      document.getElementById('pExportTight').addEventListener('change', function (e) { params.exportTight = e.target.checked; updateExportInfo(); });
+      document.getElementById('pExportLongEdge').addEventListener('change', function (e) {
+        params.exportLongEdge = e.target.value === 'custom' ? Math.round(Math.max(256, Math.min(16384, Number(document.getElementById('pExportCustomSize').value) || 8192))) : Number(e.target.value);
+        updateExportInfo(); markAutosaveDirty(); scheduleAutosave();
+      });
+      document.getElementById('pExportCustomSize').addEventListener('change', function (e) {
+        params.exportLongEdge = Math.round(Math.max(256, Math.min(16384, Number(e.target.value) || 8192))); e.target.value = params.exportLongEdge;
+        updateExportInfo(); markAutosaveDirty(); scheduleAutosave();
+      });
+      document.getElementById('pExportPadding').addEventListener('input', function (e) { params.exportPadding = Number(e.target.value); document.getElementById('vExportPadding').textContent = params.exportPadding + '%'; updateExportInfo(); markAutosaveDirty(); scheduleAutosave(); });
+      document.getElementById('pExportDpi').addEventListener('change', function (e) { params.exportDpi = Number(e.target.value); markAutosaveDirty(); scheduleAutosave(); });
+      document.getElementById('pExportName').addEventListener('change', function (e) { params.exportName = cleanExportName(e.target.value); e.target.value = params.exportName; markAutosaveDirty(); scheduleAutosave(); });
+      document.getElementById('btnSaveLastImage').addEventListener('click', function () { if (lastImageExport) { download(lastImageExport.blob, lastImageExport.name); setExportActionStatus('直前に完成した画像を再保存しました。現在の編集内容は再描画していません。', 'done'); } });
 
       var proofCountInput = document.getElementById('pProofCount');
       var proofColumnsInput = document.getElementById('pProofColumns');
@@ -54480,6 +54640,13 @@ type deformer</textarea>
         document.getElementById('pAnchor').value = params.anchor;
         document.getElementById('pFit').checked = params.fit;
         document.getElementById('pScale').value = String(params.exportScale);
+        document.getElementById('pExportTight').checked = params.exportTight !== false;
+        document.getElementById('pExportLongEdge').value = [0, 2048, 4096, 8192].includes(params.exportLongEdge) ? String(params.exportLongEdge) : 'custom';
+        document.getElementById('pExportCustomSize').value = params.exportLongEdge || 8192;
+        document.getElementById('pExportPadding').value = params.exportPadding;
+        document.getElementById('vExportPadding').textContent = params.exportPadding + '%';
+        document.getElementById('pExportDpi').value = String(params.exportDpi);
+        document.getElementById('pExportName').value = params.exportName;
         document.getElementById('pVideoSize').value = params.videoSize;
         document.getElementById('pVideoFps').value = String(params.videoFps);
         document.getElementById('pVideoLoops').value = String(params.videoLoops);

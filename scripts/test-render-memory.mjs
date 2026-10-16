@@ -42,6 +42,30 @@ function draw(count, memoryBudget) {
   return result;
 }
 
+test('tight export allocates glyph rasters at local destination density without changing analysis pixels', () => {
+  const { c, R } = fixture(), api = c.TypeDeformerFieldMaterials;
+  const g = { x: 0, y: 0, w: 18, h: 26, scaleX: 1.5, scaleY: .75, surface: { tensorSpacing: 3 } };
+  const env = {
+    params: { accent: '#b52254', seed: 17 }, color: () => '#176273',
+    scratch(_name, w, h) { const canvas = R.createCanvas(w, h); return { canvas, ctx: canvas.getContext('2d') }; },
+    drawGlyph(ctx, glyph, scale) { ctx.fillStyle = '#fff'; ctx.fillRect(glyph.x * scale, glyph.y * scale, glyph.w * scale, glyph.h * scale); }
+  };
+  function render(nativeLocalDensity) {
+    return R.withContext(R.make({ purpose: 'export', factor: 8, viewScale: 4, nativeLocalDensity }), () => R.withScope(() => {
+      const pair = api.internals.entryFor('tensorFiligree', g, { s: 1, dx: 0, dy: 0 }, {}, env);
+      const logical = R.analysis(pair.entry.canvas), visual = R.physical(pair.entry.canvas);
+      return { width: logical.width, physicalWidth: visual.width, scale: pair.source.scale,
+        pixels: Buffer.from(logical.getContext('2d').getImageData(0, 0, logical.width, logical.height).data) };
+    }));
+  }
+  const old = render(false), fitted = render(true);
+  assert.deepEqual(fitted.pixels, old.pixels, 'the geometry/analysis grid is unchanged');
+  assert.equal(fitted.physicalWidth, Math.ceil(fitted.width * 4 * 1.5 / fitted.scale));
+  assert.ok(fitted.physicalWidth < old.physicalWidth);
+  assert.ok(fitted.physicalWidth > fitted.width, 'still draws new high-resolution detail');
+  api.clearCache();
+});
+
 test('many glyphs fit a bounded working set and keep the same output pixels', t => {
   const generous = draw(64, 768 * 1024 * 1024);
   t.diagnostic(JSON.stringify(generous));

@@ -269,10 +269,23 @@
   function touchesRasterEdge(c,gutter){var w=c.width,h=c.height;if(!w||!h)return false;var data=c.getContext('2d').getImageData(0,0,w,h).data,g=Math.max(1,Math.min(gutter||3,Math.floor(Math.min(w,h)/2)));
     for(var y=0;y<h;y++){if(y<g||y>=h-g){for(var x=0;x<w;x++)if(data[(y*w+x)*4+3]>1)return true;}else for(var x=0;x<g;x++)if(data[(y*w+x)*4+3]>1||data[(y*w+w-1-x)*4+3]>1)return true;}return false;}
   function nextPad(s,result){var diagnostics=result&&result._lensDiagnostics,viewScale=diagnostics&&Number(diagnostics.viewScale);if(Number.isFinite(viewScale)&&viewScale>0&&viewScale<.997)return Math.ceil(s.pad/viewScale*1.06+8);if(touchesRasterEdge(result,3))return Math.ceil(s.pad*1.7+16);return 0;}
+  function localRasterContext(g,geometry,context){
+    if(!context||!context.nativeLocalDensity)return context;
+    // Local sources have their own pixels/world-unit ratio. The global
+    // canonical-grid factor overallocates these canvases (often by > 3x).
+    // Use the largest singular value to retain density under scale and shear.
+    var a=g.scaleX==null?1:g.scaleX,d=g.scaleY==null?1:g.scaleY;
+    var b=Math.tan((g.skewY||0)*Math.PI/180)*a,c=Math.tan((g.skewX||0)*Math.PI/180)*d;
+    var sum=a*a+b*b+c*c+d*d,det=a*d-b*c;
+    var stretch=Math.sqrt(Math.max(0,(sum+Math.sqrt(Math.max(0,sum*sum-4*det*det)))/2));
+    return root.TypeDeformerRenderContext.make({purpose:context.purpose,software:context.software,
+      memoryBudget:Math.max(1,context.memoryBudget-context.bytes),maxCanvasPixels:context.maxCanvasPixels,
+      factor:Math.max(1,context.viewScale*stretch/geometry.scale),viewScale:context.viewScale});
+  }
   function entryFor(id,g,L,fm,env){
     var p=settings(id,g,env),color=env.color(id),accent=env.params.accent||'#b52254',seed=(env.params.seed||17),pad=null,s,entry,key;
     var context=root.TypeDeformerRenderContext&&root.TypeDeformerRenderContext.current(),factor=context?context.factor:1,purpose=context?context.purpose:'analysis';
-    var material=[id,JSON.stringify(p),color,accent,seed,factor,purpose].join('|'),geometry=sourceGeometry(g,id,p),sourceKey=null;
+    var material=[id,JSON.stringify(p),color,accent,seed,factor,purpose,context&&context.nativeLocalDensity?JSON.stringify([context.viewScale,g.scaleX,g.scaleY,g.skewX,g.skewY]):''].join('|'),geometry=sourceGeometry(g,id,p),sourceKey=null;
     // The host supplies the complete drawGlyph identity. Unknown/custom hosts
     // retain the pixel-verified path. Never cache a live scratch source canvas.
     if(env.sourceKey){var targetIdentity=id==='wassersteinLetters'?[wassersteinTarget(g,env),wassersteinLetters.fontRevision()]:null;sourceKey=JSON.stringify([sourceRevision,material,geometry,env.sourceKey(g,fm),targetIdentity]);var quick=sourceEntries.get(sourceKey);
@@ -282,13 +295,15 @@
     // Grow their local world envelope before caching instead of shrinking or
     // clipping the effect into a small, invisible per-glyph rectangle.
     for(var attempt=0;attempt<4;attempt++){
-      s=source(g,L,fm,env,id,p,pad);
+      var localContext=localRasterContext(g,sourceGeometry(g,id,p,pad),context);
+      var inLocal=function(fn){return localContext?root.TypeDeformerRenderContext.withContext(localContext,fn):fn();};
+      s=inLocal(function(){return source(g,L,fm,env,id,p,pad);});
       var localIdentity=env.sourceKey?env.sourceKey(Object.assign({},g,{x:g.x-s.x,y:g.y-s.y}),fm):null;
-      key=JSON.stringify([id,s.w,s.h,s.scale,s.key,localIdentity,sourceRevision,p,color,accent,seed,factor,purpose]);entry=cache.get(key);
+      key=JSON.stringify([id,s.w,s.h,s.scale,s.key,localIdentity,sourceRevision,p,color,accent,seed,localContext?localContext.factor:factor,purpose]);entry=cache.get(key);
       if(entry&&!matchesSource(entry,s.data)){cacheBytes-=entry.bytes;releaseEntry(entry);cache.delete(key);entry=null;}
       if(entry){cacheHits++;cache.delete(key);cache.set(key,entry);break;}
       cacheMisses++;
-      var result=renderers[id](s,p,rgb(color),rgb(accent),seed),expanded=boundedBodyIds.indexOf(id)>=0&&attempt<3?nextPad(s,result):0;
+      var result=inLocal(function(){return renderers[id](s,p,rgb(color),rgb(accent),seed);}),expanded=boundedBodyIds.indexOf(id)>=0&&attempt<3?nextPad(s,result):0;
       if(expanded>s.pad){if(root.TypeDeformerRenderContext&&result!==s.canvas)root.TypeDeformerRenderContext.release(result);pad=Math.min(16384,expanded);continue;}
       var identity=alphaIdentity(s.data),bytes=(root.TypeDeformerRenderContext?root.TypeDeformerRenderContext.byteSize(result):result.width*result.height*4)+identity.byteLength;while(cacheBytes+bytes>MAX_BYTES&&cache.size){var first=cache.keys().next().value;cacheBytes-=cache.get(first).bytes;releaseEntry(cache.get(first));cache.delete(first);}entry={canvas:result,bytes:bytes,alpha:identity};if(bytes<=MAX_BYTES){cache.set(key,entry);cacheBytes+=bytes;retainCanvas(result);}break;
     }
