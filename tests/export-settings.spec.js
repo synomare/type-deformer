@@ -13,6 +13,7 @@ test('custom image size, print metadata, repeat saving and Project settings surv
   await page.goto('/');
   await page.locator('#textInput').fill('PRINT');await page.locator('#textInput').blur();
   await page.locator('#btnHeaderExport').click();
+  await expect(page.locator('#pExportCustomSize')).toBeHidden();
   await page.locator('#pExportLongEdge').selectOption('custom');
   await page.locator('#pExportCustomSize').fill('3000');await page.locator('#pExportCustomSize').blur();
   await page.locator('#pExportPadding').evaluate(el=>{el.value='5';el.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -38,6 +39,7 @@ test('custom image size, print metadata, repeat saving and Project settings surv
   if(await page.locator('#projectMenu').evaluate(el=>el.open))await page.locator('#projectMenu summary').click();
   expect(saved.params).toMatchObject({exportTight:true,exportLongEdge:3000,exportPadding:5,exportDpi:600,exportName:'new-edit'});
   await page.locator('#pExportLongEdge').selectOption('2048');
+  await expect(page.locator('#pExportCustomSize')).toBeHidden();
   await page.locator('#projFile').setInputFiles({name:'saved.json',mimeType:'application/json',buffer:project.bytes});
   await expect(page.locator('#pExportLongEdge')).toHaveValue('custom');
   await expect(page.locator('#pExportCustomSize')).toHaveValue('3000');

@@ -148,7 +148,7 @@ test('scope UI events preserve Apply/camera, distinguish pending numbers and cap
   const ids=['pExportRegion','exportRegionControls','pExportRegionNumber','exportRegionNumberLabel','btnExportRegionPrev','btnExportRegionNext',
     'btnExportRegionSource','exportRegionStatus','vExportSize','exportQuickSummary','exportQuickTitle','btnPng','btnSvg','btnCopy','btnPreview','btnQuickPreview',
     'btnQuickPng','btnQuickSvg','btnMobilePreview','btnHeaderPreview','pExportLongEdge','pExportCustomSize','pExportPadding','exportCustomSizeRow','pScale'];
-  const controls=Object.fromEntries(ids.map(id=>[id,{id,value:'',textContent:'',listeners:{},closest(){return null;},addEventListener(event,fn){this.listeners[event]=fn;}}]));
+  const controls=Object.fromEntries(ids.map(id=>[id,{id,value:'',textContent:'',style:{},listeners:{},closest(){return null;},addEventListener(event,fn){this.listeners[event]=fn;}}]));
   c.document.getElementById=id=>controls[id]||null;c.document.querySelector=()=>null;
   c.pushHistory=()=>{history++;};c.markAutosaveDirty=()=>{dirty++;};c.scheduleParameterUIRefresh=()=>{};
   c.latestImagePreflight=null;c.updateImageExportPreflight=()=>{};

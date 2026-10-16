@@ -5782,7 +5782,7 @@ type deformer</textarea>
       <div class="row"><label for="pExportLongEdge">Autoの画像サイズ</label>
         <select id="pExportLongEdge"><option value="0">画像倍率を使う</option><option value="2048">長辺 2048 px</option><option value="4096">長辺 4096 px</option><option value="8192" selected>長辺 8192 px（高精細）</option><option value="custom">長辺を指定…</option></select>
       </div>
-      <div class="row" id="exportCustomSizeRow" hidden><label for="pExportCustomSize">長辺 px</label><input type="number" id="pExportCustomSize" min="256" max="16384" step="1" value="8192"></div>
+      <div class="row" id="exportCustomSizeRow" hidden style="display:none"><label for="pExportCustomSize">長辺 px</label><input type="number" id="pExportCustomSize" min="256" max="16384" step="1" value="8192"></div>
       <div class="row"><label for="pExportPadding">外形からの余白</label><input type="range" id="pExportPadding" min="0" max="10" step="0.5" value="1"><span class="val" id="vExportPadding">1%</span></div>
       <p class="note">余白は文字・効果の長辺に対する片側の割合。0%でも線の欠けを防ぐ最小余白を残します。大きな画像は作品と端末のメモリ上限により出力できない場合があります。</p>
       <p class="note">Auto・全作品で文字と線の外形を測り、小さな余白を残します。指定した長辺で描き直すため、画面の拡大は不要です。固定サイズ・本文の切り出し・Composeは従来の範囲と画像倍率を使います。</p>
@@ -54073,6 +54073,7 @@ type deformer</textarea>
         document.getElementById('pExportCustomSize').disabled = !tightImageExport();
         document.getElementById('pExportPadding').disabled = !tightImageExport();
         document.getElementById('exportCustomSizeRow').hidden = document.getElementById('pExportLongEdge').value !== 'custom';
+        document.getElementById('exportCustomSizeRow').style.display = document.getElementById('pExportLongEdge').value === 'custom' ? '' : 'none';
         document.getElementById('pScale').disabled = tightImageExport() && params.exportLongEdge > 0;
         var scaleRow = document.getElementById('pScale').closest('.row');
         if (scaleRow) scaleRow.style.display = tightImageExport() && params.exportLongEdge > 0 ? 'none' : '';
