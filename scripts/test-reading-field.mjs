@@ -1,9 +1,10 @@
 // Actual model/snapshot/draw functions; DOM geometry is explicitly mocked.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import vm from 'node:vm';
-import { fixture, metric, html, extract } from './paragraph-current-fixture.mjs';
+import { fixture, metric, authoredSource, extract, markup } from './paragraph-current-fixture.mjs';
 
 const plain = x => JSON.parse(JSON.stringify(x));
 
@@ -101,11 +102,12 @@ test('3k/10k/50k page-scoped Reading keeps all glyphs and shared frames with no 
 test('global, sparse source and broad/character Batch codecs accept page/spread and reject unknown scopes', () => {
   const c=fixture();
   for(const name of ['BATCH_PARAM_OPTIONS','BATCH_PARAM_LIMITS','SOURCE_PARAMETER_KEYS'])
-    vm.runInContext(html.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
-  vm.runInContext(html.match(/      var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0],c);
+    vm.runInContext(authoredSource.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
+  vm.runInContext(authoredSource.match(/      var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0],c);
   vm.runInContext(['chooseParam','sourceParameterKey','normalizeSourceParameters','normalizeBatchProfiles'].map(extract).join('\n'),c);
   c.PARAM_DEFAULTS={readingScope:'paragraph'};c.BATCH_PROFILE_KEYS=['latin','latin_upper'];c.BATCH_TARGETS={byKey:{latin:{},latin_upper:{test:()=>true}}};
-  const statement=extract('normalizeParams').match(/chooseParam\('readingScope'[^;]+;/)[0];
+  const migrations=fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8');
+  const statement=migrations.match(/chooseParam\('readingScope'[^;]+;/)[0];
   for(const scope of ['page','spread']) {
     c.params.readingScope=scope;vm.runInContext(statement,c);assert.equal(c.params.readingScope,scope);
     assert.equal(c.normalizeSourceParameters({readingScope:scope}).readingScope,scope);
@@ -132,12 +134,14 @@ test('new registered box operator, eight controls, parameter schema and four own
   const c = fixture();
   assert.equal(c.OPERATOR_IDS.length, 116); assert.equal(c.OPERATOR_BY_SHORT.rf, 'readingField');
   assert.equal(c.OPERATOR_DEFS.readingField.layer, 'box');
-  assert.match(html, /data-operator-panel="readingField"/);
-  assert.match(html, /readingField: \['--op-reading-x', '--op-reading-y', '--op-reading-sx', '--op-reading-sy'\]/);
-  for (const key of ['Scope', 'Pressure', 'Width', 'Height', 'FocusU', 'FocusV', 'Feather', 'Body']) assert.ok(html.includes("'pReading" + key + "'"));
-  assert.match(extract('normalizeParams'), /clampParam\('readingPressure', -3, 6/);
-  assert.match(extract('projectData'), /version: 92/);
-  assert.ok(html.includes('Number(data.version || 0) < 45'), 'Thorn migration cutoff must not shift with the current schema');
+  assert.match(markup, /data-operator-panel="readingField"/);
+  assert.match(authoredSource, /readingField: \['--op-reading-x', '--op-reading-y', '--op-reading-sx', '--op-reading-sy'\]/);
+  for (const key of ['Scope', 'Pressure', 'Width', 'Height', 'FocusU', 'FocusV', 'Feather', 'Body']) assert.ok(authoredSource.includes("'pReading" + key + "'"));
+  const migrations=fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8');
+  assert.match(migrations, /clampParam\('readingPressure', -3, 6/);
+  assert.ok(extract('normalizeParams').includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
+  assert.match(extract('projectData'), /version: 93/);
+  assert.ok(migrations.includes('Number(data.version || 0) < 45'), 'Thorn migration cutoff must not shift with the current schema');
 });
 
 test('source paragraph frames include full boxes and document scope shares one frame', () => {

@@ -34,9 +34,9 @@ test('custom image size, print metadata, repeat saving and Project settings surv
   await page.locator('#pExportName').fill('new-edit');await page.locator('#pExportName').blur();
   const again=await download(page,'#btnSaveLastImage');
   expect(again.name).toBe(png.name);expect(again.bytes.equals(png.bytes)).toBe(true);
-  await page.locator('#projectMenu summary').click();
+  await page.locator('#projectMenu > summary').click();
   const project=await download(page,'[data-project-proxy="btnSaveProj"]'),saved=JSON.parse(project.bytes);
-  if(await page.locator('#projectMenu').evaluate(el=>el.open))await page.locator('#projectMenu summary').click();
+  if(await page.locator('#projectMenu').evaluate(el=>el.open))await page.locator('#projectMenu > summary').click();
   expect(saved.params).toMatchObject({exportTight:true,exportLongEdge:3000,exportPadding:5,exportDpi:600,exportName:'new-edit'});
   await page.locator('#pExportLongEdge').selectOption('2048');
   await expect(page.locator('#pExportCustomSize')).toBeHidden();

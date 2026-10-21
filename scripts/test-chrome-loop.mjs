@@ -1,13 +1,16 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 // Actual Chrome renderer, deterministic synthetic mask and recorded Canvas calls.
 // No native Canvas/browser dependency. Native compositing is a separate QA gate.
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = await readAuthoredSource();
 function extract(name) {
-  const start = html.indexOf(`      function ${name}(`);
+  const start = authoredSource.indexOf(`      function ${name}(`);
   assert.ok(start >= 0, `Missing ${name}`);
-  const tail = html.slice(start), line = tail.split('\n', 1)[0];
+  const tail = authoredSource.slice(start), line = tail.split('\n', 1)[0];
   const source = line.trimEnd().endsWith('}') ? line : tail.slice(0, tail.indexOf('\n      }') + 8);
   new vm.Script(source); return source;
 }
@@ -19,7 +22,7 @@ for (let y = 16; y < 78; y++) for (let x = 20; x < 59; x++) {
 }
 const defaults = { seed: 41 };
 for (const key of ['Voltage', 'Bevel', 'Angle', 'Bands', 'Contrast', 'Warp'])
-  defaults['chrome' + key] = Number(html.match(new RegExp(`chrome${key}: (-?[0-9.]+)`))[1]);
+  defaults['chrome' + key] = Number(authoredSource.match(new RegExp(`chrome${key}: (-?[0-9.]+)`))[1]);
 let layers, pixels, legacyPixels, strength = 1, currentMask = mask;
 function fakeContext(name) {
   const calls = []; layers[name] = calls;
@@ -46,7 +49,7 @@ const sandbox = { Math, Uint8Array, Float32Array, params: defaults, compositionS
   compositeSurfaceSource: () => {}, surfaceEffectColor: () => '#123456', surfaceHexRgb: () => [18, 52, 86],
   surfaceScratch: name => { const ctx = fakeContext(name); return { ctx, canvas: ctx.canvas }; }
 };
-const context = vm.createContext(sandbox);
+const context = createAuthoredTestContext(sandbox);
 function compile(code) { new vm.Script(code + '\nthis.render = renderChromeReliquary; this.motion = chromeReflectionMotion;').runInContext(context); }
 compile(source);
 function render(phase, overrides = {}, enabled = true) {

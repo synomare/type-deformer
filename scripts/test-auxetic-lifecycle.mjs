@@ -1,9 +1,13 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const block = html.match(/^      \/\/ BEGIN AUXETIC TYPE GENERATED\n[\s\S]*?^      \/\/ END AUXETIC TYPE GENERATED/m)?.[0];
+const authoredSource = readAuthoredSource().replace(/\r\n/g, '\n');
+const block = readNativeIntegrationSource('auxetic');
 assert.ok(block, 'embedded Auxetic runtime');
 
 const elements = new Map();
@@ -15,7 +19,7 @@ const params = {
   auxeticOpening: 28, auxeticModule: 24, auxeticAspect: 1,
   auxeticAxis: 0, auxeticLigament: .75, auxeticMotion: .65
 };
-const runtime = vm.createContext({
+const runtime = createAuthoredTestContext({
   params, studioRendererMode: false, snapshotOutputRequest: null, compositionState: { enabled: false, phase: 0 }, metrics: [],
   surfaceGlyphStrength: (g, id) => g.surface?.[id] || 0,
   surfaceOperatorStrength: (g, id) => g.surface?.[id] || 0,
@@ -95,13 +99,13 @@ const pad2 = runtime.auxeticEffectPad([{ ...a, scaleX: 2, skewX: 25 }]);
 assert.ok(Number.isFinite(pad1) && pad1 >= 0, 'prepared Auxetic bounds are finite');
 assert.ok(pad2 >= pad1, 'larger transformed glyph does not under-report its canvas pad');
 
-const extract = name => html.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'))?.[0];
+const extract = name => authoredSource.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'))?.[0];
 Object.assign(runtime, {
   surfaceFxCtx: { setTransform() {}, clearRect() {} }, differentialPrepare() {}, conformalPrepare() {}, counterformResetInactive() {}, marblingPrepare() {},
   blobTrackState: { blobs: [] }, window: { matchMedia: () => ({ matches: false }) },
   surfaceFxLastPaint: 0, surfaceFxCanvas: { hidden: false, width: 10, height: 10 }
 });
-new vm.Script(extract('renderSurfaceFxPreview')).runInContext(runtime);
+new vm.Script(extract('hasVisibleSurfaceOperator') + '\n' + extract('renderSurfaceFxPreview')).runInContext(runtime);
 runtime.metrics = [];
 runtime.renderSurfaceFxPreview(0);
 assert.equal(runtime.auxeticPool.state().total, 0, 'empty-text preview releases Auxetic work');

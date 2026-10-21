@@ -1,10 +1,16 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import '../operator-registry.js';
 import '../structural-operators.js';
 
 const structural = globalThis.TypeDeformerStructuralOperators;
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
 const catalog = fs.readFileSync(new URL('../operator-catalog.js', import.meta.url), 'utf8');
 
 test('the v67 structural suite exposes nine independent deterministic operators', () => {
@@ -118,38 +124,39 @@ test('Suspended Syntax pad covers its widest legal supports and members', () => 
 });
 
 test('every v67 structural operator remains wired through v68 persistence', () => {
+  assert.ok(authoredSource.includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
   const defaults = Object.fromEntries(Object.entries(structural.schemas).flatMap(([id, schema]) =>
     Object.keys(schema.defaults).map(key => [key, id])));
   for (const id of structural.ids) {
-    assert.ok(html.includes(`<option value="${id}">`), `${id} option`);
-    assert.ok(html.includes(`data-operator-panel="${id}"`), `${id} panel`);
-    assert.match(html, new RegExp(`${id}: \\{ id: '${id}', short:`), `${id} definition`);
-    assert.ok(html.includes(`${id}: surfaceOperatorStrength(m, '${id}')`), `${id} glyph strength`);
-    assert.ok(html.includes(`${id}: structuralSurfaceRenderer('${id}')`), `${id} renderer`);
+    assert.ok(markup.includes(`<option value="${id}">`), `${id} option`);
+    assert.ok(markup.includes(`data-operator-panel="${id}"`), `${id} panel`);
+    assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id]?.id,id,`${id} definition`);
+    assert.ok(authoredSource.includes(`${id}: renderEngine.surfaceOperatorStrength(m, '${id}')`), `${id} glyph strength`);
+    assert.ok(renderRoutes[id] === `structuralSurfaceRenderer('${id}')`, `${id} renderer`);
     if (id === 'suspendedSyntax') {
-      assert.ok(html.includes("surfaceOperatorStrength(metrics[i], 'suspendedSyntax') > 0.002 ? structuralPad('suspendedSyntax', profile) : 0"), `${id} full structural bounds while active`);
+      assert.ok(authoredSource.includes("surfaceOperatorStrength(metrics[i], 'suspendedSyntax') > 0.002 ? structuralPad('suspendedSyntax', profile) : 0"), `${id} full structural bounds while active`);
     } else {
-      assert.ok(html.includes(`surfaceOperatorStrength(metrics[i], '${id}') * structuralPad('${id}', profile)`), `${id} bounds`);
+      assert.ok(authoredSource.includes(`surfaceOperatorStrength(metrics[i], '${id}') * structuralPad('${id}', profile)`), `${id} bounds`);
     }
     assert.ok(catalog.includes(`'${id}'`), `${id} catalog`);
   }
   for (const [key, id] of Object.entries(defaults)) {
-    assert.match(html, new RegExp(`\\b${key}:`), `${id}.${key} default`);
-    assert.ok(html.includes(`'${key}'`), `${id}.${key} Batch key`);
-    assert.ok(html.includes(`${key}: deform.${key}`), `${id}.${key} glyph payload`);
+    assert.match(authoredSource, new RegExp(`\\b${key}:`), `${id}.${key} default`);
+    assert.ok(authoredSource.includes(`'${key}'`), `${id}.${key} Batch key`);
+    assert.ok(authoredSource.includes(`${key}: deform.${key}`), `${id}.${key} glyph payload`);
     if (structural.schemas[id].options[key]) {
       const control = 'p' + key[0].toUpperCase() + key.slice(1);
-      assert.ok(html.includes(`bindProfileSelect('${control}', '${key}'`), `${id}.${key} select binding`);
-      assert.ok(html.includes(`chooseParam('${key}', BATCH_PARAM_OPTIONS.${key})`), `${id}.${key} normalization`);
+      assert.ok(authoredSource.includes(`bindProfileSelect('${control}', '${key}'`), `${id}.${key} select binding`);
+      assert.ok(migrations.includes(`chooseParam('${key}', BATCH_PARAM_OPTIONS.${key})`), `${id}.${key} normalization`);
     } else {
       const control = 'p' + key[0].toUpperCase() + key.slice(1);
-      assert.ok(html.includes(`bindRange('${control}'`), `${id}.${key} range binding`);
-      assert.ok(html.includes(`clampParam('${key}'`), `${id}.${key} normalization`);
+      assert.ok(authoredSource.includes(`bindRange('${control}'`), `${id}.${key} range binding`);
+      assert.ok(migrations.includes(`clampParam('${key}'`), `${id}.${key} normalization`);
     }
   }
-  assert.ok(/version:\s*92/.test(html));
-  assert.ok(html.includes("a: 'td', v: 92"));
-  assert.ok(html.includes('data.version > 92'));
+  assert.ok(/version:\s*93/.test(authoredSource));
+  assert.ok(authoredSource.includes("a: 'td', v: 93"));
+  assert.ok(authoredSource.includes('data.version > 93'));
 });
 
 test('Fiber Body keeps the complete normalized input phrase as its repeated unit', () => {

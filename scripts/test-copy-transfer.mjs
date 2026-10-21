@@ -1,9 +1,11 @@
+import {readPageMarkup} from './source-reader.mjs';
+const markup=readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { canvas, fixture, textMask, html, extract } from './copy-transfer-fixture.mjs';
+import { canvas, fixture, textMask, authoredSource, extract } from './copy-transfer-fixture.mjs';
 const pixels = c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
 const alpha = c => pixels(c).filter((_, i) => i % 4 === 3);
 const sum = a => a.reduce((s, v) => s + v, 0);
@@ -13,9 +15,9 @@ test('transfer is wired to selector, Batch, snapshot and bounded output; nine ol
   const c = fixture(mask);
   assert.equal(c.params.copyFailure, 'transfer');
   assert.equal(c.BATCH_PARAM_OPTIONS.copyFailure.length, 10);
-  assert.ok(html.includes('<option value="transfer" selected>'));
+  assert.ok(markup.includes('<option value="transfer" selected>'));
   assert.ok(extract('snapshotGlyphs').includes('copyFailure: deform.copyFailure'));
-  assert.ok(html.includes("bindProfileSelect('pCopyFailure', 'copyFailure'"));
+  assert.ok(authoredSource.includes("bindProfileSelect('pCopyFailure', 'copyFailure'"));
   assert.ok(extract('sceneContentBounds').includes('copyTransferEffectPad(scene.glyphs)'));
   assert.ok(extract('surfaceEffectPad').includes('copyTransferPad(profile)'));
 });
@@ -113,13 +115,18 @@ test('old renderer remains exact; v47 missing mode keeps ghosting and explicit c
     const old = fs.readFileSync(baselineFile, 'utf8').match(/^      function renderCopyDecay\([^]*?^      }/m)?.[0];
     if (old) assert.equal(extract('renderCopyDecay').replace(/        if \(failure === 'transfer'\) \{[^]*?        }\r?\n/, '').replace(/\r/g, ''), old.replace(/\r/g, ''));
   }
-  const c = fixture(mask); c.PARAM_DEFAULTS = { ...c.params }; c.projectLoadError = () => '';
-  vm.runInContext(extract('loadProject').split('        // v20 and earlier')[0] + '\n return true;\n}', c);
-  c.loadProject({ version: 47, params: {} }, true); assert.equal(c.params.copyFailure, 'ghosting');
-  c.loadProject({ version: 48, params: {} }, true); assert.equal(c.params.copyFailure, 'transfer');
+  const c = fixture(mask), defaults = { ...c.params };
+  vm.runInContext(fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8'),c);
+  // Exercise compatibility preparation at the same pre-normalization boundary
+  // as the historical load prelude; full normalization has separate coverage.
+  const migrate = data => { c.params=c.TypeDeformerProjectMigrations.migrate(data,{defaults,batchOptions:c.BATCH_PARAM_OPTIONS,
+    normalizeParams:values=>values,normalizeBatchProfiles:raw=>raw}).params; };
+  assert.ok(authoredSource.includes('TypeDeformerProjectMigrations.migrate(data,projectMigrationOptions())'));
+  migrate({ version: 47, params: {} }); assert.equal(c.params.copyFailure, 'ghosting');
+  migrate({ version: 48, params: {} }); assert.equal(c.params.copyFailure, 'transfer');
   for (const mode of c.BATCH_PARAM_OPTIONS.copyFailure) {
-    c.loadProject({ version: 47, params: { copyFailure: mode, copyGenerations: 31 } }, true);
+    migrate({ version: 47, params: { copyFailure: mode, copyGenerations: 31 } });
     assert.equal(c.params.copyFailure, mode); assert.equal(c.params.copyGenerations, 31);
   }
-  assert.ok(extract('projectData').includes('version: 92'));
+  assert.ok(extract('projectData').includes('version: 93'));
 });

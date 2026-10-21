@@ -1,9 +1,12 @@
+import {readPageMarkup} from './source-reader.mjs';
+const markup=readPageMarkup();
 // Actual Gutter Fugue editor functions with synthetic DOM geometry.
 // This verifies state/layout integration, not browser or device rendering.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { fixture, metric, html, extract } from './paragraph-current-fixture.mjs';
+import { fixture, metric, authoredSource, extract } from './paragraph-current-fixture.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const styleNumber = (metric, key, fallback = 0) => {
@@ -56,14 +59,15 @@ test('registered v59 box operator has a focused panel, six controls and five own
   assert.equal(c.OPERATOR_IDS.length, 116);
   assert.equal(c.OPERATOR_DEFS.gutterFugue.layer, 'box');
   assert.equal(c.OPERATOR_BY_SHORT.gf, 'gutterFugue');
-  assert.match(html, /<option value="gutterFugue">Gutter Fugue · 見開きの対位<\/option>/);
-  assert.match(html, /data-operator-panel="gutterFugue"/);
+  assert.match(markup, /<option value="gutterFugue">Gutter Fugue · 見開きの対位<\/option>/);
+  assert.match(markup, /data-operator-panel="gutterFugue"/);
   for (const key of ['Tension', 'Response', 'Clearance', 'Rhythm', 'Offset', 'Hierarchy']) {
-    assert.ok(html.includes(`id="pGutter${key}"`), key);
+    assert.ok(markup.includes(`id="pGutter${key}"`), key);
   }
-  assert.match(html, /gutterFugue: \['--op-fugue-x', '--op-fugue-y', '--op-fugue-sx', '--op-fugue-sy', '--op-fugue-rotate'\]/);
-  assert.match(extract('projectData'), /version: 92/);
-  assert.match(extract('normalizeParams'), /clampParam\('gutterTension', 0, 4/);
+  assert.match(authoredSource, /gutterFugue: \['--op-fugue-x', '--op-fugue-y', '--op-fugue-sx', '--op-fugue-sy', '--op-fugue-rotate'\]/);
+  assert.match(extract('projectData'), /version: 93/);
+  assert.match(fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8'), /clampParam\('gutterTension', 0, 4/);
+  assert.ok(extract('normalizeParams').includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
 });
 
 test('status reports the Spreads-only contract without mutating params', () => {

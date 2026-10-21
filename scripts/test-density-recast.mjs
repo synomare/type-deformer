@@ -1,3 +1,7 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
@@ -33,4 +37,4 @@ test('Composite inverse differential agrees with finite differences, preserving 
  for(const [x,y]of [[.3213,.4617],[.6831,.4123],[.5109,.7171]]){const z=invert(p,x,y),xp=invert(p,x+eps,y),xm=invert(p,x-eps,y),yp=invert(p,x,y+eps),ym=invert(p,x,y-eps);near((xp[0]-xm[0])/(2*eps),z[2],3e-7);near((yp[0]-ym[0])/(2*eps),z[3],3e-7);near((xp[1]-xm[1])/(2*eps),z[4],3e-7);near((yp[1]-ym[1])/(2*eps),z[5],3e-7);assert.ok(z[6]>0);}
 });
 
-test('density transport body has every host control, shared glyph renderer and output path',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['densityRecast']);assert.ok(html.includes('<script src="density-recast-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,densityRecast.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('densityRecast')"));assert.ok(html.includes("fieldMaterialPad('densityRecast')"));for(const k of Object.keys(api.schemas.densityRecast.defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('density transport body has every host control, shared glyph renderer and output path',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['densityRecast']);assert.ok(markup.includes('<script src="density-recast-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,densityRecast.renderers)'));assert.ok(renderRoutes.densityRecast === "fieldMaterialRenderer('densityRecast')");assert.ok(authoredSource.includes("fieldMaterialPad('densityRecast')"));for(const k of Object.keys(api.schemas.densityRecast.defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

@@ -1,5 +1,11 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
+import '../operator-registry.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const c={};vm.createContext(c);vm.runInContext(fs.readFileSync(new URL('../excess-body-operators.js',import.meta.url),'utf8'),c);const A=c.TypeDeformerExcessBody,I=A.internals,near=(a,b,t=1e-5)=>assert.ok(Math.abs(a-b)<t,`${a} != ${b}`);
+const c={};createAuthoredTestContext(c);vm.runInContext(fs.readFileSync(new URL('../excess-body-operators.js',import.meta.url),'utf8'),c);const A=c.TypeDeformerExcessBody,I=A.internals,near=(a,b,t=1e-5)=>assert.ok(Math.abs(a-b)<t,`${a} != ${b}`);
 test('Dirichlet cage reproduces independent harmonic polynomials and boundary values',()=>{
  for(const n of [13,29,45]){const f=(x,y)=>[.31+2*x-.7*y,x*x-y*y+.2*x];const sol=I.solveCage(n,f,[]);assert.ok(sol.residual<1e-6);for(let y=0;y<n;y++)for(let x=0;x<n;x++){const v=f(x/(n-1),y/(n-1)),k=y*n+x;near(sol.x[k],v[0],2e-5);near(sol.y[k],v[1],2e-5);}}
 });
@@ -18,6 +24,6 @@ test('Strangulation is identity at zero and keeps its selected axis fixed under 
  const b={cx:100,cy:100,w:200,h:200,sc:1},p={...A.schemas.strangulation.defaults,strangleAngle:0,strangleAmount:0};for(const q of [{x:20,y:20},{x:180,y:170}]){const a=I.stranglePoint(q,b,p);near(a.x,q.x);near(a.y,q.y);}p.strangleAmount=1;p.strangleBands=1;p.stranglePosition=.5;const a=I.stranglePoint({x:100,y:110},b,p);near(a.x,100);near(a.y,110);const left=I.stranglePoint({x:10,y:100},b,p),right=I.stranglePoint({x:190,y:100},b,p);assert.ok(left.x<right.x);assert.ok(right.x-left.x<60);
 });
 test('All eight bodies register complete state, metadata, controls and render paths',()=>{
- const h=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),f=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.equal(A.ids.length,8);assert.ok(f.includes('Object.assign(renderers,excessBody.renderers)'));assert.ok(h.includes('TypeDeformerFieldMaterials.bodyBounds(scene.glyphs'));
- for(const id of A.ids){for(const suffix of ['Opacity','SourceOpacity','Blend','Color','SourceMode'])assert.ok(h.includes(`${id}: '${id+suffix}'`),id+suffix);assert.ok(h.includes(`${id}: fieldMaterialRenderer('${id}')`));assert.ok(h.includes(`${id}: surfaceOperatorStrength(m, '${id}')`));for(const k of Object.keys(A.schemas[id].defaults)){assert.ok(h.includes(`${k}: deform.${k}`));assert.ok(h.includes(`${k}: params.${k}`));assert.ok(h.includes(`id="p${k[0].toUpperCase()+k.slice(1)}"`));}}
+ const h=readAuthoredSource(),f=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.equal(A.ids.length,8);assert.ok(f.includes('Object.assign(renderers,excessBody.renderers)'));assert.ok(h.includes('TypeDeformerFieldMaterials.bodyBounds(scene.glyphs'));
+ for(const id of A.ids){for(const suffix of ['Opacity','SourceOpacity','Blend','Color','SourceMode'])assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id].keys[suffix[0].toLowerCase()+suffix.slice(1)],id+suffix);assert.ok(renderRoutes[id] === `fieldMaterialRenderer('${id}')`);assert.ok(h.includes(`${id}: renderEngine.surfaceOperatorStrength(m, '${id}')`));for(const k of Object.keys(A.schemas[id].defaults)){assert.ok(h.includes(`${k}: deform.${k}`));assert.ok(h.includes(`${k}: params.${k}`));assert.ok(markup.includes(`id="p${k[0].toUpperCase()+k.slice(1)}"`));}}
 });

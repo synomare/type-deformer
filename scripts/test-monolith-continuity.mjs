@@ -1,12 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {canvas} from './thorn-rooted-fixture.mjs';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-function extract(name){const start=html.indexOf('      function '+name+'(');assert.ok(start>=0,name);const tail=html.slice(start);return tail.slice(0,tail.indexOf('\n      }')+8);}
+const authoredSource=readAuthoredSource();
+function extract(name){const start=authoredSource.indexOf('      function '+name+'(');assert.ok(start>=0,name);const tail=authoredSource.slice(start);return tail.slice(0,tail.indexOf('\n      }')+8);}
 export function monolithFixture(bodySource=extract('monolithBodyV35')){
-  const scratch=new Map(),c=vm.createContext({params:{seed:1},Uint8Array,Float32Array,Int32Array,Uint32Array,Uint8ClampedArray,
+  const scratch=new Map(),c=createAuthoredTestContext({params:{seed:1},Uint8Array,Float32Array,Int32Array,Uint32Array,Uint8ClampedArray,
     surfaceScratch(name,w,h){let item=scratch.get(name);if(!item||item.canvas.width!==w||item.canvas.height!==h){const cv=canvas.createCanvas(w,h);item={canvas:cv,ctx:cv.getContext('2d')};scratch.set(name,item)}item.ctx.clearRect(0,0,w,h);return item;}
   });
   vm.runInContext(['hash','surfaceBoundaryDistance','surfaceVoidTopology','surfaceSignedDistanceValue','surfaceSmoothCoverage'].map(extract).join('\n')+'\n'+bodySource,c);

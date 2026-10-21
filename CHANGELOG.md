@@ -1,5 +1,99 @@
 # Changelog
 
+## 0.3.0-preview.1 — 2026-10-21 typing responsiveness (local, unpublished)
+
+- Measure the path a person waits on after typing (keyboard input, debounce,
+  cooperative revision, commit, layout) with `scripts/benchmark-text-input.mjs`.
+  The older layout benchmark calls the synchronous rebuild directly.
+- For documents of 2,000 or more glyphs, layout marks the full-scene image
+  preflight stale instead of evaluating it on every committed edit. It runs
+  while its panel is on screen and idle, and always before PNG/SVG/Copy/Preview;
+  a blocked result still stops those actions. The explicit export check reports
+  instead of stopping.
+- Check Marbling and Auxetic glyph strength before normalising per-glyph
+  settings in their effect-pad and request passes (same result, no work for
+  unaffected glyphs).
+- Read the stage size in Blob Track only for an active glyph. Restoring resting
+  glyphs during Undo no longer forces one reflow per character.
+- Read a neutral glyph's inline deformation channels in one pass when building
+  the glyph snapshot.
+- Fix the text-layout e2e hook that still called the parameter search function
+  after it moved into the panel controller.
+
+## 0.3.0-preview.1 — 2026-10-20 structural follow-up (local, unpublished)
+
+- Move the runtime entry out of the HTML and separate model defaults, viewport
+  gestures, camera capture, font library, Look Memory and responsive controls
+  into authored factories with explicit dependencies and owned state.
+- Build one rendering engine from authored source modules and a checked
+  manifest for all 100 Surface routes and eight Compose generators. The editor
+  and Worker use the same implementation; the build no longer extracts code
+  from HTML, and the Worker no longer supplies fake DOM globals.
+- Include both source manifests and their modules in content identity, release
+  closure and test/build source readers.
+- Prepare long primary-text edits in cooperative batches, cancel superseded
+  revisions, reuse surviving glyph nodes and checked paragraph measurements,
+  and preserve Undo/source/export state. Skip Surface-envelope work for neutral
+  glyphs while retaining active-effect bounds.
+- Release camera streams that arrive after cancellation or fail during playback
+  setup; refresh Fit controls even when the resulting view transform is unchanged.
+
+## 0.3.0-preview.1 — 2026-10-19 structural repairs (local, unpublished)
+
+- Move working copies to IndexedDB with separate tab branches, pinned restart
+  originals and checkpoints before opening another Project. Expose recovery
+  download/reopen without rotating these records away during ordinary saves.
+- Reconcile exit journals into their original branch and pinned recovery in one
+  transaction. Clear only a matching committed journal, reject stale queued
+  saves and reuse exactly matching checkpoints when content hashing is available.
+- Block editing and application shortcuts while startup restoration is pending;
+  unlock them after success or storage failure without changing each control's
+  independent disabled state.
+- Introduce Project v93 validation, pure compatibility preparation, document
+  IDs/revisions and logical source references. Keep v92 and earlier import
+  adapters, report corrections, and restore the prior state after failed apply.
+- Validate known per-letter Operator state, document revisions and exact source
+  references before import. Preserve manual XY offsets for Data Mosh, Blob Track
+  and legacy misregistration when restoring their state.
+- Identify imported fonts by content hash, expose missing dependencies and
+  explicit relinking, and keep font bytes outside Project/Share files.
+- Separate logical text order and float layout snapshots from independent
+  deformation targets; preserve whitespace kinds and delegate bidi/run layout
+  to the browser with optional ligatures disabled. Cache immutable measurements
+  by source, element identity, layout inputs and font epoch, with geometry reads
+  grouped before target-position writes.
+- Avoid export measurements of partially rebuilt text and reuse a full glyph
+  snapshot for equivalent unfiltered output. Invalidate geometry before updating
+  preflight so changes to size and deformation do not reuse stale bounds.
+- Defer 84 operator panels and their 523 range/select controls until first use;
+  keep unmounted controls searchable through template metadata. The other 32
+  panels remain immediate. Total memory and startup speed are not established
+  by this change.
+- Keep an artwork region visible beside mobile controls and add keyboard entry,
+  navigation, movement and cancellation for stage selection.
+- Author Operator definitions directly in the immutable source registry and
+  derive editor/catalog tables from it; retain explicit numeric contracts. Share the
+  authored Plotter Trace, Webbing and Soft Blob renderers between editor and
+  Worker. The remaining extraction at this stage is replaced by the
+  2026-10-20 follow-up above.
+- Default SVG to a raster-backed portable result and make editing metadata
+  optional. Text SVG retains font dependencies and may retain clipped-out text.
+- Capture immutable video input before asynchronous setup and render frames in
+  an isolated document, preserving edits made during output. Check frame/order/
+  size and resource estimates; release owned resources after success, cancellation
+  or failure. Encoded video remains buffered in memory.
+- Record a normalized source-content BuildInfo identity in Project and Share.
+  Separate app version, file schema and renderer revision.
+- Extend local release closure to documentation links and keep historical
+  private research references out of the distribution. Add document lifecycle,
+  font and layout regression scenarios; command execution and platform evidence
+  are recorded separately from this change list.
+
+See [current architecture](docs/current-architecture.md),
+[known limitations](KNOWN_LIMITATIONS.md) and
+[verification scope](docs/verification-scope.md). This entry does not claim a
+deployment, a complete renderer/module migration or real-device acceptance.
+
 ## 0.2.0-preview.1 — 2026-09-28 Wasserstein execution
 
 - Fuse Sinkhorn matrix traversals, reuse convergence products and convert the

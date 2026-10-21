@@ -1,10 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../miura-vault-operator.js'),'utf8'),ctx);
+const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};createAuthoredTestContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../miura-vault-operator.js'),'utf8'),ctx);
 const api=ctx.TypeDeformerMiuraVault,I=api.internals,defaults=api.schemas.miuraVault.defaults;
 const dist=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i])),sub=(a,b)=>a.map((v,i)=>v-b[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 function mask(w,h,predicate){return {w,h,scale:1,alpha:Float32Array.from({length:w*h},(_,i)=>predicate(i%w,Math.floor(i/w))?1:0)};}
@@ -30,4 +35,4 @@ test('all three bodies keep finite geometry for extreme folds and tiny sources, 
 
 test('large sources adapt cell scale before mesh growth exceeds the fixed work budget',()=>{const src=mask(360,360,()=>true),g=I.geometry(src,{...defaults,miuraCell:4,miuraAngle:25,miuraSpin:45,miuraGauge:0});assert.ok(g.cells<=4096);assert.ok(g.metrics.a>4);assert.ok(g.triangles.length<=8192);});
 
-test('Rigid Miura body has every host control, shared glyph renderer and output path',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['miuraVault']);assert.ok(html.includes('<script src="miura-vault-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,miuraVault.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('miuraVault')"));assert.ok(html.includes("fieldMaterialPad('miuraVault')"));for(const k of Object.keys(api.schemas.miuraVault.defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('Rigid Miura body has every host control, shared glyph renderer and output path',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['miuraVault']);assert.ok(markup.includes('<script src="miura-vault-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,miuraVault.renderers)'));assert.ok(renderRoutes.miuraVault === "fieldMaterialRenderer('miuraVault')");assert.ok(authoredSource.includes("fieldMaterialPad('miuraVault')"));for(const k of Object.keys(api.schemas.miuraVault.defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

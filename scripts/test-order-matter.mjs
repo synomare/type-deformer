@@ -1,5 +1,10 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const box={};vm.createContext(box);vm.runInContext(fs.readFileSync(new URL('../order-matter-operators.js',import.meta.url),'utf8'),box);const I=box.TypeDeformerOrderMatter.internals,D=box.TypeDeformerOrderMatter.schemas.nematicFilm.defaults;
+const box={};createAuthoredTestContext(box);vm.runInContext(fs.readFileSync(new URL('../order-matter-operators.js',import.meta.url),'utf8'),box);const I=box.TypeDeformerOrderMatter.internals,D=box.TypeDeformerOrderMatter.schemas.nematicFilm.defaults;
 const near=(a,b,tol=1e-8)=>assert.ok(Math.abs(a-b)<tol,`${a} != ${b}`);
 test('multigrid produces exact unit rhombs, shared edges and expected angle families',()=>{
  for(const n of [4,5,7]){const m=I.multigrid(90,80,6,n,12,.25,17),angles=new Set(),edges=new Map();near(m.gamma.reduce((a,b)=>a+b,0),0);
@@ -31,8 +36,8 @@ test('Jones propagation conserves norm, agrees with crossed formula, and complem
 });
 
 test('two independent kernels and unique schemas have complete host paths',()=>{
- const api=box.TypeDeformerOrderMatter,html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');
+ const api=box.TypeDeformerOrderMatter,authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');
  assert.notEqual(api.renderers.quasicrystalBody,api.renderers.nematicFilm);assert.equal(new Set(api.ids.map(id=>api.schemas[id].short)).size,2);
- assert.ok(html.includes('<script src="order-matter-operators.js"></script>'));assert.ok(field.includes('Object.assign(renderers,orderMatter.renderers)'));
- for(const id of api.ids){assert.ok(html.includes("fieldMaterialRenderer('"+id+"')"));for(const k of Object.keys(api.schemas[id].defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));}
+ assert.ok(markup.includes('<script src="order-matter-operators.js"></script>'));assert.ok(field.includes('Object.assign(renderers,orderMatter.renderers)'));
+ for(const id of api.ids){assert.ok(renderRoutes[id] === "fieldMaterialRenderer('"+id+"')");for(const k of Object.keys(api.schemas[id].defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));}
 });

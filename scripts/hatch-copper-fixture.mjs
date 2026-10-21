@@ -1,25 +1,30 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual Hatch renderer and native Canvas. Mask/DOM are isolated, not a browser.
 import vm from 'node:vm';
-import { canvas, html, textMask } from './thorn-rooted-fixture.mjs';
-export { canvas, html, textMask };
+import fs from 'node:fs';
+const registrySource=fs.readFileSync(new URL('../operator-registry.js',import.meta.url),'utf8');
+import { canvas, authoredSource, textMask } from './thorn-rooted-fixture.mjs';
+import {readAuthoredUnits, extractDeclaredFunction, extractDeclaredCode} from './source-reader.mjs';
+const authoredUnits = readAuthoredUnits();
+export { canvas, authoredSource, textMask };
 // Wire the real shared Surface compositor into the synthetic-layout export
 // fixture. Other renderer readiness is outside this isolated Hatch test.
 export function installHatchOutput(c) {
-  const extract = name => html.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))[0];
+  const extract = name => extractDeclaredFunction(authoredUnits, name);
   const kernel = fixture(canvas.createCanvas(1,1));
   for (const key of Object.keys(kernel)) if (typeof kernel[key] === 'function' && key !== 'render' && key !== 'buildSurfaceMask' && key !== 'surfaceEffectColor') {
     // Recompile into the output realm; do not retain the isolated fixture's params.
-    if (html.includes('      function '+key+'(')) vm.runInContext(extract(key),c);
+    if (authoredSource.includes('      function '+key+'(')) vm.runInContext(extract(key),c);
   }
   const layer=extract('renderSurfaceFxLayer');
   for(const m of layer.matchAll(/:\s*(render\w+)[,\r\n]/g))if(!c[m[1]])c[m[1]]=()=>{throw Error('Unexpected non-Hatch renderer: '+m[1]);};
   for(const name of ['differentialAssertReady','conformalAssertReady','auxeticAssertReady','marblingAssertReady'])c[name]=()=>{};
   c.surfaceFxCanvas=null;c.surfaceFxScratchCanvases={};
   c.SURFACE_OPERATOR_IDS=['hatchEngrave'];c.SURFACE_RENDER_ORDER_DEFAULT=['hatchEngrave'];
-  for(const name of ['BATCH_PARAM_OPTIONS','SURFACE_OPACITY_KEYS','SURFACE_SOURCE_OPACITY_KEYS','SURFACE_SOURCE_MODE_KEYS','SURFACE_BLEND_KEYS','SURFACE_COLOR_KEYS']) {
-    vm.runInContext(html.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
-  }
-  vm.runInContext(html.match(/      var SURFACE_BLEND_MODES = \[[^\n]+/)[0],c);
+  vm.runInContext(registrySource,c);
+  Object.assign(c,c.TypeDeformerOperatorRegistry.tables);
+  vm.runInContext(extractDeclaredCode(authoredUnits, 'BATCH_PARAM_OPTIONS'),c);
+  vm.runInContext(extractDeclaredCode(authoredUnits, 'SURFACE_BLEND_MODES'),c);
   vm.runInContext(['buildSurfaceMask','surfaceGlyphTextSpec', 'drawSurfaceGlyph','surfaceEffectColor','surfaceOutputOpacity','surfaceSourceOpacity','surfaceSourceMode',
     'surfaceReplacementStrength','surfaceBlendMode','surfaceRenderOrder','normalizedSurfaceRenderOrder',
     'surfaceEffectPresent','surfaceAnyEffectPresent','surfaceCanonicalRasterPlan',
@@ -27,13 +32,11 @@ export function installHatchOutput(c) {
   Object.assign(c.params,{hatchOpacity:1,hatchSourceOpacity:0,hatchBlend:'source-over',hatchGrammar:'copperplate'});
   return c;
 }
-export function fixture(mask, settings = {}, source = html) {
-  const extract = name => {
-    const fn = source.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))?.[0];
-    if (!fn) throw new Error('Missing actual function: ' + name);
-    return fn;
-  };
-  const c = vm.createContext({ Math, document: { createElement: () => canvas.createCanvas(1, 1) },
+export function fixture(mask, settings = {}, source = authoredSource) {
+  const units = source === authoredSource ? authoredUnits : [{path: 'explicit fixture source',
+    source, declarations: authoredUnits.flatMap(unit => unit.declarations)}];
+  const extract = name => extractDeclaredFunction(units, name);
+  const c = createAuthoredTestContext({ Math, document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 },
     contentBounds(glyphs) {
       const active = glyphs.filter(glyph => glyph && Number.isFinite(glyph.x) && Number.isFinite(glyph.y));

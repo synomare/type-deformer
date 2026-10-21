@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { fixture, metric, extract, html } from './paragraph-current-fixture.mjs';
+import { fixture, metric, extract, authoredSource, markup } from './paragraph-current-fixture.mjs';
 import { exportFixture } from './export-fixture.mjs';
 import { setMeasuredPageSource } from './page-layout-fixture.mjs';
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -12,11 +13,11 @@ test('paragraph spacing is a global em setting with its actual input binding and
   c.document.getElementById = id => ({ pParagraphGap: input, vParagraphGap: val })[id] || null;
   Object.assign(c, { rangeControls: [], BATCH_PARAM_KEYS: [], sourceParameterMode: 'range', sourceParameterKey: () => false,
     fEm: v => v.toFixed(2) + 'em', applyStyle: () => c.applyTextMeasure() });
-  vm.runInContext(extract('bindRange') + '\n' + html.match(/      bindRange\('pParagraphGap'[^\n]+/)[0], c);
+  vm.runInContext(extract('bindRange') + '\n' + authoredSource.match(/      bindRange\('pParagraphGap'[^\n]+/)[0], c);
   assert.equal(c.params.paragraphGap, .55);
-  assert.match(html, /id="pParagraphGap" min="0" max="12" step="0.05" value="0.55" aria-describedby="paragraphGapHint"/);
-  assert.match(html, /\.stage:not\(\.grid-layout\) p \{ margin: 0 0 var\(--paragraph-gap, 0.55em\); \}/);
-  assert.match(html, /\.stage\.vertical:not\(\.grid-layout\) p \{ margin: 0 var\(--paragraph-gap, 0.55em\) 0 0; \}/);
+  assert.match(markup, /id="pParagraphGap" min="0" max="12" step="0.05" value="0.55" aria-describedby="paragraphGapHint"/);
+  assert.match(markup, /\.stage:not\(\.grid-layout\) p \{ margin: 0 0 var\(--paragraph-gap, 0.55em\); \}/);
+  assert.match(markup, /\.stage\.vertical:not\(\.grid-layout\) p \{ margin: 0 var\(--paragraph-gap, 0.55em\) 0 0; \}/);
   for (const gap of [0, .55, 3.25, 12]) {
     input.value = String(gap); input.listeners.input();
     assert.equal(c.params.paragraphGap, gap); assert.equal(val.textContent, gap.toFixed(2) + 'em');
@@ -29,12 +30,15 @@ test('paragraph spacing is a global em setting with its actual input binding and
   }
 });
 
-test('paragraph gap normalization uses finite bounds and retains the original default', () => {
-  const c = fixture(); c.PARAM_DEFAULTS = { paragraphGap: .55 };
-  vm.runInContext(extract('clampParam'), c);
-  const statement = extract('normalizeParams').match(/clampParam\('paragraphGap'[^;]+;/)[0];
-  for (const [value, expected] of [[-5,0],[100,12],[NaN,.55],[Infinity,.55],['broken',.55],['2.25',2.25],[0,0]]) {
-    c.params.paragraphGap = value; vm.runInContext(statement, c); assert.equal(c.params.paragraphGap, expected);
+test('pure project normalization preserves paragraph spacing beyond slider travel, enforces nonnegative values and defaults nonfinite input', () => {
+  const c = fixture();
+  for (const file of ['parameter-model.js','parameter-definitions.js']) vm.runInContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),c);
+  for (const name of ['BATCH_PARAM_LIMITS','BATCH_PARAM_OPTIONS']) vm.runInContext(authoredSource.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
+  const defaults={...c.params},options={defaults,parameters:c.TypeDeformerParameters,registry:c.TypeDeformerOperatorRegistry,batchLimits:c.BATCH_PARAM_LIMITS,batchOptions:c.BATCH_PARAM_OPTIONS};
+  for (const [value, expected] of [[-5,0],[100,100],[NaN,.55],[Infinity,.55],['broken',.55],['2.25',2.25],[0,0]]) {
+    const input={...defaults,paragraphGap:value};
+    const output=c.TypeDeformerProjectMigrations.normalizeParams(input,options);
+    assert.equal(output.paragraphGap,expected);assert.ok(Object.is(input.paragraphGap,value),'pure normalization leaves its input unchanged');
   }
 });
 
@@ -243,7 +247,7 @@ test('snapshot and selection carry page translation once, including independent 
   assert.equal(c.findNearestLetter(m.relX, m.relY + 200), m);
   assert.equal(g.ox, m.relX); assert.equal(g.oy, m.relY + m.h / 4);
   assert.equal(c.snapshotGlyphs(true).length, c.metrics.length);
-  assert.match(html, /translateX\(var\(--page-x\)\) translateY\(var\(--page-y\)\)/);
+  assert.match(markup, /translateX\(var\(--page-x\)\) translateY\(var\(--page-y\)\)/);
 });
 
 test('wide unsplittable words and oversized rows are not cropped; explicit source paragraphs stay separate', () => {

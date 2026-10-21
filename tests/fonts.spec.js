@@ -66,3 +66,43 @@ test('material rendering follows font changes and restores the same pixels from 
  await page.locator('#pImportedFont').selectOption(wide);await active(page,95);
  await expect.poll(pixels,{timeout:30000}).toBe(first);expect(errors).toEqual([]);
 });
+
+async function loadProjectFile(page,project){await page.locator('#projFile').setInputFiles({name:'font-dependency.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});}
+async function injectFont(page,buffer,name,lastModified){
+ await page.evaluate(({bytes,name,lastModified})=>{const input=document.querySelector('#pFontFile'),transfer=new DataTransfer();transfer.items.add(new File([new Uint8Array(bytes)],name,{type:'font/ttf',lastModified}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));},{bytes:Array.from(buffer),name,lastModified});
+}
+test('saved font content relinks in a fresh page after rename and mtime changes',async({page,browser})=>{
+ const errors=await open(page);const data=fs.readFileSync(fontPath('narrow.ttf'));
+ await injectFont(page,data,'original.ttf',1);const family=await active(page),project=await projectData(page);
+ const dependency=project.fontManifest.fonts.find(f=>f.family===family);expect(dependency.kind).toBe('imported');expect(dependency.sourceHash).toMatch(/^[a-f0-9]{64}$/);expect(dependency.faceIndex).toBe(0);
+ const freshContext=await browser.newContext({viewport:page.viewportSize()}),fresh=await freshContext.newPage(),freshErrors=await open(fresh);await loadProjectFile(fresh,project);await expect(fresh.locator('#fontStatus')).toContainText('Font file missing');
+ expect(await fresh.evaluate(()=>{try{TypeDeformerFontDependencies.assertReady();return '';}catch(e){return e.code;}})).toBe('FONT_DEPENDENCY_MISSING');
+ await injectFont(fresh,data,'moved-and-renamed.ttf',999999);expect(await active(fresh)).toBe(family);await expect(fresh.locator('#btnFontRelink')).toBeHidden();
+ expect((await projectData(fresh)).fontManifest.fonts.find(f=>f.family===family).sourceHash).toBe(dependency.sourceHash);
+ expect(await fresh.evaluate(()=>TypeDeformerFontDependencies.assertReady().ready)).toBe(true);expect(errors.concat(freshErrors)).toEqual([]);await freshContext.close();
+});
+test('same name, size and mtime with different bytes cannot silently replace a saved dependency',async({page,browser},testInfo)=>{
+ const errors=await open(page),narrow=fs.readFileSync(fontPath('narrow.ttf')),wide=fs.readFileSync(fontPath('wide.ttf'));
+ const alternate=Buffer.concat([wide,Buffer.alloc(narrow.length-wide.length)]);expect(alternate.length).toBe(narrow.length);
+ await injectFont(page,narrow,'same.ttf',7);const original=await active(page),project=await projectData(page);
+ const freshContext=await browser.newContext({viewport:page.viewportSize()}),fresh=await freshContext.newPage(),freshErrors=await open(fresh);await loadProjectFile(fresh,project);await expect(fresh.locator('#fontStatus')).toContainText('Font file missing');
+ await injectFont(fresh,alternate,'same.ttf',7);await expect(fresh.locator('#btnFontRelink')).toBeVisible();await expect(fresh.locator('#fontStatus')).toContainText('内容が異なります');
+ expect((await projectData(fresh)).params.fontFamily).toContain(original);expect(await fresh.evaluate(()=>TypeDeformerFontDependencies.inspect().ready)).toBe(false);
+ await fresh.locator('#btnFontRelink').scrollIntoViewIfNeeded();await fresh.screenshot({path:testInfo.outputPath('font-relink-candidate.png')});
+ await fresh.locator('#btnFontRelink').click();const replacement=await active(fresh,95);expect(replacement).not.toBe(original);expect((await projectData(fresh)).params.fontFamily).toContain(replacement);
+ expect(errors.concat(freshErrors)).toEqual([]);await freshContext.close();
+});
+test('version 92 file identities require a visible explicit relink and Undo restores the unresolved dependency',async({page})=>{
+ const errors=await open(page),project=await projectData(page),legacy='Type Deformer narrow legacy-file-id';project.version=92;delete project.fontManifest;project.params.fontFamily='"'+legacy+'", serif';
+ await loadProjectFile(page,project);await expect(page.locator('#fontStatus')).toContainText('旧Project');
+ await page.locator('#pFontFile').setInputFiles(fontPath('narrow.ttf'));await expect(page.locator('#btnFontRelink')).toBeVisible();expect((await projectData(page)).params.fontFamily).toContain(legacy);
+ await page.locator('#btnFontRelink').click();const family=await active(page);expect(family).toMatch(/^Type Deformer SHA256 /);
+ await page.locator('#btnHeaderUndo').evaluate(e=>e.click());await expect(page.locator('#fontStatus')).toContainText('旧Project');expect(await page.evaluate(()=>TypeDeformerFontDependencies.inspect().ready)).toBe(false);
+ await page.locator('#btnHeaderRedo').evaluate(e=>e.click());await active(page);expect(errors).toEqual([]);
+});
+test('unavailable external font names report fallback in the UI and captured dependency health',async({page})=>{
+ const errors=await open(page);await page.getByText('Advanced · installed font name',{exact:true}).click();await page.locator('#pFontCustom').fill('Definitely Missing Font 89173');await page.locator('#pFontCustom').dispatchEvent('change');
+ await expect(page.locator('#fontStatus')).toContainText('書体が見つかりません');await expect(page.locator('#fontStatus')).toHaveAttribute('data-state','fallback');
+ const health=await page.evaluate(()=>TypeDeformerFontDependencies.assertReady());expect(health.ready).toBe(true);expect(health.issues[0].state).toBe('fallback');expect(health.issues[0].blocking).toBe(false);
+ expect((await projectData(page)).fontManifest.fonts[0]).toMatchObject({kind:'external',family:'Definitely Missing Font 89173'});expect(errors).toEqual([]);
+});

@@ -166,13 +166,18 @@ function workerFixture(){
  const images={live:0,peak:0,closed:0},messages=[];
  class Canvas{
   constructor(w,h){this.width=w;this.height=h;}
-  getContext(){return {save(){},restore(){},setTransform(){},drawImage(){}};}
+  getContext(){let transform={a:1,b:0,c:0,d:1,e:0,f:0};return {canvas:this,save(){},restore(){},setTransform(a,b,c,d,e,f){transform={a,b,c,d,e,f};},getTransform(){return transform;},drawImage(){},clearRect(){}};}
   transferToImageBitmap(){images.live++;images.peak=Math.max(images.peak,images.live);let closed=false;return {width:this.width,height:this.height,close(){assert.equal(closed,false);closed=true;images.live--;images.closed++;}};}
  }
- const noop=()=>{},c=vm.createContext({OffscreenCanvas:Canvas,performance,importScripts:noop,TypeDeformerAxes:{createRuntime:()=>({})},TypeDeformerSurfaceState:{unpack:noop},TypeDeformerParameters:{assertBudget:noop},TypeDeformerFieldMaterials:{cacheStats:()=>({bytes:0})},TypeDeformerNumerics:{cacheStats:()=>({})},TypeDeformerRenderEnvelope:{scanCanvas:()=>({}),touches:()=>false},surfaceGlyphStrength:()=>0,differentialPrepare:noop,conformalPrepare:noop,auxeticPrepare:noop,marblingPrepare:noop,differentialAssertReady:noop,conformalAssertReady:noop,auxeticAssertReady:noop,marblingAssertReady:noop});
- c.self=c;c.postMessage=m=>messages.push(m);vm.runInContext(fs.readFileSync(new URL('render-context.js',root),'utf8'),c);vm.runInContext(fs.readFileSync(new URL('surface-worker.js',root),'utf8'),c);
- c.surfaceScratch=(_name,w,h)=>{const canvas=c.TypeDeformerRenderContext.createCanvas(w,h);return {canvas,ctx:canvas.getContext('2d')};};
- const ids=Array.from({length:9},(_,i)=>'ink'+i);c.workerRenderers=Object.fromEntries(ids.map(id=>[id,noop]));
+ const noop=()=>{},c=vm.createContext({OffscreenCanvas:Canvas,performance,setTimeout,clearTimeout,fonts:{add(){},delete(){},addEventListener(){}}});
+ c.self=c;c.postMessage=m=>messages.push(m);
+ c.importScripts=(...files)=>files.forEach(file=>vm.runInContext(fs.readFileSync(new URL(file,root),'utf8'),c,{filename:file}));
+ vm.runInContext(fs.readFileSync(new URL('surface-worker.js',root),'utf8'),c,{filename:'surface-worker.js'});
+ assert.equal(Object.keys(c.workerEngine.renderers).length,100,'load the actual canonical engine and Worker adapter');
+ // These tests model layer allocation/acknowledgement, not pixel content. Keep
+ // synthetic empty layers while exercising the real engine scratch and scopes.
+ c.TypeDeformerRenderEnvelope.scanCanvas=()=>({});c.TypeDeformerRenderEnvelope.touches=()=>false;
+ const ids=Array.from({length:9},(_,i)=>'ink'+i);Object.assign(c.workerEngine.renderers,Object.fromEntries(ids.map(id=>[id,noop])));
  const frame={kind:'frame',purpose:'export',mobile:false,params:{fontFamily:'Arial'},composition:{phase:0},text:'A',glyphs:[],fm:{},operators:ids,operatorKeys:{},scale:1,layout:{s:1,dx:0,dy:0},width:4096,height:4096,plan:{width:16,height:16,density:1,bounds:{x:0,y:0},layout:{}}};
  // Keep the original 512 MiB layer cap to isolate streaming from the raised cap.
  const limits=c.TypeDeformerRenderContext.limits;c.TypeDeformerRenderContext.limits=(purpose,mobile)=>({...limits(purpose,mobile),layerBytes:512*1024*1024});
@@ -245,4 +250,63 @@ test('allocation failures carry a retryable code and software retry initializes 
  const calls=[],c=vm.createContext({document:{createElement(){return {width:1,height:1,getContext(_type,attributes){calls.push(attributes);return {setTransform(){}};}};}}});
  vm.runInContext(fs.readFileSync(new URL('render-context.js',root),'utf8'),c);
  const api=c.TypeDeformerRenderContext;api.withContext(api.make({software:true}),()=>api.createCanvas(10,10));assert.equal(calls[0].willReadFrequently,true);
+});
+
+test('render contexts reject async callbacks before execution and release promise-returning scopes', async()=>{
+ const {R}=fixture(),context=R.make();let invoked=false,canvas;
+ assert.throws(()=>R.withContext(context,async()=>{invoked=true;}),{code:'RENDER_ASYNC_SCOPE'});
+ assert.equal(invoked,false);assert.equal(R.current(),null);
+ R.withContext(context,()=>{
+  assert.throws(()=>R.withScope(()=>{canvas=R.createCanvas(10,10);return Promise.resolve();}),{code:'RENDER_ASYNC_SCOPE'});
+  assert.equal(canvas.width,1);assert.equal(context.bytes,0);
+ });
+ await Promise.resolve();assert.equal(R.current(),null);
+});
+
+test('native canvas resize remains budgeted outside the original synchronous context',()=>{
+ const {R}=fixture(),context=R.make({memoryBudget:2000,maxCanvasPixels:1000});
+ const canvas=R.withContext(context,()=>R.createCanvas(10,10));
+ assert.equal(context.bytes,400);canvas.width=20;assert.equal(context.bytes,800);
+ assert.throws(()=>{canvas.height=30;},{code:'RENDER_MEMORY_EXCEEDED'});
+ assert.equal(canvas.height,10);assert.equal(context.bytes,800);
+ R.withContext(context,()=>R.release(canvas));assert.equal(context.bytes,0);assert.equal(canvas.width,1);
+});
+
+test('high density resize rejects before mutating either raster and retains exact accounting',()=>{
+ const {R}=fixture(),context=R.make({factor:2,memoryBudget:4000});
+ const canvas=R.withContext(context,()=>R.createCanvas(10,10));
+ assert.equal(context.bytes,2000);assert.throws(()=>{canvas.width=30;},{code:'RENDER_MEMORY_EXCEEDED'});
+ assert.equal(canvas.width,10);assert.equal(R.physical(canvas).width,20);assert.equal(context.bytes,2000);
+ R.release(canvas);assert.equal(context.bytes,0);
+});
+
+test('retaining an outer allocation inside a nested scope removes its original scope owner',()=>{
+ const {R}=fixture(),context=R.make();let canvas;
+ R.withContext(context,()=>R.withScope(()=>{
+  canvas=R.createCanvas(10,10);R.withScope(()=>R.retain(canvas));
+ }));
+ assert.equal(canvas.width,10);assert.equal(context.bytes,0);assert.equal(R.memoryStats().retainedBytes,400);
+ R.release(canvas);R.release(canvas);assert.equal(R.memoryStats().retainedBytes,0);
+});
+
+test('alpha and mesh failures release their temporary arrays without an enclosing allocation scope',()=>{
+ const {R}=fixture(),context=R.make({factor:2});
+ R.withContext(context,()=>{
+  const canvas=R.createCanvas(10,10),baseline=context.bytes;
+  assert.throws(()=>R.applyAlpha(canvas,()=>{throw Error('sample failure');}),/sample failure/);
+  assert.equal(context.bytes,baseline);
+  assert.throws(()=>R.mesh(canvas,[[0,0,0],[10,0,0],[0,10,0]],[[0,1,2]],()=>{throw Error('draw failure');}),/draw failure/);
+  assert.equal(context.bytes,baseline);R.release(canvas);
+ });assert.equal(context.bytes,0);
+});
+
+test('same-origin render jobs share exclusive reservations and reclaim them idempotently',()=>{
+ const {R}=fixture(),pool=R.createResourcePool(1000),first=pool.reserve('export',600,true);
+ assert.throws(()=>pool.reserve('video',200,true),{code:'RENDER_RESOURCE_BUSY'});
+ assert.throws(()=>pool.reserve('buffer',500,false),{code:'RENDER_RESERVATION_EXCEEDED'});
+ const second=pool.reserve('buffer',200,false);assert.equal(pool.inspect().reservedBytes,800);
+ const nested=pool.reserve('same-video-frame',100,true,first.group);assert.equal(pool.inspect().reservedBytes,900);nested.release();
+ first.release();first.release();second.release();assert.equal(pool.inspect().reservedBytes,0);assert.equal(pool.inspect().peakReservedBytes,900);
+ const child=vm.createContext({parent:{TypeDeformerRenderContext:R}});vm.runInContext(fs.readFileSync(new URL('render-context.js',root),'utf8'),child);
+ assert.equal(child.TypeDeformerRenderContext.resources,R.resources);
 });

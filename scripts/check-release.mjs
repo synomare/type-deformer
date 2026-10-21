@@ -3,6 +3,7 @@ import path from 'node:path';
 import process from 'node:process';
 import childProcess from 'node:child_process';
 import vm from 'node:vm';
+import {readManifestUnits} from './source-reader.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const posix = value => value.split(path.sep).join('/').replace(/^\.\//, '');
@@ -12,10 +13,19 @@ const manifest = JSON.parse(fs.readFileSync(absolute('release-manifest.json'), '
 const required = new Set(['release-manifest.json', 'scripts/check-release.mjs', ...manifest.entrypoints, ...manifest.documents, ...(manifest.tests || []), ...manifest.vendor, ...(manifest.runtimeAssets || []), ...(manifest.generatedSources || []), ...manifest.generatedAssets]);
 const missing = [];
 const warnings = [];
+const scanned = new Set();
 for (const file of required) if (!exists(file)) missing.push(`${file} (release manifest)`);
+for (const file of manifest.sourceManifests || []) {
+  required.add(file);
+  try {
+    for (const unit of readManifestUnits(file, {root})) required.add(unit.path);
+  } catch (error) {
+    missing.push(error.message);
+  }
+}
 
 function add(value, from) {
-  if (!value || /^(?:https?:|data:|blob:|node:|#|%23|mailto:|javascript:)/i.test(value)) return;
+  if (!value || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#|%23)/i.test(value)) return;
   const clean = posix(value.split(/[?#]/)[0]);
   if (!clean) return;
   if (fs.existsSync(absolute(clean)) && fs.statSync(absolute(clean)).isDirectory()) return;
@@ -23,12 +33,63 @@ function add(value, from) {
   else required.add(clean);
 }
 
+// These references are resolved against the containing document, unlike the
+// already-root-relative runtime paths passed to add(). Check files, not remote
+// availability or Markdown heading fragments. Code examples are not links.
+function documentReference(value, from) {
+  value = value.trim().replace(/&amp;/gi, '&');
+  if (!value || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(value)) return;
+  const raw = value.split(/[?#]/)[0];
+  if (!raw) return;
+  let decoded;
+  try { decoded = decodeURIComponent(raw).replace(/\\([\\()[\] ])/g, '$1'); }
+  catch { missing.push(`${raw} has invalid URL encoding (from ${from})`); return; }
+  const resolved = value.startsWith('/') ? absolute('.' + decoded) : path.resolve(root, path.dirname(from), decoded);
+  const relative = posix(path.relative(root, resolved));
+  if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) {
+    missing.push(`${value} points outside the release root (from ${from})`);
+    return;
+  }
+  add(relative, from);
+}
+
+function markdownReferences(source) {
+  // Strip fenced blocks and inline code while retaining links outside them.
+  const prose = source.replace(/^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\1[^\n]*(?:\n|$)/gm, '')
+    .replace(/(`+)([\s\S]*?)\1/g, '');
+  const references = [];
+  // Inline and reference-style links, including images and angle destinations.
+  for (const match of prose.matchAll(/!?\[[^\]\n]*\]\(\s*/g)) {
+    let at = match.index + match[0].length, destination = '', depth = 0;
+    if (prose[at] === '<') {
+      const end = prose.indexOf('>', at + 1);
+      if (end < 0) continue;
+      destination = prose.slice(at + 1, end); at = end + 1;
+    } else {
+      for (; at < prose.length; at++) {
+        const ch = prose[at];
+        if (ch === '\\' && at + 1 < prose.length) { destination += ch + prose[++at]; continue; }
+        if (ch === '(') depth++;
+        else if (ch === ')') { if (!depth) break; depth--; }
+        else if (/\s/.test(ch) && !depth) break;
+        destination += ch;
+      }
+    }
+    if (destination && /^\s*(?:["'][^\n]*?["']\s*)?\)/.test(prose.slice(at))) references.push(destination);
+  }
+  for (const match of prose.matchAll(/^ {0,3}\[[^\]\n]+\]:\s*(?:<([^>\n]+)>|(\S+))/gm)) references.push(match[1] || match[2]);
+  for (const match of prose.matchAll(/<(?:a|img)\b[^>]*?\b(?:href|src)=["']([^"']+)["']/gi)) references.push(match[1]);
+  return references;
+}
+
 function scanText(file) {
-  if (!exists(file)) return;
+  if (scanned.has(file) || !exists(file) || !/\.(?:html|css|md|m?js)$/i.test(file)) return;
+  scanned.add(file);
   const source = fs.readFileSync(absolute(file), 'utf8');
   if (file.endsWith('.html')) {
-    for (const match of source.matchAll(/<(?:script|link|img)\b[^>]*?\b(?:src|href)=["']([^"']+)["']/gi)) add(match[1], file);
+    for (const match of source.matchAll(/<(?:script|link|img|a)\b[^>]*?\b(?:src|href)=["']([^"']+)["']/gi)) documentReference(match[1], file);
   }
+  if (file.endsWith('.md')) markdownReferences(source).forEach(value => documentReference(value, file));
   if (file.endsWith('.css')) {
     for (const match of source.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) add(match[1], file);
   } else if (file.endsWith('.html')) {
@@ -50,7 +111,9 @@ function scanText(file) {
     for (const match of source.matchAll(/new\s+Worker\s*\(\s*new\s+URL\(\s*["']([^"']+)["']/g)) {
       add(posix(path.join(path.dirname(file), match[1])), file);
     }
-    for (const call of source.matchAll(/importScripts\s*\(([^)]*)\)/g)) {
+    // Tests may assert the spelling of an importScripts call inside a string.
+    // Such a fixture is not an import relative to the test script's directory.
+    for (const call of source.matchAll(/(?<!["'`])\bimportScripts\s*\(([^)]*)\)/g)) {
       for (const match of call[1].matchAll(/["']([^"']+)["']/g)) {
         add(posix(path.join(path.dirname(file), match[1])), file);
       }
@@ -90,6 +153,7 @@ recipes.forEach(id => add(`assets/presets/${id}.jpg`, 'preset manifest'));
 
 const catalogContext = {};
 catalogContext.globalThis = catalogContext;
+vm.runInNewContext(fs.readFileSync(absolute('operator-registry.js'), 'utf8'), catalogContext, { filename: 'operator-registry.js' });
 vm.runInNewContext(fs.readFileSync(absolute('operator-catalog.js'), 'utf8'), catalogContext, { filename: 'operator-catalog.js' });
 const catalog = catalogContext.TypeDeformerCatalog;
 const catalogIds = catalog ? [...new Set(Object.values(catalog.groups || {}).flat())] : [];

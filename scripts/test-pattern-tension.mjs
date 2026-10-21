@@ -1,3 +1,8 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
+import '../operator-registry.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -39,11 +44,12 @@ test('all extreme controls leave finite supported geometry without changing conn
 });
 
 test('both operators retain independent glyph profiles and all host persistence connections',()=>{
-  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),fields=globalThis.TypeDeformerFieldMaterials;
-  assert.ok(html.indexOf('src="pattern-tension-operators.js"')<html.indexOf('src="field-material-operators.js"'));
-  for(const id of A.ids){assert.ok(fields.ids.includes(id));for(const suffix of ['Opacity','SourceOpacity','Color','SourceMode','Blend'])assert.ok(html.includes(`${id}: '${id+suffix}'`));
-    assert.ok(html.includes(`${id}: fieldMaterialRenderer('${id}')`));assert.ok(html.includes(`fieldMaterialPad('${id}')`));
-    for(const key of Object.keys(A.schemas[id].defaults)){assert.ok(html.includes(`${key}: deform.${key}`));assert.ok(html.includes(`${key}: params.${key}`));}
+  const authoredSource=readAuthoredSource(),fields=globalThis.TypeDeformerFieldMaterials;
+  assert.ok(markup.indexOf('src="pattern-tension-operators.js"')>=0);
+  assert.ok(markup.indexOf('src="pattern-tension-operators.js"')<markup.indexOf('src="field-material-operators.js"'));
+  for(const id of A.ids){assert.ok(fields.ids.includes(id));for(const suffix of ['Opacity','SourceOpacity','Color','SourceMode','Blend'])assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id].keys[suffix[0].toLowerCase()+suffix.slice(1)],id+suffix);
+    assert.ok(renderRoutes[id] === `fieldMaterialRenderer('${id}')`);assert.ok(authoredSource.includes(`fieldMaterialPad('${id}')`));
+    for(const key of Object.keys(A.schemas[id].defaults)){assert.ok(authoredSource.includes(`${key}: deform.${key}`));assert.ok(authoredSource.includes(`${key}: params.${key}`));}
   }
   assert.equal(fields.internals.settings('tensionMembrane',{surface:{membraneLoad:0,membraneMode:'twist'}},{}).membraneLoad,0);
   assert.equal(fields.internals.settings('tensionMembrane',{surface:{membraneLoad:2,membraneMode:'drape'}},{}).membraneMode,'drape');

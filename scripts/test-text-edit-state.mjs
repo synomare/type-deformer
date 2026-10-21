@@ -1,3 +1,6 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readAuthoredUnits, extractDeclaredCode, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -10,7 +13,8 @@ import { setMeasuredPageSource } from './page-layout-fixture.mjs';
 import { fixture as risoFixture, textMask as risoTextMask } from './riso-fixture.mjs';
 import { fixture as hatchFixture, textMask as hatchTextMask } from './hatch-copper-fixture.mjs';
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
+const authoredUnits = readAuthoredUnits();
 const names = ['splitSourceTokenEdit', 'matchSourceTokens', 'snapshotLetters', 'carryLetter', 'rebuildPreservingState'];
 const sourceTargetFunctions = ['parameterDisabledReasons', 'updateParameterRowAvailability', 'setParameterDisabledReason', 'setParameterAvailabilityStatus',
   'readingScopeAvailable', 'syncReadingScopeUI', 'gutterFugueAvailable', 'syncGutterFugueUI', 'syncCaesuraFieldUI',
@@ -19,16 +23,16 @@ const sourceTargetFunctions = ['parameterDisabledReasons', 'updateParameterRowAv
   'captureContextPages', 'capturePageSourceRange', 'captureSourceLayoutTarget', 'captureCanvasLayoutTarget',
   'remapSourceTarget', 'refreshSourceSelectionUI', 'captureSourceTarget', 'editSourceTarget'];
 function extract(name) {
-  const source = html.match(new RegExp('      function ' + name + '\\([^]*?\\n      }'))?.[0];
+  const source = authoredSource.match(new RegExp('      function ' + name + '\\([^]*?\\n      }'))?.[0];
   assert.ok(source, `Actual editor function: ${name}`);
   return source;
 }
 function extractDeclaration(name) {
-  const source = html.match(new RegExp('^      var ' + name + ' = .*;$', 'm'))?.[0];
+  const source = authoredSource.match(new RegExp('^      var ' + name + ' = .*;$', 'm'))?.[0];
   assert.ok(source, `Actual editor declaration: ${name}`);
   return source;
 }
-const pure = vm.createContext({});
+const pure = createAuthoredTestContext({});
 vm.runInContext(extract(names[0]) + '\n' + extract(names[1]), pure);
 const match = (a, b) => Array.from(pure.matchSourceTokens(a, b));
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -104,7 +108,7 @@ function element(text, data = {}, style = '') {
   };
 }
 function harness(before) {
-  const c = vm.createContext({ metrics: [], selectedM: null, params: { gridEnabled: true }, events: [],
+  const c = createAuthoredTestContext({ metrics: [], selectedM: null, params: { gridEnabled: true }, events: [],
     renderedSourceText: before, pendingTextSelection: null, sourceParagraphs: [], textInput: null, textComposing: false,
     sourceTarget: { mode: 'all', start: 0, end: 0, valid: false },
     snapDocumentState: rows => ({ letters: rows }), recordHistorySnapshot() {}, markAutosaveDirty() {},
@@ -117,6 +121,7 @@ function harness(before) {
     applyConfuseText() {},
     restoreSavedDerivedText: (m, saved) => { if (saved) { m.el.textContent = saved; m.el.dataset.renderText = saved; } }
   });
+  vm.runInContext(fs.readFileSync(new URL('../text-layout.js', import.meta.url), 'utf8'), c);
   c.metrics = [...before].map((text, i) => ({ el: element(text, { originalId: String(i), line: '0', lineLength: '5', word: '0', j: String(i), batch: 'latin', sourceText: text }, '--ix:2;--sx:1.25;'),
     savedState: { t: 1, l: 1, i: 0.65, mx: 2, my: 3, gc: i, x: 1, o: { marblingType: { t: 1, i: 0.72 }, rotate: { t: 1, i: 0.5, m: 30 } } }
   }));
@@ -187,6 +192,7 @@ test('rebuild supplies the exact precomputed token lines, including empty lines 
 // and scheduling are replaced. This does not exercise browser layout/history.
 function sourceDomHarness() {
   const c = harness('');
+  vm.runInContext(fs.readFileSync(new URL('../text-layout.js', import.meta.url), 'utf8'), c);
   function node(tag, text = '') {
     const n = element(text);
     n.tag = tag; n.children = [];
@@ -206,10 +212,10 @@ function sourceDomHarness() {
     applyRandom: () => {}, syncHistoryControls: () => {},
     rebuildMetrics: () => { c.metrics = c.letters.map(el => ({ el, savedState: { t: 0, l: 0, i: 0, o: {} } })); }
   });
-  const start = html.indexOf('      var graphemeSegmenter =');
-  const end = html.indexOf('      var digitRe =', start);
-  assert.ok(start >= 0 && end > start);
-  vm.runInContext(html.slice(start, end) + '\n' + ['tokenizeLine', 'createSpans', 'setTarget', 'selectLetter', 'clearEditSelection'].map(extract).join('\n'), c);
+  const tokenizer = ['graphemeSegmenter', 'toGraphemes', 'fallbackGraphemes', 'uni',
+    'classify', 'punctStr', 'isPunctCluster', 'charInfoCache', 'charInfo'];
+  vm.runInContext(tokenizer.map(name => extractDeclaredCode(authoredUnits,name)).join('\n') + '\n'
+    + ['tokenizeLine', 'createSpans', 'setTarget', 'selectLetter', 'clearEditSelection'].map(extract).join('\n'), c);
   return c;
 }
 
@@ -220,10 +226,10 @@ test('actual createSpans prepared and one-argument paths agree for graphemes, jo
   const lines = prepared.tokenizeSourceLines(text);
   prepared.tokenizeLine = () => { throw new Error('prepared lines must not be segmented again'); };
   prepared.createSpans(text, lines);
-  const snapshot = c => plain({ letters: c.letters.map(el => ({ text: el.textContent, data: el.dataset, className: el.className })),
+  const snapshot = c => plain({ letters: c.letters.map(el => ({ text: el.textContent, data: { ...el.dataset, sourceId: undefined }, className: el.className })),
     ends: c.lineEnds, paragraphs: c.stageWorld.children.map(p => p.children.map(n => [n.tag, n.textContent])) });
   assert.deepEqual(snapshot(prepared), snapshot(direct));
-  assert.deepEqual(Array.from(direct.letters, el => el.dataset.sourceText), ['A', 'か\u3099', '👨‍👩‍👧', 'سلام', 'العربية', 'B']);
+  assert.deepEqual(Array.from(direct.letters, el => el.dataset.sourceText), ['A', 'か\u3099', '👨‍👩‍👧', 'العربية', 'سلام', 'B']);
   assert.deepEqual(Array.from(direct.lineEnds), [3, 3, 6]);
   assert.equal(direct.stageWorld.children[1].children[0].tag, 'br');
 });
@@ -294,7 +300,7 @@ test('unrelated 50k replacement and highly unequal overlap avoid quadratic stora
   check(['§', 'B', 'A', '※'], repeated, 2);
   const lengths = [];
   class TrackedArray extends Int32Array { constructor(length) { super(length); lengths.push(length); } }
-  const c = vm.createContext({ Int32Array: TrackedArray });
+  const c = createAuthoredTestContext({ Int32Array: TrackedArray });
   vm.runInContext(extract('splitSourceTokenEdit') + '\n' + extract('matchSourceTokens'), c);
   const a = Array.from({ length: 300 }, (_, i) => 'ABCDE'[i % 5]);
   const b = Array.from({ length: 350 }, (_, i) => 'EBFDA'[i % 5]);
@@ -308,6 +314,9 @@ test('unrelated 50k replacement and highly unequal overlap avoid quadratic stora
 // dispatch are mocked; this is not native IME/Safari or rendered interaction QA.
 function historyHarness(text = 'ABCDE') {
   const c = sourceDomHarness();
+  vm.runInContext(fs.readFileSync(new URL('../operator-registry.js', import.meta.url), 'utf8'), c);
+  vm.runInContext(fs.readFileSync(new URL('../project-codec.js', import.meta.url), 'utf8'), c);
+  c.documentSession = c.TypeDeformerProjectCodec.session();
   const listeners = new Map(), timers = new Map();
   let nextTimer = 0;
   const input = { tagName: 'TEXTAREA', value: text, selectionStart: 0, selectionEnd: 0, selectionDirection: 'none',
@@ -331,6 +340,7 @@ function historyHarness(text = 'ABCDE') {
     normalizeParams() {}, cloneCompositionDefaults: () => ({ type: 'field', phase: 0 }),
     setCompositionPlaying() {}, syncCompositionUI() {}, syncUI() {}, clearGridStyles() {}, applyStyle() {},
     refreshConfuseFontCandidates() {}, scheduleCompositionDraw() {}, applyOperatorVisual() {}, applyStretch() {},
+    window: { addEventListener(type, callback) { const key = 'window:' + type; if (!listeners.has(key)) listeners.set(key, []); listeners.get(key).push(callback); } },
     setTimeout: callback => { timers.set(++nextTimer, callback); return nextTimer; }, clearTimeout: id => timers.delete(id)
   });
   c.scopeControls = Object.fromEntries(['btnUseSourceRange', 'btnUseSourceParagraphs', 'btnEditSourceTarget', 'pSourceScope',
@@ -355,7 +365,7 @@ function historyHarness(text = 'ABCDE') {
     'sparseOperatorState', 'restoreOperatorStates', 'encodeOperatorStates', 'decodeOperatorStates',
     'letterState', 'applyLetterState', 'restoreStates', 'snapState', 'applySnap',
     'textSelectionSnapshot', 'snapDocumentState', 'recordHistorySnapshot', 'pushHistory', 'applyHistorySnapshot',
-    'undo', 'redo', 'keepsNativeHistoryTarget', 'beginControlHistory', 'historyControlFor',
+    'undo', 'redo', 'queueTextHistoryAction', 'keepsNativeHistoryTarget', 'beginControlHistory', 'historyControlFor',
     'projectData', 'shareData', 'currentLookState', 'resetSourceParameters', 'refreshSourceParameterControls'
   ].map(extract).join('\n'), c);
   // Deterministic initializer substitutes for random base/layout only.
@@ -364,10 +374,10 @@ function historyHarness(text = 'ABCDE') {
     c.metrics = c.letters.map(el => ({ el, operatorStates: c.createOperatorStates(), toggled: false,
       currentIntensity: 0, manualX: null, manualY: null, gridCell: null, locked: false, explicitLock: false }));
   };
-  const start = html.indexOf("      var textInput = document.getElementById('textInput');");
-  const end = html.indexOf("      document.getElementById('btnShuffle')", start);
+  const start = authoredSource.indexOf("      var textInput = document.getElementById('textInput');");
+  const end = authoredSource.indexOf("      document.getElementById('btnShuffle')", start);
   assert.ok(start >= 0 && end > start);
-  vm.runInContext(html.slice(start, end), c);
+  vm.runInContext(authoredSource.slice(start, end), c);
   installAutosave(c);
   c.createSpans(text);
   return c;
@@ -613,7 +623,7 @@ const selectSource = (c, start, end, mode = 'range') => {
 };
 const inScope = c => Array.from(c.matchingBatchMetrics(c.batchMatchers.all, true), m => m.el.dataset.sourceText).join('');
 
-test('source map uses exact UTF-16 offsets across CRLF, CR, empty paragraphs, graphemes and visual RTL order', () => {
+test('source map uses exact UTF-16 offsets across CRLF, CR, empty paragraphs, graphemes and logical RTL order', () => {
   const text = 'Aか\u3099👨‍👩‍👧\r\n\r\nالعربية سلام\tB\rC\n';
   const c = sourceDomHarness(); c.createSpans(text);
   assert.deepEqual(plain(c.sourceParagraphs), [
@@ -624,8 +634,8 @@ test('source map uses exact UTF-16 offsets across CRLF, CR, empty paragraphs, gr
     assert.equal(text.slice(+d.sourceStart, +d.sourceEnd), d.sourceText);
   }
   const rtl = c.metrics.filter(m => /[\u0600-\u06ff]/.test(m.el.dataset.sourceText));
-  assert.equal(rtl[0].el.dataset.sourceText, 'سلام');
-  assert.ok(+rtl[0].el.dataset.sourceStart > +rtl[1].el.dataset.sourceStart, 'offsets follow source, not visual order');
+  assert.equal(rtl[0].el.dataset.sourceText, 'العربية');
+  assert.ok(+rtl[0].el.dataset.sourceStart < +rtl[1].el.dataset.sourceStart, 'tokens retain logical source order; browser resolves presentation');
 });
 
 test('paragraph targets distinguish caret, exclusive end, blank paragraph and terminal newline', () => {
@@ -783,7 +793,7 @@ test('Paragraph Current: 10k partial Apply, distant edits, common Undo/Redo and 
   revise(c, '冒頭\n' + source.slice(0, 90) + '※' + source.slice(91));
   assert.equal(countApplied(), count);
   const saved = JSON.parse(JSON.stringify(c.projectData()));
-  assert.equal(saved.version, 92); assert.equal(saved.params.textMeasure, 32); assert.equal(saved.params.currentFlow, 'crest');
+  assert.equal(saved.version, 93); assert.equal(saved.params.textMeasure, 32); assert.equal(saved.params.currentFlow, 'crest');
   c.textInput.value = saved.text; c.createSpans(saved.text); c.restoreStates(saved.letters);
   assert.equal(countApplied(), count);
   assert.equal(c.metrics.filter(m => c.operatorState(m, 'rotate').toggled).length, 0);
@@ -791,10 +801,10 @@ test('Paragraph Current: 10k partial Apply, distant edits, common Undo/Redo and 
 
 function withSourceParameters(c) {
   vm.runInContext(['SOURCE_PARAMETER_KEYS', 'BATCH_PARAM_OPTIONS', 'BATCH_PARAM_LIMITS'].map(name =>
-    html.match(new RegExp('      var ' + name + ' = \\{[^]*?\\n      };'))[0]).join('\n'), c);
+    authoredSource.match(new RegExp('      var ' + name + ' = \\{[^]*?\\n      };'))[0]).join('\n'), c);
   vm.runInContext(['sourceParameterKey', 'normalizeSourceParameters', 'decodeSourceParameters', 'sourceParameterProfile',
     'sourceParameterTargets', 'writeSourceParameter', 'resetSourceParameters', 'applyShareData'].map(extract).join('\n'), c);
-  vm.runInContext(html.match(/      var params = \{[^]*?\n      };/)[0].replace('var params', 'var layoutDefaults'), c);
+  vm.runInContext(authoredSource.match(/      var params = \{[^]*?\n      };/)[0].replace('var params', 'var layoutDefaults'), c);
   for (const key of [...c.SOURCE_PARAMETER_KEYS.paragraphCurrent, ...c.SOURCE_PARAMETER_KEYS.readingField]) {
     c.PARAM_DEFAULTS[key] = c.params[key] = c.layoutDefaults[key];
   }
@@ -809,6 +819,8 @@ function withSourceParameters(c) {
 // composition normalization and parameter normalization are explicit mocks.
 function withProjectFileHandlers(c) {
   const downloads = [], statuses = [], pending = [];
+  const checkpointStorage = new Map();
+  c.localStorage = c.localStorage || { getItem:key=>checkpointStorage.get(key)||null, setItem:(key,value)=>checkpointStorage.set(key,value), removeItem:key=>checkpointStorage.delete(key) };
   Object.assign(c.PARAM_DEFAULTS, plain(c.layoutDefaults));
   c.params = { ...plain(c.PARAM_DEFAULTS), ...c.params };
   const controls = Object.fromEntries(['projFile', 'btnSaveProj', 'btnLoadProj'].map(id => [id, {
@@ -818,20 +830,27 @@ function withProjectFileHandlers(c) {
   c.document.getElementById = id => controls[id] || originalGet(id);
   Object.assign(c, { Blob, SURFACE_OPERATOR_IDS: [], GLYPH_BODY_OPERATOR_IDS: [],
     compositionInspector: 'field', COMPOSITION_DEFS: { field: {} }, normalizeLookMemory: plain,
-    syncLookMemoryUI() {}, updateProofSheetAvailability() {}, lookMemoryBeforeRecall: null,
+    lookMemory: { schemaVersion: 1, active: -1, slots: [null, null, null, null] },
+    syncLookMemoryUI() {}, updateProofSheetAvailability() {}, clearConfuseCache() {}, lookMemoryBeforeRecall: null,
     stamp: () => 'test', downloadOutcomeLabel: () => 'download started',
     setProjectActionStatus: (message, state) => statuses.push({ message, state }),
     download: (blob, filename) => { downloads.push({ blob, filename }); return 'download'; },
     FileReader: class {
       readAsText(file) {
-        pending.push(file.text().then(text => { this.result = text; this.onload(); }, () => this.onerror()));
+        pending.push(file.text().then(text => { this.result = text; return this.onload(); }, () => this.onerror()));
       }
     }
   });
-  vm.runInContext(['saveProject', 'isProjectData', 'projectLoadError', 'loadProject'].map(extract).join('\n'), c);
-  const start = html.indexOf("      document.getElementById('btnSaveProj').addEventListener");
-  const end = html.indexOf('      /* ---------------- autosave', start);
-  assert.ok(start > 0 && end > start); vm.runInContext(html.slice(start, end), c);
+  vm.runInContext(fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8'), c);
+  c.prepareProjectMigration = data => c.TypeDeformerProjectMigrations.migrate(data, {
+    defaults: c.PARAM_DEFAULTS, batchOptions: c.BATCH_PARAM_OPTIONS,
+    registry: {surfaceIds:c.SURFACE_OPERATOR_IDS,glyphBodyIds:c.GLYPH_BODY_OPERATOR_IDS,tables:{SURFACE_SOURCE_OPACITY_KEYS:c.SURFACE_SOURCE_OPACITY_KEYS,SURFACE_SOURCE_MODE_KEYS:c.SURFACE_SOURCE_MODE_KEYS}},
+    normalizeParams: values => values, normalizeBatchProfiles: raw => c.normalizeBatchProfiles(raw)
+  });
+  vm.runInContext(['saveProject', 'isProjectData', 'projectLoadError', 'loadProject', 'applyProjectData'].map(extract).join('\n'), c);
+  const start = authoredSource.indexOf("      document.getElementById('btnSaveProj').addEventListener");
+  const end = authoredSource.indexOf('      /* ---------------- autosave', start);
+  assert.ok(start > 0 && end > start); vm.runInContext(authoredSource.slice(start, end), c);
   return { downloads, statuses, controls, async read(blob) {
     controls.projFile.files = [{ name: 'roundtrip.json', size: blob.size, text: () => blob.text() }];
     controls.projFile.listeners.change(); await Promise.all(pending.splice(0));
@@ -874,7 +893,7 @@ test('10k Current and Reading: real Project handlers to native PNG and SVG after
     assert.ok(active.some(g => kind === 'paragraphCurrent' ? Math.abs(g.ty) > 1 : Math.abs(g.scaleX - 1) > .01), 'effect is actually painted');
     assert.deepEqual(plain(out.c.snapshotGlyphs()), plain(original.c.snapshotGlyphs()));
     const before = original.c.renderCanvas(1).toBuffer('image/png');
-    out.c.exportPng(); out.c.runSvgExport();
+    out.c.exportPng(); Object.assign(out.c.params,{svgMode: 'text',svgMetadata:true}); out.c.runSvgExport();
     assert.equal(out.downloads.length, 2, out.statuses.at(-1)?.message);
     const png = Buffer.from(await out.downloads[0].blob.arrayBuffer());
     assert.deepEqual(png, before, 'exact same native PNG after Project handler roundtrip');
@@ -943,7 +962,7 @@ test('1万字の見開き: textarea selectionchange and page buttons to Apply, e
   const out = exportFixture(); Object.assign(out.c.params, c.params, { artboard: 'auto', exportScale: .5 });
   setMeasuredPageSource(out.c, c.renderedSourceText, plain(c.metrics.map(c.letterState)), { paragraphSpacing: true });
   assert.deepEqual(plain(out.c.pageLayoutState), plain(original.c.pageLayoutState));
-  out.c.exportPng(); out.c.runSvgExport(); assert.equal(out.downloads.length, 2);
+  out.c.exportPng(); Object.assign(out.c.params,{svgMode: 'text',svgMetadata:true}); out.c.runSvgExport(); assert.equal(out.downloads.length, 2);
   assert.deepEqual(Buffer.from(await out.downloads[0].blob.arrayBuffer()), before);
   const svg = await out.downloads[1].blob.text(); assert.equal((svg.match(/<text /g) || []).length, c.metrics.length);
   assert.ok(svg.includes('pageLayout'));
@@ -984,7 +1003,7 @@ test('10k Reading page/spread scope survives partial Apply, separated edits, Und
   files.controls.btnSaveProj.listeners.click();revise(c,'別');c.params.readingScope='document';await files.read(files.downloads.at(-1).blob);
   assert.equal(c.params.readingScope,'spread');assert.equal(c.renderedSourceText,saved.text);assert.deepEqual(plain(c.metrics.map(c.letterState)),state);
   const restored=render(c.params,c.renderedSourceText,plain(c.metrics.map(c.letterState)));
-  restored.c.exportPng();restored.c.runSvgExport();assert.equal(restored.downloads.length,2);
+  restored.c.exportPng();Object.assign(restored.c.params,{svgMode: 'text',svgMetadata:true}); restored.c.runSvgExport();assert.equal(restored.downloads.length,2);
   assert.deepEqual(Buffer.from(await restored.downloads[0].blob.arrayBuffer()),before);
   const svg=await restored.downloads[1].blob.text();assert.equal((svg.match(/<text /g)||[]).length,c.metrics.length);
   assert.ok(svg.includes('spread'));
@@ -1103,9 +1122,9 @@ test('Look retains its schema version through normalization and real recall inst
   Object.assign(c.params,{pageLayout:'spreads',pageKeepLines:4,paragraphGap:1.75,counterformGrammar:'chamber',voidPerspective:'aperture',ribbonPath:'lamina'});
   vm.runInContext(['normalizeLookState','applyLookState'].map(extract).join('\n'),c);
   const saved=plain(c.currentLookState());
-  assert.equal(saved.version, 92);
+  assert.equal(saved.version, 93);
   const original=plain(saved),normalized=c.normalizeLookState(saved);
-  assert.equal(normalized.version, 92); assert.deepEqual(plain(saved),original);
+  assert.equal(normalized.version, 93); assert.deepEqual(plain(saved),original);
   c.lookMemory={slots:[],active:-1}; c.syncLookMemoryUI=()=>{};
   c.params.pageKeepLines=1; c.params.paragraphGap=0; c.params.counterformGrammar='legacy';
   assert.equal(c.applyLookState(saved,0,true),true);
@@ -1126,7 +1145,7 @@ test('Contour v57 starts in Relief/Ghost while partial and explicit older Projec
     SURFACE_SOURCE_MODE_KEYS:{contourEtch:'contourSourceMode'}
   });
   const fresh=plain(c.projectData());
-  assert.equal(fresh.version, 92); assert.equal(fresh.params.contourGrammar,'relief'); assert.equal(fresh.params.contourSourceMode,'ghost');
+  assert.equal(fresh.version, 93); assert.equal(fresh.params.contourGrammar,'relief'); assert.equal(fresh.params.contourSourceMode,'ghost');
 
   const partialV56=plain(fresh); partialV56.version=56;
   delete partialV56.params.contourGrammar; delete partialV56.params.contourSourceMode; delete partialV56.params.contourSourceOpacity;
@@ -1154,7 +1173,7 @@ test('Raster v58 starts in Gravure while partial and explicit older Projects ret
   });
   c.PARAM_DEFAULTS.rasterSourceOpacity=c.params.rasterSourceOpacity=.12;
   const fresh=plain(c.projectData());
-  assert.equal(fresh.version, 92); assert.equal(fresh.params.rasterScreen,'gravure'); assert.equal(fresh.params.rasterSourceOpacity,.12);
+  assert.equal(fresh.version, 93); assert.equal(fresh.params.rasterScreen,'gravure'); assert.equal(fresh.params.rasterSourceOpacity,.12);
 
   const partialV57=plain(fresh); partialV57.version=57;
   delete partialV57.params.rasterScreen; delete partialV57.params.rasterSourceMode; delete partialV57.params.rasterSourceOpacity;
@@ -1183,7 +1202,7 @@ test('Prism v61 starts in Birefringent while partial v23-v60 Projects retain Cut
     SURFACE_SOURCE_MODE_KEYS:{prismSacrament:'prismSourceMode'}
   });
   const fresh=plain(c.projectData());
-  assert.equal(fresh.version, 92); assert.equal(fresh.params.prismOptics,'birefringent');
+  assert.equal(fresh.version, 93); assert.equal(fresh.params.prismOptics,'birefringent');
 
   const partialV60=plain(fresh); partialV60.version=60;
   delete partialV60.params.prismOptics; partialV60.batchProfiles={};
@@ -1208,7 +1227,7 @@ test('Ligature v62 starts in Counterbody while partial v29-v61 Projects retain I
     SURFACE_SOURCE_MODE_KEYS:{ligatureBody:'ligatureBodySourceMode'}
   });
   const fresh=plain(c.projectData());
-  assert.equal(fresh.version, 92); assert.equal(fresh.params.ligatureBodyGrammar,'counterbody');
+  assert.equal(fresh.version, 93); assert.equal(fresh.params.ligatureBodyGrammar,'counterbody');
 
   const partialV61=plain(fresh); partialV61.version=61;
   delete partialV61.params.ligatureBodyGrammar; partialV61.batchProfiles={};
@@ -1227,7 +1246,7 @@ test('Bone v64 preserves old architectures and round-trips Lamellar settings and
     SURFACE_SOURCE_OPACITY_KEYS:{boneScaffold:'boneSourceOpacity'},SURFACE_SOURCE_MODE_KEYS:{boneScaffold:'boneSourceMode'}});
   c.params.activeOperator='boneScaffold';c.params.boneMarrow=4.4;c.params.boneJoint=26;
   Object.assign(c.operatorState(c.metrics[0],'boneScaffold'),{toggled:true,current:1});
-  const fresh=plain(c.projectData());assert.equal(fresh.version, 92);assert.equal(fresh.params.boneArchitecture,'lamellar');
+  const fresh=plain(c.projectData());assert.equal(fresh.version, 93);assert.equal(fresh.params.boneArchitecture,'lamellar');
   for(const [version,expected] of [[21,'adaptive'],[22,'trabecular'],[36,'trabecular'],[63,'trabecular']]){
     const partial=plain(fresh);partial.version=version;delete partial.params.boneArchitecture;partial.batchProfiles={};
     assert.equal(c.loadProject(partial,true),true);assert.equal(c.params.boneArchitecture,expected);
@@ -1242,13 +1261,13 @@ test('Bone v64 preserves old architectures and round-trips Lamellar settings and
 test('RTL page membership keeps source holes through Apply, local parameters, edits and common Undo/Redo', () => {
   const source = 'A سلام عربية نور Z';
   const c = withSourceParameters(withBatch(historyHarness(source)));
-  assert.deepEqual(Array.from(c.metrics, m => m.el.dataset.sourceText), ['A','نور','عربية','سلام','Z'], 'real joining-word tokenizer reorders the RTL run');
+  assert.deepEqual(Array.from(c.metrics, m => m.el.dataset.sourceText), ['A','سلام','عربية','نور','Z'], 'joining-word tokenizer retains logical order');
   Object.assign(c.params, { pageLayout: 'spreads', activeOperator: 'readingField' });
-  c.metrics.forEach((m, i) => { m.pageIndex = Math.floor(i / 2); });
+  c.metrics.forEach((m, i) => { m.pageIndex = [0, 1, 1, 0, 2][i]; });
   c.pageLayoutState = { enabled: true, pages: [{},{},{}] };
   c.pageSourceIndex = c.buildPageSourceIndex(c.metrics); c.metricsDirty = false;
   assert.equal(c.captureCanvasLayoutTarget('page'), false, 'no selected glyph');
-  c.selectLetter(c.metrics[1]);
+  c.selectLetter(c.metrics[3]);
   c.scopeControls.btnUseCanvasPage.listeners.click();
   const originalTarget = plain(c.sourceTarget);
   assert.equal(originalTarget.ranges.length, 2); assert.equal(inScope(c), 'Aنور');
@@ -1271,7 +1290,7 @@ test('RTL page membership keeps source holes through Apply, local parameters, ed
   assert.deepEqual(plain(c.sourceTarget), originalTarget); assert.deepEqual(plain(c.metrics.map(c.letterState)), applied);
   c.redo(); assert.equal(inScope(c), 'Aنور');
   c.undo(); c.undo(); assert.ok(c.metrics.every(m => !m.localParams));
-  c.redo(); assert.equal(c.metrics[1].localParams.readingPressure, 2.75);
+  c.redo(); assert.equal(c.metrics[3].localParams.readingPressure, 2.75);
   revise(c, 'سلام عربية Z');
   assert.equal(c.sourceTarget.valid, false); assert.equal(inScope(c), '');
   c.batchToggle(c.batchMatchers.all, true);
@@ -1384,7 +1403,7 @@ test('10k range parameters persist through Project, compact Share, text replacem
   const count = c.metrics.filter(m => m.localParams).length; assert.ok(count > 400 && count < 500);
   revise(c, '冒頭\n' + source.slice(0, 90) + '※' + source.slice(91));
   const saved = JSON.parse(JSON.stringify(c.projectData()));
-  assert.equal(saved.version, 92); assert.equal(saved.letters.filter(s => s.p).length, count);
+  assert.equal(saved.version, 93); assert.equal(saved.letters.filter(s => s.p).length, count);
   const shared = JSON.parse(JSON.stringify(c.shareData()));
   let payload; c.loadProject = data => { payload = data; return true; };
   assert.equal(c.applyShareData(shared), true);
@@ -1477,7 +1496,7 @@ test('Copy transfer target, global/Batch parameters and assignment survive histo
   assert.equal(applied(), 4, 'Apply'); c.undo(); assert.equal(applied(), 0, 'Undo'); c.redo(); assert.equal(applied(), 4, 'Redo');
   revise(c, 'COPY\n複写\nBODY!'); assert.equal(applied(), 4);
   const data = JSON.parse(JSON.stringify(c.projectData()));
-  assert.equal(data.version, 92); assert.equal(data.params.copyFailure, 'transfer');
+  assert.equal(data.version, 93); assert.equal(data.params.copyFailure, 'transfer');
   assert.equal(data.params.copySourceOpacity, .15); assert.equal(data.params.copyOpacity, .4);
   assert.equal(data.batchProfiles.latin.copyGenerations, 38);
   c.textInput.value = data.text; c.createSpans(data.text); c.restoreStates(data.letters);
@@ -1502,7 +1521,7 @@ test('Reading Field: 10k paragraph target survives edits, mixed Undo/Redo and ac
   revise(c, '冒頭\n' + source.slice(0, 90) + '※' + source.slice(91));
   assert.equal(inScope(c), selectedText); assert.equal(applied(), selectedCount);
   const saved = JSON.parse(JSON.stringify(c.projectData()));
-  assert.equal(saved.version, 92); assert.equal(saved.params.readingPressure, 3.5);
+  assert.equal(saved.version, 93); assert.equal(saved.params.readingPressure, 3.5);
   assert.equal(saved.params.readingFocusU, .33); assert.equal(saved.params.readingScope, 'document');
   c.textInput.value = saved.text; c.createSpans(saved.text); c.restoreStates(saved.letters);
   assert.equal(applied(), selectedCount);

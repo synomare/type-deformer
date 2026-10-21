@@ -1,3 +1,7 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import '../numerical-kernels.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -42,7 +46,7 @@ test('every extreme remains bounded and finite; empty source produces no deposit
 });
 test('two independent kernels and unique schemas have a complete host path',()=>{
   assert.notEqual(api.renderers.diffractiveGlyph,api.renderers.dendriteCast);assert.equal(new Set(api.ids.map(id=>api.schemas[id].short)).size,2);
-  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');
-  assert.match(html,/<script src="wave-growth-operators.js"><\/script>/);assert.match(field,/Object.assign\(renderers,waveGrowth.renderers\)/);
-  for(const id of api.ids){assert.ok(html.includes(`fieldMaterialRenderer('${id}')`));for(const k of Object.keys(api.schemas[id].defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));}
+  const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');
+  assert.match(markup,/<script src="wave-growth-operators.js"><\/script>/);assert.match(field,/Object.assign\(renderers,waveGrowth.renderers\)/);
+  for(const id of api.ids){assert.ok(renderRoutes[id] === `fieldMaterialRenderer('${id}')`);for(const k of Object.keys(api.schemas[id].defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));}
 });

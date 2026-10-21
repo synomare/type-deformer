@@ -1,9 +1,13 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const block = html.match(/^      \/\/ BEGIN AUXETIC TYPE GENERATED\n[\s\S]*?^      \/\/ END AUXETIC TYPE GENERATED/m)?.[0];
+const authoredSource = readAuthoredSource().replace(/\r\n/g, '\n');
+const block = readNativeIntegrationSource('auxetic');
 assert.ok(block, 'embedded Auxetic runtime');
 
 let paths = 0;
@@ -35,7 +39,7 @@ const params = {
   auxeticOpening: 28, auxeticModule: 24, auxeticAspect: 1,
   auxeticAxis: 0, auxeticLigament: .75, auxeticMotion: .65
 };
-const runtime = vm.createContext({
+const runtime = createAuthoredTestContext({
   params, compositionState: { enabled: true, phase: .3 }, Path2D: TestPath,
   surfaceGlyphStrength: (g, id) => g.surface?.[id] || 0,
   surfaceOutputOpacity: () => 1, surfaceEffectColor: () => '#321',

@@ -2,11 +2,12 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+import {readEditorSource} from './source-reader.mjs';
+const source = readEditorSource();
 export function installAutosave(c) {
-  const start = html.indexOf('      /* ---------------- autosave ---------------- */');
-  const end = html.indexOf('      var NEW_PROJECT_NOTICE_KEY', start);
-  assert.ok(start > 0 && end > start); vm.runInContext(html.slice(start, end), c);
+  const start = source.indexOf('      /* ---------------- autosave ---------------- */');
+  const end = source.indexOf('      var NEW_PROJECT_NOTICE_KEY', start);
+  assert.ok(start > 0 && end > start); vm.runInContext(source.slice(start, end), c);
 }
 export function autosaveFixture() {
   const memory = new Map(), writes = [], elements = {}, events = {}, timers = new Map();

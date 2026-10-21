@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { canvas, fixture, textMask, html } from './riso-fixture.mjs';
-const extract = name => html.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))[0];
+import { canvas, fixture, textMask, authoredSource } from './riso-fixture.mjs';
+import {readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
+const extract = name => authoredSource.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))[0];
 const pixels = c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
 const mass = data => data.reduce((sum, v, i) => sum + (i % 4 === 3 ? v : 0), 0);
 const mask = textMask('B O', 105, 'Times New Roman', 260, 190);
@@ -13,15 +17,15 @@ test('tonal masters are an additional integrated choice; old modes/default and r
   const c = fixture(mask);
   assert.equal(c.params.risoPlateMap, 'area');
   assert.deepEqual(Array.from(c.BATCH_PARAM_OPTIONS.risoPlateMap), ['legacy','field','area','edge','halftone','duotone']);
-  assert.match(html, /<option value="duotone">Tonal masters/);
+  assert.match(markup, /<option value="duotone">Tonal masters/);
   for (const [key, id, range] of [['risoToneDepth','RisoToneDepth',[0,160]], ['risoScreenPitch','RisoScreenPitch',[1,48]]]) {
     assert.ok(extract('snapshotGlyphs').includes(`${key}: deform.${key}`));
-    assert.ok(html.includes(`bindRange('p${id}', 'v${id}', '${key}'`));
-    assert.ok(html.includes(`clampParam('${key}', ${range[0]}, ${range[1]}, false)`));
-    assert.ok(html.includes(`${key}: [${range.join(', ')}]`));
+    assert.ok(authoredSource.includes(`bindRange('p${id}', 'v${id}', '${key}'`));
+    assert.ok(migrations.includes(`clampParam('${key}', ${range[0]}, ${range[1]}, false)`));
+    assert.ok(authoredSource.includes(`${key}: [${range.join(', ')}]`));
   }
-  assert.match(extract('projectData'), /version: 92/);
-  assert.ok(html.includes('toneDepth: params.risoToneDepth, screenPitch: params.risoScreenPitch'));
+  assert.match(extract('projectData'), /version: 93/);
+  assert.ok(authoredSource.includes('toneDepth: params.risoToneDepth, screenPitch: params.risoScreenPitch'));
 });
 
 test('screen ink-area calibration matches an independent sampled area, including dark tones', () => {
@@ -132,7 +136,8 @@ test('mode-specific controls hide/disable and recover on mode changes without lo
 
 test('actual broad/sparse Batch normalization keeps the new master and clamps both new axes', () => {
   const c=fixture(mask);
-  vm.runInContext(html.match(/      var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0]+'\n'+html.match(/      var BATCH_PARAM_LIMITS = \{[^]*?\n      };/)[0]+'\n'+extract('normalizeBatchProfiles'),c);
+  vm.runInContext(migrations,c);
+  vm.runInContext(authoredSource.match(/      var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0]+'\n'+authoredSource.match(/      var BATCH_PARAM_LIMITS = \{[^]*?\n      };/)[0]+'\n'+extract('normalizeBatchProfiles'),c);
   c.BATCH_PROFILE_KEYS=['latin','latin_upper'];c.BATCH_TARGETS={byKey:{latin:{},latin_upper:{test:()=>true}}};
   const normalized=c.normalizeBatchProfiles({latin:{risoPlateMap:'duotone',risoToneDepth:999,risoScreenPitch:-9},latin_upper:{risoPlateMap:'duotone',risoToneDepth:38.5,risoScreenPitch:2.25}});
   assert.equal(normalized.latin.risoPlateMap,'duotone');assert.equal(normalized.latin.risoToneDepth,160);assert.equal(normalized.latin.risoScreenPitch,1);

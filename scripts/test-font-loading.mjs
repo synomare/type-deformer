@@ -1,9 +1,12 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../font-loading.js',import.meta.url),'utf8');
-function fixture(overrides={}){const c=vm.createContext({setTimeout,clearTimeout,ArrayBuffer,DataView,Uint8Array,...overrides});vm.runInContext(source,c);return c.TypeDeformerFontLoading;}
+function fixture(overrides={}){const c=createAuthoredTestContext({setTimeout,clearTimeout,ArrayBuffer,DataView,Uint8Array,...overrides});vm.runInContext(source,c);return c.TypeDeformerFontLoading;}
 const bytes=name=>{const b=fs.readFileSync(new URL('../tests/fixtures/fonts/'+name,import.meta.url));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);};
 test('read supports absent or synchronously failing arrayBuffer APIs and rejects truncated cloud files',async()=>{
  let reads=0;class Reader{readAsArrayBuffer(file){reads++;this.result=file.data;this.onload();}}
@@ -36,18 +39,14 @@ test('face registration failures are reported and a new face can be loaded on re
  let attempts=0;class Face{load(){return ++attempts===1?Promise.reject(Error('decode')):Promise.resolve(this);}}
  const F=fixture({FontFace:Face});await assert.rejects(F.loadFace('test',new ArrayBuffer(4)),{code:'FONT_DECODE'});assert.ok(await F.loadFace('test',new ArrayBuffer(4)) instanceof Face);
 });
-const editor=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-test('failed secondary registration rolls back the face and buffer, then retries the same file successfully',async()=>{
- const source=editor.match(/^      function ensureRuntimeFontLoaded\([^]*?^      \}/m)[0],installed=new Set(),buffers=new Map(),files=new Map([['test',{file:{},label:'Test'}]]);let attempt=0;
- const c=vm.createContext({studioFontBuffers:buffers,runtimeFontSources:{test:'file-pending'},runtimeFontLoads:new Map(),runtimeFontFiles:files,runtimeFontFaces:[],document:{fonts:{add:f=>installed.add(f),delete:f=>installed.delete(f)}},TypeDeformerFontLoading:{read:async()=>new ArrayBuffer(4),prepare:buffer=>({buffer,collectionCount:1}),loadFace:async()=>({})},axisFieldEditor:{register:async()=>{if(++attempt===1)throw Error('secondary registration');}},registerRuntimeFont(_family,_label,source){c.runtimeFontSources.test=source;}});
- vm.runInContext(source,c);await assert.rejects(c.ensureRuntimeFontLoaded('test'),/secondary/);assert.equal(buffers.size,0);assert.equal(installed.size,0);assert.equal(files.size,1);
- await c.ensureRuntimeFontLoaded('test');assert.equal(buffers.size,1);assert.equal(installed.size,1);assert.equal(files.size,0);assert.equal(c.runtimeFontLoads.size,0);
-});
+const editor=readAuthoredSource();
+// Font registry lifecycle, identity and secondary-registration rollback now
+// have direct behavioral coverage in test-font-registry.mjs.
 test('worker font payloads retain fonts used by individual glyphs but omit unused library records',()=>{
- const source=editor.match(/^      function surfaceWorkerFontRecords\([^]*?^      \}/m)[0],records=[{family:'Main Font'},{family:'Glyph Font'},{family:'Unused Font'}],c=vm.createContext({studioFontBuffers:new Map(records.map(r=>[r.family,r]))});vm.runInContext(source,c);
+ const source=editor.match(/^      function surfaceWorkerFontRecords\([^]*?^      \}/m)[0],records=[{family:'Main Font'},{family:'Glyph Font'},{family:'Unused Font'}],c=createAuthoredTestContext({studioFontBuffers:new Map(records.map(r=>[r.family,r]))});vm.runInContext(source,c);
  assert.deepEqual(Array.from(c.surfaceWorkerFontRecords({params:{fontFamily:'"Main Font", serif'},glyphs:[{fontFamily:'"Glyph Font"'}]})).map(r=>r.family),['Main Font','Glyph Font']);
 });
 test('surface rendering chooses compatibility mode when workers lack a usable offscreen 2D API',()=>{
  const source=fs.readFileSync(new URL('../render-jobs.js',import.meta.url),'utf8');
- for(const [OffscreenCanvas,expected] of [[undefined,false],[class{getContext(){return null;}},false],[class{getContext(){return {};}},true]]){const c=vm.createContext({Worker:class{},FontFace:class{},OffscreenCanvas});vm.runInContext(source,c);assert.equal(c.TypeDeformerRenderJobs.supportsSurfaceWorker(),expected);}
+ for(const [OffscreenCanvas,expected] of [[undefined,false],[class{getContext(){return null;}},false],[class{getContext(){return {};}},true]]){const c=createAuthoredTestContext({Worker:class{},FontFace:class{},OffscreenCanvas});vm.runInContext(source,c);assert.equal(c.TypeDeformerRenderJobs.supportsSurfaceWorker(),expected);}
 });

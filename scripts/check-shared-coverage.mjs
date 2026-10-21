@@ -1,13 +1,15 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
+import {readPageMarkup, readRenderUnits, extractDeclaredFunction} from './source-reader.mjs';
 const normalize=value=>value.replace(/\r\n/g,'\n');
-const root=new URL('../',import.meta.url),read=name=>normalize(fs.readFileSync(new URL(name,root),'utf8')),html=read('index.html'),c=vm.createContext({});
-for(const file of ['parameter-model.js','parameter-definitions.js'])vm.runInContext(read(file),c);
-for(const name of ['STRENGTH_MODES','EVALUATION_LAYERS','OPERATOR_DEFS'])vm.runInContext(html.match(new RegExp('      var '+name+' = \\{[^]*?\\n      };'))[0],c);
+const root=new URL('../',import.meta.url),read=name=>normalize(fs.readFileSync(new URL(name,root),'utf8')),html=readPageMarkup(),c=vm.createContext({});
+const renderUnits=readRenderUnits();
+for(const file of ['operator-registry.js','parameter-model.js','parameter-definitions.js'])vm.runInContext(read(file),c);
+c.OPERATOR_DEFS=c.TypeDeformerOperatorRegistry.tables.OPERATOR_DEFS;
 const manifest=JSON.parse(read('worker-dependencies.json')),model=c.TypeDeformerParameters;
-const effectPadBody=html.match(/      function surfaceEffectPad\(\) \{[^]*?^      \}/m)?.[0]||'';
-const canonicalPlanBody=html.match(/      function surfaceCanonicalRasterPlan\(glyphs\) \{[^]*?^      \}/m)?.[0]||'';
+const effectPadBody=extractDeclaredFunction(renderUnits,'surfaceEffectPad');
+const canonicalPlanBody=extractDeclaredFunction(renderUnits,'surfaceCanonicalRasterPlan');
 const dedicatedPads={differentialType:'differentialEffectPad',conformalType:'conformalEffectPad',auxeticType:'auxeticEffectPad',
  marblingType:'marblingEffectPad',rasterPress:'rasterPressEffectPad',hatchEngrave:'hatchEngraveEffectPad'};
 for(const id of manifest.operators){

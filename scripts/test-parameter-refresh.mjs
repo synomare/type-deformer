@@ -1,13 +1,16 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-const source=html.slice(html.indexOf('      function refreshParameterUI()'),html.indexOf('      function syncParameterRowReset('));
+const authoredSource=readAuthoredSource();
+const source=authoredSource.slice(authoredSource.indexOf('      function refreshParameterUI()'),authoredSource.indexOf('      function syncParameterRowReset('));
 function fixture(){
  const count={textContent:''},frames=[],reads=[],rowWrites=[];let editing=false;
  const entries=Array.from({length:100},(_,i)=>{const control={id:'p'+i,type:'range',value:'0',dataset:{}},row={element:{classList:{toggle(){}}}};const entry={control,defaultRaw:'0',label:'Value',group:'Effect',modified:false,row};row.parameterEntries=[entry];return entry;});
- const c=vm.createContext({window:{TypeDeformerNumericControls:{editing:()=>editing}},document:{getElementById:()=>count},parameterEntries:entries,parameterRows:entries.map(e=>e.row),parameterDirtyEntries:new Set(),parameterEntryByControl:new WeakMap(entries.map(e=>[e.control,e])),parameterFullRefresh:true,parameterRefreshFrame:0,parameterModifiedCount:0,requestAnimationFrame(fn){frames.push(fn);return frames.length;},syncOperatorParameterAvailability(){},parameterRawValue(input){reads.push(input.id);return input.value;},parameterValue:input=>input.value,syncParameterRowReset(row,changed){rowWrites.push(changed);},syncMobileStepperStates(){},renderParameterResults(){}});
+ const c=createAuthoredTestContext({window:{TypeDeformerNumericControls:{editing:()=>editing}},document:{getElementById:id=>id==='parameterChangedCount'?count:null},parameterEntries:entries,parameterRows:entries.map(e=>e.row),parameterDirtyEntries:new Set(),parameterEntryByControl:new WeakMap(entries.map(e=>[e.control,e])),parameterFullRefresh:true,parameterRefreshFrame:0,parameterModifiedCount:0,requestAnimationFrame(fn){frames.push(fn);return frames.length;},syncOperatorParameterAvailability(){},parameterRawValue(input){reads.push(input.id);return input.value;},parameterValue:input=>input.value,syncParameterRowReset(row,changed){rowWrites.push(changed);},syncMobileStepperStates(){},renderParameterResults(){}});
  vm.runInContext(source,c);c.refreshParameterUI();reads.length=rowWrites.length=0;
  return {c,entries,count,reads,rowWrites,edit(value){editing=value;},flush(){const work=frames.splice(0);work.forEach(fn=>fn());}};
 }

@@ -160,3 +160,20 @@ test('size inspection reports raster SVG limits and clipping without allocating 
   Object.assign(c.params, { abW: 16, abH: 16, exportScale: 1 });
   c.inspectExport(); assert.match(statuses.at(-1).message, /切れます/);
 });
+
+test('portable SVG always releases its rendered canvas, including metadata, PNG, Blob and download failures', () => {
+  for (const phase of ['success', 'metadata', 'png', 'blob', 'download']) {
+    const { c, statuses } = exportFixture();c.setSource('Portable');
+    const scene = c.snapshotRenderableScene();c.snapshotRenderableScene = () => scene;
+    let released = 0;
+    const target = { width: 128, height: 64, toDataURL() { if (phase === 'png') throw Error('PNG encoding failed');return 'data:image/png;base64,AA=='; } };
+    c.params.svgMode = 'portable';c.params.svgMetadata = phase === 'metadata';c.renderCanvas = () => target;
+    c.currentLookState = () => { throw Error('Metadata capture failed'); };
+    c.TypeDeformerRenderContext = { release(canvas) { assert.equal(canvas, target);released++;canvas.width = canvas.height = 1; } };
+    if (phase === 'blob') c.Blob = class { constructor() { throw Error('Blob allocation failed'); } };
+    if (phase === 'download') c.download = () => { throw Error('Download failed'); };
+    c.runSvgExport();
+    assert.equal(released, 1, phase);assert.equal(target.width, 1, phase);
+    assert.equal(statuses.at(-1).state, phase === 'success' ? 'done' : 'error', phase);
+  }
+});

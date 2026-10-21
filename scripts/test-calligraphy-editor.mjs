@@ -1,11 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-const extract=name=>{const source=html.match(new RegExp('^      function '+name+'\\([\\s\\S]*?^      \\}','m'));assert.ok(source,name);return source[0];};
-const block=html.match(/\/\/ BEGIN CALLIGRAPHY FIELD GENERATED[\s\S]*?\/\/ END CALLIGRAPHY FIELD GENERATED/)[0];
+const authoredSource=readAuthoredSource();
+const extract=name=>{const source=authoredSource.match(new RegExp('^      function '+name+'\\([\\s\\S]*?^      \\}','m'));assert.ok(source,name);return source[0];};
+const block = readNativeIntegrationSource('calligraphy');
 const params={fontSize:192,fontWeight:700,fontFamily:'serif',vertical:false,calligraphyTool:'broad',calligraphyExpansion:0,calligraphyContrast:.4,calligraphyAngle:32,calligraphyPulse:.2,calligraphyWetness:.2};
-const runtime=vm.createContext({params,compositionState:{enabled:true,phase:0},BATCH_PARAM_OPTIONS:{calligraphyTool:['legacy','broad','brush','split','chisel']},
+const runtime=createAuthoredTestContext({params,compositionState:{enabled:true,phase:0},BATCH_PARAM_OPTIONS:{calligraphyTool:['legacy','broad','brush','split','chisel']},
   surfaceGlyphStrength:g=>g.surface?.calligraphicStress||0,surfaceOutputOpacity:()=>1,baselineOffset:()=>0});
 new vm.Script(block+'\n'+extract('spectralGlyphFrame')+'\n'+extract('surfaceGlyphTextSpec') + '\n' + extract('drawSurfaceGlyph')).runInContext(runtime);
 const context=()=>({matrix:[1,0,0,1,0,0],stack:[],native:[],
@@ -73,7 +77,7 @@ runtime.CalligraphyField.prepareCalligraphyBody=()=>({bounds:[0,0,100,25]});
 pointCount=90000;runtime.calligraphyGlyphData('one');runtime.calligraphyGlyphData('two');runtime.calligraphyGlyphData('three');
 assert.equal(runtime.calligraphyCachePoints,180000);assert.equal(runtime.calligraphyGlyphCache.size,2);
 pointCount=262145;assert.equal(runtime.calligraphyGlyphData('oversized').pointCount,262145);assert.equal(runtime.calligraphyGlyphCache.size,2,'Uncacheable source must not evict reusable sources');
-assert.ok(html.includes('conformalInvalidateFonts(); auxeticInvalidateFonts(); calligraphyInvalidateFonts();'));
+assert.ok(authoredSource.includes('conformalInvalidateFonts(); auxeticInvalidateFonts(); calligraphyInvalidateFonts();'));
 assert.ok(extract('surfaceCanonicalRasterPlan').includes('calligraphyEffectPad(glyphs)'));
 assert.ok(extract('sceneContentBounds').includes('calligraphyEffectPad(scene.glyphs)'));
 console.log('Calligraphy editor: shipped renderer, 8 native frames, per-Batch isolation, 140 copies, legacy/mixed paint order, source-over, 768px source metrics, font invalidation/cache budget and transformed bounds passed (VM, not browser).');

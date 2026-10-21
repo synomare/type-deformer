@@ -1,10 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../numerical-kernels.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(here,'../vortex-bath-operator.js'),'utf8'),ctx);
+const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};createAuthoredTestContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../numerical-kernels.js'),'utf8'),ctx);vm.runInContext(fs.readFileSync(path.join(here,'../vortex-bath-operator.js'),'utf8'),ctx);
 const api=ctx.TypeDeformerVortexBath,I=api.internals,defaults=api.schemas.vortexBath.defaults;
 const maxDiff=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i])));
 const field=(n,fn)=>Float64Array.from({length:n*n},(_,i)=>fn(i%n,Math.floor(i/n)));
@@ -33,4 +38,4 @@ test('the evolving solver is reproducible, bounded and responsive to the actual 
  const s=mask(36,40,(x,y)=>x>7&&x<28&&y>8&&y<32&&!(x>14&&x<23&&y>13&&y<23)),p={...defaults,vortexTime:.035},a=I.simulate(s,p,17),b=I.simulate(s,p,17);assert.equal(maxDiff(a.dye,b.dye),0);assert.ok(Math.min(...a.dye)>=0&&Math.max(...a.dye)<=1);assert.ok(a.stats.relativeDivergence<1e-12);assert.ok(a.stats.massRatio>.85&&a.stats.massRatio<1.1);assert.equal(a.stats.edgeMassRatio,0);const c=I.simulate(s,{...p,vortexMode:'lift'},17),d=I.simulate(s,p,44);assert.ok(maxDiff(a.dye,c.dye)>.01);assert.ok(maxDiff(a.dye,d.dye)>.001);assert.equal(I.simulate(mask(5,5,()=>false),p,17),null);
 });
 
-test('Evolving fluid body has every host control, shared glyph renderer and output path',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['vortexBath']);assert.ok(html.includes('<script src="vortex-bath-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,vortexBath.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('vortexBath')"));assert.ok(html.includes("fieldMaterialPad('vortexBath')"));for(const k of Object.keys(api.schemas.vortexBath.defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('Evolving fluid body has every host control, shared glyph renderer and output path',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['vortexBath']);assert.ok(markup.includes('<script src="vortex-bath-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,vortexBath.renderers)'));assert.ok(renderRoutes.vortexBath === "fieldMaterialRenderer('vortexBath')");assert.ok(authoredSource.includes("fieldMaterialPad('vortexBath')"));for(const k of Object.keys(api.schemas.vortexBath.defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { fixture, textMask, canvas, html, installHatchOutput } from './hatch-copper-fixture.mjs';
+import { fixture, textMask, canvas, authoredSource, installHatchOutput } from './hatch-copper-fixture.mjs';
+import {readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import { exportFixture } from './export-fixture.mjs';
 import { setMeasuredPageSource } from './page-layout-fixture.mjs';
-const extract = name => html.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))[0];
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
+const extract = name => authoredSource.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))[0];
 const pixels = c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
 const mass = a => a.reduce((n, v, i) => n + (i % 4 === 3 ? v : 0), 0);
 const mask = textMask('B O', 105, 'Times New Roman', 260, 180);
@@ -15,12 +19,13 @@ test('Copperplate is selectable without replacing any grammar, range, default, o
   const c=fixture(mask);
   assert.equal(c.params.hatchGrammar,'tonal');
   assert.deepEqual(Array.from(c.BATCH_PARAM_OPTIONS.hatchGrammar),['legacy','tonalV29','crosscutV29','burinV29','woodcutV29','tonal','crosscut','burin','woodcut','copperplate']);
-  assert.match(html,/<option value="copperplate">Copperplate/);
-  assert.match(html,/id="pHatchGrammar" aria-describedby="hatchCopperHint"/);
-  assert.ok(html.includes("bindProfileSelect('pHatchGrammar', 'hatchGrammar', applyAllOperatorVisuals)"));
+  assert.match(markup,/<option value="copperplate">Copperplate/);
+  assert.match(markup,/id="pHatchGrammar" aria-describedby="hatchCopperHint"/);
+  assert.ok(authoredSource.includes("bindProfileSelect('pHatchGrammar', 'hatchGrammar', applyAllOperatorVisuals)"));
   assert.ok(extract('snapshotGlyphs').includes('hatchGrammar: deform.hatchGrammar'));
-  assert.ok(extract('normalizeParams').includes("chooseParam('hatchGrammar', BATCH_PARAM_OPTIONS.hatchGrammar)"));
-  assert.match(extract('projectData'),/version: 92/);
+  assert.ok(migrations.includes("chooseParam('hatchGrammar', BATCH_PARAM_OPTIONS.hatchGrammar)"));
+  assert.ok(extract('normalizeParams').includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
+  assert.match(extract('projectData'),/version: 93/);
 });
 
 test('signed smoothing matches an independent clamped convolution, including counters and edge pixels', () => {
@@ -132,7 +137,8 @@ test('FX color is independent of paper/text color, and caller Canvas state survi
 
 test('actual Batch normalization accepts Copperplate and still rejects unknown grammars', () => {
   const c=fixture(mask);
-  vm.runInContext(html.match(/      var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0]+'\n'+html.match(/      var BATCH_PARAM_LIMITS = \{[^]*?\n      };/)[0]+'\n'+extract('normalizeBatchProfiles'),c);
+  vm.runInContext(migrations,c);
+  vm.runInContext(authoredSource.match(/      var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0]+'\n'+authoredSource.match(/      var BATCH_PARAM_LIMITS = \{[^]*?\n      };/)[0]+'\n'+extract('normalizeBatchProfiles'),c);
   c.BATCH_PROFILE_KEYS=['latin','latin_upper'];c.BATCH_TARGETS={byKey:{latin:{},latin_upper:{test:()=>true}}};
   const profiles=c.normalizeBatchProfiles({latin:{hatchGrammar:'copperplate',hatchWarp:999},latin_upper:{hatchGrammar:'copperplate',hatchSpacing:2}});
   assert.equal(profiles.latin.hatchGrammar,'copperplate');assert.equal(profiles.latin.hatchWarp,5);assert.equal(profiles.latin_upper.hatchSpacing,2);

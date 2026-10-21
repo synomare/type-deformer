@@ -1,16 +1,20 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup, readRenderManifest} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import '../operator-registry.js';
 
 // Execute the shipped functions, not a second implementation of the geometry.
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
 const names = ['spectralTraceContours', 'spectralBasis', 'spectralCompileContour', 'spectralContourContains', 'spectralPrepareGlyphContours', 'spectralSynthesize'];
 const extract = name => {
-  const match = html.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'));
+  const match = authoredSource.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'));
   assert.ok(match, 'Missing shipped function: ' + name);
   return match[0];
 };
-const runtime = vm.createContext({ spectralBasisCache: new Map() });
+const runtime = createAuthoredTestContext({ spectralBasisCache: new Map() });
 new vm.Script(names.map(extract).join('\n')).runInContext(runtime);
 const rgba = (w, h, fn) => {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -168,17 +172,21 @@ for (const mode of ['liquid', 'fluted', 'phase']) {
 }
 assert.equal(identities.size, 3, 'Each grammar must generate a different body');
 for (const key of ['Mode', 'Amount', 'Detail', 'Frequency', 'Phase', 'Counter', 'Motion']) {
-  assert.ok(html.includes('id="pSpectral' + key + '"'), 'Visible control ' + key);
-  assert.ok(html.includes("spectral" + key + ': deform.spectral' + key), 'Per-glyph/Batch snapshot ' + key);
-  assert.ok(html.includes("'pSpectral" + key + "',"), 'Bound control ' + key);
+  assert.ok(markup.includes('id="pSpectral' + key + '"'), 'Visible control ' + key);
+  assert.ok(authoredSource.includes("spectral" + key + ': deform.spectral' + key), 'Per-glyph/Batch snapshot ' + key);
+  assert.ok(authoredSource.includes("'pSpectral" + key + "',"), 'Bound control ' + key);
 }
+for (const [table, key] of Object.entries({SURFACE_COLOR_KEYS:'spectralColor',SURFACE_SOURCE_MODE_KEYS:'spectralSourceMode',
+  SURFACE_SOURCE_OPACITY_KEYS:'spectralSourceOpacity',SURFACE_OPACITY_KEYS:'spectralOpacity',SURFACE_BLEND_KEYS:'spectralBlend'})) {
+  assert.equal(globalThis.TypeDeformerOperatorRegistry.tables[table].spectralType,key,'Registry contract: '+table);
+  assert.ok(authoredSource.includes(`TypeDeformerOperatorRegistry.tables.${table}`),'Editor consumes registry: '+table);
+}
+assert.equal(readRenderManifest().routes.spectralType, 'renderSpectralType', 'canonical Spectral renderer route');
 for (const marker of [
-  "spectralType: 'spectralColor'", "spectralType: 'spectralSourceMode'",
-  "spectralType: 'spectralSourceOpacity'", "spectralType: 'spectralOpacity'", "spectralType: 'spectralBlend'",
-  "spectralType: renderSpectralType", "spectralType: [{ key: 'spectralAmount'",
-  "spectralGlyphCache.clear(); spectralCachePoints = 0", "ctx.fill('evenodd')",
+  "spectralType: [{ key: 'spectralAmount'",
+  "renderEngine.spectralGlyphCache.clear(); renderEngine.spectralCachePoints = 0", "ctx.fill('evenodd')",
   "spectralCachePoints + total > 49152", "spectralSourceMode: 'hide'"
-]) assert.ok(html.includes(marker), 'Integration contract: ' + marker);
+]) assert.ok(authoredSource.includes(marker), 'Integration contract: ' + marker);
 // Verify actual native and reconstructed glyph frames agree under grid,
 // vertical rotation, negative scales, shear, pan and export pixel scaling.
 const makeContext = () => ({
@@ -242,7 +250,7 @@ assert.deepEqual(ctx.fills, ['evenodd']);
 assert.equal(ctx.native.length, 1, 'Zero takes native glyph path');
 assert.equal(ctx.stack.length, 0, 'Canvas state restored');
 // Presets only edit the current target profile, one Undo entry, no apply or camera mutation.
-const presetSource = html.match(/      var SPECTRAL_TYPE_PRESETS = \{[\s\S]*?\n      \};/)[0];
+const presetSource = authoredSource.match(/      var SPECTRAL_TYPE_PRESETS = \{[\s\S]*?\n      \};/)[0];
 const profile = { unrelated: 123 }, events = [];
 Object.assign(runtime, { editableBatchProfile: () => profile, pushHistory: () => events.push('undo'),
   refreshBatchProfileControls: () => events.push('controls'), applyAllOperatorVisuals: () => events.push('draw'),

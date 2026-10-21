@@ -1,8 +1,13 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const scope={};vm.createContext(scope);vm.runInContext(fs.readFileSync(new URL('../loadpath-foundry-operator.js',import.meta.url),'utf8'),scope);
+const scope={};createAuthoredTestContext(scope);vm.runInContext(fs.readFileSync(new URL('../loadpath-foundry-operator.js',import.meta.url),'utf8'),scope);
 const api=scope.TypeDeformerLoadpathFoundry,I=api.internals,defaults=api.schemas.loadpathFoundry.defaults;
 function near(a,b,t=1e-8){assert.ok(Math.abs(a-b)<=t,`${a} != ${b} (${t})`);}
 function mask(w,h,fn){return {w,h,scale:1,alpha:Float32Array.from({length:w*h},(_,i)=>fn(i%w,Math.floor(i/w))?1:0)};}
@@ -37,4 +42,4 @@ test('Mask mesh retains counters, disconnected islands and bounded resolution; E
  const w=15,h=11,a=Float32Array.from({length:w*h},(_,i)=>((i*31+3)%13>2)?1:0),d=I.euclideanDistance(a,w,h);for(let i=0;i<a.length;i++){let best=Infinity;for(let j=0;j<a.length;j++)if(a[j]<=.5)best=Math.min(best,Math.hypot(i%w-j%w,Math.floor(i/w)-Math.floor(j/w)));near(d[i],best,2e-7);}
 });
 
-test('load-bearing glyph has complete host controls, shared bridge and export paths',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['loadpathFoundry']);assert.ok(html.includes('<script src="loadpath-foundry-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,loadpathFoundry.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('loadpathFoundry')"));assert.ok(html.includes("fieldMaterialPad('loadpathFoundry')"));for(const k of Object.keys(defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('load-bearing glyph has complete host controls, shared bridge and export paths',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['loadpathFoundry']);assert.ok(markup.includes('<script src="loadpath-foundry-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,loadpathFoundry.renderers)'));assert.ok(renderRoutes.loadpathFoundry === "fieldMaterialRenderer('loadpathFoundry')");assert.ok(authoredSource.includes("fieldMaterialPad('loadpathFoundry')"));for(const k of Object.keys(defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

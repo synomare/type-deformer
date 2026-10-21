@@ -1,19 +1,22 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual editor/output functions with native raster and explicit DOM/layout mocks.
 // Not browser CSS, download/clipboard, accessibility or iPhone evidence.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { exportFixture, canvas, html } from './export-fixture.mjs';
+import fs from 'node:fs';
+import { exportFixture, canvas, authoredSource } from './export-fixture.mjs';
 import { extract } from './paragraph-current-fixture.mjs';
 import { setMeasuredPageSource } from './page-layout-fixture.mjs';
 import { installHatchOutput } from './hatch-copper-fixture.mjs';
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
 const plain = v => JSON.parse(JSON.stringify(v));
 
 test('asynchronous worker and native layers restore the output crop after the initial draw unwinds',()=>{
  const output=canvas.createCanvas(80,80),bitmap=canvas.createCanvas(80,80),ctx=output.getContext('2d');
  bitmap.getContext('2d').fillRect(0,0,80,80);output.tdSurfaceClip={x:20,y:25,w:30,h:20};
- const c=vm.createContext({surfaceWorkerOutput:{key:'frame',canvas:output,ctx,order:['native','worker','native2'],cursor:0,completed:0},studioOutputOptions:null,surfaceOutputOpacity:()=>1,surfaceBlendMode:()=>'source-over',TypeDeformerRenderContext:{assertCanvas(){},make:()=>({}),withContext:(_c,fn)=>fn(),withScope:fn=>fn()},renderSurfaceFxLayer(target){target.fillStyle='red';target.fillRect(0,0,80,80);}});
- const start=html.indexOf('      function paintSurfaceOutputUntil('),end=html.indexOf('      function acceptSurfaceOutputProgress(',start);vm.runInContext(html.slice(start,end),c);
+ const c=createAuthoredTestContext({surfaceWorkerOutput:{key:'frame',canvas:output,ctx,order:['native','worker','native2'],cursor:0,completed:0},studioOutputOptions:null,surfaceOutputOpacity:()=>1,surfaceBlendMode:()=>'source-over',TypeDeformerRenderContext:{assertCanvas(){},make:()=>({}),withContext:(_c,fn)=>fn(),withScope:fn=>fn()},renderSurfaceFxLayer(target){target.fillStyle='red';target.fillRect(0,0,80,80);}});
+ const start=authoredSource.indexOf('      function paintSurfaceOutputUntil('),end=authoredSource.indexOf('      function acceptSurfaceOutputProgress(',start);vm.runInContext(authoredSource.slice(start,end),c);
  c.acceptSurfaceOutputLayer({operator:'worker',bitmap},'frame');c.paintSurfaceOutputUntil(3);
  const data=ctx.getImageData(0,0,80,80).data;let filled=0;
  for(let y=0;y<80;y++)for(let x=0;x<80;x++){const inside=x>=20&&x<50&&y>=25&&y<45;assert.equal(data[(y*80+x)*4+3],inside?255:0);if(inside)filled++;}
@@ -22,12 +25,23 @@ test('asynchronous worker and native layers restore the output crop after the in
 const passage = 'WAVE & BODY 永書\nSmall forms in a wide field.\n'.repeat(6);
 
 test('an exhausted edit renderer does not disable independent output, while invalid output stays blocked',()=>{
- const button={},c=vm.createContext({params:{},snapshotOutputRequest:null,exportRegionState:()=>({}),updateExportRegionUI(){},renderExportPreflight(){},document:{getElementById:()=>button,querySelector:()=>null}});
- vm.runInContext(['updateImageExportPreflight','updateExportActionAvailability'].map(extract).join('\n'),c);
+ const button={},c=createAuthoredTestContext({params:{},snapshotOutputRequest:null,exportRegionState:()=>({}),updateExportRegionUI(){},renderExportPreflight(){},document:{getElementById:()=>button,querySelector:()=>null},imagePreflightStale:false,imagePreflightPending:null,imagePreflightVisible:true});
+ vm.runInContext(['cancelImageExportPreflight','updateImageExportPreflight','updateExportActionAvailability'].map(extract).join('\n'),c);
  for(const code of ['SURFACE_RENDER_PENDING','RENDER_MEMORY_EXCEEDED','CANVAS_CONTEXT_LOST','RENDER_WORKER_FAILED','INVALID_OUTPUT']){
   c.snapshotRenderableScene=()=>{throw Object.assign(new Error('original reason'),{code});};
   c.updateImageExportPreflight();c.updateExportActionAvailability();assert.equal(button.disabled,code==='INVALID_OUTPUT');assert.equal(c.latestImagePreflight.blockers[0],'original reason');
  }
+});
+test('a deferred long-document preflight still blocks invalid output before export, but not the explicit check',()=>{
+  const {c,downloads,statuses}=setup();let evaluated=0;
+  c.updateExportActionAvailability=()=>{};
+  c.updateImageExportPreflight=()=>{evaluated++;c.imagePreflightStale=false;
+    c.latestImagePreflight={status:'blocked',pending:false,retryable:false,items:[],blockers:['出力サイズが上限を超えています。'],warnings:[]};};
+  c.imagePreflightStale=true;
+  assert.equal(c.nothingToExport(),true);assert.equal(evaluated,1,'the stale preflight is evaluated at the action, not skipped');
+  assert.equal(statuses.at(-1).message,'出力サイズが上限を超えています。');
+  c.exportPng();assert.equal(downloads.length,0);assert.equal(evaluated,1,'a fresh result is reused');
+  c.imagePreflightStale=true;assert.equal(c.nothingToExport(true),false,'the explicit check still reports instead of stopping');assert.equal(evaluated,2);
 });
 function setup(settings = {}, source = passage) {
   const env = exportFixture(), c = env.c;
@@ -153,7 +167,7 @@ test('scope UI events preserve Apply/camera, distinguish pending numbers and cap
   c.pushHistory=()=>{history++;};c.markAutosaveDirty=()=>{dirty++;};c.scheduleParameterUIRefresh=()=>{};
   c.latestImagePreflight=null;c.updateImageExportPreflight=()=>{};
   vm.runInContext(['setExportRegion','captureExportRegionFromSource','updateExportRegionUI','updateExportActionAvailability','updateExportInfo'].map(extract).join('\n'),c);
-  vm.runInContext(html.match(/      document.getElementById\('pExportRegion'\).addEventListener[^]*?(?=      abSelect.addEventListener)/)[0],c);
+  vm.runInContext(authoredSource.match(/      document.getElementById\('pExportRegion'\).addEventListener[^]*?(?=      abSelect.addEventListener)/)[0],c);
   c.updateExportInfo();controls.btnExportRegionNext.listeners.click();assert.equal(c.params.exportRegionNumber,3);
   controls.pExportRegionNumber.value='999';controls.pExportRegionNumber.listeners.change({target:controls.pExportRegionNumber});
   assert.equal(controls.btnPng.disabled,true);assert.match(controls.exportRegionStatus.textContent,/番号/);
@@ -168,12 +182,14 @@ test('scope UI events preserve Apply/camera, distinguish pending numbers and cap
 test('normalization keeps output scope global, rejects invalid values and defaults missing old settings',()=>{
   const {c}=setup();c.PARAM_DEFAULTS={exportRegion:'work',exportRegionNumber:1};
   vm.runInContext(['clampParam','chooseParam'].map(extract).join('\n'),c);
-  const statements=extract('normalizeParams').split('\n').filter(line=>/Param\('exportRegion/.test(line)).join('\n');
+  const statements=migrations.split('\n').filter(line=>/Param\('exportRegion/.test(line)).join('\n');
+  assert.match(statements,/chooseParam\('exportRegion'/);assert.match(statements,/clampParam\('exportRegionNumber'/);
+  assert.ok(extract('normalizeParams').includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
   for(const [value,expected] of [[-1,1],[1000001,1000000],[NaN,1],['bad',1],[5,5]]){
     c.params.exportRegionNumber=value;vm.runInContext(statements,c);assert.equal(c.params.exportRegionNumber,expected);
   }
   c.params.exportRegion='invalid';vm.runInContext(statements,c);assert.equal(c.params.exportRegion,'work');
-  assert.ok(!html.match(/var BATCH_PARAM_KEYS[^]*?\n      \];/)?.[0].includes('exportRegion'));
+  assert.ok(!authoredSource.match(/var BATCH_PARAM_KEYS[^]*?\n      \];/)?.[0].includes('exportRegion'));
 });
 test('3k/10k/50k Current + Reading retain full geometry when a single spread is rendered',t=>{
   const line='余白を読み、次の声へ。 Words remain across the page.\n';

@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { fixture, metric, extract, html } from './paragraph-current-fixture.mjs';
+import { fixture, metric, extract, authoredSource } from './paragraph-current-fixture.mjs';
+import {readAuthoredUnits, extractDeclaredCode, declaredSourceUnit} from './source-reader.mjs';
+const authoredUnits = readAuthoredUnits();
 
 function mockRow(control) {
   const classes = new Set();
@@ -242,8 +244,16 @@ function profileSliderFixture() {
     document: { createElement: () => ({ getContext: () => null }), getElementById: id => controls[id] || null },
     mirrorXInput: node(), mirrorYInput: node(), batchProfileStatus: node(), btnBatchProfileReset: node()
   });
-  const classifier = html.slice(html.indexOf('      // BEGIN DETAILED BATCH TARGETS'), html.indexOf('      var PROOF_AXIS_DEFS'));
-  const profiles = html.slice(html.indexOf('      var batchProfiles = {};'), html.indexOf('      // Saved projects and URL payloads'));
+  const classifier = extractDeclaredCode(authoredUnits, 'createDetailedBatchTargets')
+    + '\nvar BATCH_TARGETS = createDetailedBatchTargets(function () { return CONFUSE_DATA; });\n';
+  const owner = declaredSourceUnit(authoredUnits, 'BATCH_PROFILE_KEYS').source;
+  const start = owner.indexOf('      var BATCH_PROFILE_KEYS =');
+  const end = owner.indexOf('      // Saved projects and URL payloads', start);
+  assert.ok(start >= 0 && end > start, 'authored profile setup and handlers');
+  const profiles = owner.slice(start, end) + '\n'
+    + ['BATCH_PARAM_KEYS', 'BATCH_PARAM_LIMITS', 'BATCH_PARAM_OPTIONS', 'SOURCE_PARAMETER_KEYS',
+      'batchResolvedProfiles', 'batchResolvedSource', 'batchResolvedDictionary',
+      'sourceParameterProfile', 'batchSourceText', 'batchProfileForKey'].map(name => extractDeclaredCode(authoredUnits, name)).join('\n');
   vm.runInContext(classifier + '\n' + profiles + '\n' + [
     'applyStretch', 'mirrorGrammarMask', 'flushOperatorVisuals', 'applyOperatorVisual', 'applyAllOperatorVisuals',
     'refreshBatchProfileControls', 'bindRange', 'bindProfileSelect', 'updateMirrorAxis'
@@ -323,7 +333,7 @@ test('every bound numeric Batch parameter reaches legacy class and fine override
   const { c, bind } = profileSliderFixture();
   c.batchProfiles.latin = c.copyBaseDeformProfile(); c.batchProfiles.kata = c.copyBaseDeformProfile();
   c.batchProfiles['latin.upper'] = c.copyBaseDeformProfile();
-  const keys = [...new Set([...html.matchAll(/bindRange\('[^']+', '[^']+', '([^']+)'/g)]
+  const keys = [...new Set([...authoredSource.matchAll(/bindRange\('[^']+', '[^']+', '([^']+)'/g)]
     .map(match => match[1]).filter(key => c.BATCH_PARAM_KEYS.includes(key)))];
   assert.ok(keys.length > 250, 'audit actual registered controls, not a hand-picked short list');
   for (const key of keys) {

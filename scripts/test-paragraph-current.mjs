@@ -1,17 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { fixture, metric, apply, html, extract } from './paragraph-current-fixture.mjs';
+import { fixture, metric, apply, authoredSource, markup, extract } from './paragraph-current-fixture.mjs';
 
 test('registered box operator has its own controls, state codec and no Surface ownership', () => {
   const c = fixture();
   assert.equal(c.OPERATOR_IDS.length, 116);
   assert.equal(c.OPERATOR_DEFS.paragraphCurrent.layer, 'box');
   assert.equal(c.OPERATOR_BY_SHORT.pc, 'paragraphCurrent');
-  assert.match(html, /data-operator-panel="paragraphCurrent"/);
-  assert.match(html, /paragraphCurrent: \['--op-current-x', '--op-current-y', '--op-current-rotate'\]/);
-  assert.match(extract('projectData'), /version: 92/);
-  assert.match(extract('normalizeParams'), /clampParam\('currentFollow', 0, 1/);
+  assert.match(markup, /data-operator-panel="paragraphCurrent"/);
+  assert.match(authoredSource, /paragraphCurrent: \['--op-current-x', '--op-current-y', '--op-current-rotate'\]/);
+  assert.match(extract('projectData'), /version: 93/);
+  assert.match(fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8'), /clampParam\('currentFollow', 0, 1/);
+  assert.ok(extract('normalizeParams').includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
 });
 
 test('measured rows share a source paragraph frame without merging explicit paragraphs', () => {

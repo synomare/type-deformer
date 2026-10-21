@@ -1,28 +1,32 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import test from 'node:test';
+import {readPageMarkup, readAuthoredSource, readAuthoredUnits, extractDeclaredCode, declaredSourceUnit} from './source-reader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const dictionaryContext = vm.createContext({ window: {} });
+const markup = readPageMarkup(), authoredSource = readAuthoredSource(), authoredUnits = readAuthoredUnits();
+const dictionaryContext = createAuthoredTestContext({ window: {} });
 vm.runInContext(fs.readFileSync(path.join(root, 'confuse-dictionary.js'), 'utf8'), dictionaryContext);
 const dictionary = dictionaryContext.window.TYPE_DEFORMER_CONFUSE_DICTIONARY;
-const classifierCode = '// BEGIN DETAILED BATCH TARGETS' + html.split('// BEGIN DETAILED BATCH TARGETS')[1].split('// END DETAILED BATCH TARGETS')[0];
-const profileCode = html.slice(html.indexOf('      var batchProfiles = {};'), html.indexOf('      // Saved projects and URL payloads'));
-function functionCode(name) {
-  const found = html.match(new RegExp('      function ' + name + '\\([^]*?\\n      }'));
-  assert.ok(found, name);
-  return found[0];
-}
+const classifierCode = extractDeclaredCode(authoredUnits, 'createDetailedBatchTargets');
+const profileCode = ['batchProfiles','activeBatchProfile','batchResolvedProfiles','batchResolvedSource','batchResolvedDictionary','SOURCE_PARAMETER_KEYS','sourceParameterMode','sourceParameterUIStamp','sourceParameterUIMetrics','sourceParameterKey','normalizeSourceParameters','decodeSourceParameters','sourceParameterProfile','effectiveParameterSource','refreshEffectiveParameterInspector','sourceParameterTargets','writeSourceParameter','resetSourceParameters','refreshSourceParameterControls','copyBaseDeformProfile','batchSourceText','batchProfileForKey','editableBatchProfile','writeBatchParameter','normalizeBatchProfiles','cloneBatchProfiles'].map(name=>extractDeclaredCode(authoredUnits,name)).join('\n');
+function functionCode(name) { return extractDeclaredCode(authoredUnits,name); }
+const matcherOwner=declaredSourceUnit(authoredUnits,'batchMatchers').source;
+const matcherStart=matcherOwner.indexOf('      var batchMatchers = {');
+const matcherEnd=matcherOwner.indexOf('      /* ---------------- per-letter state restore',matcherStart);
+assert.ok(matcherStart>=0&&matcherEnd>matcherStart,'authored batch matcher setup and handlers');
+const matcherCode=matcherOwner.slice(matcherStart,matcherEnd);
 function context(data = dictionary) {
-  const c = vm.createContext({ CONFUSE_DATA: data, params: { stretchX: 1, rotation: 0, mode: 'organic', activeOperator: 'stretch' },
+  const c = createAuthoredTestContext({ CONFUSE_DATA: data, params: { stretchX: 1, rotation: 0, mode: 'organic', activeOperator: 'stretch' },
     sourceTarget: { mode: 'all', start: 0, end: 0, valid: false }, sourceParagraphs: [], renderedSourceText: '',
     textComposing: false, flushPendingTextRebuild() {}, toGraphemes: text => [...text],
     BATCH_PARAM_KEYS: ['stretchX', 'rotation', 'mode'], BATCH_PARAM_OPTIONS: { mode: ['organic', 'grid'] },
     BATCH_PARAM_LIMITS: { stretchX: [-2,8], rotation: [0,45] } });
+  vm.runInContext(fs.readFileSync(path.join(root,'project-migrations.js'),'utf8'),c);
   vm.runInContext('function unused() {}\n' + classifierCode + `
     var BATCH_TARGETS = createDetailedBatchTargets(function () { return CONFUSE_DATA; });
     var BATCH_PROFILE_KEYS = BATCH_TARGETS.definitions.filter(d => d.key !== 'all').map(d => d.key);
@@ -156,7 +160,7 @@ test('fine profile editing / reset / project-share-undo JSON roundtrip stay spar
 
 test('batch apply/release: locked letters excluded, immutable source used, unknown selector fails closed', () => {
   const c = context();
-  vm.runInContext(html.slice(html.indexOf('      var batchMatchers = {'), html.indexOf('      /* ---------------- per-letter state restore')), c);
+  vm.runInContext(matcherCode, c);
   let history = 0;
   c.pushHistory = () => history++; c.scheduleEffectStatusUpdate = () => {}; c.schedule = () => {};
   c.operatorState = m => m.state; c.readOperatorState = m => m.state;
@@ -171,11 +175,11 @@ test('batch apply/release: locked letters excluded, immutable source used, unkno
 });
 
 test('integration routes glyph-specific parameters and Compose/Proof source identity', () => {
-  const calls = [...html.matchAll(/batchProfileForKey\(([^\n;]*)/g)].map(m=>m[1]);
-  for (const call of calls) if (call.includes('.batchKey')) assert.match(call, /\.batchKey, /);
-  assert.ok(html.includes('sourceText: source.sourceText || source.ch'));
-  assert.ok(html.includes('BATCH_TARGETS.matches(activeBatchProfile, batchSourceText(source))'));
-  assert.ok(html.includes('Object.assign(copyBaseDeformProfile(batchProfileForKey(activeBatchProfile)), settings.values)'));
+  const calls = [...authoredSource.matchAll(/batchProfileForKey\(([^\n;]*)/g)].map(m=>m[1]);
+  for (const call of calls) if (call.includes('.batchKey')) assert.match(call, /\.batchKey,\s*[^\s)]/,'glyph-specific lookup supplies the glyph argument');
+  assert.ok(authoredSource.includes('sourceText: source.sourceText || source.ch'));
+  assert.ok(authoredSource.includes('BATCH_TARGETS.matches(activeBatchProfile, renderEngine.batchSourceText(source))'));
+  assert.ok(authoredSource.includes('Object.assign(copyBaseDeformProfile(renderEngine.batchProfileForKey(activeBatchProfile)), settings.values)'));
 });
 
 test('target selection/filtering preserves the current target and previews only matching source glyphs', () => {
@@ -230,7 +234,7 @@ function targetUIContext() {
     OPERATOR_DEFS:{stretch:{label:'Stretch'}},operatorState:m=>m.state,readOperatorState:m=>m.state,operatorAffectsMetric:m=>m.state.current>0 || m.state.manual!=null,
     scheduleEffectStatusUpdate(){},schedule(){},applyOperatorVisual(){},pushHistory(){},refreshBatchProfileControls(){},updateContextUI(){}});
   vm.runInContext(functionCode('populateBatchTargetOptions') + functionCode('updateBatchTargetPreview') + functionCode('setActiveBatchProfile')
-    + html.slice(html.indexOf('      var batchMatchers = {'), html.indexOf('      /* ---------------- per-letter state restore')),c);
+    + matcherCode,c);
   return {c,elements};
 }
 
@@ -294,15 +298,15 @@ test('partial, empty, locked-only and dictionary-error states explain availabili
 });
 
 test('workflow wiring: target before direct gestures, preview before action, shortcuts select without applying', () => {
-  assert.ok(html.includes("var applyBlocks = ['targetControlBlock', 'applicationControlBlock', 'contextLensBlock']"));
-  const target=html.slice(html.indexOf('<div id="targetControlBlock">'),html.indexOf('<div id="operatorPanelsBlock">'));
+  assert.ok(authoredSource.includes("var applyBlocks = ['targetControlBlock', 'applicationControlBlock', 'contextLensBlock']"));
+  const target=markup.slice(markup.indexOf('<div id="targetControlBlock">'),markup.indexOf('<div id="operatorPanelsBlock">'));
   assert.ok(target.indexOf('id="batchTargetPreview"')<target.indexOf('id="targetActionSlot"'));
   assert.ok(target.indexOf('id="targetActionSlot"')<target.indexOf('id="batchProfileSettings"'));
-  assert.ok(html.includes("document.getElementById('targetActionSlot').appendChild(document.getElementById('applicationQuick'))"));
-  const wiring=html.slice(html.indexOf("document.querySelectorAll('[data-batch]')"),html.indexOf("document.getElementById('btnApplyCurrentTarget').addEventListener"));
+  assert.ok(authoredSource.includes("document.getElementById('targetActionSlot').appendChild(document.getElementById('applicationQuick'))"));
+  const wiring=authoredSource.slice(authoredSource.indexOf("document.querySelectorAll('[data-batch]')"),authoredSource.indexOf("document.getElementById('btnApplyCurrentTarget').addEventListener"));
   assert.ok(wiring.includes('setActiveBatchProfile(btn.dataset.batch)')); assert.ok(!wiring.includes('batchToggle('));
-  assert.ok(html.includes('min-height: 48px; white-space: normal'));
-  const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'));
+  assert.ok(markup.includes('min-height: 48px; white-space: normal'));
+  const css = markup.slice(markup.indexOf('<style>') + 7, markup.indexOf('</style>'));
   const touchInputRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
     .filter(match => /^\s*font-size:\s*16px;\s*$/.test(match[2]))
     .map(match => match[1].split(',').map(selector => selector.trim()));

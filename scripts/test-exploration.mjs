@@ -1,8 +1,11 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const context = vm.createContext({});
+const context = createAuthoredTestContext({});
 vm.runInContext(fs.readFileSync(new URL('../exploration.js', import.meta.url), 'utf8'), context);
 const api = context.TypeDeformerExplorer;
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -60,11 +63,11 @@ test('frozen moments validate clocks, quality, font references and geometry dime
   assert.equal(moment.quality, 'normal'); assert.deepEqual(plain(moment.fonts), [{ family: 'Local Font', label: 'Local.otf' }]);
 });
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+const authoredSource = readAuthoredSource().replaceAll('\r\n', '\n');
 function scopeRuntime() {
   const input = { id: 'field', min: '0', max: '1', step: '.01', disabled: false,
     closest: () => ({ dataset: { operatorPanel: 'test' } }) };
-  const c = vm.createContext({ activeBatchProfile: 'all', sourceTarget: { mode: 'all' },
+  const c = createAuthoredTestContext({ activeBatchProfile: 'all', sourceTarget: { mode: 'all' },
     metrics: [{ ch: 'A', batchKey: 'latin' }, { ch: 'a', batchKey: 'latin' }],
     batchProfiles: { latin: { field: .2 } }, syncOperatorParameterAvailability() {},
     rangeControls: [{ key: 'field', profiled: true, input }],
@@ -76,7 +79,7 @@ function scopeRuntime() {
       matches: (key, text) => key === 'all' || key === 'latin' || key === 'latin.upper' && text === text.toUpperCase() || key === 'latin.vowel' && /[Aa]/.test(text) }
   });
   const functions = ['studioTargetKeys', 'studioAxes'].map(name => {
-    const source = html.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'))?.[0];
+    const source = authoredSource.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'))?.[0];
     assert.ok(source, name); return source;
   }).join('\n');
   vm.runInContext(functions, c); return c;
@@ -108,7 +111,7 @@ test('overlapping detailed profiles, local overrides and partial source ranges s
 test('isolated export accepts structured progress and waits thirty minutes, while comparison/proof retain their shorter deadline',async()=>{
  for(const purpose of ['export','proof',null]){
   const timers=new Map(),events=new Map(),sent=[];let next=0,frame;
-  const c=vm.createContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){},contentWindow:{postMessage:m=>sent.push(m)}};return frame;},body:{appendChild(){}}}});
+  const c=createAuthoredTestContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){},contentWindow:{postMessage:m=>sent.push(m)}};return frame;},body:{appendChild(){}}}});
   vm.runInContext(fs.readFileSync(new URL('../render-context.js',import.meta.url),'utf8'),c);vm.runInContext(fs.readFileSync(new URL('../exploration.js',import.meta.url),'utf8'),c);
   const client=c.TypeDeformerExplorer.rendererClient({viewport:()=>({windowWidth:960,windowHeight:680}),fonts:()=>[]}),progress=[];
   const waiting=client.render(purpose?{output:{format:'png',purpose}}:{state:{}},v=>progress.push(v));
@@ -120,8 +123,8 @@ test('isolated export accepts structured progress and waits thirty minutes, whil
 });
 
 test('export progress counts native effects in their actual position between streamed layers',()=>{
- const c=vm.createContext({surfaceWorkerOutput:{order:['tensor','native','copy','riso'],progress:{operator:'tensor',operatorIndex:0,totalOperators:3,completed:2,total:6}},operatorOption:id=>({textContent:id})});
- const fn=html.match(/^      function surfaceOutputProgress\([\s\S]*?^      \}/m)?.[0];assert.ok(fn);vm.runInContext(fn,c);
+ const c=createAuthoredTestContext({surfaceWorkerOutput:{order:['tensor','native','copy','riso'],progress:{operator:'tensor',operatorIndex:0,totalOperators:3,completed:2,total:6}},operatorOption:id=>({textContent:id})});
+ const fn=authoredSource.match(/^      function surfaceOutputProgress\([\s\S]*?^      \}/m)?.[0];assert.ok(fn);vm.runInContext(fn,c);
  assert.equal(c.surfaceOutputProgress().fraction,.25);assert.match(c.surfaceOutputProgress().text,/1 \/ 4/);
  Object.assign(c.surfaceWorkerOutput.progress,{operator:'copy',operatorIndex:1,completed:3});assert.equal(c.surfaceOutputProgress().fraction,.625);assert.match(c.surfaceOutputProgress().text,/3 \/ 4/);
 });
@@ -129,7 +132,7 @@ test('export progress counts native effects in their actual position between str
 test('isolated renderer cancellation and transport failure cannot resurrect frames or leak deadlines',async()=>{
  for(const phase of ['loading','init','render','transport','fonts']){
   const timers=new Map(),events=new Map(),sent=[];let next=0,frame,removed=0;
-  const c=vm.createContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){removed++;},contentWindow:{postMessage(m){if(phase==='transport')throw Error('closed port');sent.push(m);}}};return frame;},body:{appendChild(){}}}});
+  const c=createAuthoredTestContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){removed++;},contentWindow:{postMessage(m){if(phase==='transport')throw Error('closed port');sent.push(m);}}};return frame;},body:{appendChild(){}}}});
   vm.runInContext(fs.readFileSync(new URL('../exploration.js',import.meta.url),'utf8'),c);
   const client=c.TypeDeformerExplorer.rendererClient({viewport:()=>({windowWidth:960,windowHeight:680}),fonts(){if(phase==='fonts')throw Error('font data unavailable');return [];}});
   const promise=client.render({output:{purpose:'export'}}),rejected=assert.rejects(promise,phase==='transport'?{code:'RENDER_TRANSPORT_FAILED'}:phase==='fonts'?/font data/:{code:'RENDER_CANCELLED'});
@@ -139,5 +142,28 @@ test('isolated renderer cancellation and transport failure cannot resurrect fram
   client.dispose();client.dispose();lateLoad();await rejected;
   assert.equal(timers.size,0);assert.equal(events.size,0);assert.equal(removed,1);
   await assert.rejects(client.render({}),phase==='transport'?{code:'RENDER_TRANSPORT_FAILED'}:phase==='fonts'?/font data/:{code:'RENDER_CANCELLED'});
+ }
+});
+
+test('render requests capture immutable source state before iframe preparation yields',()=>{
+ const source={state:{text:'before',params:{fontSize:52},letters:[{id:'a',x:1}]},viewport:{width:960},output:{purpose:'export'}};
+ const request=api.snapshotRequest(source);source.state.text='after';source.state.letters[0].x=2;
+ assert.equal(request.state.text,'before');assert.equal(request.state.letters[0].x,1);assert.equal(Object.isFrozen(request.state.params),true);
+ assert.throws(()=>{request.state.params.fontSize=100;},TypeError);
+});
+
+test('renderer owns one shared reservation and releases it after timeout, cancellation and transport failure',async()=>{
+ for(const phase of ['timeout','cancel','transport']){
+  const timers=new Map(),events=new Map(),sent=[];let next=0,frame;
+  const c=createAuthoredTestContext({URL,location:{href:'http://localhost/'},crypto:{getRandomValues:value=>value.fill(7)},setTimeout(fn,ms){timers.set(++next,{fn,ms});return next;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name),document:{createElement(){frame={style:{},setAttribute(){},remove(){},contentWindow:{postMessage(m){if(phase==='transport')throw Error('port closed');sent.push(m);}}};return frame;},body:{appendChild(){}}}});
+  for(const file of ['render-context.js','exploration.js'])vm.runInContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),c);
+  const R=c.TypeDeformerRenderContext,bridge={viewport:()=>({windowWidth:960,windowHeight:680}),fonts:()=>[]};
+  const client=c.TypeDeformerExplorer.rendererClient(bridge),payload={state:{text:'captured'},output:{purpose:'export'}};
+  const pending=client.render(payload),rejected=assert.rejects(pending,{code:phase==='timeout'?'RENDER_START_FAILED':phase==='transport'?'RENDER_TRANSPORT_FAILED':'RENDER_CANCELLED'});
+  assert.ok(R.resources.inspect().reservedBytes>0);
+  await assert.rejects(client.render(payload),{code:'RENDER_RESOURCE_BUSY'});
+  const competitor=c.TypeDeformerExplorer.rendererClient(bridge);await assert.rejects(competitor.render(payload),{code:'RENDER_RESERVATION_EXCEEDED'});competitor.dispose();
+  if(phase==='timeout')[...timers.values()][0].fn();else if(phase==='transport')frame.onload();else client.dispose();
+  await rejected;assert.equal(R.resources.inspect().reservedBytes,0);assert.equal(client.inspect().pending,0);assert.equal(events.size,0);
  }
 });

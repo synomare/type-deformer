@@ -1,18 +1,20 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual editor functions with explicit DOM/layout mocks. Not browser evidence.
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
+import {readAuthoredUnits, readPageMarkup, extractDeclaredFunction} from './source-reader.mjs';
 
-export const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredUnits = readAuthoredUnits();
+export const authoredSource = authoredUnits.map(unit=>unit.source).join('\n\n');
+export const markup = readPageMarkup();
 export function extract(name) {
-  const source = html.match(new RegExp('      function ' + name + '\\([^]*?\\n      }'))?.[0];
-  assert.ok(source, `editor function ${name}`);
-  return source;
+  return extractDeclaredFunction(authoredUnits, name);
 }
-const objectSource = name => html.match(new RegExp('      var ' + name + ' = \\{[^]*?\\n      };'))?.[0];
-const declarationSource = name => html.match(new RegExp('^      var ' + name + ' = .*;$', 'm'))?.[0];
+const objectSource = name => authoredSource.match(new RegExp('      var ' + name + ' = \\{[^]*?\\n      };'))?.[0];
+const declarationSource = name => authoredSource.match(new RegExp('^      var ' + name + ' = .*;$', 'm'))?.[0];
 export function fixture(extra = {}) {
-  const c = vm.createContext({
+  const c = createAuthoredTestContext({
     Math, Map, Set, metrics: [], metricsDirty: false, stage: { style: { setProperty(k, v) { this[k] = v; } } }, stageWorld: { style: {} },
     pageLayoutState: { enabled: false, pages: [] }, pageSourceIndex: [],
     compositionState: { enabled: false }, compositionSourceRevision: 0, compositionCanvas: null,
@@ -28,7 +30,24 @@ export function fixture(extra = {}) {
     orientedCompositionPoint: (x, y) => ({ x, y, rotation: 0 }),
     ...extra
   });
-  vm.runInContext(['STRENGTH_MODES', 'EVALUATION_LAYERS', 'OPERATOR_DEFS', 'params'].map(objectSource).join('\n')
+  vm.runInContext(fs.readFileSync(new URL('../operator-registry.js', import.meta.url), 'utf8'), c);
+  vm.runInContext(fs.readFileSync(new URL('../text-layout.js', import.meta.url), 'utf8'), c);
+  // Explicit synthetic adapter: these tests supply native/synthetic boxes,
+  // not a browser DOM. Browser-run shaping is covered by text-layout.spec.js.
+  c.TypeDeformerTextLayout = { ...c.TypeDeformerTextLayout, measure() {
+    return { version: 1, engine: 'synthetic-fixture', boxes: c.metrics.map(m => {
+      const el = m.el;
+      let x = 0, y = 0, node = el;
+      while (node && node !== c.stage) { x += node.offsetLeft || 0; y += node.offsetTop || 0; node = node.offsetParent; }
+      return { x, y, w: el.offsetWidth, h: el.offsetHeight, direction:'ltr' };
+    }) };
+  } };
+  Object.defineProperty(c, 'letters', { get: () => c.metrics.map(m => m.el) });
+  vm.runInContext(fs.readFileSync(new URL('../project-codec.js', import.meta.url), 'utf8'), c);
+  vm.runInContext(fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8'), c);
+  c.documentSession = c.TypeDeformerProjectCodec.session();
+  c.OPERATOR_DEFS=c.TypeDeformerOperatorRegistry.tables.OPERATOR_DEFS;
+  vm.runInContext(['STRENGTH_MODES', 'EVALUATION_LAYERS', 'params'].map(objectSource).join('\n')
     + '\nvar OPERATOR_IDS = Object.keys(OPERATOR_DEFS); var OPERATOR_BY_SHORT = {}; OPERATOR_IDS.forEach(id => OPERATOR_BY_SHORT[OPERATOR_DEFS[id].short] = id);', c);
   vm.runInContext(fs.readFileSync(new URL('../surface-state.js', import.meta.url), 'utf8'), c);
   const emptyOperatorStateSource = declarationSource('EMPTY_OPERATOR_STATE');
@@ -58,6 +77,7 @@ export function metric(c, x, y, { width = 20, height = 30, paragraph = 0, text =
   const el = { style, dataset: { line: String(paragraph), sourceText: text, upright: '1' }, textContent: text,
     offsetWidth: width, offsetHeight: height, offsetLeft: x, offsetTop: y, offsetParent: c.stage };
   return { el, w: width, h: height, relX: x + width / 2, relY: y + height / 2,
+    flowX: x + width / 2, flowY: y + height / 2, layoutBox: { x, y, w: width, h: height, direction: 'ltr' },
     batchKey: 'latin', operatorStates: c.createOperatorStates(), locked: false };
 }
 export function apply(c, strength = 1) {

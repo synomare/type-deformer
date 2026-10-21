@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0-preview.1",
+  "version": "0.3.0-preview.1",
   "entrypoints": [
     "index.html",
     "package.json",
@@ -15,7 +15,11 @@
     "ASSETS_LICENSE.md",
     "LICENSE",
     "docs/runtime-pipeline.md",
-    "docs/operator-performance.md"
+    "docs/operator-performance.md",
+    "docs/current-architecture.md",
+    "docs/operator-contracts.md",
+    "docs/verification-scope.md",
+    "docs/development-history.md"
   ],
   "tests": [
     "playwright.config.js",
@@ -34,7 +38,14 @@
     "tests/fixtures/fonts/wide.ttf",
     "tests/restart.spec.js",
     "tests/wasserstein.spec.js",
-    "scripts/measure-operators.mjs"
+    "tests/workspace.spec.js",
+    "tests/text-layout.spec.js",
+    "tests/long-text.spec.js",
+    "tests/export.spec.js",
+    "tests/export-settings.spec.js",
+    "tests/export-recovery.spec.js",
+    "scripts/measure-operators.mjs",
+    "scripts/benchmark-text-layout.mjs"
   ],
   "catalogAssets": [
     {
@@ -57,6 +68,10 @@
   "runtimeAssets": [
     "surface-worker.js"
   ],
+  "sourceManifests": [
+    "editor-source/manifest.json",
+    "render-source/manifest.json"
+  ],
   "generatedSources": [
     ".codex/prototypes/auxetic-type/editor-adapter.js",
     ".codex/prototypes/calligraphic-field/editor.js",
@@ -70,6 +85,7 @@
     "docs/shared-coverage.json",
     "docs/shared-coverage.md",
     "surface-worker-kernels.js",
-    "worker-dependencies.json"
+    "worker-dependencies.json",
+    "build-info.js"
   ]
 }

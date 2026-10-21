@@ -1,13 +1,16 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 // No browser/Canvas dependency. Exercise the actual renderer with raw raster I/O.
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = await readAuthoredSource();
 const extract = name => {
-  const start = html.indexOf(`      function ${name}(`);
+  const start = authoredSource.indexOf(`      function ${name}(`);
   assert.ok(start >= 0, `Missing ${name}`);
-  const end = html.indexOf('\n      function ', start + 1);
-  return html.slice(start, end);
+  const end = authoredSource.indexOf('\n      function ', start + 1);
+  return authoredSource.slice(start, end);
 };
 const source = ['surfaceNoise01', 'surfaceBoundaryDistance', 'pressureContinuousNoise', 'renderPressureStroke'].map(extract).join('\n');
 const width = 90, height = 104;
@@ -18,7 +21,7 @@ for (let y = 19; y < 83; y++) for (let x = 22; x < 66; x++) {
 }
 const defaults = { seed: 41, fontSize: 52, pressureSystem: 'gesture' };
 for (const key of ['Weight', 'Contrast', 'Angle', 'Frequency', 'Softness', 'Breath', 'Dryness', 'Taper'])
-  defaults[`pressure${key}`] = Number(html.match(new RegExp(`pressure${key}: (-?[0-9.]+)`))[1]);
+  defaults[`pressure${key}`] = Number(authoredSource.match(new RegExp(`pressure${key}: (-?[0-9.]+)`))[1]);
 let result, legacyCalls = 0;
 const sandbox = { Math, Uint8Array, Float32Array, params: defaults, compositionState: { enabled: true, phase: 0 },
   sourceAlpha: alpha, strength: 1, BATCH_PARAM_OPTIONS: {},
@@ -33,7 +36,7 @@ const sandbox = { Math, Uint8Array, Float32Array, params: defaults, compositionS
   } }; },
   paintSurfaceMask: (_ctx, canvas, color) => { assert.equal(color, '#123456'); result = canvas.data; }
 };
-const context = vm.createContext(sandbox);
+const context = createAuthoredTestContext(sandbox);
 new vm.Script(`${source}\nthis.noise = pressureContinuousNoise; this.render = renderPressureStroke;`).runInContext(context);
 const noise = context.noise;
 let noiseChecks = 0, largestGridJump = 0;

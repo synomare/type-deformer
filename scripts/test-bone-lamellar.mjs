@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { createHash } from 'node:crypto';
-import { canvas, html, boneMask, fixture } from './bone-lamellar-fixture.mjs';
+import { canvas, authoredSource, boneMask, fixture } from './bone-lamellar-fixture.mjs';
+import {readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
 const bytes = image => image.getContext('2d').getImageData(0,0,image.width,image.height).data;
 const png = image => createHash('sha256').update(image.toBuffer('image/png')).digest('hex');
 const alphaSum = image => { const d=bytes(image); let sum=0; for(let i=3;i<d.length;i+=4)sum+=d[i];return sum; };
@@ -12,10 +16,11 @@ test('v64 adds a sixth Bone grammar without adding an operator or parameters', (
   const c=fixture(input());
   assert.equal(c.params.boneArchitecture,'lamellar');
   assert.deepEqual([...c.BATCH_PARAM_OPTIONS.boneArchitecture],['trabecular','adaptive','spine','ribcage','truss','lamellar']);
-  assert.match(html,/<option value="lamellar" selected>Lamellar section \/ 層板断面<\/option>/);
-  assert.match(html,/version: 92/);
-  assert.match(html,/data.version > 92/);
-  assert.match(html,/Number\(data.version \|\| 0\) < 64 && !Object.prototype.hasOwnProperty.call\(data.params, 'boneArchitecture'\)/);
+  assert.match(markup,/<option value="lamellar" selected>Lamellar section \/ 層板断面<\/option>/);
+  assert.match(authoredSource,/version: 93/);
+  assert.match(authoredSource,/data.version > 93/);
+  assert.match(migrations,/Number\(data.version \|\| 0\) < 64 && !Object.prototype.hasOwnProperty.call\(data.params, 'boneArchitecture'\)/);
+  assert.ok(authoredSource.includes('TypeDeformerProjectMigrations.migrate(data,projectMigrationOptions())'));
 });
 
 test('same source and closed animation endpoints produce identical pixels', () => {

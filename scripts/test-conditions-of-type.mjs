@@ -1,10 +1,16 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import '../operator-registry.js';
 import '../conditions-of-type.js';
 
 const conditions = globalThis.TypeDeformerConditionsOperators;
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
 const catalog = fs.readFileSync(new URL('../operator-catalog.js', import.meta.url), 'utf8');
 
 test('the v68 Conditions of Type suite exposes six bounded deterministic operators', () => {
@@ -141,33 +147,34 @@ test('Stroke Commons conserves its measured budget exactly and transfers mass to
 });
 
 test('all six operators are wired through UI, Batch, Surface, rendering and v68 persistence', () => {
+  assert.ok(authoredSource.includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
   const defaults = Object.fromEntries(Object.entries(conditions.schemas).flatMap(([id, schema]) =>
     Object.keys(schema.defaults).map(key => [key, id])));
   for (const id of conditions.ids) {
-    assert.ok(html.includes(`<option value="${id}">`), `${id} option`);
-    assert.ok(html.includes(`data-operator-panel="${id}"`), `${id} panel`);
-    assert.match(html, new RegExp(`${id}: \\{ id: '${id}', short:`), `${id} definition`);
-    assert.ok(html.includes(`${id}: surfaceOperatorStrength(m, '${id}')`), `${id} glyph strength`);
-    assert.ok(html.includes(`${id}: conditionSurfaceRenderer('${id}')`), `${id} renderer`);
-    assert.ok(html.includes(`surfaceOperatorStrength(metrics[i], '${id}') * conditionPad('${id}', profile)`), `${id} bounds`);
+    assert.ok(markup.includes(`<option value="${id}">`), `${id} option`);
+    assert.ok(markup.includes(`data-operator-panel="${id}"`), `${id} panel`);
+    assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id]?.id,id,`${id} definition`);
+    assert.ok(authoredSource.includes(`${id}: renderEngine.surfaceOperatorStrength(m, '${id}')`), `${id} glyph strength`);
+    assert.ok(renderRoutes[id] === `conditionSurfaceRenderer('${id}')`, `${id} renderer`);
+    assert.ok(authoredSource.includes(`surfaceOperatorStrength(metrics[i], '${id}') * conditionPad('${id}', profile)`), `${id} bounds`);
     assert.ok(catalog.includes(`'${id}'`), `${id} catalog`);
   }
   for (const [key, id] of Object.entries(defaults)) {
-    assert.match(html, new RegExp(`\\b${key}:`), `${id}.${key} default`);
-    assert.ok(html.includes(`'${key}'`), `${id}.${key} Batch key`);
-    assert.ok(html.includes(`${key}: deform.${key}`), `${id}.${key} glyph payload`);
+    assert.match(authoredSource, new RegExp(`\\b${key}:`), `${id}.${key} default`);
+    assert.ok(authoredSource.includes(`'${key}'`), `${id}.${key} Batch key`);
+    assert.ok(authoredSource.includes(`${key}: deform.${key}`), `${id}.${key} glyph payload`);
     const control = 'p' + key[0].toUpperCase() + key.slice(1);
     if (conditions.schemas[id].options[key]) {
-      assert.ok(html.includes(`bindProfileSelect('${control}', '${key}'`), `${id}.${key} select binding`);
-      assert.ok(html.includes(`chooseParam('${key}', BATCH_PARAM_OPTIONS.${key})`), `${id}.${key} normalization`);
+      assert.ok(authoredSource.includes(`bindProfileSelect('${control}', '${key}'`), `${id}.${key} select binding`);
+      assert.ok(migrations.includes(`chooseParam('${key}', BATCH_PARAM_OPTIONS.${key})`), `${id}.${key} normalization`);
     } else {
-      assert.ok(html.includes(`bindRange('${control}'`), `${id}.${key} range binding`);
-      assert.ok(html.includes(`clampParam('${key}'`), `${id}.${key} normalization`);
+      assert.ok(authoredSource.includes(`bindRange('${control}'`), `${id}.${key} range binding`);
+      assert.ok(migrations.includes(`clampParam('${key}'`), `${id}.${key} normalization`);
     }
   }
-  assert.ok(html.includes("rubyText: ''"));
-  assert.ok(html.includes("counterpageText: ''"));
-  assert.ok(/version:\s*92/.test(html));
-  assert.ok(html.includes("a: 'td', v: 92"));
-  assert.ok(html.includes('data.version > 92'));
+  assert.ok(authoredSource.includes("rubyText: ''"));
+  assert.ok(authoredSource.includes("counterpageText: ''"));
+  assert.ok(/version:\s*93/.test(authoredSource));
+  assert.ok(authoredSource.includes("a: 'td', v: 93"));
+  assert.ok(authoredSource.includes('data.version > 93'));
 });

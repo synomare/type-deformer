@@ -1,10 +1,12 @@
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import '../font-axes.js';
 const A=globalThis.TypeDeformerAxes;
-const editorSource=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const editorSource=readAuthoredSource();
 const limitsSource=editorSource.match(/^      var FONT_IMPORT_LIMITS = Object\.freeze\(\{[^]*?^      \}\);/m)?.[0];
 const planSource=editorSource.match(/^      function fontImportPlan\([^]*?^      \}/m)?.[0];
 if(!limitsSource||!planSource)throw Error('Font import policy is missing from the editor source');
@@ -58,4 +60,24 @@ test('font selection accepts MIME-identified provider files, rejects empty downl
  assert.equal(plan([{name:'provider-file',type:'font/ttf',size:900}]).files.length,1);
  assert.equal(plan([{name:'empty.ttf',size:0}]).issue,'unreadable');
  assert.equal(plan([{name:'._font.ttf',size:128},{name:'font.ttf',size:900}]).files.length,1);
+});
+
+test('axis runtime installs and releases faces using a Worker FontFaceSet without document or window',async()=>{
+ const installed=new Set();
+ class WorkerFace {
+  constructor(family,buffer,descriptors){this.family=family;this.variationSettings=descriptors.variationSettings;}
+  async load(){return this;}
+ }
+ WorkerFace.prototype.variationSettings='normal';
+ const context=vm.createContext({FontFace:WorkerFace});
+ vm.runInContext(fs.readFileSync(new URL('../font-axes.js',import.meta.url),'utf8'),context);
+ const runtime=context.TypeDeformerAxes.createRuntime({fonts:{
+  add(face){installed.add(face);},delete(face){installed.delete(face);}
+ }});
+ const entry=await runtime.register({family:'Test variable',buffer:fixture()});
+ assert.ok(entry.face);assert.equal(installed.size,1);
+ const spec=runtime.activate({fontFamily:'Test variable',fontWeight:400,fontAxes:'{"wdth":75}'},null,48);
+ assert.equal(spec.axes.wdth,75);assert.match(spec.font,/TypeDeformer Axis Canvas/);
+ assert.equal('document' in context,false);assert.equal('window' in context,false);
+ runtime.dispose();assert.equal(installed.size,0);
 });

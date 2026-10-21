@@ -1,11 +1,14 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 // Actual renderer/control math, dependency-free. Native Canvas has a separate
 // source-versioned proof in .codex/prototypes/cloister-fold/compare.mjs.
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const html=await fs.readFile(new URL('../index.html',import.meta.url),'utf8');
-function extract(name){const start=html.indexOf(`      function ${name}(`);assert.ok(start>=0,name);const tail=html.slice(start);return tail.slice(0,tail.indexOf('\n      }')+8);}
-const defaults={};for(const key of ['Relief','Planes','Fold','Axis','Perspective','Crease'])defaults['cloister'+key]=+html.match(new RegExp(`cloister${key}: (-?[0-9.]+)`))[1];
+const authoredSource=await readAuthoredSource();
+function extract(name){const start=authoredSource.indexOf(`      function ${name}(`);assert.ok(start>=0,name);const tail=authoredSource.slice(start);return tail.slice(0,tail.indexOf('\n      }')+8);}
+const defaults={};for(const key of ['Relief','Planes','Fold','Axis','Perspective','Crease'])defaults['cloister'+key]=+authoredSource.match(new RegExp(`cloister${key}: (-?[0-9.]+)`))[1];
 const W=100,H=120,mask={getContext:()=>({getImageData:()=>({data:[]})})};
 let strength=1,nonempty=true,layers,captured,legacy=0;
 function ctx(name){
@@ -17,7 +20,7 @@ function ctx(name){
   c.drawImage=(_image,...args)=>{assert.ok(args.every(Number.isFinite));assert.ok(Number.isFinite(c.globalAlpha)&&c.globalAlpha>=0&&c.globalAlpha<=1);log.push(['draw',c.globalAlpha,...args,_image.ink||null]);};
   return c;
 }
-const s=vm.createContext({Math,params:{},compositionState:{},BATCH_PARAM_OPTIONS:{cloisterTessellation:['miura','accordion','diamond','fan','strips']},
+const s=createAuthoredTestContext({Math,params:{},compositionState:{},BATCH_PARAM_OPTIONS:{cloisterTessellation:['miura','accordion','diamond','fan','strips']},
   surfaceChoice:()=>s.params.cloisterTessellation,surfaceAggregate:(_g,_o,_k,v)=>({value:v,weight:strength,strength}),
   buildSurfaceMask:()=>mask,compositeSurfaceSource:()=>{},surfaceBoundaryDistance:()=>({bounds:nonempty?[12,16,88,105]:null}),
   surfaceEffectColor:()=> '#7057ff',surfaceHexRgb:()=>[112,87,255],

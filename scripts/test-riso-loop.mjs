@@ -1,12 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 // Actual renderer and separation pixels; Canvas compositing/real UI are separate.
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
 function extract(name) {
-  const source = html.match(new RegExp('      function ' + name + '\\([^]*?\\n      }'))?.[0];
+  const source = authoredSource.match(new RegExp('      function ' + name + '\\([^]*?\\n      }'))?.[0];
   assert.ok(source, name); new vm.Script(source); return source;
 }
 const names = ['surfaceBoundaryDistance', 'surfaceNoise01', 'risoLoopMotion', 'renderRisoSeparation'];
@@ -20,12 +23,12 @@ const maskBefore = mask.slice();
 const modes = ['area', 'field', 'edge', 'halftone'];
 const defaults = { seed: 41, risoColorA: '#ff3f78', risoColorB: '#2468ff' };
 for (const name of ['Pressure', 'Split', 'Overlap', 'Register', 'Grain'])
-  defaults['riso' + name] = Number(html.match(new RegExp('riso' + name + ': (-?[0-9.]+)'))[1]);
+  defaults['riso' + name] = Number(authoredSource.match(new RegExp('riso' + name + ': (-?[0-9.]+)'))[1]);
 const endpoints = { risoPressure: [0, 4], risoSplit: [-1, 1], risoOverlap: [0, 1.5], risoRegister: [0, 160], risoGrain: [0, 2] };
 const profiles = [{}, { risoPressure: 4, risoSplit: -.72, risoOverlap: 1.5, risoRegister: 160, risoGrain: 2 },
   ...Object.entries(endpoints).flatMap(([key, values]) => values.map(value => ({ [key]: value })))];
 let plates, placements, legacyCalls = 0, currentMask = mask, strength = 1;
-const c = vm.createContext({ Math, Uint8Array, Float32Array,
+const c = createAuthoredTestContext({ Math, Uint8Array, Float32Array,
   BATCH_PARAM_OPTIONS: { risoPlateMap: ['legacy', ...modes] },
   surfaceChoice: (_g, _id, _key, value) => value,
   surfaceAggregate: (_g, _id, _key, value) => ({ value, weight: strength, strength }),

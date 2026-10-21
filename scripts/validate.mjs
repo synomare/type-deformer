@@ -4,12 +4,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import {readAuthoredSource, readEditorUnits, readRenderManifest, readAuthoredUnits, declaredSourceUnit, extractDeclaredFunction} from './source-reader.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const htmlPath = path.join(root, 'index.html');
 const dictionaryPath = path.join(root, 'confuse-dictionary.js');
 const packagePath = path.join(root, 'package.json');
+
+import '../operator-registry.js';
+const operatorRegistry=globalThis.TypeDeformerOperatorRegistry;
+const operatorParameterKeys=new Set(operatorRegistry.specs.flatMap(spec=>Object.values(spec.keys||{})));
 
 const failures = [];
 const warnings = [];
@@ -34,10 +39,34 @@ function localAssetPath(rawUrl) {
 }
 
 const html = readRequired(htmlPath).replace(/\r\n/g, '\n');
+const migrationSource=readRequired(path.join(root,'project-migrations.js')).replace(/\r\n/g,'\n');
+const authoredSource=readAuthoredSource();
+const authoredUnits=readAuthoredUnits();
+// Historical marker inventories span authored code and markup; executable
+// fixtures use named declaration owners instead of this broad existence view.
+const applicationSource=html+'\n'+authoredSource;
+const renderManifest=readRenderManifest();
+const hasRenderRouteMapping=marker=>{
+  const [id,route]=marker.split(/:\s*/,2);
+  return !!route && Object.hasOwn(renderManifest.routes,id) && renderManifest.routes[id]===route;
+};
+const hasEditorOrMigrationMarker=marker=>applicationSource.includes(marker) || hasRenderRouteMapping(marker)
+  || /^(?:params\.|(?:if \()?Number\(data\.version)/.test(marker) && migrationSource.includes(marker);
+const renderingSource=authoredSource+'\n'+readRequired(path.join(root,'shared-surface-renderers.js'));
 const dictionarySource = readRequired(dictionaryPath);
 const packageJson = readRequired(packagePath);
 
 if (html) {
+  for (const method of ['normalizeParams', 'normalizeBatchProfiles', 'migrate']) {
+    if (!authoredSource.includes('TypeDeformerProjectMigrations.' + method + '(')) noteFailure(`Project migration adapter is missing ${method}().`);
+  }
+  try { new vm.Script(migrationSource, { filename: 'project-migrations.js' }); }
+  catch (error) { noteFailure(`JavaScript syntax error in project-migrations.js: ${error.message}`); }
+  for(const unit of readEditorUnits()){
+    try { new vm.Script(unit.source,{filename:unit.path}); }
+    catch(error){noteFailure(`JavaScript syntax error in ${unit.path}: ${error.message}`);}
+    if(/\b(?:window\.)?(alert|confirm|prompt)\s*\(/.test(unit.source))noteFailure(`${unit.path} calls a blocking browser dialog.`);
+  }
   if (!/^<!doctype html>/i.test(html.trimStart())) noteFailure('index.html is missing an HTML doctype.');
   if (!/<html\b[^>]*\blang=["']ja["']/i.test(html)) noteWarning('index.html does not declare lang="ja".');
 
@@ -89,7 +118,7 @@ if (html) {
   };
 
   const getByIdPattern = /\bgetElementById\(\s*(["'`])([^"'`]+)\1\s*\)/g;
-  for (const match of html.matchAll(getByIdPattern)) {
+  for (const match of authoredSource.matchAll(getByIdPattern)) {
     if (!match[2].includes('${')) addReference(match[2], 'getElementById');
   }
   const labelPattern = /<label\b([^>]*)>/gi;
@@ -151,11 +180,11 @@ if (html) {
   if (eagerDictionaryTag.test(html)) {
     noteFailure('confuse-dictionary.js is loaded eagerly; keep the generated dictionary on the Confuse operator lazy path.');
   }
-  if (!/script\.src\s*=\s*(["'])confuse-dictionary\.js\1/.test(html)) {
+  if (!/script\.src\s*=\s*(["'])confuse-dictionary\.js\1/.test(authoredSource)) {
     noteFailure('The lazy loader for confuse-dictionary.js is missing.');
   }
-  if (!html.includes('TYPE_DEFORMER_CONFUSE_DICTIONARY')) {
-    noteFailure('index.html does not consume the generated dictionary global.');
+  if (!authoredSource.includes('TYPE_DEFORMER_CONFUSE_DICTIONARY')) {
+    noteFailure('The authored editor does not consume the generated dictionary global.');
   }
 
   const proceduralOperators = [
@@ -174,7 +203,7 @@ if (html) {
     'Raster Press', 'Hatch Engrave', 'Contour Etch', 'Pressure Stroke', 'Sinew Torque', 'Cell Fracture', 'Ribbon Echo',
     'Copy Decay', 'Riso Separation', 'Slit Sweep'
   ];
-  const surfaceSnapshotBody = html.match(/var surface = snapshotSurfaceState\(m, deform, misreg, surfaceSnapshots, function\(\) \{ return \{([\s\S]*?)\n\s*\}; \}\);/)?.[1] || '';
+  const surfaceSnapshotBody = authoredSource.match(/var surface = snapshotSurfaceState\(m, deform, misreg, surfaceSnapshots, function\(\) \{ return \{([\s\S]*?)\n\s*\}; \}\);/)?.[1] || '';
   const surfaceSnapshotKeys = [...surfaceSnapshotBody.matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)].map((match) => match[1]);
   const duplicateSurfaceSnapshotKeys = [...new Set(surfaceSnapshotKeys.filter((key, index) => surfaceSnapshotKeys.indexOf(key) !== index))];
   if (!surfaceSnapshotBody || duplicateSurfaceSnapshotKeys.length) {
@@ -182,12 +211,12 @@ if (html) {
       ? `Surface snapshot reuses strength/parameter key(s): ${duplicateSurfaceSnapshotKeys.join(', ')}.`
       : 'Surface snapshot object could not be inspected for strength/parameter key collisions.');
   }
-  if (!html.includes('cloisterFoldAmount: deform.cloisterFold')
-    || !html.includes("surfaceAggregate(glyphs, 'cloisterFold', 'cloisterFoldAmount', params.cloisterFold)")) {
+  if (!authoredSource.includes('cloisterFoldAmount: deform.cloisterFold')
+    || !authoredSource.includes("surfaceAggregate(glyphs, 'cloisterFold', 'cloisterFoldAmount', params.cloisterFold)")) {
     noteFailure('Cloister Fold strength and Fold amount do not have independent snapshot keys.');
   }
-  if (!html.includes('sinewTorqueAmount: deform.sinewTorque')
-    || !html.includes("surfaceAggregate(glyphs, 'sinewTorque', 'sinewTorqueAmount', params.sinewTorque)")) {
+  if (!authoredSource.includes('sinewTorqueAmount: deform.sinewTorque')
+    || !authoredSource.includes("surfaceAggregate(glyphs, 'sinewTorque', 'sinewTorqueAmount', params.sinewTorque)")) {
     noteFailure('Sinew Torque strength and Torque amount do not have independent snapshot keys.');
   }
   for (const operator of proceduralOperators) {
@@ -197,7 +226,7 @@ if (html) {
     if (!new RegExp(`data-operator-panel=["']${operator}["']`).test(markupOnly)) {
       noteFailure(`Procedural operator "${operator}" is missing its control panel.`);
     }
-    if (!new RegExp(`${operator}:\\s*\\{\\s*id:\\s*["']${operator}["']`).test(html)) {
+    if (!operatorRegistry.byId[operator]) {
       noteFailure(`Procedural operator "${operator}" is missing from OPERATOR_DEFS.`);
     }
   }
@@ -207,16 +236,17 @@ if (html) {
     }
   }
   for (const operator of ['calligraphicStress', 'asemicDuctus', 'spectralType', 'differentialType', 'conformalType', 'auxeticType', 'marblingType', 'counterformEngine', 'terminalExcess', 'ligatureBody', 'pressureStroke', 'sinewTorque', 'chimeraGraft', 'contextualFit', 'scrollType']) {
-    if (!html.match(/var GLYPH_BODY_OPERATOR_IDS = \[([^\]]+)\]/)?.[1].includes(`'${operator}'`)) {
+    if (!operatorRegistry.glyphBodyIds.includes(operator)) {
       noteFailure('Glyph Body replacement Operator registry is incomplete.');
       break;
     }
-    if (!new RegExp(`${operator}:\\s*render[A-Z]`).test(html)) {
+    if (!/^render[A-Z]/.test(renderManifest.routes[operator]||'')
+      && !(renderManifest.nativeIds.includes(operator)&&new RegExp(`${operator}:\\s*render[A-Z]`).test(authoredSource))) {
       noteFailure(`Glyph Body renderer "${operator}" is missing from the Surface renderer map.`);
     }
   }
-  if (!html.includes("GLYPH_BODY_OPERATOR_IDS.indexOf(surfaceParamId) === -1 ? 1 : 0")
-    || !html.includes("GLYPH_BODY_OPERATOR_IDS.indexOf(sourceMigrationId) !== -1")) {
+  if (!authoredSource.includes("GLYPH_BODY_OPERATOR_IDS.indexOf(surfaceParamId) === -1 ? 1 : 0")
+    || !migrationSource.includes("GLYPH_BODY_OPERATOR_IDS.indexOf(sourceMigrationId) !== -1")) {
     noteFailure('Glyph Body source text must default to hidden without changing legacy Surface source opacity.');
   }
   for (const id of ['pSurfaceTextColor', 'pSurfaceEffectColor', 'pSurfaceEffectColorB',
@@ -397,7 +427,7 @@ if (html) {
     "bindProfileSelect('pRotatePattern'", "bindProfileSelect('pSkewPattern'",
     "bindProfileSelect('pBaselinePattern'", "bindProfileSelect('pMirrorPattern'",
     "params.rotatePattern = 'uniform'", "params.mirrorPattern = 'all'"]) {
-    if (!html.includes(marker)) noteFailure(`Foundational FORM cadence integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Foundational FORM cadence integration is missing ${marker}.`);
   }
   for (const marker of ['function surfaceChoice(',
     "bindProfileSelect('pThornGrammar'", "bindProfileSelect('pCipherDialect'",
@@ -405,7 +435,7 @@ if (html) {
     "bindProfileSelect('pLigatureGrammar'", "bindRange('pChromeVoltage'",
     "params.thornGrammar = 'hybrid'", "params.boneArchitecture = 'adaptive'",
     "params.ligatureGrammar = 'ribbon'", 'if (Number(data.version || 0) < 22)']) {
-    if (!html.includes(marker)) noteFailure(`Legacy Operator grammar state integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Legacy Operator grammar state integration is missing ${marker}.`);
   }
   for (const marker of [
     "boneArchitecture: 'lamellar'",
@@ -420,7 +450,7 @@ if (html) {
     'function drawOsteon(',
     "if (architecture === 'trabecular')"
   ]) {
-    if (!html.includes(marker)) noteFailure(`Bone Scaffold v36 trabecular-body integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Bone Scaffold v36 trabecular-body integration is missing ${marker}.`);
   }
   for (const marker of [
     "bindProfileSelect('pMoireLattice'", "bindRange('pMoireResonance'",
@@ -437,7 +467,7 @@ if (html) {
     "params.cloisterTessellation = 'strips'", "params.prismOptics = 'legacy'",
     "params.texturaGrammar = 'stems'", 'if (Number(data.version || 0) < 23)'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Early Operator evolution state integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Early Operator evolution state integration is missing ${marker}.`);
   }
   for (const marker of [
     "surfaceNodesForGlyphs(glyphs, 'moireChoir', 12", "topology === 'concentric'",
@@ -446,14 +476,14 @@ if (html) {
     "surfaceScratch('prism-sacrament-rays'", "optics === 'fresnel'",
     'function traceTexturaGrammarStem(', "grammar === 'bastarda'"
   ]) {
-    if (!html.includes(marker)) noteFailure(`Early Operator evolved renderer is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Early Operator evolved renderer is missing ${marker}.`);
   }
   for (const marker of [
     'topology: params.moireLattice', 'plan: params.navePlan',
     'topology: params.cloisterTessellation', 'optics: params.prismOptics',
     'grammar: params.texturaGrammar'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Early Operator SVG metadata is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Early Operator SVG metadata is missing ${marker}.`);
   }
   for (const marker of [
     "bindProfileSelect('pRasterScreen'", "bindRange('pRasterModulation'",
@@ -468,7 +498,7 @@ if (html) {
     "params.fractureTopology = 'triangles'", "params.ribbonPath = 'legacy'",
     'if (Number(data.version || 0) < 24)'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Adaptive Material state integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Adaptive Material state integration is missing ${marker}.`);
   }
   for (const marker of [
     'function renderRasterPressLegacy(', 'function renderHatchEngraveLegacy(',
@@ -479,7 +509,7 @@ if (html) {
     "path === 'helix'", "path === 'fan'", "path === 'braid'",
     'Math.min(96', 'surfaceBoundaryDistance(source.data, width, height)'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Adaptive Material renderer is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Adaptive Material renderer is missing ${marker}.`);
   }
   for (const marker of [
     'screen: params.rasterScreen, modulation: params.rasterModulation',
@@ -487,7 +517,7 @@ if (html) {
     'topology: params.fractureTopology, energy: params.fractureEnergy',
     'path: params.ribbonPath, weave: params.ribbonWeave'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Adaptive Material SVG metadata is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Adaptive Material SVG metadata is missing ${marker}.`);
   }
   for (const marker of [
     "bindProfileSelect('pSigilTopology'", "bindRange('pSigilBinding'",
@@ -504,7 +534,7 @@ if (html) {
     "params.risoPlateMap = 'legacy'", "params.copyFailure = 'legacy'",
     "params.slitTimeMap = 'legacy'", 'if (Number(data.version || 0) < 25)'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Five Process state integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Five Process state integration is missing ${marker}.`);
   }
   for (const marker of [
     'function renderSigilForgeLegacy(', 'function renderContourEtchLegacy(',
@@ -516,7 +546,7 @@ if (html) {
     "failure === 'banding'", "failure === 'ghosting'", "failure === 'residual'",
     "timeMap === 'feedback'", "timeMap === 'staircase'", 'function slitTimeCoordinate('
   ]) {
-    if (!html.includes(marker)) noteFailure(`Five Process renderer is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Five Process renderer is missing ${marker}.`);
   }
   for (const marker of [
     '<option value="relief" selected>Hachure relief</option>',
@@ -527,7 +557,7 @@ if (html) {
     'surfaceVoidTopology(field, width, height)', 'maximumMarks == null ? 12000',
     'Number(data.version || 0) < 57'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Contour Etch v57 relief integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Contour Etch v57 relief integration is missing ${marker}.`);
   }
   for (const marker of [
     'topology: params.sigilTopology, binding: params.sigilBinding',
@@ -536,19 +566,19 @@ if (html) {
     'failure: params.copyFailure, instability: params.copyInstability',
     'timeMap: params.slitTimeMap, nonlinearity: params.slitNonlinearity'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Five Process SVG metadata is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Five Process SVG metadata is missing ${marker}.`);
   }
   for (const renderer of ['renderSigilForge', 'renderThornCrown', 'renderCipherLiturgy', 'renderBoneScaffold', 'renderRoseEngine', 'renderChromeReliquary', 'renderLigatureCrypt', 'renderMoireChoir', 'renderNaveCutter', 'renderCloisterFold', 'renderPrismSacrament', 'renderTexturaMatrix', 'renderVoidPortal', 'renderRecursiveShrine', 'renderMorphProcession', 'renderChimeraGraft', 'renderMonolithCast', 'renderRasterPress', 'renderHatchEngrave', 'renderContourEtch', 'renderPressureStroke', 'renderEtchantBloom', 'renderSinewTorque', 'renderCellFracture',
     'renderRibbonEcho', 'renderCopyDecay', 'renderRisoSeparation', 'renderSlitSweep']) {
-    if (!html.includes(`function ${renderer}(`)) noteFailure(`${renderer} is missing from the surface renderer.`);
+    if (!applicationSource.includes(`function ${renderer}(`)) noteFailure(`${renderer} is missing from the surface renderer.`);
   }
-  if (!html.includes('function renderSoftBlobSporeField(') || !html.includes('softBlobSporeReach')
-    || !html.includes('softBlobSporeDensity') || !html.includes("'blob-spore-cloud-color'")) {
+  if (!authoredSource.includes('function renderSoftBlobSporeField(') || !authoredSource.includes('softBlobSporeReach')
+    || !authoredSource.includes('softBlobSporeDensity') || !renderingSource.includes("'blob-spore-cloud-color'")) {
     noteFailure('Physarum Blob far-field spore rendering is incomplete.');
   }
-  if (!html.includes("surfaceNodesForGlyphs(glyphs, 'sigilForge'") || !html.includes('function strokeBranch(')
-    || !html.includes("sampleSurfaceMask(mask, Math.min(1, density / 2.2), true")
-    || !html.includes('source.codePointAt(0)') || !html.includes("ctx.globalCompositeOperation = 'destination-in'")) {
+  if (!authoredSource.includes("surfaceNodesForGlyphs(glyphs, 'sigilForge'") || !authoredSource.includes('function strokeBranch(')
+    || !authoredSource.includes("sampleSurfaceMask(mask, Math.min(1, density / 2.2), true")
+    || !authoredSource.includes('source.codePointAt(0)') || !authoredSource.includes("ctx.globalCompositeOperation = 'destination-in'")) {
     noteFailure('Digital Gothic Operator geometry, contour growth, or source-derived inscriptions are incomplete.');
   }
   for (const refinement of ['function drawLancet(', 'function drawHook(', 'function drawBud(',
@@ -557,12 +587,12 @@ if (html) {
     'var registerKind =', 'var armorStrength =', 'function drawTaperedArmature(',
     'var rootLimit = Math.min(72', 'function drawBasalPad(', 'function drawBackBarb(',
     'function drawTrident(']) {
-    if (!html.includes(refinement)) noteFailure(`Digital Gothic ornament or inscription variation is missing ${refinement}.`);
+    if (!applicationSource.includes(refinement)) noteFailure(`Digital Gothic ornament or inscription variation is missing ${refinement}.`);
   }
-  if (!html.includes("surfaceBoundaryDistance(source.data, width, height)")
-    || !html.includes("surfaceNodesForGlyphs(glyphs, 'roseEngine'")
-    || !html.includes("surfaceHexRgb(surfaceEffectColor('chromeReliquary'))")
-    || !html.includes('points.length < 2600') || !html.includes('ring < rings') || !html.includes('petal < petals')) {
+  if (!authoredSource.includes("surfaceBoundaryDistance(source.data, width, height)")
+    || !authoredSource.includes("surfaceNodesForGlyphs(glyphs, 'roseEngine'")
+    || !authoredSource.includes("surfaceHexRgb(surfaceEffectColor('chromeReliquary'))")
+    || !authoredSource.includes('points.length < 2600') || !authoredSource.includes('ring < rings') || !authoredSource.includes('petal < petals')) {
     noteFailure('Cathedral Topology geometry, source linkage, or bounded rendering is incomplete.');
   }
   for (const refinement of ['function addPoint(x, y, distance, tangentX, tangentY, ridge)',
@@ -570,7 +600,7 @@ if (html) {
     "chrome-reliquary-magenta-rim", "chrome-reliquary-white-rim", 'var acidAmount =',
     'function strokeBoneEdge(', 'function connectRidgeSlices(previous, current)',
     'forcedIndex < forcedEdges.length', 'var ringTipSets =', 'var posterSteps =']) {
-    if (!html.includes(refinement)) noteFailure(`Cathedral Topology refinement is missing ${refinement}.`);
+    if (!applicationSource.includes(refinement)) noteFailure(`Cathedral Topology refinement is missing ${refinement}.`);
   }
   for (const refinement of ['function traceRoseEngineRail(', 'function traceRoseConnection(',
     'var satelliteCandidates = nodes.slice().sort', 'var environmentBand =',
@@ -578,19 +608,19 @@ if (html) {
     'function cipherCollectGroups(', 'function cipherMacroToken(', 'function drawCipherHierarchy()',
     'drawCipherHierarchy();', 'bone-scaffold-structural', 'function sampleSlice(',
     'function strokeRoseCurrentPath(', 'function drawRoseBoss(', 'var archivolt = 0']) {
-    if (!html.includes(refinement)) noteFailure(`Second Operator quality pass is missing ${refinement}.`);
+    if (!applicationSource.includes(refinement)) noteFailure(`Second Operator quality pass is missing ${refinement}.`);
   }
   for (const key of ['boneOpacity', 'roseOpacity', 'chromeOpacity',
     'boneSourceOpacity', 'roseSourceOpacity', 'chromeSourceOpacity',
     'boneBlend', 'roseBlend', 'chromeBlend', 'boneColor', 'roseColor', 'chromeColor']) {
-    if (!html.includes(key)) noteFailure(`Cathedral Topology Surface Mixer state is missing ${key}.`);
+    if (!operatorParameterKeys.has(key)) noteFailure(`Cathedral Topology Surface Mixer state is missing ${key}.`);
   }
-  if (!html.includes("surfaceNodesForGlyphs(glyphs, 'ligatureCrypt', 97")
-    || !html.includes('pairs.length < 96') || !html.includes('traceLigatureCryptBand(ctx')
-    || !html.includes('counterPair = pairs[c]') || !html.includes('function cutLigatureCryptAperture(')
-    || !html.includes('function strokeLigatureCryptSpine(')
-    || !html.includes('function ligatureCryptCurve(')
-    || !html.includes('cryptHalfWidth * 0.46')) {
+  if (!authoredSource.includes("surfaceNodesForGlyphs(glyphs, 'ligatureCrypt', 97")
+    || !authoredSource.includes('pairs.length < 96') || !authoredSource.includes('traceLigatureCryptBand(ctx')
+    || !authoredSource.includes('counterPair = pairs[c]') || !authoredSource.includes('function cutLigatureCryptAperture(')
+    || !authoredSource.includes('function strokeLigatureCryptSpine(')
+    || !authoredSource.includes('function ligatureCryptCurve(')
+    || !authoredSource.includes('cryptHalfWidth * 0.46')) {
     noteFailure('Ligature Crypt source-order, bounded-band, or counter geometry is incomplete.');
   }
   for (const refinement of ['function traceLigatureConstructionBand(', 'function ligatureConstructionPoint(',
@@ -600,7 +630,7 @@ if (html) {
     'constructionA.glyph.word !== constructionB.glyph.word', 'var joineryRailOffset =',
     'var freshStructure = {', 'el.dataset.line = freshStructure.line',
     'el.dataset.word = freshStructure.word']) {
-    if (!html.includes(refinement)) noteFailure(`Ligature Crypt construction refinement is missing ${refinement}.`);
+    if (!applicationSource.includes(refinement)) noteFailure(`Ligature Crypt construction refinement is missing ${refinement}.`);
   }
   for (const refinement of ['function renderLigatureCryptV31(', 'function renderLigatureCryptV32(',
     'function ligatureCryptMaskAnchorV32(', 'function ligatureCryptPairCompatibleV32(',
@@ -609,14 +639,14 @@ if (html) {
     "surfaceScratch('ligature-crypt-word-form-v32'", 'line: source.line', 'word: source.word',
     'params.ligatureSourceOpacity = 0.12', 'Construction density', 'Mortise fusion',
     'Textura counter braid', 'Cut-edge suture']) {
-    if (!html.includes(refinement)) noteFailure(`Ligature Crypt v32 word-form renderer is missing ${refinement}.`);
+    if (!applicationSource.includes(refinement)) noteFailure(`Ligature Crypt v32 word-form renderer is missing ${refinement}.`);
   }
-  if ((html.match(/\.glyph\.line !== [^\n]*\.glyph\.line/g) || []).length < 2) {
+  if ((authoredSource.match(/\.glyph\.line !== [^\n]*\.glyph\.line/g) || []).length < 2) {
     noteFailure('Ligature Crypt must reject cross-line joins in both construction and ribbon grammars.');
   }
-  if (!html.includes("surfaceBoundaryDistance(source.data, width, height)")
-    || !html.includes('secondFrequency = frequency') || !html.includes('phaseA - phaseB')
-    || !html.includes("surfaceEffectColor('moireChoir')")) {
+  if (!authoredSource.includes("surfaceBoundaryDistance(source.data, width, height)")
+    || !authoredSource.includes('secondFrequency = frequency') || !authoredSource.includes('phaseA - phaseB')
+    || !authoredSource.includes("surfaceEffectColor('moireChoir')")) {
     noteFailure('Moiré Choir distance-linked detuned interference renderer is incomplete.');
   }
   for (const refinement of ["surfaceScratch('moire-choir-v35-wavefront-field'",
@@ -626,12 +656,12 @@ if (html) {
     'var antinodeRail =', 'var nodalRail =', 'var choralEnvelope =',
     'Nodal choir', 'Wavefront wells', 'Angular caustics', 'Woven beat lattice',
     'params.moireResonance = 0']) {
-    if (!html.includes(refinement)) noteFailure(`Moiré Choir v35 wavefront-field refinement is missing ${refinement}.`);
+    if (!hasEditorOrMigrationMarker(refinement)) noteFailure(`Moiré Choir v35 wavefront-field refinement is missing ${refinement}.`);
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'naveCutter'")
-    || !html.includes("surfaceScratch('nave-cutter-supports'")
-    || !html.includes("ctx.globalCompositeOperation = 'destination-out'")
-    || !html.includes("supports.ctx.globalCompositeOperation = 'destination-in'")) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'naveCutter'")
+    || !authoredSource.includes("surfaceScratch('nave-cutter-supports'")
+    || !authoredSource.includes("ctx.globalCompositeOperation = 'destination-out'")
+    || !authoredSource.includes("supports.ctx.globalCompositeOperation = 'destination-in'")) {
     noteFailure('Nave Cutter subtractive apertures or mask-clipped buttresses are incomplete.');
   }
   for (const refinement of ["surfaceNodesForGlyphs(glyphs, 'naveCutter', 192",
@@ -640,26 +670,26 @@ if (html) {
     'function drawNaveBoss(', 'function drawClusteredPier(',
     "ctx.globalCompositeOperation = 'destination-out'", 'voidAmount * (0.72 + voidAmount * 0.38)',
     "plan === 'loop'", "plan === 'clerestory'", 'params.naveSourceOpacity = 0.14', 'Legacy arcade · Rib 0']) {
-    if (!html.includes(refinement)) noteFailure(`Nave Cutter v34 architectural-body refinement is missing ${refinement}.`);
+    if (!applicationSource.includes(refinement)) noteFailure(`Nave Cutter v34 architectural-body refinement is missing ${refinement}.`);
   }
   for (const mapping of ['ligatureCrypt: renderLigatureCrypt', 'moireChoir: renderMoireChoir', 'naveCutter: renderNaveCutter']) {
-    if (!html.includes(mapping)) noteFailure(`Word-Bound Optical Architecture dispatch is missing ${mapping}.`);
+    if (!hasRenderRouteMapping(mapping)) noteFailure(`Word-Bound Optical Architecture dispatch is missing ${mapping}.`);
   }
   for (const key of ['ligatureOpacity', 'moireOpacity', 'naveOpacity',
     'ligatureSourceOpacity', 'moireSourceOpacity', 'naveSourceOpacity',
     'ligatureBlend', 'moireBlend', 'naveBlend', 'ligatureColor', 'moireColor', 'naveColor']) {
-    if (!html.includes(key)) noteFailure(`Word-Bound Optical Architecture Surface Mixer state is missing ${key}.`);
+    if (!operatorParameterKeys.has(key)) noteFailure(`Word-Bound Optical Architecture Surface Mixer state is missing ${key}.`);
   }
   for (const marker of ["ligatureCrypt: [{ key: 'ligatureReach'", "moireChoir: [{ key: 'moirePitch'", "naveCutter: [{ key: 'naveColumns'",
     "bindRange('pLigatureReach'", "bindRange('pMoirePitch'", "bindRange('pNaveColumns'",
     'reach: params.ligatureReach', 'pitch: params.moirePitch', 'columns: params.naveColumns']) {
-    if (!html.includes(marker)) noteFailure(`Word-Bound Optical Architecture Batch/Proof/binding/metadata integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Word-Bound Optical Architecture Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'cloisterFold'")
-    || !html.includes('function affineTriangle(')
-    || !html.includes('ctx.setTransform(a, b, c, d, e, f)')
-    || !html.includes('function foldVertex(')
-    || !html.includes("surfaceScratch('cloister-fold-piecewise-body'")) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'cloisterFold'")
+    || !authoredSource.includes('function affineTriangle(')
+    || !authoredSource.includes('ctx.setTransform(a, b, c, d, e, f)')
+    || !authoredSource.includes('function foldVertex(')
+    || !authoredSource.includes("surfaceScratch('cloister-fold-piecewise-body'")) {
     noteFailure('Cloister Fold coherent plane clipping or affine fold geometry is incomplete.');
   }
   for (const marker of [
@@ -671,181 +701,181 @@ if (html) {
     'params.cloisterSourceOpacity = 0.14', 'Facet relief', 'Fold density',
     'Fold depth', 'Depth projection', 'Crease weight'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Cloister Fold v32 piecewise-sheet refinement is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Cloister Fold v32 piecewise-sheet refinement is missing ${marker}.`);
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'prismSacrament'")
-    || !html.includes('function signedDistanceAt(') || !html.includes('offsetA = baseShift + dispersion')
-    || !html.includes('causticBand = outsideFalloff') || !html.includes('params.prismColorB')) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'prismSacrament'")
+    || !authoredSource.includes('function signedDistanceAt(') || !authoredSource.includes('offsetA = baseShift + dispersion')
+    || !authoredSource.includes('causticBand = outsideFalloff') || !authoredSource.includes('params.prismColorB')) {
     noteFailure('Prism Sacrament alpha-normal refraction, dispersion, or caustic rendering is incomplete.');
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'texturaMatrix'")
-    || !html.includes('function traceTexturaStem(') || !html.includes('runs.push({ x: sampleX')
-    || !html.includes("ctx.globalCompositeOperation = 'destination-in'")) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'texturaMatrix'")
+    || !authoredSource.includes('function traceTexturaStem(') || !authoredSource.includes('runs.push({ x: sampleX')
+    || !authoredSource.includes("ctx.globalCompositeOperation = 'destination-in'")) {
     noteFailure('Textura Matrix continuous-run reconstruction or source clipping is incomplete.');
   }
   for (const mapping of ['cloisterFold: renderCloisterFold', 'prismSacrament: renderPrismSacrament', 'texturaMatrix: renderTexturaMatrix']) {
-    if (!html.includes(mapping)) noteFailure(`Hard-Surface Rite dispatch is missing ${mapping}.`);
+    if (!hasRenderRouteMapping(mapping)) noteFailure(`Hard-Surface Rite dispatch is missing ${mapping}.`);
   }
   for (const key of ['cloisterOpacity', 'prismOpacity', 'texturaOpacity',
     'cloisterSourceOpacity', 'prismSourceOpacity', 'texturaSourceOpacity',
     'cloisterBlend', 'prismBlend', 'texturaBlend', 'cloisterColor', 'prismColorA', 'prismColorB', 'texturaColor']) {
-    if (!html.includes(key)) noteFailure(`Hard-Surface Rite Surface Mixer state is missing ${key}.`);
+    if (!operatorParameterKeys.has(key)) noteFailure(`Hard-Surface Rite Surface Mixer state is missing ${key}.`);
   }
   for (const marker of ["cloisterFold: [{ key: 'cloisterPlanes'", "prismSacrament: [{ key: 'prismRefraction'", "texturaMatrix: [{ key: 'texturaPitch'",
     "bindRange('pCloisterPlanes'", "bindRange('pPrismRefraction'", "bindRange('pTexturaPitch'",
     'planes: params.cloisterPlanes', 'refraction: params.prismRefraction', 'pitch: params.texturaPitch']) {
-    if (!html.includes(marker)) noteFailure(`Hard-Surface Rite Batch/Proof/binding/metadata integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Hard-Surface Rite Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
-  if (!html.includes('function surfaceVoidApertureMask(')
-    || !html.includes('var queue = new Int32Array(count)')
-    || !html.includes('var enclosed = !solid[i] && !outside[i]')
-    || !html.includes("buildSurfaceMask(glyphs, 'voidPortal'")) {
+  if (!authoredSource.includes('function surfaceVoidApertureMask(')
+    || !authoredSource.includes('var queue = new Int32Array(count)')
+    || !authoredSource.includes('var enclosed = !solid[i] && !outside[i]')
+    || !authoredSource.includes("buildSurfaceMask(glyphs, 'voidPortal'")) {
     noteFailure('Void Portal counter flood-fill, chamber detection, or source-mask routing is incomplete.');
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'recursiveShrine'")
-    || !html.includes('function drawRecursiveMask(')
-    || !html.includes('function renderRecursiveShrineLegacy(')
-    || !html.includes("xorLayer.ctx.globalCompositeOperation = 'xor'")
-    || !html.includes('iteration < iterations')) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'recursiveShrine'")
+    || !authoredSource.includes('function drawRecursiveMask(')
+    || !authoredSource.includes('function renderRecursiveShrineLegacy(')
+    || !authoredSource.includes("xorLayer.ctx.globalCompositeOperation = 'xor'")
+    || !authoredSource.includes('iteration < iterations')) {
     noteFailure('Recursive Shrine Legacy affine recursion or parity/XOR rendering is incomplete.');
   }
-  if (!html.includes('function surfaceMorphGlyphField(')
-    || !html.includes('var signed = new Float32Array(size * size)')
-    || !html.includes("buildSurfaceMask(glyphs, 'morphProcession'")
-    || !html.includes('pairIndex < 12')) {
+  if (!authoredSource.includes('function surfaceMorphGlyphField(')
+    || !authoredSource.includes('var signed = new Float32Array(size * size)')
+    || !authoredSource.includes("buildSurfaceMask(glyphs, 'morphProcession'")
+    || !authoredSource.includes('pairIndex < 12')) {
     noteFailure('Morph Procession signed-distance interpolation or bounded pair rendering is incomplete.');
   }
   for (const mapping of ['voidPortal: renderVoidPortal', 'recursiveShrine: renderRecursiveShrine', 'morphProcession: renderMorphProcession']) {
-    if (!html.includes(mapping)) noteFailure(`Null-Space Logic dispatch is missing ${mapping}.`);
+    if (!hasRenderRouteMapping(mapping)) noteFailure(`Null-Space Logic dispatch is missing ${mapping}.`);
   }
   for (const key of ['voidOpacity', 'recursiveOpacity', 'morphOpacity',
     'voidSourceOpacity', 'recursiveSourceOpacity', 'morphSourceOpacity',
     'voidBlend', 'recursiveBlend', 'morphBlend', 'voidColor', 'recursiveColor', 'morphColor']) {
-    if (!html.includes(key)) noteFailure(`Null-Space Logic Surface Mixer state is missing ${key}.`);
+    if (!operatorParameterKeys.has(key)) noteFailure(`Null-Space Logic Surface Mixer state is missing ${key}.`);
   }
   for (const marker of ["voidPortal: [{ key: 'voidDepth'", "recursiveShrine: [{ key: 'recursiveScale'", "morphProcession: [{ key: 'morphInbetweens'",
     "bindRange('pVoidDepth'", "bindRange('pRecursiveIterations'", "bindRange('pMorphInbetweens'",
     'depth: params.voidDepth', 'iterations: params.recursiveIterations', 'inbetweens: params.morphInbetweens']) {
-    if (!html.includes(marker)) noteFailure(`Null-Space Logic Batch/Proof/binding/metadata integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Null-Space Logic Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'monolithCast'")
-    || !html.includes('var course = Math.floor((y - originY) / moduleSize)')
-    || !html.includes('surfaceVoidApertureMask(mask, 0)')
-    || !html.includes('var courseGroove = formwork')) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'monolithCast'")
+    || !authoredSource.includes('var course = Math.floor((y - originY) / moduleSize)')
+    || !authoredSource.includes('surfaceVoidApertureMask(mask, 0)')
+    || !authoredSource.includes('var courseGroove = formwork')) {
     noteFailure('Monolith Cast legacy mass, construction-course, counter, or formwork rendering is incomplete.');
   }
   if (!ids.has('pMonolithGrammar')
-    || !html.includes("monolithGrammar: ['legacy', 'strata', 'ashlar', 'vault', 'stereotomy']")
-    || !html.includes("bindProfileSelect('pMonolithGrammar', 'monolithGrammar'")
-    || !html.includes("surfaceChoice(glyphs, 'monolithCast', 'monolithGrammar'")
-    || !html.includes('function renderMonolithCastLegacy(')
-    || !html.includes('function monolithGlyphBoundsV35(')
-    || !html.includes('function monolithBodyV35(')
-    || !html.includes('function monolithDrawStrataV35(')
-    || !html.includes('function monolithDrawAshlarV35(')
-    || !html.includes('function monolithDrawVaultV35(')
-    || !html.includes('function monolithDrawStereotomyV35(')
-    || !html.includes('voidPortalGlyphScanV33(entry.glyph, bounds')
-    || !html.includes('var legacyMonolithCast = Number(data.version || 0) < 35')
-    || !html.includes("params.monolithGrammar = 'legacy'")
-    || !html.includes("batchProfiles[monolithProfileKey].monolithGrammar = 'legacy'")) {
+    || !authoredSource.includes("monolithGrammar: ['legacy', 'strata', 'ashlar', 'vault', 'stereotomy']")
+    || !authoredSource.includes("bindProfileSelect('pMonolithGrammar', 'monolithGrammar'")
+    || !authoredSource.includes("surfaceChoice(glyphs, 'monolithCast', 'monolithGrammar'")
+    || !authoredSource.includes('function renderMonolithCastLegacy(')
+    || !authoredSource.includes('function monolithGlyphBoundsV35(')
+    || !authoredSource.includes('function monolithBodyV35(')
+    || !authoredSource.includes('function monolithDrawStrataV35(')
+    || !authoredSource.includes('function monolithDrawAshlarV35(')
+    || !authoredSource.includes('function monolithDrawVaultV35(')
+    || !authoredSource.includes('function monolithDrawStereotomyV35(')
+    || !authoredSource.includes('voidPortalGlyphScanV33(entry.glyph, bounds')
+    || !migrationSource.includes('var legacyMonolithCast = Number(data.version || 0) < 35')
+    || !migrationSource.includes("params.monolithGrammar = 'legacy'")
+    || !migrationSource.includes("batchProfiles[monolithProfileKey].monolithGrammar = 'legacy'")) {
     noteFailure('Monolith Cast v35 grammar, glyph-local construction renderer, or v34 compatibility migration is incomplete.');
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'chimeraGraft'")
-    || !html.includes('var donor = active[(hostIndex + 1) % active.length]')
-    || !html.includes('work.ctx.bezierCurveTo(')
-    || !html.includes('work.ctx.ellipse(targetX, targetY')
-    || !html.includes("work.ctx.globalCompositeOperation = 'destination-out'")) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'chimeraGraft'")
+    || !authoredSource.includes('var donor = active[(hostIndex + 1) % active.length]')
+    || !authoredSource.includes('work.ctx.bezierCurveTo(')
+    || !authoredSource.includes('work.ctx.ellipse(targetX, targetY')
+    || !authoredSource.includes("work.ctx.globalCompositeOperation = 'destination-out'")) {
     noteFailure('Chimera Graft donor, tissue, transplant, or incision rendering is incomplete.');
   }
-  if (!html.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureBreath'")
-    || !html.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureDryness'")
-    || !html.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureTaper'")
-    || !html.includes('var respiration = Math.sin(phase')
-    || !html.includes('coverage *= retention')) {
+  if (!authoredSource.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureBreath'")
+    || !authoredSource.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureDryness'")
+    || !authoredSource.includes("surfaceAggregate(glyphs, 'pressureStroke', 'pressureTaper'")
+    || !authoredSource.includes('var respiration = Math.sin(phase')
+    || !authoredSource.includes('coverage *= retention')) {
     noteFailure('Pressure Stroke breath, dry-brush, taper, or unified energy field is incomplete.');
   }
   for (const mapping of ['chimeraGraft: renderChimeraGraft', 'monolithCast: renderMonolithCast']) {
-    if (!html.includes(mapping)) noteFailure(`Body-Energy-Relation dispatch is missing ${mapping}.`);
+    if (!hasRenderRouteMapping(mapping)) noteFailure(`Body-Energy-Relation dispatch is missing ${mapping}.`);
   }
   for (const key of ['chimeraOpacity', 'monolithOpacity', 'chimeraSourceOpacity', 'monolithSourceOpacity',
     'chimeraBlend', 'monolithBlend', 'chimeraColor', 'monolithColor']) {
-    if (!html.includes(key)) noteFailure(`Body-Energy-Relation Surface Mixer state is missing ${key}.`);
+    if (!operatorParameterKeys.has(key)) noteFailure(`Body-Energy-Relation Surface Mixer state is missing ${key}.`);
   }
   for (const marker of ["chimeraGraft: [{ key: 'chimeraGrafts'", "monolithCast: [{ key: 'monolithMass'", "pressureStroke: [{ key: 'pressureBreath'",
     "bindRange('pChimeraGrafts'", "bindRange('pMonolithMass'", "bindRange('pPressureBreath'",
     'grafts: params.chimeraGrafts', 'mass: params.monolithMass', 'breath: params.pressureBreath']) {
-    if (!html.includes(marker)) noteFailure(`Body-Energy-Relation Batch/Proof/binding/metadata integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Body-Energy-Relation Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'etchantBloom'")
-    || !html.includes('var chemicalA = new Float32Array(count)')
-    || !html.includes('var reaction = a * b * b')
-    || !html.includes('var permitted = new Float32Array(count)')
-    || !html.includes("paintSurfaceMask(targetCtx, expanded.canvas, surfaceEffectColor('etchantBloom')")) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'etchantBloom'")
+    || !authoredSource.includes('var chemicalA = new Float32Array(count)')
+    || !authoredSource.includes('var reaction = a * b * b')
+    || !authoredSource.includes('var permitted = new Float32Array(count)')
+    || !authoredSource.includes("paintSurfaceMask(targetCtx, expanded.canvas, surfaceEffectColor('etchantBloom')")) {
     noteFailure('Etchant Bloom reaction-diffusion field, glyph boundary, or colored output is incomplete.');
   }
-  if (!html.includes("buildSurfaceMask(glyphs, 'sinewTorque'")
-    || !html.includes('function sourceAlphaAt(x, y)')
-    || !html.includes('for (var solve = 0; solve < 4; solve++)')
-    || !html.includes('Math.exp(waistAmount * centerPressure * 0.42)')
-    || !html.includes("paintSurfaceMask(targetCtx, warped.canvas, surfaceEffectColor('sinewTorque')")) {
+  if (!authoredSource.includes("buildSurfaceMask(glyphs, 'sinewTorque'")
+    || !authoredSource.includes('function sourceAlphaAt(x, y)')
+    || !authoredSource.includes('for (var solve = 0; solve < 4; solve++)')
+    || !authoredSource.includes('Math.exp(waistAmount * centerPressure * 0.42)')
+    || !authoredSource.includes("paintSurfaceMask(targetCtx, warped.canvas, surfaceEffectColor('sinewTorque')")) {
     noteFailure('Sinew Torque continuous inverse warp, bilinear sampling, or colored output is incomplete.');
   }
   for (const mapping of ['etchantBloom: renderEtchantBloom', 'sinewTorque: renderSinewTorque']) {
-    if (!html.includes(mapping)) noteFailure(`Morphogenetic Body Fields dispatch is missing ${mapping}.`);
+    if (!hasRenderRouteMapping(mapping)) noteFailure(`Morphogenetic Body Fields dispatch is missing ${mapping}.`);
   }
   for (const key of ['etchantOpacity', 'sinewOpacity', 'etchantSourceOpacity', 'sinewSourceOpacity',
     'etchantBlend', 'sinewBlend', 'etchantColor', 'sinewColor']) {
-    if (!html.includes(key)) noteFailure(`Morphogenetic Body Fields Surface Mixer state is missing ${key}.`);
+    if (!operatorParameterKeys.has(key)) noteFailure(`Morphogenetic Body Fields Surface Mixer state is missing ${key}.`);
   }
   for (const marker of ["etchantBloom: [{ key: 'etchantPattern'", "sinewTorque: [{ key: 'sinewPull'",
     "bindRange('pEtchantPattern'", "bindRange('pSinewPull'",
     'morphology: params.etchantPattern', 'pull: params.sinewPull']) {
-    if (!html.includes(marker)) noteFailure(`Morphogenetic Body Fields Batch/Proof/binding/metadata integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Morphogenetic Body Fields Batch/Proof/binding/metadata integration is missing ${marker}.`);
   }
-  if (!html.includes('function signedStretch(amount, response)')
-    || !html.includes('Math.exp(info.currentIntensity * response * amount)')
-    || !html.includes('stretchX < 0.04')) {
+  if (!authoredSource.includes('function signedStretch(amount, response)')
+    || !authoredSource.includes('Math.exp(info.currentIntensity * response * amount)')
+    || !authoredSource.includes('stretchX < 0.04')) {
     noteFailure('Stretch no longer supports continuous signed compression and extreme expansion.');
   }
-  if (!html.includes("prismSacrament: 'prismColorB'")
-    || !html.includes('SURFACE_SECONDARY_COLOR_KEYS[params.activeOperator]')) {
+  if (operatorRegistry.byId.prismSacrament.keys.secondaryColor !== 'prismColorB'
+    || !authoredSource.includes('SURFACE_SECONDARY_COLOR_KEYS[params.activeOperator]')) {
     noteFailure('Surface Mixer secondary effect-ink routing is not extensible beyond Riso Separation.');
   }
-  if (!/id=["']surfaceFxCanvas["']/.test(markupOnly) || !html.includes('renderSurfaceFxLayer')) {
+  if (!/id=["']surfaceFxCanvas["']/.test(markupOnly) || !authoredSource.includes('renderSurfaceFxLayer')) {
     noteFailure('The shared procedural surface renderer is incomplete.');
   }
-  if (!html.includes('surfaceEffectColor') || !html.includes('surfaceSourceOpacity') || !html.includes('compositeSurfaceSource')) {
+  if (!authoredSource.includes('surfaceEffectColor') || !authoredSource.includes('surfaceSourceOpacity') || !authoredSource.includes('compositeSurfaceSource')) {
     noteFailure('Independent effect color or source-text compositing is missing from the surface renderer.');
   }
   for (const id of ['surfaceMixerBlock', 'pSurfaceOpacity', 'vSurfaceOpacity', 'pSurfaceBlend',
     'btnSurfaceBack', 'btnSurfaceFront', 'surfaceOrderLabel']) {
     if (!ids.has(id)) noteFailure(`Surface Mixer is missing ${id}.`);
   }
-  if (!html.includes('SURFACE_OPACITY_KEYS') || !html.includes('SURFACE_BLEND_KEYS')
-    || !html.includes('normalizedSurfaceRenderOrder') || !html.includes('surfaceMixerChanged')) {
+  if (!authoredSource.includes('SURFACE_OPACITY_KEYS') || !authoredSource.includes('SURFACE_BLEND_KEYS')
+    || !authoredSource.includes('normalizedSurfaceRenderOrder') || !authoredSource.includes('surfaceMixerChanged')) {
     noteFailure('Surface Mixer state, migration, or UI wiring is incomplete.');
   }
-  if (!html.includes("'operatorPanelsBlock', 'surfaceMixerBlock', 'effectExtrasBlock'")) {
+  if (!authoredSource.includes("'operatorPanelsBlock', 'surfaceMixerBlock', 'effectExtrasBlock'")) {
     noteFailure('Surface Mixer is not routed into the progressive Effect workflow.');
   }
-  if (!html.includes('targetCtx.globalAlpha = surfaceOutputOpacity(id)')
-    || !html.includes('targetCtx.globalCompositeOperation = surfaceBlendMode(id)')) {
+  if (!authoredSource.includes('targetCtx.globalAlpha = renderEngine.surfaceOutputOpacity(id)')
+    || !authoredSource.includes('targetCtx.globalCompositeOperation = renderEngine.surfaceBlendMode(id)')) {
     noteFailure('Surface render layers no longer composite with independent opacity and blend mode.');
   }
-  if (!html.includes('data-surface-effect-opacity="0.5"') || !html.includes('setActiveSurfaceOpacity')
-    || !html.includes('surfaceOpacityPresetButtons')) {
+  if (!html.includes('data-surface-effect-opacity="0.5"') || !authoredSource.includes('setActiveSurfaceOpacity')
+    || !authoredSource.includes('surfaceOpacityPresetButtons')) {
     noteFailure('Surface Mixer no longer exposes touch-friendly effect-opacity controls.');
   }
-  if (html.includes('surfaceGlyphStrength(g, id) * surfaceOutputOpacity(id)')
-    || html.includes('surfaceOperatorStrength(info, id) * surfaceOutputOpacity(id)')) {
+  if (authoredSource.includes('surfaceGlyphStrength(g, id) * surfaceOutputOpacity(id)')
+    || authoredSource.includes('surfaceOperatorStrength(info, id) * surfaceOutputOpacity(id)')) {
     noteFailure('Effect opacity is coupled to source-text opacity.');
   }
-  if (!html.includes('applySurfaceSourceVisual') || !html.includes('updateAllSurfaceSourceVisuals')
+  if (!authoredSource.includes('applySurfaceSourceVisual') || !authoredSource.includes('updateAllSurfaceSourceVisuals')
     || !markupOnly.includes('.stage .c[data-surface-source]')) {
     noteFailure('Live editable glyphs no longer expose continuous source-opacity compositing.');
   }
-  if (!html.includes('surfaceEffects: {') || !html.includes('surfaceMixer: { order: surfaceRenderOrder()')) {
+  if (!authoredSource.includes('surfaceEffects: {') || !authoredSource.includes('surfaceMixer: { order: surfaceRenderOrder()')) {
     noteFailure('SVG metadata does not preserve procedural surface output settings.');
   }
   for (const id of ['pMatrixGrammar', 'pMatrixSignal', 'pMatrixReading', 'pMatrixColumns', 'pMatrixRows',
@@ -855,10 +885,10 @@ if (html) {
     'pMatrixColorMode', 'pMatrixGuides', 'pMatrixGuideOpacity']) {
     if (!ids.has(id)) noteFailure(`Type Matrix is missing ${id}.`);
   }
-  if (!html.includes("typeMatrix: { id: 'typeMatrix', label: 'Type Matrix' }")
-    || !html.includes('function generateTypeMatrixScene(')
-    || !html.includes("'typeMatrix', 'Type Matrix', generateTypeMatrixScene")
-    || !html.includes('editorialSignal:') || !html.includes('kineticTension:')) {
+  if (!authoredSource.includes("typeMatrix: { id: 'typeMatrix', label: 'Type Matrix' }")
+    || !authoredSource.includes('function generateTypeMatrixScene(')
+    || !authoredSource.includes("'typeMatrix', 'Type Matrix', renderEngine.generateTypeMatrixScene")
+    || !authoredSource.includes('editorialSignal:') || !authoredSource.includes('kineticTension:')) {
     noteFailure('Type Matrix definition, generator, registry, or presets are incomplete.');
   }
   for (const id of ['pPathGrammar', 'pPathStrands', 'pPathCopies', 'pPathSpread', 'btnPathDraw', 'btnPathClear', 'pathLoomStatus',
@@ -869,12 +899,12 @@ if (html) {
   }
   for (const fn of ['pathLoomSimplifyPoints', 'pathLoomSmoothPoints', 'pathLoomPointAt', 'createPathLoomBasePath',
     'offsetPathLoomPolyline', 'generatePathLoomScene', 'beginPathLoomDrawing', 'stopPathLoomDrawing']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Path Loom is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Path Loom is missing ${fn}().`);
   }
-  if (!html.includes("pathLoom: { id: 'pathLoom', label: 'Path Loom' }")
-    || !html.includes("'pathLoom', 'Path Loom', generatePathLoomScene")
-    || !html.includes('counterBraid:') || !html.includes('orbitChorus:') || !html.includes('kineticCoil:')
-    || !html.includes('customPath: []') || !html.includes('customPathPoints: loom.customPath.length')) {
+  if (!authoredSource.includes("pathLoom: { id: 'pathLoom', label: 'Path Loom' }")
+    || !authoredSource.includes("'pathLoom', 'Path Loom', renderEngine.generatePathLoomScene")
+    || !authoredSource.includes('counterBraid:') || !authoredSource.includes('orbitChorus:') || !authoredSource.includes('kineticCoil:')
+    || !authoredSource.includes('customPath: []') || !authoredSource.includes('customPathPoints: loom.customPath.length')) {
     noteFailure('Path Loom definition, registry, recipes, or custom-path persistence is incomplete.');
   }
   if (!html.includes('min="0.03" max="12"') || !html.includes('min="-4" max="4"')
@@ -888,12 +918,12 @@ if (html) {
     if (!ids.has(id)) noteFailure(`Glyph Signal Router is missing ${id}.`);
   }
   for (const fn of ['compositionSignalSource', 'compositionSignalShape', 'applyCompositionSignalRouter']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Glyph Signal Router is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Glyph Signal Router is missing ${fn}().`);
   }
-  if (!html.includes('SIGNAL_ROUTER_PRESETS') || !html.includes('generated = applyCompositionSignalRouter(generated, compiled, width, height)')) {
+  if (!authoredSource.includes('SIGNAL_ROUTER_PRESETS') || !authoredSource.includes('generated = applyCompositionSignalRouter(generated, compiled, width, height)')) {
     noteFailure('Glyph Signal Router recipes or scene-pipeline integration are incomplete.');
   }
-  if (!html.includes('schemaVersion: 10') || !html.includes('out.schemaVersion = 10')) {
+  if (!authoredSource.includes('schemaVersion: 10') || !authoredSource.includes('out.schemaVersion = 10')) {
     noteFailure('Composition schema version 10 is incomplete.');
   }
   for (const id of ['pVesselSource', 'pVesselGlyph', 'pVesselMode', 'pVesselUnit', 'pVesselCount',
@@ -904,45 +934,45 @@ if (html) {
   }
   for (const fn of ['glyphVesselBuildField', 'glyphVesselSample', 'glyphVesselUnits',
     'glyphVesselGuideBands', 'generateGlyphVesselScene', 'syncGlyphVesselUI']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Glyph Vessel is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Glyph Vessel is missing ${fn}().`);
   }
-  if (!html.includes("glyphVessel: compositionEngineContract(") ||
-      !html.includes("['counterformPress', 'packedManifesto', 'portraitField', 'edgeAssembly', 'ruptureVessel']")) {
+  if (!authoredSource.includes("glyphVessel: compositionEngineContract(") ||
+      !authoredSource.includes("['counterformPress', 'packedManifesto', 'portraitField', 'edgeAssembly', 'ruptureVessel']")) {
     noteFailure('Glyph Vessel registry or preset contract is incomplete.');
   }
-  if (!html.includes('var state = { active: mobileActiveSection, compositionInspector: compositionInspector };')
-    || !html.includes('function restoredWorkflowSection(saved)')
-    || !html.includes('if (saved && COMPOSITION_DEFS[saved.compositionInspector]) compositionInspector = saved.compositionInspector;')
-    || !html.includes('var initialWorkflowSection = restoredWorkflowSection(saved);')
-    || !html.includes('var shouldOpen = key === initialWorkflowSection;')
-    || !html.includes('compositionInspector = silent && COMPOSITION_DEFS[localCompositionInspector]')) {
+  if (!authoredSource.includes('var state = { active: mobileActiveSection, compositionInspector: panelState.compositionInspector };')
+    || !authoredSource.includes('function restoredWorkflowSection(saved)')
+    || !authoredSource.includes('if (saved && COMPOSITION_DEFS[saved.compositionInspector]) panelState.compositionInspector = saved.compositionInspector;')
+    || !authoredSource.includes('var initialWorkflowSection = restoredWorkflowSection(saved);')
+    || !authoredSource.includes('var shouldOpen = key === initialWorkflowSection;')
+    || !authoredSource.includes('compositionInspector = silent && COMPOSITION_DEFS[localCompositionInspector]')) {
     noteFailure('The active workflow section or draft Compose engine is not persisted.');
   }
   if (!ids.has('compositionEngineGuide')
-    || !html.includes('var COMPOSITION_ENGINE_GUIDES = {')
-    || !html.includes("glyphVessel: 'Glyph Vessel —")
-    || !html.includes("document.getElementById('compositionEngineGuide').textContent = COMPOSITION_ENGINE_GUIDES[compositionInspector]")) {
+    || !authoredSource.includes('var COMPOSITION_ENGINE_GUIDES = {')
+    || !authoredSource.includes("glyphVessel: 'Glyph Vessel —")
+    || !authoredSource.includes("document.getElementById('compositionEngineGuide').textContent = COMPOSITION_ENGINE_GUIDES[compositionInspector]")) {
     noteFailure('Compose does not explain the selected engine before its dense controls.');
   }
   if (!html.includes('id="mobileSheetTitle" tabindex="-1"')
-    || !html.includes('var mobileSheetReturnFocus = null;')
-    || !html.includes("controlPanel.setAttribute('role', 'dialog')")
-    || !html.includes("title.focus({ preventScroll: true })")) {
+    || !authoredSource.includes('var mobileSheetReturnFocus = null;')
+    || !authoredSource.includes("controlPanel.setAttribute('role', 'dialog')")
+    || !authoredSource.includes("title.focus({ preventScroll: true })")) {
     noteFailure('The mobile workflow sheet no longer establishes and restores a clear focus context.');
   }
   if (!ids.has('btnMobileParameterSearch')
-    || !html.includes('function openParameterSearch()')
-    || !html.includes("document.getElementById('btnMobileParameterSearch').addEventListener('click', openParameterSearch)")
-    || !html.includes('var hasActiveSearch = Boolean(search.value || parameterChangedOnly);')
-    || !html.includes('event.stopPropagation();')
-    || !html.includes('var parameterSearchPointerActive = false;')
-    || !html.includes("document.addEventListener('pointerup', finishParameterSearchPointer)")
-    || !html.includes('function keepParameterResultsVisible(search, results)')
+    || !authoredSource.includes('function openParameterSearch()')
+    || !authoredSource.includes("document.getElementById('btnMobileParameterSearch').addEventListener('click', openParameterSearch)")
+    || !authoredSource.includes('var hasActiveSearch = Boolean(search.value || parameterChangedOnly);')
+    || !authoredSource.includes('event.stopPropagation();')
+    || !authoredSource.includes('var parameterSearchPointerActive = false;')
+    || !authoredSource.includes("document.addEventListener('pointerup', finishParameterSearchPointer)")
+    || !authoredSource.includes('function keepParameterResultsVisible(search, results)')
     || !html.includes('.panel.mobile-text-focus .stage-actions { display: none; }')) {
     noteFailure('Mobile parameter search is not discoverable or Escape can close it while clearing a filter.');
   }
-  if (!html.includes('var operatorDefinition = OPERATOR_DEFS[operatorId];')
-    || !html.includes('var compositionDefinition = COMPOSITION_DEFS[compositionId];')) {
+  if (!authoredSource.includes('var operatorDefinition = OPERATOR_DEFS[operatorId];')
+    || !authoredSource.includes('var compositionDefinition = COMPOSITION_DEFS[compositionId];')) {
     noteFailure('Parameter search results no longer use the visible operator and composition names.');
   }
   for (const id of ['btnOperatorBrowser', 'operatorGuideCategory', 'operatorGuideSummary',
@@ -950,51 +980,39 @@ if (html) {
     'operatorBrowserStatus', 'operatorBrowserList', 'btnOperatorBrowserClose']) {
     if (!ids.has(id)) noteFailure(`Effect Browser is missing ${id}.`);
   }
-  const operatorDefsBlock = html.match(/var OPERATOR_DEFS = \{([\s\S]*?)\r?\n      \};\r?\n      var OPERATOR_GUIDES = \{/);
-  const operatorGuidesBlock = html.match(/var OPERATOR_GUIDES = \{([\s\S]*?)\r?\n      \};\r?\n      var OPERATOR_IDS/);
-  if (!operatorDefsBlock || !operatorGuidesBlock) {
-    noteFailure('Effect Browser guide data is not adjacent to the Operator registry.');
-  } else {
-    const literalKeys = (block) => [...block.matchAll(/^\s{8}([A-Za-z][A-Za-z0-9]*):/gm)].map((match) => match[1]);
-    const operatorDefKeys = literalKeys(operatorDefsBlock[1]);
-    const operatorGuideKeys = new Set(literalKeys(operatorGuidesBlock[1]));
-    const missingGuides = operatorDefKeys.filter((id) => !operatorGuideKeys.has(id));
-    const extraGuides = [...operatorGuideKeys].filter((id) => !operatorDefKeys.includes(id));
-    if (missingGuides.length || extraGuides.length) {
-      noteFailure(`Effect Browser guide coverage mismatch: missing=${missingGuides.join(',') || 'none'} extra=${extraGuides.join(',') || 'none'}.`);
-    }
-  }
-  if (!html.includes('function renderOperatorBrowser()')
-    || !html.includes('function syncOperatorGuide()')
-    || !html.includes("setActiveOperator(button.dataset.operatorBrowserId, 'user')")
-    || !html.includes("operatorBrowser.addEventListener('keydown'")
-    || !html.includes("operatorBrowserReturnFocus")
-    || !html.includes('var currentIndex = focusable.indexOf(document.activeElement);')
-    || !html.includes('if (operatorChanged) markAutosaveDirty();')
-    || !html.includes('select[id^="p"]:not(#pOperator)')
+  const missingGuides=operatorRegistry.specs.filter(spec=>typeof spec.guide!=='string'||!spec.guide.trim()).map(spec=>spec.id);
+  if(missingGuides.length)noteFailure('Effect Browser guide coverage mismatch: '+missingGuides.join(','));
+  if (!authoredSource.includes('function renderOperatorBrowser()')
+    || !authoredSource.includes('function syncOperatorGuide()')
+    || !authoredSource.includes("setActiveOperator(button.dataset.operatorBrowserId, 'user')")
+    || !authoredSource.includes("operatorBrowser.addEventListener('keydown'")
+    || !authoredSource.includes("operatorBrowserReturnFocus")
+    || !authoredSource.includes('var currentIndex = focusable.indexOf(document.activeElement);')
+    || !authoredSource.includes('if (operatorChanged) markAutosaveDirty();')
+    || !authoredSource.includes('select[id^="p"]:not(#pOperator)')
     || !html.includes('id="pOperator" aria-describedby="operatorGuideSummary"')) {
     noteFailure('Effect Browser search, selection, persistence, focus return, or current-effect explanation is incomplete.');
   }
   for (const id of ['applicationModeHint', 'applicationQuickTitle', 'applicationQuickStatus', 'btnApplyCurrentTarget', 'btnReleaseCurrentTarget', 'pBatchGroup', 'batchTargetName']) {
     if (!ids.has(id)) noteFailure(`Apply-stage quick action is missing ${id}.`);
   }
-  if (!html.includes('function matchingBatchMetrics(')
-    || !html.includes('function updateApplicationSummary()')
-    || !html.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.none, true)")
-    || !html.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.none, false)")
+  if (!authoredSource.includes('function matchingBatchMetrics(')
+    || !authoredSource.includes('function updateApplicationSummary()')
+    || !authoredSource.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.none, true)")
+    || !authoredSource.includes("batchToggle(batchMatchers[activeBatchProfile] || batchMatchers.none, false)")
     || !html.includes('.panel-section[data-panel-section="apply"] .stage-lede { display: none; }')) {
     noteFailure('The selected Effect cannot be applied to the current target from the first Apply-stage viewport.');
   }
-  if (!html.includes('var partial = toggled > 0 && !allOn;')
-    || !html.includes('var releasing = 0;')
-    || !html.includes("'\u6587\u5b57\u3092\u89e3\u9664\u4e2d\u2026'")
-    || html.includes('var partial = affected > 0 && !allOn;')) {
+  if (!authoredSource.includes('var partial = toggled > 0 && !allOn;')
+    || !authoredSource.includes('var releasing = 0;')
+    || !authoredSource.includes("'\u6587\u5b57\u3092\u89e3\u9664\u4e2d\u2026'")
+    || authoredSource.includes('var partial = affected > 0 && !allOn;')) {
     noteFailure('Quick apply confuses visual easing residue with a still-applied Effect after release.');
   }
   if (!html.includes('<span>Active / 作用中</span>')
-    || !html.includes("var activeLayerCount = active.length + (compositionActive ? 1 : 0);")
-    || !html.includes("activeLayerCount + ' active / ' + activeLayerCount + '件'")
-    || html.includes("' / ' + (OPERATOR_IDS.length + 1)")) {
+    || !authoredSource.includes("var activeLayerCount = active.length + (compositionActive ? 1 : 0);")
+    || !authoredSource.includes("activeLayerCount + ' active / ' + activeLayerCount + '件'")
+    || authoredSource.includes("' / ' + (OPERATOR_IDS.length + 1)")) {
     noteFailure('The Apply-stage active inventory still presents Composition as a missing Effect count.');
   }
   for (const id of ['exportQuickTitle', 'exportQuickSummary', 'btnQuickPreview', 'btnQuickPng', 'btnQuickSvg',
@@ -1002,48 +1020,48 @@ if (html) {
     if (!ids.has(id)) noteFailure(`Mobile Quick export is missing ${id}.`);
   }
   if (!html.includes('.export-quick { display: grid;')
-    || !html.includes("document.getElementById('btnQuickPreview').addEventListener('click'")
-    || !html.includes("document.getElementById('btnQuickPng').addEventListener('click'")
-    || !html.includes("document.getElementById('btnQuickSvg').addEventListener('click'")
-    || !html.includes("var quick = document.getElementById('exportQuickSummary');")) {
+    || !authoredSource.includes("document.getElementById('btnQuickPreview').addEventListener('click'")
+    || !authoredSource.includes("document.getElementById('btnQuickPng').addEventListener('click'")
+    || !authoredSource.includes("document.getElementById('btnQuickSvg').addEventListener('click'")
+    || !authoredSource.includes("var quick = document.getElementById('exportQuickSummary');")) {
     noteFailure('Mobile Export does not expose visible Preview/PNG/SVG actions or keep their summary in sync.');
   }
-  if (!html.includes('function previewScaleForLayout(width, height, requestedScale)')
-    || !html.includes('var renderScale = previewMode ? previewScaleForLayout(L.w, L.h, requestedScale) : requestedScale;')
-    || !html.includes('renderCanvas(params.exportScale, true)')
-    || !html.includes('canvas.dataset.previewRequestedWidth')
-    || !html.includes("' px preview'")) {
+  if (!authoredSource.includes('function previewScaleForLayout(width, height, requestedScale)')
+    || !authoredSource.includes('var renderScale = previewMode ? previewScaleForLayout(L.w, L.h, requestedScale) : requestedScale;')
+    || !authoredSource.includes('renderCanvas(params.exportScale, true)')
+    || !authoredSource.includes('canvas.dataset.previewRequestedWidth')
+    || !authoredSource.includes("' px preview'")) {
     noteFailure('Preview still renders the full export scale instead of a bounded calibration image.');
   }
-  if (!html.includes('function hasExportDeformation()')
-    || !html.includes('function updateExportActionAvailability()')
-    || !html.includes("var actionIds = ['btnPng', 'btnSvg', 'btnCopy', 'btnPreview', 'btnQuickPreview', 'btnQuickPng', 'btnQuickSvg', 'btnMobilePreview', 'btnHeaderPreview', 'btnHighQualityCheck'];")
-    || !html.includes("'変形のみ：対象なし'")
-    || !html.includes('updateExportActionAvailability();')) {
+  if (!authoredSource.includes('function hasExportDeformation()')
+    || !authoredSource.includes('function updateExportActionAvailability()')
+    || !authoredSource.includes("var actionIds = ['btnPng', 'btnSvg', 'btnCopy', 'btnPreview', 'btnQuickPreview', 'btnQuickPng', 'btnQuickSvg', 'btnMobilePreview', 'btnHeaderPreview', 'btnHighQualityCheck'];")
+    || !authoredSource.includes("'変形のみ：対象なし'")
+    || !authoredSource.includes('updateExportActionAvailability();')) {
     noteFailure('Deformed-only export actions still open a blocking alert when the artwork has no deformation.');
   }
-  if (!html.includes('function downloadOutcomeLabel(mode)')
-    || !html.includes("return 'share';")
-    || !html.includes("return 'tab';")
-    || !html.includes("return 'download';")
-    || !html.includes("if (mode === 'share') return 'share sheet requested';")
-    || !html.includes("if (mode === 'tab') return 'opened in a new tab';")) {
+  if (!authoredSource.includes('function downloadOutcomeLabel(mode)')
+    || !authoredSource.includes("return 'share';")
+    || !authoredSource.includes("return 'tab';")
+    || !authoredSource.includes("return 'download';")
+    || !authoredSource.includes("if (mode === 'share') return 'share sheet requested';")
+    || !authoredSource.includes("if (mode === 'tab') return 'opened in a new tab';")) {
     noteFailure('Download actions no longer report the desktop, iOS share-sheet, or iOS tab outcome.');
   }
-  if (!html.includes('var exportActionStatuses = [')
-    || !html.includes("document.getElementById('exportActionStatus')")
-    || !html.includes("document.getElementById('exportQuickActionStatus')")
-    || !html.includes('function setExportActionStatus(message, state)')
-    || !html.includes("setExportActionStatus('Generating PNG…', 'working')")
-    || !html.includes("exportReadyMessage('PNG', pngCanvas.width, pngCanvas.height, mode)")
-    || !html.includes("setExportActionStatus('Generating View shot…', 'working')")
-    || !html.includes("exportReadyMessage('View shot', shotCanvas.width, shotCanvas.height, mode)")
-    || !html.includes("setExportActionStatus('Preparing PNG for clipboard…', 'working')")
-    || !html.includes("setExportActionStatus('Generating SVG…', 'working')")
-    || !html.includes("exportReadyMessage('SVG', W, H, mode)")) {
+  if (!authoredSource.includes('var exportActionStatuses = [')
+    || !authoredSource.includes("document.getElementById('exportActionStatus')")
+    || !authoredSource.includes("document.getElementById('exportQuickActionStatus')")
+    || !authoredSource.includes('function setExportActionStatus(message, state)')
+    || !authoredSource.includes("setExportActionStatus('Generating PNG…', 'working')")
+    || !authoredSource.includes("exportReadyMessage('PNG', pngCanvas.width, pngCanvas.height, mode)")
+    || !authoredSource.includes("setExportActionStatus('Generating View shot…', 'working')")
+    || !authoredSource.includes("exportReadyMessage('View shot', shotCanvas.width, shotCanvas.height, mode)")
+    || !authoredSource.includes("setExportActionStatus('Preparing PNG for clipboard…', 'working')")
+    || !authoredSource.includes("setExportActionStatus('Generating SVG…', 'working')")
+    || !authoredSource.includes("exportReadyMessage('SVG', W, H, mode)")) {
     noteFailure('PNG, SVG, View shot, or clipboard actions no longer expose mirrored working and completion feedback.');
   }
-  const dataMoshValuesFunction = html.match(/function dataMoshValues\(info, deform\) \{[\s\S]*?(?=\n\s*function applyDataMoshVisual)/)?.[0] || '';
+  const dataMoshValuesFunction = authoredSource.match(/function dataMoshValues\(info, deform\) \{[\s\S]*?(?=\n\s*function applyDataMoshVisual)/)?.[0] || '';
   if (!dataMoshValuesFunction.includes("var active = state.manual != null || strength > 0.001;")
     || !dataMoshValuesFunction.includes('if (!active) return {')
     || !dataMoshValuesFunction.includes('scaleX: 1, scaleY: 1')
@@ -1051,37 +1069,37 @@ if (html) {
     || !dataMoshValuesFunction.includes('active: false')) {
     noteFailure('Unapplied Data Mosh does not return a complete identity transform before its destructive hash logic.');
   }
-  if (!html.includes('var disabled = compositionState.enabled;')
-    || !html.includes("if (gridSettingsLink) gridSettingsLink.click();")
-    || !html.includes("openMobileSheet('compose', 'pGridEnabled')")
-    || !html.includes('function revealMobileSheetAnchor(anchor)')
+  if (!authoredSource.includes('var disabled = compositionState.enabled;')
+    || !authoredSource.includes("if (gridSettingsLink) gridSettingsLink.click();")
+    || !authoredSource.includes("openMobileSheet('compose', 'pGridEnabled')")
+    || !authoredSource.includes('function revealMobileSheetAnchor(anchor)')
     || !html.includes('.panel-section[data-panel-section="compose"] #composeGridSlot { order: 1; }')
-    || html.includes('var disabled = !params.gridEnabled || compositionState.enabled;')) {
+    || authoredSource.includes('var disabled = !params.gridEnabled || compositionState.enabled;')) {
     noteFailure('Arrange cannot route a Grid-off user to Grid settings.');
   }
-  if (!html.includes('var frontCoreIndex = Math.min(cores.length - 1,')
-    || html.includes('var core = cores[front];')) {
+  if (!renderingSource.includes('var frontCoreIndex = Math.min(cores.length - 1,')
+    || renderingSource.includes('var core = cores[front];')) {
     noteFailure('Physarum spore fronts can index past a sparse core array.');
   }
-  const stagePointerEnterStart = html.indexOf("stage.addEventListener('pointerenter'");
-  const stagePointerMoveStart = html.indexOf("stage.addEventListener('pointermove'", stagePointerEnterStart);
+  const stagePointerEnterStart = authoredSource.indexOf("stage.addEventListener('pointerenter'");
+  const stagePointerMoveStart = authoredSource.indexOf("stage.addEventListener('pointermove'", stagePointerEnterStart);
   const stagePointerEnterBody = stagePointerEnterStart >= 0 && stagePointerMoveStart > stagePointerEnterStart
-    ? html.slice(stagePointerEnterStart, stagePointerMoveStart)
+    ? authoredSource.slice(stagePointerEnterStart, stagePointerMoveStart)
     : '';
   if (!stagePointerEnterBody || stagePointerEnterBody.includes('pointer.active = true')
-    || !html.includes("if (!pointer.active && params.mode === 'flow') pushHistory();")
-    || !html.includes('var pointerDriving = pointer.active || pointer.pulse;')
-    || !html.includes('pointer.pulse = true;')) {
+    || !authoredSource.includes("if (!pointer.active && params.mode === 'flow') pushHistory();")
+    || !authoredSource.includes('var pointerDriving = pointer.active || pointer.pulse;')
+    || !authoredSource.includes('pointer.pulse = true;')) {
     noteFailure('A stationary pointer can paint a Lens Effect when a control sheet moves the canvas underneath it.');
   }
-  if (!html.includes("item.count === 1 ? ' glyph' : ' glyphs'")) {
+  if (!authoredSource.includes("item.count === 1 ? ' glyph' : ' glyphs'")) {
     noteFailure('The active Effect inventory announces a singular glyph as plural.');
   }
-  if (!html.includes('function uiScrollBehavior()')
-    || (html.match(/behavior:\s*'smooth'/g) || []).length > 0) {
+  if (!authoredSource.includes('function uiScrollBehavior()')
+    || (authoredSource.match(/behavior:\s*'smooth'/g) || []).length > 0) {
     noteFailure('UI reveal scrolling no longer respects reduced-motion preferences.');
   }
-  if (!html.includes('compositionBody.insertBefore(compositionBuildBlock, compositionPerformBlock)')
+  if (!authoredSource.includes('compositionBody.insertBefore(compositionBuildBlock, compositionPerformBlock)')
     || !/<span class="index">02<\/span><span>Build<\/span>/.test(html)
     || !/<span class="index">03<\/span><span>Perform<\/span>/.test(html)) {
     noteFailure('Compose build and performance controls are no longer in a consistent task order.');
@@ -1105,55 +1123,55 @@ if (html) {
     || !/@media\s*\(max-width:\s*760px\)\s*and\s*\(max-height:\s*620px\)[\s\S]*?\.panel\s+\.stage-actions\s*\{[^}]*position:\s*static;/s.test(html)) {
     noteFailure('Mobile reset spacing or short-viewport Next actions can cover nearby controls.');
   }
-  if (/#modeHelp\s*\{[^}]*display:\s*none;/s.test(html)) {
+  if (/#modeHelp\s*\{[^}]*display:\s*none;/s.test(authoredSource)) {
     noteFailure('Application help opens to an empty disclosure on mobile.');
   }
   if (!/id="btnHeaderUndo"[^>]*\sdisabled/.test(html)
     || !/id="btnHeaderRedo"[^>]*\sdisabled/.test(html)
     || !/id="btnMobileUndo"[^>]*\sdisabled/.test(html)
     || !/id="btnMobileRedo"[^>]*\sdisabled/.test(html)
-    || !html.includes('function syncHistoryControls()')
-    || !html.includes("'|U=' + uiSnapshot")
-    || !html.includes('function recordHistorySnapshot(s)')
-    || !html.includes('function initControlHistoryTracking()')) {
+    || !authoredSource.includes('function syncHistoryControls()')
+    || !authoredSource.includes("'|U=' + uiSnapshot")
+    || !authoredSource.includes('function recordHistorySnapshot(s)')
+    || !authoredSource.includes('function initControlHistoryTracking()')) {
     noteFailure('Undo/Redo availability or full parameter-history tracking is incomplete.');
   }
   if (!html.includes('aria-keyshortcuts="Control+Z Meta+Z"')
     || !html.includes('aria-keyshortcuts="Control+Y Control+Shift+Z Meta+Shift+Z"')
-    || !html.includes('function keepsNativeHistoryTarget(target)')
-    || !html.includes("shortcutKey === 'y' || e.shiftKey")) {
+    || !authoredSource.includes('function keepsNativeHistoryTarget(target)')
+    || !authoredSource.includes("shortcutKey === 'y' || e.shiftKey")) {
     noteFailure('Undo/Redo keyboard shortcuts are incomplete or incorrectly delegated to non-text controls.');
   }
-  if (!html.includes("var waitsForChange = type === 'checkbox' || type === 'radio' || control.tagName === 'SELECT'")
-    || !html.includes("event.type === 'input' && waitsForChange")
-    || !html.includes('pendingControlHistory = { control: control, snapshot: snapState() }')
-    || !html.includes("baseline === current && event.type === 'input' && waitsForChange")
-    || !/if \(baseline !== current\) \{\s*markAutosaveDirty\(\);\s*recordHistorySnapshot\(baseline\);/s.test(html)) {
+  if (!authoredSource.includes("var waitsForChange = type === 'checkbox' || type === 'radio' || control.tagName === 'SELECT'")
+    || !authoredSource.includes("event.type === 'input' && waitsForChange")
+    || !authoredSource.includes('pendingControlHistory = { control: control, snapshot: snapState() }')
+    || !authoredSource.includes("baseline === current && event.type === 'input' && waitsForChange")
+    || !/if \(baseline !== current\) \{\s*markAutosaveDirty\(\);\s*recordHistorySnapshot\(baseline\);/s.test(authoredSource)) {
     noteFailure('Checkbox, radio, or select changes can bypass Undo/Redo and autosave history.');
   }
-  if (!html.includes('var controlName = parameterLabel(input)')
-    || !html.includes("minus.setAttribute('aria-controls', input.id)")
-    || !html.includes("plus.setAttribute('aria-controls', input.id)")
-    || !html.includes('function syncMobileStepperStates()')
-    || !html.includes('syncMobileStepperPair(pair)')) {
+  if (!authoredSource.includes('var controlName = parameterLabel(input)')
+    || !authoredSource.includes("minus.setAttribute('aria-controls', input.id)")
+    || !authoredSource.includes("plus.setAttribute('aria-controls', input.id)")
+    || !authoredSource.includes('function syncMobileStepperStates()')
+    || !authoredSource.includes('syncMobileStepperPair(pair)')) {
     noteFailure('Mobile range steppers lack readable names, endpoint state, or control relationships.');
   }
-  if (!html.includes("parameterRow.resetName = rowLabels.length ? rowLabels.join(' and ') : 'parameter group'")
-    || !html.includes("reset.setAttribute('aria-label','Reset '+row.resetName)")) {
+  if (!authoredSource.includes("parameterRow.resetName = rowLabels.length ? rowLabels.join(' and ') : 'parameter group'")
+    || !authoredSource.includes("reset.setAttribute('aria-label','Reset '+row.resetName)")) {
     noteFailure('Parameter-row reset actions no longer expose distinct readable names.');
   }
-  if (!/populatePresets\(\);\s*syncCompositionUI\(\);[\s\S]*?initParameterNavigator\(\);[\s\S]*?syncLookMemoryUI\(\);/s.test(html)
-    || /initProgressiveUI\(\);\s*initParameterNavigator\(\);/.test(html)
-    || !html.includes('select[id^="p"]:not(#pOperator):not(#pCompositionEngine)')) {
+  if (!/populatePresets\(\);\s*syncCompositionUI\(\);[\s\S]*?initParameterNavigator\(\);[\s\S]*?syncLookMemoryUI\(\);/s.test(authoredSource)
+    || /initProgressiveUI\(\);\s*initParameterNavigator\(\);/.test(authoredSource)
+    || !authoredSource.includes('select[id^="p"]:not(#pOperator):not(#pCompositionEngine)')) {
     noteFailure('Parameter RESET baselines can be captured before canonical Compose defaults or include the engine picker.');
   }
   for (const id of ['pPreset', 'btnApplyPreset', 'pPresetName', 'btnSavePreset', 'btnDelPreset', 'presetCount', 'presetStatus']) {
     if (!ids.has(id)) noteFailure(`Inline Preset management is missing ${id}.`);
   }
-  const presetManagerStart = html.indexOf("var PRESET_KEY = 'typeDeformer.presets.v1';");
-  const presetManagerEnd = html.indexOf('/* ---------------- share via URL ---------------- */', presetManagerStart);
+  const presetManagerStart = authoredSource.indexOf("var PRESET_KEY = 'typeDeformer.presets.v1';");
+  const presetManagerEnd = authoredSource.indexOf('/* ---------------- share via URL ---------------- */', presetManagerStart);
   const presetManagerBody = presetManagerStart >= 0 && presetManagerEnd > presetManagerStart
-    ? html.slice(presetManagerStart, presetManagerEnd)
+    ? authoredSource.slice(presetManagerStart, presetManagerEnd)
     : '';
   if (!html.includes('class="preset-manager" role="group" aria-labelledby="presetManagerTitle"')
     || !html.includes('id="presetStatus" role="status" aria-live="polite" aria-atomic="true"')
@@ -1168,90 +1186,91 @@ if (html) {
     || !presetManagerBody.includes("setPresetStatus('Preset deleted · ' + name, 'done')")
     || !presetManagerBody.includes("presetDeleteConfirmName !== name")
     || !presetManagerBody.includes("'Confirm delete / 削除確認'")
-    || !html.includes('pPreset: true')
+    || !authoredSource.includes('pPreset: true')
     || /\b(?:alert|confirm|prompt)\s*\(/.test(presetManagerBody)) {
     noteFailure('Preset save, apply, update, and selected-delete must remain non-blocking, focusable, undoable, and visible inside the Effect panel.');
   }
-  if (!html.includes("var firstAction = projectMenu.querySelector('[data-project-proxy]')")
-    || !html.includes("document.addEventListener('pointerdown', function (event)")
-    || !html.includes('closeProjectMenu(true)')
-    || !html.includes("if (projectMenu && projectMenu.open)")) {
+  if (!authoredSource.includes("var firstAction = projectMenu.querySelector('[data-project-proxy]')")
+    || !authoredSource.includes("document.addEventListener('pointerdown', function (event)")
+    || !authoredSource.includes('closeProjectMenu(true)')
+    || !authoredSource.includes("if (projectMenu && projectMenu.open)")) {
     noteFailure('The Project popover does not fully manage focus, outside dismissal, and Escape dismissal.');
   }
-  if (!html.includes("var btnShareProxies = document.querySelectorAll('[data-project-proxy=\"btnShare\"]')")
-    || !html.includes('function setShareButtonLabel(label)')
-    || !html.includes("button.dataset.projectProxy !== 'btnShare'")) {
+  if (!authoredSource.includes("var btnShareProxies = document.querySelectorAll('[data-project-proxy=\"btnShare\"]')")
+    || !authoredSource.includes('function setShareButtonLabel(label)')
+    || !authoredSource.includes("button.dataset.projectProxy !== 'btnShare'")) {
     noteFailure('Project Share feedback can disappear with the popover before copying finishes.');
   }
   for (const id of ['projectActionStatus', 'projectMenuActionStatus']) {
     if (!ids.has(id)) noteFailure(`Project action feedback is missing ${id}.`);
   }
-  if (!html.includes('var projectActionStatuses = [')
-    || !html.includes('function setProjectActionStatus(message, state, timeoutMs)')
-    || !html.includes("setProjectActionStatus('Project JSON · '")
-    || !html.includes('Math.max(1, Math.round(blob.size / 1024))')
-    || !html.includes("button.dataset.projectProxy !== 'btnShare'")
-    || !html.includes("button.dataset.projectProxy !== 'btnSaveProj'")
-    || !html.includes("button.dataset.projectProxy !== 'btnLoadProj'")
-    || !html.includes("setProjectActionStatus(ok ? 'Share URL copied to clipboard' : 'Share URL copy failed'")
-    || !html.includes("setProjectActionStatus('Share URL ready · manual copy opened', 'error', 0)")) {
+  if (!authoredSource.includes('var projectActionStatuses = [')
+    || !authoredSource.includes('function setProjectActionStatus(message, state, timeoutMs)')
+    || !authoredSource.includes("setProjectActionStatus('Project JSON · '")
+    || !authoredSource.includes('Math.max(1, Math.round(blob.size / 1024))')
+    || !authoredSource.includes("button.dataset.projectProxy !== 'btnShare'")
+    || !authoredSource.includes("button.dataset.projectProxy !== 'btnSaveProj'")
+    || !authoredSource.includes("button.dataset.projectProxy !== 'btnLoadProj'")
+    || !authoredSource.includes("setProjectActionStatus(ok ? 'Share URL copied to clipboard' : 'Share URL copy failed'")
+    || !authoredSource.includes("setProjectActionStatus('Share URL ready · manual copy opened', 'error', 0)")) {
     noteFailure('Project Save, Load, or Share no longer keeps the visible menu open with mirrored completion feedback.');
   }
-  const newProjectFlowStart = html.indexOf("var NEW_PROJECT_NOTICE_KEY = 'typeDeformer.projectNotice.v1';");
-  const newProjectFlowEnd = html.indexOf('/* ---------------- parameter presets ---------------- */', newProjectFlowStart);
+  const newProjectFlowStart = authoredSource.indexOf("var NEW_PROJECT_NOTICE_KEY = 'typeDeformer.projectNotice.v1';");
+  const newProjectFlowEnd = authoredSource.indexOf('/* ---------------- parameter presets ---------------- */', newProjectFlowStart);
   const newProjectFlowBody = newProjectFlowStart >= 0 && newProjectFlowEnd > newProjectFlowStart
-    ? html.slice(newProjectFlowStart, newProjectFlowEnd)
+    ? authoredSource.slice(newProjectFlowStart, newProjectFlowEnd)
     : '';
   if (!newProjectFlowBody
     || !html.includes('aria-describedby="projectMenuActionStatus"')
     || !html.includes('aria-describedby="projectActionStatus"')
     || !html.includes('.project-action-status[data-state="warning"]')
     || !html.includes('.project-menu-body .project-danger[data-confirming="true"]')
-    || !html.includes("button.dataset.projectProxy !== 'btnNew'")
-    || !html.includes('if (wasOpen) cancelNewProjectConfirmation(false);')
+    || !authoredSource.includes("button.dataset.projectProxy !== 'btnNew'")
+    || !authoredSource.includes('if (wasOpen) cancelNewProjectConfirmation(false);')
     || !newProjectFlowBody.includes('var newProjectConfirmArmed = false;')
     || !newProjectFlowBody.includes('function cancelNewProjectConfirmation(announce)')
     || !newProjectFlowBody.includes("'Confirm new / 初期化確認'")
-    || !newProjectFlowBody.includes("setProjectActionStatus('This clears the current work and both autosaves · press Confirm new within 8 seconds', 'warning', 0)")
+    || !newProjectFlowBody.includes("setProjectActionStatus('現在の作品を復旧コピーへ保存して新規作成")
     || !newProjectFlowBody.includes('}, 8000);')
-    || !newProjectFlowBody.includes('autosaveSuspended = true;')
-    || !newProjectFlowBody.includes("sessionStorage.setItem(NEW_PROJECT_NOTICE_KEY, 'ready')")
-    || !newProjectFlowBody.includes('localStorage.removeItem(AUTOSAVE_KEY)')
-    || !newProjectFlowBody.includes('localStorage.removeItem(AUTOSAVE_BACKUP_KEY)')
-    || !newProjectFlowBody.includes("location.replace(location.href.split('#')[0])")
+    || !newProjectFlowBody.includes("switchWorkspaceProject(clean, '新規作成前')")
+    || newProjectFlowBody.includes('localStorage.removeItem(AUTOSAVE_KEY)')
     || !newProjectFlowBody.includes('function consumeNewProjectNotice()')
     || !newProjectFlowBody.includes('sessionStorage.removeItem(NEW_PROJECT_NOTICE_KEY)')
     || !newProjectFlowBody.includes("setProjectActionStatus('New project ready · autosave cleared', 'done', 8000)")
     || !newProjectFlowBody.includes("projectMenu.querySelector('[data-project-proxy=\"btnNew\"]')")
     || /\b(?:alert|confirm|prompt)\s*\(/.test(newProjectFlowBody)) {
-    noteFailure('New project must remain a non-blocking, two-step, focus-preserving reset with visible timeout and reload completion feedback.');
+    noteFailure('New project must checkpoint the current document and remain a non-blocking, two-step, focus-preserving reset with visible feedback.');
   }
-  const projectFileLoadStart = html.indexOf("var projFile = document.getElementById('projFile');");
-  const projectFileLoadEnd = html.indexOf('/* ---------------- autosave ---------------- */', projectFileLoadStart);
+  const projectFileLoadStart = authoredSource.indexOf("var projFile = document.getElementById('projFile');");
+  const projectFileLoadEnd = authoredSource.indexOf('/* ---------------- autosave ---------------- */', projectFileLoadStart);
   const projectFileLoadBody = projectFileLoadStart >= 0 && projectFileLoadEnd > projectFileLoadStart
-    ? html.slice(projectFileLoadStart, projectFileLoadEnd)
+    ? authoredSource.slice(projectFileLoadStart, projectFileLoadEnd)
     : '';
-  if (!html.includes('function projectLoadError(data)')
-    || !html.includes("typeof data.params === 'object' && !Array.isArray(data.params)")
-    || !html.includes('var validationError = projectLoadError(data);')
+  if (!authoredSource.includes('function projectLoadError(data)')
+    || !authoredSource.includes("typeof data.params === 'object' && !Array.isArray(data.params)")
+    || !authoredSource.includes('var validationError = projectLoadError(data);')
     || !projectFileLoadBody.includes("setProjectActionStatus('Project JSONを選択…', 'working')")
     || !projectFileLoadBody.includes("projFile.addEventListener('cancel'")
     || !projectFileLoadBody.includes("setProjectActionStatus('Loading ' + file.name + '…', 'working')")
-    || !projectFileLoadBody.includes("loadProject(data, true)")
-    || !projectFileLoadBody.includes("setProjectActionStatus('Project loaded · ' + file.name + ' · ' + fileSizeLabel, 'done')")
-    || !projectFileLoadBody.includes("setProjectActionStatus('Projectを読み込めません · JSON形式を確認', 'error')")
+    || !projectFileLoadBody.includes("switchWorkspaceProject(data, 'Projectを開く前')")
+    || !projectFileLoadBody.includes("setProjectActionStatus('Project loaded · ' + file.name")
+    || !projectFileLoadBody.includes("setProjectActionStatus('Projectを読み込めません · ' + err.message")
     || projectFileLoadBody.includes('alert(')
     || !html.includes('.project-action-status { overflow-wrap: anywhere; }')) {
     noteFailure('Project Load no longer provides a non-blocking choose, loading, success, cancel, and error flow inside the visible popover.');
   }
-  if (!/else if \(wasCancelled\) \{\s*setVideoProgress\(0\);\s*setVideoStatus\('Recording cancelled\.'/s.test(html)) {
+  const videoReleaseStart = authoredSource.indexOf('async function releaseVideoExport(');
+  const videoStart = authoredSource.indexOf('async function startVideoExport(', videoReleaseStart);
+  const videoReleaseBody = videoReleaseStart >= 0 && videoStart > videoReleaseStart ? authoredSource.slice(videoReleaseStart, videoStart) : '';
+  if (!videoReleaseBody.includes("if (state === 'cancelled') setVideoProgress(0);")
+    || !/await releaseVideoExport\('Recording cancelled\.[^']*', 'cancelled'\);/.test(videoReleaseBody)) {
     noteFailure('Cancelling a motion export can leave a stale partial-progress bar.');
   }
   if (!html.includes('id="previewOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="previewCaption"')
     || !ids.has('btnPreviewClose')
-    || !html.includes('function showPreviewOverlay()')
-    || !html.includes('function closePreview()')
-    || !html.includes("document.getElementById('btnPreviewClose').focus({ preventScroll: true })")) {
+    || !authoredSource.includes('function showPreviewOverlay()')
+    || !authoredSource.includes('function closePreview()')
+    || !authoredSource.includes("document.getElementById('btnPreviewClose').focus({ preventScroll: true })")) {
     noteFailure('Preview dialog semantics, explicit dismissal, or focus restoration is incomplete.');
   }
   for (const id of ['copyTextStatus', 'manualCopyOverlay', 'manualCopyTitle', 'manualCopyLabel',
@@ -1259,32 +1278,32 @@ if (html) {
     if (!ids.has(id)) noteFailure(`Non-blocking copy recovery is missing ${id}.`);
   }
   if (!html.includes('id="manualCopyOverlay" hidden role="dialog" aria-modal="true"')
-    || !html.includes('function openManualCopy(value, label, returnFocus, resultHandler)')
-    || !html.includes('function closeManualCopy()')
-    || !html.includes('function retryManualCopy()')
-    || !html.includes("if (event.key === 'Escape')")
-    || !html.includes("returnFocus.focus({ preventScroll: true })")
-    || !html.includes("if (manualCopyOverlay && !manualCopyOverlay.hidden && manualCopyOverlay.contains(event.target)) return;")
-    || !/if \(manualCopyOverlay\.hidden\) return;[\s\S]*?event\.stopImmediatePropagation\(\);[\s\S]*?\}, true\);/.test(html)
+    || !authoredSource.includes('function openManualCopy(value, label, returnFocus, resultHandler)')
+    || !authoredSource.includes('function closeManualCopy()')
+    || !authoredSource.includes('function retryManualCopy()')
+    || !authoredSource.includes("if (event.key === 'Escape')")
+    || !authoredSource.includes("returnFocus.focus({ preventScroll: true })")
+    || !authoredSource.includes("if (manualCopyOverlay && !manualCopyOverlay.hidden && manualCopyOverlay.contains(event.target)) return;")
+    || !/if \(manualCopyOverlay\.hidden\) return;[\s\S]*?event\.stopImmediatePropagation\(\);[\s\S]*?\}, true\);/.test(authoredSource)
     || !/\.manual-copy-value\s*\{[\s\S]*?font-size:\s*16px;/.test(html)
     || !/\.manual-copy-actions button\s*\{[^}]*min-height:\s*44px;/.test(html)
-    || !html.includes("openManualCopy(url, 'Share URL', shareOrigin")
-    || !html.includes("copyPlainTextValue(textInput.value, btnCopySourceText, 'Source text / 原文')")) {
+    || !authoredSource.includes("openManualCopy(url, 'Share URL', shareOrigin")
+    || !authoredSource.includes("copyPlainTextValue(textInput.value, btnCopySourceText, 'Source text / 原文')")) {
     noteFailure('Clipboard failure no longer opens a focus-preserving manual-copy dialog for source text and Share URL.');
   }
   for (const nextStage of ['effect', 'apply', 'compose', 'export']) {
-    if (!html.includes(`data-next-stage="${nextStage}"`)) noteFailure(`Workflow is missing the transition to ${nextStage}.`);
+    if (!applicationSource.includes(`data-next-stage="${nextStage}"`)) noteFailure(`Workflow is missing the transition to ${nextStage}.`);
   }
-  const resetAllEffectsStart = html.indexOf('function resetAllEffects()');
-  const resetAllEffectsEnd = html.indexOf('/* ---------------- batch toggle', resetAllEffectsStart);
+  const resetAllEffectsStart = authoredSource.indexOf('function resetAllEffects()');
+  const resetAllEffectsEnd = authoredSource.indexOf('/* ---------------- batch toggle', resetAllEffectsStart);
   const resetAllEffectsBody = resetAllEffectsStart >= 0 && resetAllEffectsEnd > resetAllEffectsStart
-    ? html.slice(resetAllEffectsStart, resetAllEffectsEnd)
+    ? authoredSource.slice(resetAllEffectsStart, resetAllEffectsEnd)
     : '';
   if (!resetAllEffectsBody || resetAllEffectsBody.includes('compositionState = cloneCompositionDefaults()')) {
     noteFailure('Reset all effects must not remove the separately controlled Composition state.');
   }
-  if ((html.match(/version:\s*92/g) || []).length < 2 || !html.includes('data.version > 92') || !html.includes("a: 'td', v: 92")) {
-    noteFailure('Project/SVG/share schema version 92 or its forward-version guard is incomplete.');
+  if ((authoredSource.match(/version:\s*93/g) || []).length < 2 || !authoredSource.includes('data.version > 93') || !authoredSource.includes("a: 'td', v: 93")) {
+    noteFailure('Project/SVG/share schema version 93 or its forward-version guard is incomplete.');
   }
   for (const marker of [
     '<script src="conditions-of-type.js"></script>', 'CONDITIONS OF TYPE / 文字の条件',
@@ -1293,14 +1312,14 @@ if (html) {
     "ligatureContagion: conditionSurfaceRenderer('ligatureContagion')", "strokeCommons: conditionSurfaceRenderer('strokeCommons')",
     "rubyText: ''", "counterpageText: ''", 'function conditionSurfaceRenderer(', 'test:conditions'
   ]) {
-    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Conditions of Type v68 integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker) && !packageJson.includes(marker)) noteFailure(`Conditions of Type v68 integration is missing ${marker}.`);
   }
   for (const relativePath of ['conditions-of-type.js', 'scripts/test-conditions-of-type.mjs']) {
     if (!fs.existsSync(path.join(root, relativePath))) noteFailure(`Conditions of Type v68 evidence is missing ${relativePath}.`);
   }
   for (const marker of [
     '<option value="caesuraField">Caesura Field · 句読点の呼吸</option>',
-    'data-operator-panel="caesuraField"', "caesuraField: { id: 'caesuraField'",
+    'data-operator-panel="caesuraField"',
     "caesuraGrammar: ['aperture', 'terrace', 'hinge']",
     "caesuraField: ['caesuraGrammar', 'caesuraBreath', 'caesuraLift', 'caesuraHierarchy', 'caesuraAngle', 'caesuraSpan']",
     'function caesuraPunctuationStrength(', 'function buildCaesuraFieldFrames(',
@@ -1309,7 +1328,7 @@ if (html) {
     "bindProfileSelect('pCaesuraGrammar'", "segmentation: 'explicit punctuation classes; no semantic inference'",
     'test:caesura'
   ]) {
-    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Caesura Field v63 integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker) && !packageJson.includes(marker)) noteFailure(`Caesura Field v63 integration is missing ${marker}.`);
   }
   for (const relativePath of ['scripts/test-caesura-field.mjs', 'scripts/render-caesura-field.mjs']) {
     if (!fs.existsSync(path.join(root, relativePath))) noteFailure(`Caesura Field v63 evidence is missing ${relativePath}.`);
@@ -1318,13 +1337,13 @@ if (html) {
     "ligatureBodyGrammar: ['legacy', 'counterbody', 'interlock'", 'function renderLigatureBodyV29(',
     'function surfaceLigatureRibbonV62(', 'function renderLigatureCounterbodyV62(',
     "grammar === 'counterbody'", "params.ligatureBodyGrammar = 'interlock'", 'test:ligature']) {
-    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Ligature Body v62 Counterbody integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker) && !packageJson.includes(marker)) noteFailure(`Ligature Body v62 Counterbody integration is missing ${marker}.`);
   }
   for (const marker of ["<option value=\"birefringent\" selected>Birefringent field</option>",
     "prismOptics: ['legacy', 'crystal', 'birefringent'", 'function prismFacetCellV61(',
     'function prismBoundaryEmittersV61(', 'function renderPrismBirefringentV61(',
     "optics === 'birefringent'", "params.prismOptics = 'crystal'"]) {
-    if (!html.includes(marker)) noteFailure(`Prism Sacrament v61 integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Prism Sacrament v61 integration is missing ${marker}.`);
   }
   for (const marker of [
     '<option value="ductus">Medial ductus</option>',
@@ -1335,23 +1354,23 @@ if (html) {
     "if (grammar === 'ductus')", "surfaceScratch('textura-matrix-v60-ductus'",
     'texturaDuctusPreparedCacheV60', 'test:textura'
   ]) {
-    if (!html.includes(marker) && !packageJson.includes(marker)) noteFailure(`Textura Matrix v60 Medial Ductus integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker) && !packageJson.includes(marker)) noteFailure(`Textura Matrix v60 Medial Ductus integration is missing ${marker}.`);
   }
   for (const marker of [
-    "gutterFugue: { id: 'gutterFugue'", '<option value="gutterFugue">Gutter Fugue · 見開きの対位</option>',
+    '<option value="gutterFugue">Gutter Fugue · 見開きの対位</option>',
     'data-operator-panel="gutterFugue"',
     'function buildGutterFugueFrames(', 'function gutterFugueValues(', 'function applyGutterFugueVisual(',
     'buildGutterFugueFrames(metrics, params.vertical)', "'--op-fugue-x'", "gutterFugue: ['--op-fugue-x'",
     "bindRange('pGutterTension'", 'activeOnlyInSpreads: true'
   ]) {
-    if (!html.includes(marker)) noteFailure(`Gutter Fugue v59 integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Gutter Fugue v59 integration is missing ${marker}.`);
   }
   for (const marker of [
     'function rasterGravureCellPathV58(', 'function rasterGravurePlanV58(', 'function drawRasterGravureV58(',
     "if (screen === 'gravure')", 'maxCells || 12000', "rasterScreen: 'gravure'",
     "Number(data.version || 0) < 58", "params.rasterScreen = 'adaptive'"
   ]) {
-    if (!html.includes(marker)) noteFailure(`Raster Press v58 Gravure integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Raster Press v58 Gravure integration is missing ${marker}.`);
   }
   const asemicGrammarSelect = markupOnly.match(/<select\b[^>]*\bid=["']pAsemicGrammar["'][^>]*>([\s\S]*?)<\/select>/i);
   const asemicModes = ['current', 'chamber', 'incised', 'polyphonic'];
@@ -1366,10 +1385,10 @@ if (html) {
     "if (!glyphText.trim()) continue", "if (metas.length > 96) gestures = Math.min(gestures, 6)",
     "(((compositionState.phase % 1) + 1) % 1) * Math.PI * 2"
   ]) {
-    if (!html.includes(marker)) noteFailure(`Asemic Ductus v37 body integration is missing ${marker}.`);
+    if (!hasEditorOrMigrationMarker(marker)) noteFailure(`Asemic Ductus v37 body integration is missing ${marker}.`);
   }
   const extractIndentedFunction = (name) => {
-    const match = html.match(new RegExp(`^      function ${name}\\([\\s\\S]*?^      \\}`, 'm'));
+    const match = authoredSource.match(new RegExp(`^      function ${name}\\([\\s\\S]*?^      \\}`, 'm'));
     return match ? match[0] : '';
   };
   const asemicRuntimeNames = [
@@ -1432,16 +1451,16 @@ if (html) {
     }
   }
   if (!ids.has('pTraceGrammar')
-    || !html.includes("traceGrammar: ['legacy', 'circuit', 'relay', 'carriage', 'duet']")
-    || !html.includes("bindProfileSelect('pTraceGrammar', 'traceGrammar'")
-    || !html.includes("surfaceChoice(glyphs, 'plotterTrace', 'traceGrammar'")
-    || !html.includes('function renderPlotterTraceLegacy(')
-    || !html.includes('function traceMaskContoursV34(')
-    || !html.includes('function traceTimelineV34(')
-    || !html.includes('function renderTraceTimelineV34(')
-    || !html.includes('var legacyKineticTrace = Number(data.version || 0) < 34')
-    || !html.includes("params.traceGrammar = 'legacy'")
-    || !html.includes("batchProfiles[traceProfileKey].traceGrammar = 'legacy'")) {
+    || !authoredSource.includes("traceGrammar: ['legacy', 'circuit', 'relay', 'carriage', 'duet']")
+    || !authoredSource.includes("bindProfileSelect('pTraceGrammar', 'traceGrammar'")
+    || !renderingSource.includes("surfaceChoice(glyphs, 'plotterTrace', 'traceGrammar'")
+    || !authoredSource.includes('function renderPlotterTraceLegacy(')
+    || !authoredSource.includes('function traceMaskContoursV34(')
+    || !authoredSource.includes('function traceTimelineV34(')
+    || !authoredSource.includes('function renderTraceTimelineV34(')
+    || !migrationSource.includes('var legacyKineticTrace = Number(data.version || 0) < 34')
+    || !migrationSource.includes("params.traceGrammar = 'legacy'")
+    || !migrationSource.includes("batchProfiles[traceProfileKey].traceGrammar = 'legacy'")) {
     noteFailure('Kinetic Trace v34 grammar, contour/timeline renderer, or v33 compatibility migration is incomplete.');
   }
   for (const id of ['pCalligraphyTool', 'pCounterformGrammar', 'pTerminalStyle', 'pLigatureBodyGrammar']) {
@@ -1449,139 +1468,139 @@ if (html) {
   }
   for (const fn of ['renderCalligraphicStressLegacy', 'renderCounterformEngineLegacy', 'renderTerminalExcessLegacy',
     'renderLigatureBodyLegacy', 'surfaceCounterExit', 'surfaceStemWidthAt', 'surfaceLigatureShoulder']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Glyph Anatomy v29 grammar suite is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Glyph Anatomy v29 grammar suite is missing ${fn}().`);
   }
-  if (!html.includes('var legacyGlyphAnatomy = Number(data.version || 0) < 29')
-    || !html.includes("params.calligraphyTool = 'legacy'")
-    || !html.includes("params.counterformGrammar = 'legacy'")
-    || !html.includes("params.terminalStyle = 'legacy'")
-    || !html.includes("params.ligatureBodyGrammar = 'legacy'")
-    || !html.includes('calligraphyLegacyTool')
-    || !html.includes('counterformLegacyGrammar')
-    || !html.includes('terminalLegacyStyle')
-    || !html.includes('ligatureBodyLegacyGrammar')) {
+  if (!migrationSource.includes('var legacyGlyphAnatomy = Number(data.version || 0) < 29')
+    || !migrationSource.includes("params.calligraphyTool = 'legacy'")
+    || !migrationSource.includes("params.counterformGrammar = 'legacy'")
+    || !migrationSource.includes("params.terminalStyle = 'legacy'")
+    || !migrationSource.includes("params.ligatureBodyGrammar = 'legacy'")
+    || !authoredSource.includes('calligraphyLegacyTool')
+    || !authoredSource.includes('counterformLegacyGrammar')
+    || !authoredSource.includes('terminalLegacyStyle')
+    || !authoredSource.includes('ligatureBodyLegacyGrammar')) {
     noteFailure('Glyph Anatomy v29 no longer preserves the exact v28 renderer sub-modes.');
   }
-  if (!html.includes('// BEGIN COUNTERFORM ENGINE GENERATED')
-    || !html.includes('function renderCounterformEngineV29(')
-    || !html.includes('function renderCounterformEngine(')
-    || !html.includes("counterformGrammar: ['legacy', 'apertureV29', 'stencilV29', 'trapV29', 'channelV29', 'aperture', 'stencil', 'trap', 'channel']")
-    || !html.includes('var legacyCounterformV29 = Number(data.version || 0) < 42')
-    || !html.includes("value + 'V29' : value")
-    || !html.includes('batchProfiles[counterformProfileKey].counterformGrammar = preserveV29CounterformGrammar')
-    || !html.includes("surfaceScratch('counterform-engine-v42-local-body'")
-    || !html.includes('counterformInvalidateFonts(); refreshConfuseFontCandidates()')) {
+  if (!renderManifest.modules.some(unit=>unit.id==='counterform-render')
+    || !authoredSource.includes('function renderCounterformEngineV29(')
+    || !authoredSource.includes('function renderCounterformEngine(')
+    || !authoredSource.includes("counterformGrammar: ['legacy', 'apertureV29', 'stencilV29', 'trapV29', 'channelV29', 'aperture', 'stencil', 'trap', 'channel']")
+    || !migrationSource.includes('var legacyCounterformV29 = Number(data.version || 0) < 42')
+    || !migrationSource.includes("value + 'V29' : value")
+    || !migrationSource.includes('batchProfiles[counterformProfileKey].counterformGrammar = preserveV29CounterformGrammar')
+    || !authoredSource.includes("surfaceScratch('counterform-engine-v42-local-body'")
+    || !authoredSource.includes('counterformInvalidateFonts(); refreshConfuseFontCandidates()')) {
     noteFailure('Counterform Engine v42 glyph-local runtime, v29 preservation, bounded source lifecycle or schema migration is incomplete.');
   }
   if (!ids.has('pPressureSystem')
-    || !html.includes("pressureSystem: ['legacy', 'gesture', 'bristle', 'pool', 'flyingWhite']")
-    || !html.includes('function renderPressureStrokeLegacy(')
-    || !html.includes("bindProfileSelect('pPressureSystem', 'pressureSystem'")
-    || !html.includes("params.pressureSystem = 'legacy'")
-    || !html.includes('Number(data.version || 0) < 30')
-    || !html.includes('function preserveV29MaterialGrammar(')
-    || !html.includes('adaptiveV29')
-    || !html.includes('tonalV29')
-    || !html.includes('ghostingV29')
-    || !html.includes('var rasterV29')
-    || !html.includes('var hatchV29')
-    || !html.includes('var copyV29')
-    || !html.includes('function surfaceBoundaryEnvelopeCanvas(')
-    || !html.includes('var defectLevel = 0;')) {
+    || !authoredSource.includes("pressureSystem: ['legacy', 'gesture', 'bristle', 'pool', 'flyingWhite']")
+    || !authoredSource.includes('function renderPressureStrokeLegacy(')
+    || !authoredSource.includes("bindProfileSelect('pPressureSystem', 'pressureSystem'")
+    || !migrationSource.includes("params.pressureSystem = 'legacy'")
+    || !migrationSource.includes('Number(data.version || 0) < 30')
+    || !migrationSource.includes('function preserveV29MaterialGrammar(')
+    || !authoredSource.includes('adaptiveV29')
+    || !authoredSource.includes('tonalV29')
+    || !authoredSource.includes('ghostingV29')
+    || !authoredSource.includes('var rasterV29')
+    || !authoredSource.includes('var hatchV29')
+    || !authoredSource.includes('var copyV29')
+    || !authoredSource.includes('function surfaceBoundaryEnvelopeCanvas(')
+    || !authoredSource.includes('var defectLevel = 0;')) {
     noteFailure('Material-transfer v30 grammars, exact Pressure migration, or visible plate/machine failure structures are incomplete.');
   }
   if (!ids.has('pMorphChoreography')
-    || !html.includes("morphChoreography: ['legacy', 'corridor', 'braid', 'cascade', 'membrane']")
-    || !html.includes("bindProfileSelect('pMorphChoreography', 'morphChoreography'")
-    || !html.includes('var legacyMorphProcession = Number(data.version || 0) < 31')
-    || !html.includes("params.morphChoreography = 'legacy'")
-    || !html.includes('function renderMorphProcessionLegacy(')
-    || !html.includes('function surfaceMorphGlyphDescriptor(')
-    || !html.includes('function surfaceMorphFieldSample(')
-    || !html.includes('function strokeMorphCorrespondence(')
-    || !html.includes("rendering === 'doubleContour'")
-    || !html.includes('var edgeInset = Math.min(distance * 0.18')
-    || !html.includes('if (pairs.length <= 18) return pairs')
-    || !html.includes("'morph-procession-v31-color'")) {
+    || !authoredSource.includes("morphChoreography: ['legacy', 'corridor', 'braid', 'cascade', 'membrane']")
+    || !authoredSource.includes("bindProfileSelect('pMorphChoreography', 'morphChoreography'")
+    || !migrationSource.includes('var legacyMorphProcession = Number(data.version || 0) < 31')
+    || !migrationSource.includes("params.morphChoreography = 'legacy'")
+    || !authoredSource.includes('function renderMorphProcessionLegacy(')
+    || !authoredSource.includes('function surfaceMorphGlyphDescriptor(')
+    || !authoredSource.includes('function surfaceMorphFieldSample(')
+    || !authoredSource.includes('function strokeMorphCorrespondence(')
+    || !authoredSource.includes("rendering === 'doubleContour'")
+    || !authoredSource.includes('var edgeInset = Math.min(distance * 0.18')
+    || !authoredSource.includes('if (pairs.length <= 18) return pairs')
+    || !authoredSource.includes("'morph-procession-v31-color'")) {
     noteFailure('Morph Procession v31 choreography, Batch binding, or v30 migration is incomplete.');
   }
   if (!ids.has('pRecursiveStructure')
-    || !html.includes("recursiveStructure: ['legacy', 'reliquary', 'tracery', 'cantor', 'mandorla']")
-    || !html.includes("bindProfileSelect('pRecursiveStructure', 'recursiveStructure'")
-    || !html.includes('var legacyRecursiveShrine = Number(data.version || 0) < 32')
-    || !html.includes("params.recursiveStructure = 'legacy'")
-    || !html.includes("batchProfiles[recursiveProfileKey].recursiveStructure = 'legacy'")
-    || !html.includes('params.recursiveSourceOpacity = 0.16')
-    || !html.includes('function drawRecursiveNodeMaskV32(')
-    || !html.includes('function recursiveShrineGraphV32(')
-    || !html.includes('function recursiveShrineFrameV32(')
-    || !html.includes('function drawRecursiveShrineRailsV32(')
-    || !html.includes('var totalNodeBudget = 360')
-    || !html.includes("'recursive-shrine-v32-paper-apertures'")
-    || !html.includes("'recursive-shrine-v32-body-color'")
-    || !html.includes("'recursive-shrine-v32-rail-color'")
-    || !html.includes("'recursive-shrine-v32-glint-color'")) {
+    || !authoredSource.includes("recursiveStructure: ['legacy', 'reliquary', 'tracery', 'cantor', 'mandorla']")
+    || !authoredSource.includes("bindProfileSelect('pRecursiveStructure', 'recursiveStructure'")
+    || !migrationSource.includes('var legacyRecursiveShrine = Number(data.version || 0) < 32')
+    || !migrationSource.includes("params.recursiveStructure = 'legacy'")
+    || !migrationSource.includes("batchProfiles[recursiveProfileKey].recursiveStructure = 'legacy'")
+    || !authoredSource.includes('params.recursiveSourceOpacity = 0.16')
+    || !authoredSource.includes('function drawRecursiveNodeMaskV32(')
+    || !authoredSource.includes('function recursiveShrineGraphV32(')
+    || !authoredSource.includes('function recursiveShrineFrameV32(')
+    || !authoredSource.includes('function drawRecursiveShrineRailsV32(')
+    || !authoredSource.includes('var totalNodeBudget = 360')
+    || !authoredSource.includes("'recursive-shrine-v32-paper-apertures'")
+    || !authoredSource.includes("'recursive-shrine-v32-body-color'")
+    || !authoredSource.includes("'recursive-shrine-v32-rail-color'")
+    || !authoredSource.includes("'recursive-shrine-v32-glint-color'")) {
     noteFailure('Recursive Shrine v32 per-glyph graph, compatibility migration, bounded layers, or persistence is incomplete.');
   }
   if (!ids.has('pVoidArchitecture')
-    || !html.includes("voidArchitecture: ['legacy', 'archivolt', 'carceri', 'horizon']")
-    || !html.includes("bindProfileSelect('pVoidArchitecture', 'voidArchitecture'")
-    || !html.includes('var legacyVoidPortal = Number(data.version || 0) < 33')
-    || !html.includes("params.voidArchitecture = 'legacy'")
-    || !html.includes("batchProfiles[voidProfileKey].voidArchitecture = 'legacy'")
-    || !html.includes('params.voidSourceOpacity = 0.18')
-    || !html.includes('function renderVoidPortalLegacy(')
-    || !html.includes('function voidPortalGlyphBoundsV33(')
-    || !html.includes('function voidPortalLabelComponentsV33(')
-    || !html.includes('function voidPortalAperturesV33(')
-    || !html.includes('function voidPortalSectionStateV33(')
-    || !html.includes('var maxGlyphs = 56')
-    || !html.includes("'void-portal-v33-paper-color'")
-    || !html.includes("'void-portal-v33-terminal-color'")
-    || !html.includes("'void-portal-v33-rib-color'")
-    || !html.includes("'void-portal-v33-rail-color'")
-    || !html.includes("'void-portal-v33-rim-color'")) {
+    || !authoredSource.includes("voidArchitecture: ['legacy', 'archivolt', 'carceri', 'horizon']")
+    || !authoredSource.includes("bindProfileSelect('pVoidArchitecture', 'voidArchitecture'")
+    || !migrationSource.includes('var legacyVoidPortal = Number(data.version || 0) < 33')
+    || !migrationSource.includes("params.voidArchitecture = 'legacy'")
+    || !migrationSource.includes("batchProfiles[voidProfileKey].voidArchitecture = 'legacy'")
+    || !authoredSource.includes('params.voidSourceOpacity = 0.18')
+    || !authoredSource.includes('function renderVoidPortalLegacy(')
+    || !authoredSource.includes('function voidPortalGlyphBoundsV33(')
+    || !authoredSource.includes('function voidPortalLabelComponentsV33(')
+    || !authoredSource.includes('function voidPortalAperturesV33(')
+    || !authoredSource.includes('function voidPortalSectionStateV33(')
+    || !authoredSource.includes('var maxGlyphs = 56')
+    || !authoredSource.includes("'void-portal-v33-paper-color'")
+    || !authoredSource.includes("'void-portal-v33-terminal-color'")
+    || !authoredSource.includes("'void-portal-v33-rib-color'")
+    || !authoredSource.includes("'void-portal-v33-rail-color'")
+    || !authoredSource.includes("'void-portal-v33-rim-color'")) {
     noteFailure('Void Portal v33 per-glyph aperture topology, architecture modes, migration, or layered rendering is incomplete.');
   }
-  if (!html.includes('function renderCellFractureV24(')
-    || !html.includes('function drawTransformedFractureFragment(')
-    || !html.includes('function renderImpactFractureV31(')
-    || !html.includes('function renderFaultFractureV31(')
-    || !html.includes('function renderCrystalFractureV31(')
-    || !html.includes('function renderSpallFractureV31(')
-    || !html.includes("'cell-fracture-v31-paper-cuts'")
-    || !html.includes("'cell-fracture-v31-propagation-edges'")) {
+  if (!authoredSource.includes('function renderCellFractureV24(')
+    || !authoredSource.includes('function drawTransformedFractureFragment(')
+    || !authoredSource.includes('function renderImpactFractureV31(')
+    || !authoredSource.includes('function renderFaultFractureV31(')
+    || !authoredSource.includes('function renderCrystalFractureV31(')
+    || !authoredSource.includes('function renderSpallFractureV31(')
+    || !authoredSource.includes("'cell-fracture-v31-paper-cuts'")
+    || !authoredSource.includes("'cell-fracture-v31-propagation-edges'")) {
     noteFailure('Cell Fracture v31 fragments, distinct fracture regimes, or layered crack output is incomplete.');
   }
-  if (!html.includes('function renderSigilForgeV25(')
-    || !html.includes('function prepareSigilComponentsV31(')
-    || !html.includes('function sigilComponentTransformV31(')
-    || !html.includes('function sigilRosettePathV31(')
-    || !html.includes('componentBudget || active.length')
-    || !html.includes("'sigil-forge-v31-compound-body'")
-    || !html.includes("'sigil-forge-v31-negative-counters'")
-    || !html.includes("'sigil-forge-v31-compound-color'")) {
+  if (!authoredSource.includes('function renderSigilForgeV25(')
+    || !authoredSource.includes('function prepareSigilComponentsV31(')
+    || !authoredSource.includes('function sigilComponentTransformV31(')
+    || !authoredSource.includes('function sigilRosettePathV31(')
+    || !authoredSource.includes('componentBudget || active.length')
+    || !authoredSource.includes("'sigil-forge-v31-compound-body'")
+    || !authoredSource.includes("'sigil-forge-v31-negative-counters'")
+    || !authoredSource.includes("'sigil-forge-v31-compound-color'")) {
     noteFailure('Sigil Forge v31 affine glyph components, functional component budget, body fusion, or negative-counter layers are incomplete.');
   }
-  if (!html.includes('function renderRibbonEchoV25(')
-    || !html.includes('function ribbonSectionStateV31(')
-    || !html.includes('function ribbonSkinStripV31(')
-    || !html.includes('function ribbonFanLeavesV31(')
-    || !html.includes('params.ribbonSourceOpacity = 0.28')
-    || !html.includes('Math.min(96, Math.max(8,')
-    || !html.includes("'ribbon-echo-v31-section-body'")
-    || !html.includes("'ribbon-echo-v31-paper-gaps'")
-    || !html.includes("'ribbon-echo-v31-section-color'")) {
+  if (!authoredSource.includes('function renderRibbonEchoV25(')
+    || !authoredSource.includes('function ribbonSectionStateV31(')
+    || !authoredSource.includes('function ribbonSkinStripV31(')
+    || !authoredSource.includes('function ribbonFanLeavesV31(')
+    || !authoredSource.includes('params.ribbonSourceOpacity = 0.28')
+    || !authoredSource.includes('Math.min(96, Math.max(8,')
+    || !authoredSource.includes("'ribbon-echo-v31-section-body'")
+    || !authoredSource.includes("'ribbon-echo-v31-paper-gaps'")
+    || !authoredSource.includes("'ribbon-echo-v31-section-color'")) {
     noteFailure('Ribbon Echo v31 ordered sections, bounded sweep, skinned bodies, paper gaps, source-opacity default, or layered output is incomplete.');
   }
-  if (!html.includes('function renderSlitSweepV25(')
-    || !html.includes('function slitTimeCoordinateV31(')
-    || !html.includes('function slitTemporalSamplesV31(')
-    || !html.includes('function slitDrawTemporalStateV31(')
-    || !html.includes('params.slitSourceOpacity = 0.26')
-    || !html.includes("'slit-sweep-v31-temporal-field'")
-    || !html.includes("'slit-sweep-v31-temporal-color'")
-    || !html.includes('var maxDraws = 6800')) {
+  if (!authoredSource.includes('function renderSlitSweepV25(')
+    || !authoredSource.includes('function slitTimeCoordinateV31(')
+    || !authoredSource.includes('function slitTemporalSamplesV31(')
+    || !authoredSource.includes('function slitDrawTemporalStateV31(')
+    || !authoredSource.includes('params.slitSourceOpacity = 0.26')
+    || !authoredSource.includes("'slit-sweep-v31-temporal-field'")
+    || !authoredSource.includes("'slit-sweep-v31-temporal-color'")
+    || !authoredSource.includes('var maxDraws = 6800')) {
     noteFailure('Slit Sweep v31 finite cache, temporal sampling, source-opacity default, bounded draw cap, or layered output is incomplete.');
   }
   for (const id of ['pWebTopology', 'pEtchantRegime', 'pSinewSystem', 'pChimeraSystem']) {
@@ -1589,16 +1608,16 @@ if (html) {
   }
   for (const fn of ['renderWebbingLegacy', 'renderEtchantBloomLegacy', 'renderSinewTorqueLegacy',
     'renderChimeraGraftLegacy', 'strokeEtchantContours']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Organic field/anatomy grammar suite is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Organic field/anatomy grammar suite is missing ${fn}().`);
   }
-  if (!html.includes("params.webTopology = 'legacy'")
-    || !html.includes("params.etchantRegime = 'legacy'")
-    || !html.includes("params.sinewSystem = 'legacy'")
-    || !html.includes("params.chimeraSystem = 'legacy'")
-    || !html.includes("bindProfileSelect('pWebTopology', 'webTopology'")
-    || !html.includes("bindProfileSelect('pEtchantRegime', 'etchantRegime'")
-    || !html.includes("bindProfileSelect('pSinewSystem', 'sinewSystem'")
-    || !html.includes("bindProfileSelect('pChimeraSystem', 'chimeraSystem'")) {
+  if (!migrationSource.includes("params.webTopology = 'legacy'")
+    || !migrationSource.includes("params.etchantRegime = 'legacy'")
+    || !migrationSource.includes("params.sinewSystem = 'legacy'")
+    || !migrationSource.includes("params.chimeraSystem = 'legacy'")
+    || !authoredSource.includes("bindProfileSelect('pWebTopology', 'webTopology'")
+    || !authoredSource.includes("bindProfileSelect('pEtchantRegime', 'etchantRegime'")
+    || !authoredSource.includes("bindProfileSelect('pSinewSystem', 'sinewSystem'")
+    || !authoredSource.includes("bindProfileSelect('pChimeraSystem', 'chimeraSystem'")) {
     noteFailure('Organic field/anatomy grammars no longer preserve v27 rendering or participate in Batch/UI state.');
   }
   for (const id of ['pMisregSystem', 'pMisregWarp', 'pMisregZones', 'pMisregSlur', 'pMisregTrap',
@@ -1608,14 +1627,14 @@ if (html) {
   }
   for (const fn of ['renderMisregistration', 'renderDataMosh', 'renderBlobTrack',
     'drawRegistrationSliceField', 'dataMoshFrameIndex', 'blobTrackSurfaceSources']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Signal/press/tracker Operator suite is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Signal/press/tracker Operator suite is missing ${fn}().`);
   }
-  if (!html.includes('var SURFACE_OPERATOR_IDS = TypeDeformerCatalog.surfaceIds.slice()')
-    || !html.includes("surfaceFieldNodesForGlyphs(glyphs, 'blobTrack'")
-    || !html.includes("var sourcePairs = {};")
-    || !html.includes("params.blobVisual = 'legacy'")
-    || !html.includes("params.misregSystem = 'legacy'")
-    || !html.includes("params.moshGrammar = 'legacy'")
+  if (!authoredSource.includes('var SURFACE_OPERATOR_IDS = TypeDeformerCatalog.surfaceIds.slice()')
+    || !authoredSource.includes("surfaceFieldNodesForGlyphs(glyphs, 'blobTrack'")
+    || !authoredSource.includes("var sourcePairs = {};")
+    || !migrationSource.includes("params.blobVisual = 'legacy'")
+    || !migrationSource.includes("params.misregSystem = 'legacy'")
+    || !migrationSource.includes("params.moshGrammar = 'legacy'")
     || !html.includes('select, input[type="text"], input[type="search"] { flex: 1 1 auto; min-width: 0; }')) {
     noteFailure('Signal/press/tracker rendering, v26 migration, Surface registration, or narrow-panel containment is incomplete.');
   }
@@ -1627,12 +1646,12 @@ if (html) {
   for (const fn of ['normalizeLookMemory', 'currentLookState', 'captureLookSlot', 'recallLookSlot',
     'clearLookSlot', 'syncLookMemoryUI', 'setLookMemoryStatus', 'armLookMemoryConfirmation',
     'cancelLookMemoryConfirmation', 'focusLookMemoryAction', 'openLookCompare', 'setLookCompareWipe']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Look Memory is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Look Memory is missing ${fn}().`);
   }
-  const lookMemoryUiStart = html.indexOf("var lookMemoryGrid = document.getElementById('lookMemoryGrid');");
-  const lookMemoryUiEnd = html.indexOf("var lookCompareOverlay = document.getElementById('lookCompareOverlay');", lookMemoryUiStart);
+  const lookMemoryUiStart = authoredSource.indexOf("var lookMemoryGrid = document.getElementById('lookMemoryGrid');");
+  const lookMemoryUiEnd = authoredSource.indexOf("var lookCompareOverlay = document.getElementById('lookCompareOverlay');", lookMemoryUiStart);
   const lookMemoryUiBody = lookMemoryUiStart >= 0 && lookMemoryUiEnd > lookMemoryUiStart
-    ? html.slice(lookMemoryUiStart, lookMemoryUiEnd)
+    ? authoredSource.slice(lookMemoryUiStart, lookMemoryUiEnd)
     : '';
   if (!lookMemoryUiBody
     || /\b(?:alert|confirm|prompt)\s*\(/.test(lookMemoryUiBody)
@@ -1655,8 +1674,8 @@ if (html) {
     || !lookMemoryUiBody.includes("focusLookMemoryAction(index, 'recall');")) {
     noteFailure('Look Memory capture, overwrite and clear must stay nonblocking, two-stage and focus-preserving.');
   }
-  if (!html.includes('lookMemory: cloneLookMemory()') || !html.includes('M: cloneLookMemory()')
-    || !html.includes('lookMemory: d.M')) {
+  if (!authoredSource.includes('lookMemory: cloneLookMemory()') || !authoredSource.includes('M: cloneLookMemory()')
+    || !authoredSource.includes('lookMemory: d.M')) {
     noteFailure('Look Memory is not preserved by Project and Share serialization.');
   }
   for (const id of ['proofSheetPanel', 'pProofCount', 'pProofColumns', 'pProofMutation', 'pProofVariant',
@@ -1664,91 +1683,93 @@ if (html) {
     if (!ids.has(id)) noteFailure(`Design Space Sheet is missing ${id}.`);
   }
   for (const fn of ['proofVariantSettings', 'renderProofSheet', 'previewProofSheet', 'exportProofSheet', 'adoptProofVariant']) {
-    if (!html.includes(`function ${fn}(`)) noteFailure(`Design Space Sheet is missing ${fn}().`);
+    if (!applicationSource.includes(`function ${fn}(`)) noteFailure(`Design Space Sheet is missing ${fn}().`);
   }
-  if (!ids.has('stageWorld') || !html.includes('stageWorld.appendChild(frag)')
-    || !html.includes('stageWorld.style.transform =')) {
+  if (!ids.has('stageWorld') || !authoredSource.includes('stageWorld.appendChild(frag)')
+    || !authoredSource.includes('stageWorld.style.transform =')) {
     noteFailure('The unbounded stage world or its independent camera transform is incomplete.');
   }
-  const canvasCameraBlock = html.match(/\/\* ---------------- canvas view camera ----------------[\s\S]*?window\.addEventListener\('type-deformer-frame-resize', refreshCanvasViewAfterResize\);\s*\n\s*applyCanvasView\(\);/)?.[0] || '';
+  const canvasCameraBlock = declaredSourceUnit(authoredUnits,'canvasCameraLayout').source;
   if (!canvasCameraBlock) {
     noteFailure('The canvas camera implementation block could not be isolated for mutation checks.');
   } else {
-    const outsideCameraBlock = html.replace(canvasCameraBlock, '');
+    const outsideCameraBlock = authoredSource.replace(canvasCameraBlock, '');
     if (/\bcanvasView\.(?:scale|x|y)\s*=/.test(outsideCameraBlock)) {
       noteFailure('Effect, layout, persistence, or export code mutates the canvas camera outside its dedicated controls.');
     }
   }
-  if (html.includes('function clampCanvasView(') || html.includes('oldScrollLeft + delta')
-    || html.includes('oldScrollTop + delta')) {
+  if (authoredSource.includes('function clampCanvasView(') || authoredSource.includes('oldScrollLeft + delta')
+    || authoredSource.includes('oldScrollTop + delta')) {
     noteFailure('A finite camera clamp or effect-driven viewport shift remains in the preview path.');
   }
-  if (!html.includes('var CANVAS_VIEW_MIN = 0.05;') || !html.includes('var CANVAS_VIEW_MAX = 32;')
-    || !html.includes('function canvasCameraLayout(')) {
+  if (!authoredSource.includes('var CANVAS_VIEW_MIN = 0.05;') || !authoredSource.includes('var CANVAS_VIEW_MAX = 32;')
+    || !authoredSource.includes('function canvasCameraLayout(')) {
     noteFailure('The wide-range unbounded canvas camera contract is incomplete.');
   }
-  if (!html.includes('autoFit: true') || !html.includes('function canvasAutoFitBounds(scene)')
-    || !html.includes('function fitCanvasViewToScene(scene)')
-    || !html.includes('var effectPad = surfaceEffectPad();')
-    || !html.includes('if (canvasView.active || !canvasView.autoFit) return false;')
-    || !html.includes('if (canvasView.autoFit && !canvasView.active) scheduleVisualOverscan();')) {
+  if (!authoredSource.includes('autoFit: true') || !authoredSource.includes('function canvasAutoFitBounds(scene)')
+    || !authoredSource.includes('function fitCanvasViewToScene(scene)')
+    || !canvasCameraBlock.includes('var effectPad = options.effectPad();')
+    || !authoredSource.includes('effectPad: function () { return renderEngine.surfaceEffectPad(); }')
+    || !authoredSource.includes('if (canvasView.active || !canvasView.autoFit) return false;')
+    || !authoredSource.includes('if (canvasView.autoFit && !canvasView.active) scheduleVisualOverscan();')) {
     noteFailure('The default preview camera no longer fits complete glyph and effect bounds while preserving explicit VIEW control.');
   }
   if (!/data-operator-panel="etchantBloom"[\s\S]*?EtchantSpill[\s\S]*?<\/div>\s*<div class="operator-panel" data-operator-panel="sigilForge"/.test(html)) {
     noteFailure('The Etchant Bloom control panel is not closed before the following operator panel.');
   }
-  const viewModePointerGuards = html.match(/if \(canvasView\.active\) return;/g) || [];
+  const viewModePointerGuards = authoredSource.match(/if \(canvasView\.active\) return;/g) || [];
   if (viewModePointerGuards.length < 2
-    || !/function setCanvasViewActive\(active\)[\s\S]*?pointer\.active = false;[\s\S]*?pointer\.pulse = false;[\s\S]*?pointer\.strength = 0;/.test(html)) {
+    || !extractDeclaredFunction(authoredUnits,'setCanvasViewActive').includes('options.modeChanged(canvasView.active)')
+    || !/modeChanged: function \(active\)[\s\S]*?pointer\.strength = 0;[\s\S]*?pointer\.active = false; pointer\.pulse = false;/.test(authoredSource)) {
     noteFailure('Canvas VIEW mode does not fully isolate pan gestures from Lens pointer editing.');
   }
-  if (!html.includes('compositionPreviewLayout = canvasCameraLayout(width, height)')
-    || !html.includes('renderSurfaceFxLayer(surfaceFxCtx, glyphs, dpr, canvasCameraLayout(width, height)')
-    || !html.includes('var screenshotLayout = canvasCameraLayout(cssWidth, cssHeight)')) {
+  if (!authoredSource.includes('compositionPreviewLayout = canvasCameraLayout(width, height)')
+    || !authoredSource.includes('renderSurfaceFxLayer(surfaceFxCtx, glyphs, dpr, canvasCameraLayout(width, height)')
+    || !authoredSource.includes('var screenshotLayout = canvasCameraLayout(cssWidth, cssHeight)')) {
     noteFailure('DOM text, procedural effects, Compose, or View shot no longer share one explicit camera.');
   }
-  const surfaceCanonicalRasterBlock = html.match(/function surfaceCanonicalRasterPlan\(glyphs\)[\s\S]*?\n\s*function renderSurfaceFxLayer\(/)?.[0] || '';
+  const surfaceCanonicalRasterBlock = extractDeclaredFunction(authoredUnits,'surfaceCanonicalRasterPlan');
   if (!surfaceCanonicalRasterBlock
     || surfaceCanonicalRasterBlock.includes('matchMedia')
-    || !html.includes('var plan = surfaceCanonicalRasterPlan(glyphs);')
-    || !html.includes('var canonicalLayout = plan.layout;')
-    || !html.includes('var rasterFactor = outputDensity / plan.density;')
-    || !html.includes('scale*(L.dx+plan.bounds.x*L.s)')
-    || !html.includes('renderers[id](layer.ctx,glyphs,width,height,pixelScale,canonicalLayout,fm,false,livePreview,context);')) {
+    || !authoredSource.includes('var plan = renderEngine.surfaceCanonicalRasterPlan(glyphs);')
+    || !authoredSource.includes('var canonicalLayout = plan.layout;')
+    || !authoredSource.includes('var rasterFactor = outputDensity / plan.density;')
+    || !authoredSource.includes('scale*(L.dx+plan.bounds.x*L.s)')
+    || !authoredSource.includes('renderers[id](layer.ctx,glyphs,width,height,pixelScale,canonicalLayout,fm,false,livePreview,context);')) {
     noteFailure('Surface topology is no longer built in one camera- and export-independent world raster.');
   }
-  if (!html.includes('if (!regenerate && compositionScene && compositionScene.presented) return compositionScene;')
-    || !html.includes('function withSceneRenderClock(scene, callback)')
-    || !html.includes('snapshotRenderableScene(width, height, true)')
-    || (html.match(/withSceneRenderClock\([^,]+, function \(\)/g) || []).length < 4) {
+  if (!authoredSource.includes('if (!regenerate && compositionScene && compositionScene.presented) return compositionScene;')
+    || !authoredSource.includes('function withSceneRenderClock(scene, callback)')
+    || !authoredSource.includes('snapshotRenderableScene(width, height, true)')
+    || (authoredSource.match(/withSceneRenderClock\([^,]+, function \(\)/g) || []).length < 4) {
     noteFailure('Static outputs no longer reuse the presented Compose scene and render clock.');
   }
-  if (!html.includes('var compositionCameraOnlyPending = false;')
-    || !html.includes('scheduleCompositionDraw(true);')
-    || !html.includes('var canReusePresentedScene = cameraOnly && compositionScene && compositionScene.presented')
-    || !html.includes('withSceneRenderClock(compositionScene, function ()')) {
+  if (!authoredSource.includes('var compositionCameraOnlyPending = false;')
+    || !authoredSource.includes('scheduleCompositionDraw(true);')
+    || !authoredSource.includes('var canReusePresentedScene = cameraOnly && compositionScene && compositionScene.presented')
+    || !authoredSource.includes('withSceneRenderClock(compositionScene, function ()')) {
     noteFailure('Camera-only Compose redraws are rebuilding or retiming the logical scene.');
   }
-  if (html.includes("if (qualityMode === 'export') compositionQualityOverride = 'high';")
-    || html.includes("if (qualityMode === 'export') return compact ? 24000 : 48000;")) {
+  if (authoredSource.includes("if (qualityMode === 'export') compositionQualityOverride = 'high';")
+    || authoredSource.includes("if (qualityMode === 'export') return compact ? 24000 : 48000;")) {
     noteFailure('Export silently overrides the preview quality or FX budget, breaking screen/output parity.');
   }
   if (ids.has('canvasSizeBadge') || ids.has('canvasSizeText') || ids.has('btnCanvasReset')) {
     noteFailure('Legacy finite/resizable canvas-frame UI is still present.');
   }
-  if (!ids.has('btnViewMode') || /#btnViewMode\s*\{[^}]*display\s*:\s*none/i.test(html)) {
+  if (!ids.has('btnViewMode') || /#btnViewMode\s*\{[^}]*display\s*:\s*none/i.test(authoredSource)) {
     noteFailure('Canvas View mode is missing or hidden on a responsive breakpoint.');
   }
-  if (!html.includes("localStorage.removeItem('typeDeformer.frameSize.v1')")
-    || !html.includes("stage.style.removeProperty('--visual-overscan')")) {
+  if (!authoredSource.includes("localStorage.removeItem('typeDeformer.frameSize.v1')")
+    || !authoredSource.includes("stage.style.removeProperty('--visual-overscan')")) {
     noteFailure('Legacy finite-frame persistence or dynamic preview overscan is not retired.');
   }
-  const visualOverscanBody = html.match(/function updateVisualOverscan\(\)\s*\{([\s\S]*?)\n\s*\}/)?.[1] || '';
+  const visualOverscanBody = authoredSource.match(/function updateVisualOverscan\(\)\s*\{([\s\S]*?)\n\s*\}/)?.[1] || '';
   if (!visualOverscanBody || /(?:width|height|inset|padding|margin|transform)\s*=|setProperty\(/.test(visualOverscanBody)) {
     noteFailure('Visual overscan may resize, shift, or transform the preview instead of remaining camera-neutral.');
   }
-  if (!html.includes('var mobileLayoutWasMobile = mobileLayoutQuery.matches;')
-    || !html.includes('openDesktopSection(mobileActiveSection);')) {
+  if (!authoredSource.includes('var mobileLayoutWasMobile = mobileLayoutQuery.matches;')
+    || !authoredSource.includes('openDesktopSection(mobileActiveSection);')) {
     noteFailure('Desktop and mobile workflow sections are not reconciled across the responsive breakpoint.');
   }
   if (!/data-batch=["']all["']/.test(markupOnly)) {

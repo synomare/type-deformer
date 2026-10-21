@@ -1,19 +1,18 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Isolated native-Canvas fixture for the real Ligature Body renderer.
 // It exercises the production functions without browser/editor state.
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import {readPageMarkup, readRenderUnits, extractDeclaredFunction} from './source-reader.mjs';
 
 const require = createRequire(import.meta.url);
 export const canvas = require(process.env.TYPE_DEFORMER_CANVAS_MODULE
   || '@napi-rs/canvas');
-export const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+export const html = readPageMarkup();
+const renderUnits = readRenderUnits();
 
 export function extract(name) {
-  const start = html.indexOf(`      function ${name}(`);
-  if (start < 0) throw new Error(`Missing actual function: ${name}`);
-  const next = html.indexOf('\n      function ', start + 20);
-  return html.slice(start, next < 0 ? html.length : next);
+  return extractDeclaredFunction(renderUnits, name);
 }
 
 const actualNames = [
@@ -137,7 +136,7 @@ export function createLigatureFixture(source, settings = {}) {
     compositeSurfaceSource() {},
     surfaceEffectColor() { return sandbox.params.ligatureBodyColor; }
   };
-  const context = vm.createContext(sandbox);
+  const context = createAuthoredTestContext(sandbox);
   new vm.Script(actualNames.map(extract).join('\n')).runInContext(context);
   function render(grammar = sandbox.params.ligatureBodyGrammar, directV29 = false) {
     sandbox.params.ligatureBodyGrammar = grammar;

@@ -1,4 +1,6 @@
 {
+  "sourceManifest": "render-source/manifest.json",
+  "signature": "8274e30d79858bb923fba7ec904f959ffbc986a59d5644e8c1971ba0056bd3f6",
   "operators": [
     "dataMosh",
     "copyDecay",
@@ -107,585 +109,4928 @@
     "anamorphicType"
   ],
   "functions": [
-    "generateGlyphVesselScene",
-    "compositionGlyph",
-    "orientedCompositionPoint",
-    "compositionAxisIsVertical",
-    "lerpHex",
-    "glyphVesselGradient",
-    "glyphVesselSample",
-    "hash",
-    "compositionMacro",
-    "glyphVesselGuideBands",
-    "contourSegmentsForCell",
-    "contourEdgePoint",
-    "glyphVesselBuildField",
-    "glyphVesselRasterGlyph",
-    "glyphVesselImageValues",
-    "glyphVesselUnits",
-    "glyphVesselMakeToken",
-    "compositionLimit",
-    "compositionEffectiveQuality",
-    "createLoopClock",
-    "generatePathLoomScene",
-    "pathLoomPointAt",
-    "pathLoomPolylineInfo",
-    "offsetPathLoomPolyline",
-    "compositionPalette",
-    "createPathLoomBasePath",
-    "pathLoomResample",
-    "pathLoomSmoothPoints",
-    "generateTypeMatrixScene",
-    "generateFeedbackChamberScene",
-    "cascadeTokenCode",
-    "compositionLoopNoise",
-    "createCompositionInputBus",
-    "generateContourAtlasScene",
-    "contourScalar",
-    "generateCascadeScene",
-    "generateCascadeBands",
-    "cascadeGlyphColor",
-    "cascadePostProcess",
-    "cascadeShapeItem",
-    "cascadeColorFor",
-    "cascadePalette",
-    "cascadeBackdrop",
-    "generateCascadeRadar",
-    "generateCascadeMoire",
-    "generateCascadeSdf",
-    "cascadeOpticalField",
-    "cascadeGridColumns",
-    "generateCascadeCircuit",
-    "generateCascadeAutomaton",
-    "cascadeAutomatonStep",
-    "cascadeLifeStep",
-    "cascadeSeed",
-    "batchKeyFor",
-    "createDetailedBatchTargets",
-    "charInfo",
-    "isPunctCluster",
-    "classify",
-    "generateFluxScene",
-    "generateFieldScene",
-    "marblingAssertReady",
-    "marblingRequests",
-    "marblingSource",
-    "marblingGlyphData",
-    "spectralTraceContours",
-    "glyphFontSpec",
-    "marblingGlyphSettings",
-    "surfaceGlyphStrength",
-    "surfaceOutputOpacity",
-    "auxeticAssertReady",
-    "auxeticRequests",
-    "auxeticGlyphData",
-    "auxeticSourceKey",
-    "auxeticIsNative",
-    "auxeticGlyphSettings",
-    "conformalAssertReady",
-    "conformalRequests",
-    "conformalGlyphData",
-    "conformalSourceKey",
-    "conformalGlyphSettings",
-    "conformalIsNative",
-    "differentialAssertReady",
-    "differentialRequests",
-    "differentialGlyphData",
-    "differentialSourceKey",
-    "differentialGlyphSettings",
-    "marblingPrepare",
-    "marblingScheduleWork",
-    "marblingClearGeometry",
-    "auxeticPrepare",
-    "auxeticScheduleWork",
-    "conformalPrepare",
-    "conformalScheduleWork",
-    "differentialPrepare",
-    "differentialScheduleWork",
-    "applyCompositionFxRack",
-    "renderCompositionWebGLPass",
-    "webglHexColor",
-    "updateCompositionWebGLTextTexture",
-    "ensureCompositionWebGL",
-    "compileCompositionShader",
-    "scheduleCompositionDraw",
-    "webglCompositionAvailable",
-    "enforceCompositionPrimitiveBudget",
-    "applyRasterMaterialFx",
-    "quantizeHex",
-    "fxNumber",
-    "fxEnabled",
-    "applyChromaticSplitFx",
-    "copySceneGlyph",
-    "applySignalMaskFx",
-    "hexLuminance",
-    "applyFeedbackFx",
-    "appendTransformedScenePass",
-    "transformSceneGlyph",
-    "transformScenePoint",
-    "transformSceneBand",
-    "copySceneBand",
-    "compositionFxModule",
-    "applyEchoTrailFx",
-    "compositionFxBudget",
-    "compileCompositionSource",
-    "compositionSourceTokens",
-    "tokenizeLine",
-    "toGraphemes",
-    "fallbackGraphemes",
-    "applyCompositionLegibility",
-    "applyCompositionSignalRouter",
-    "compositionSignalShape",
-    "compositionSignalSource",
-    "generateCompositionScene",
-    "surfaceBlendMode",
-    "marblingEffectPad",
-    "marblingUpdateStatus",
-    "marblingPhase",
-    "marblingShape",
-    "auxeticEffectPad",
-    "auxeticUpdateStatus",
-    "conformalEffectPad",
-    "conformalUpdateStatus",
-    "differentialEffectPad",
-    "differentialShape",
-    "surfaceCanonicalRasterPlan",
-    "calligraphyEffectPad",
-    "calligraphyGlyphSettings",
-    "hatchEngraveEffectPad",
-    "contentBounds",
-    "surfaceAggregate",
-    "surfaceChoice",
-    "rasterPressEffectPad",
-    "contourEtchEffectPad",
-    "ribbonEchoEffectPad",
-    "ribbonTransformPointV31",
-    "ribbonSectionStateV31",
-    "ribbonLaminaEffectPad",
-    "surfaceEffectPad",
-    "copyTransferPad",
-    "thornRootedExtent",
-    "surfaceOperatorStrength",
-    "numericManual",
-    "readOperatorState",
-    "batchProfileForKey",
     "sourceParameterProfile",
     "batchSourceText",
-    "renderPlotterTrace",
-    "renderTraceTimelineV34",
-    "traceDrawHeadV34",
-    "traceTimelineHeadV34",
-    "tracePointOnPathV34",
-    "traceStrokeAgeBandV34",
-    "traceDrawLiftMarkersV34",
-    "traceStrokeItemsV34",
-    "traceStrokePathV34",
+    "batchProfileForKey",
+    "toGraphemes",
+    "fallbackGraphemes",
+    "classify",
+    "isPunctCluster",
+    "charInfo",
+    "batchKeyFor",
+    "hash",
+    "tokenizeLine",
+    "readOperatorState",
+    "numericManual",
+    "surfaceOperatorStrength",
+    "surfaceGlyphStrength",
+    "surfaceSourceMode",
+    "surfaceSourceOpacity",
     "surfaceEffectColor",
+    "surfaceOutputOpacity",
+    "surfaceBlendMode",
+    "surfaceAggregate",
+    "surfaceChoice",
     "surfaceScratch",
-    "traceTimelineV34",
+    "surfaceGlyphTextSpec",
+    "drawSurfaceGlyph",
+    "buildSurfaceMask",
+    "paintSurfaceMask",
+    "compositeSurfaceSource",
+    "sampleMaskNeighborhoodAlpha",
+    "sampleSurfaceMask",
+    "orderedPlotterPoints",
+    "surfaceGlyphNode",
+    "surfaceNodesForGlyphs",
+    "surfaceFieldNodesForGlyphs",
+    "surfaceGraphEdges",
+    "surfaceCurveSpec",
+    "strokeSurfaceCurve",
+    "cubicSurfacePoint",
+    "drawSurfaceTube",
+    "fillOrganicNode",
+    "renderPlotterTraceLegacy",
+    "tracePointKeyV34",
     "tracePathMetricsV34",
-    "traceTravelPointsV34",
-    "traceOrderPathsV34",
+    "traceSimplifyPointsV34",
+    "traceMaskContoursV34",
+    "traceAssignGlyphsV34",
     "traceClonePathV34",
+    "traceWarpPathV34",
     "traceEndpointChoiceV34",
     "traceOrientSequenceV34",
     "traceGreedyOrderV34",
-    "traceWarpPathV34",
-    "traceAssignGlyphsV34",
-    "surfaceGlyphNode",
-    "compositeSurfaceSource",
-    "paintSurfaceMask",
-    "surfaceSourceOpacity",
-    "surfaceSourceMode",
-    "traceMaskContoursV34",
-    "traceSimplifyPointsV34",
-    "tracePointKeyV34",
-    "buildSurfaceMask",
-    "drawSurfaceGlyph",
-    "surfaceGlyphTextSpec",
-    "baselineOffset",
-    "fontMetrics",
-    "renderPlotterTraceLegacy",
-    "cubicSurfacePoint",
-    "surfaceCurveSpec",
-    "strokeSurfaceCurve",
-    "surfaceGraphEdges",
-    "surfaceNodesForGlyphs",
-    "orderedPlotterPoints",
-    "sampleSurfaceMask",
-    "renderSigilForge",
-    "sigilRosettePathV31",
-    "sigilCutV31",
-    "sigilCurveLinkV31",
-    "sigilSuperellipsePathV31",
-    "sigilComponentTransformV31",
-    "prepareSigilComponentsV31",
-    "renderSigilForgeLegacy",
-    "renderRoseEngine",
-    "renderWebbing",
-    "surfaceFieldNodesForGlyphs",
-    "renderWebbingLegacy",
+    "traceOrderPathsV34",
+    "traceTravelPointsV34",
+    "traceTimelineV34",
+    "traceStrokePathV34",
+    "traceStrokeItemsV34",
+    "traceStrokeAgeBandV34",
+    "tracePointOnPathV34",
+    "traceTimelineHeadV34",
+    "traceDrawLiftMarkersV34",
+    "traceDrawHeadV34",
+    "renderTraceTimelineV34",
+    "renderPlotterTrace",
     "strokeWebCatenary",
-    "renderEtchantBloom",
-    "strokeEtchantContours",
-    "surfaceBoundaryDistance",
-    "renderEtchantBloomLegacy",
-    "renderBlobTrack",
-    "colorizeSurfaceCanvas",
-    "surfaceNoise01",
-    "blobTrackSurfaceSources",
-    "renderSoftBlob",
-    "fillOrganicNode",
-    "drawSurfaceTube",
+    "renderWebbingLegacy",
+    "renderWebbing",
     "renderSoftBlobSporeField",
-    "renderThornCrown",
-    "renderThornRooted",
-    "thornOrganPaths",
-    "thornSpine",
-    "thornContourRoots",
-    "renderThornCrownLegacy",
-    "renderBoneScaffold",
-    "surfaceGlyphAnatomyMetas",
-    "renderBoneTrabecularV36",
-    "surfaceBoundaryEnvelopeCanvas",
-    "surfaceToneCss",
-    "surfaceHexRgb",
-    "renderBoneLamellar",
-    "boneLamellarSeeds",
-    "boneLamellarFullMask",
-    "renderSinewTorque",
-    "renderSinewTorqueField",
-    "renderSinewTorqueLegacy",
-    "renderPressureStroke",
-    "pressureContinuousNoise",
-    "renderPressureStrokeLegacy",
-    "renderMonolithCast",
-    "monolithDrawMarksV35",
-    "monolithClipLocalV35",
-    "monolithDrawStereotomyV35",
-    "monolithNearestAnchorV35",
-    "monolithDrawVaultV35",
-    "monolithDrawAshlarV35",
-    "monolithDrawStrataV35",
-    "monolithBodyV35",
-    "surfaceSmoothCoverage",
-    "surfaceSignedDistanceValue",
-    "surfaceVoidTopology",
-    "voidPortalGlyphScanV33",
-    "monolithGlyphBoundsV35",
-    "voidPortalGlyphBoundsV33",
-    "voidPortalGlyphPointV33",
-    "renderMonolithCastLegacy",
-    "surfaceVoidApertureMask",
-    "renderContourEtch",
-    "renderContourReliefV57",
-    "contourReliefDrawMarksV57",
-    "contourReliefDrawBladeV57",
-    "contourReliefCounterTicksV57",
-    "contourReliefMarkFitsV57",
-    "contourReliefNormalV57",
-    "surfaceFieldNormal",
-    "contourReliefSignedV57",
-    "contourReliefHachuresV57",
-    "contourReliefWarpV57",
-    "contourReliefFieldV57",
-    "renderContourEtchLegacy",
-    "renderHatchEngrave",
-    "drawAdaptiveHatchFamily",
-    "renderHatchEngraveLegacy",
+    "renderSoftBlob",
+    "renderRasterPressLegacy",
     "drawHatchFamily",
-    "hatchCopperRender",
-    "hatchCopperPlate",
-    "hatchCopperCoverage",
-    "hatchCopperSmooth",
-    "renderRasterPress",
-    "sampleMaskNeighborhoodAlpha",
+    "renderHatchEngraveLegacy",
     "rasterPressOutput",
-    "drawRasterGravureV58",
     "rasterGravureCellPathV58",
     "rasterGravurePlanV58",
-    "renderRasterPressLegacy",
-    "renderCellFracture",
-    "fractureColorizeAndOutput",
-    "renderImpactFractureV31",
-    "strokeFracturePolyline",
-    "traceFracturePlate",
-    "drawTransformedFractureFragment",
-    "fractureImpactOrigin",
-    "fractureSnapOriginToInk",
-    "fractureGlyphExtent",
-    "renderSpallFractureV31",
-    "renderCrystalFractureV31",
-    "renderFaultFractureV31",
-    "fractureMaskBounds",
-    "renderCellFractureLegacy",
-    "renderSlitSweep",
-    "slitDrawTemporalStateV31",
-    "slitTemporalSamplesV31",
-    "slitTimeCoordinateV31",
-    "renderSlitSweepLegacy",
-    "renderRibbonEcho",
-    "ribbonFanLeavesV31",
-    "ribbonStrokeRailV31",
-    "ribbonSkinStripV31",
-    "ribbonDrawSectionV31",
-    "ribbonApplyStateV31",
-    "ribbonOutlineMaskV31",
-    "renderRibbonEchoLegacy",
-    "renderRibbonLamina",
-    "ribbonLaminaTriangle",
-    "ribbonLaminaPoint",
-    "renderCipherLiturgy",
-    "renderLigatureCrypt",
-    "renderLigatureCryptV32",
-    "ligatureCryptPaintSolitaryV32",
-    "ligatureCryptPaintSutureV32",
-    "ligatureCryptThreadPathV32",
-    "ligatureCryptPaintBraidV32",
-    "ligatureCryptBraidPathV32",
-    "ligatureCryptPaintMortiseV32",
-    "ligatureCryptPrepareSolitaryV32",
-    "ligatureCryptNearestInkV32",
-    "ligatureCryptMaskAlphaV32",
-    "ligatureCryptPrepareSutureV32",
-    "ligatureCryptDrawBraidMaskV32",
-    "ligatureCryptDrawMortiseMaskV32",
-    "ligatureCryptPairsV32",
-    "ligatureCryptMaskAnchorV32",
-    "ligatureCryptPairCompatibleV32",
-    "renderLigatureCryptV31",
-    "strokeLigatureCryptSpine",
-    "cutLigatureCryptAperture",
-    "traceLigatureCryptBand",
-    "ligatureCryptCurve",
-    "ligatureConstructionPoint",
-    "ligatureConstructionGeometry",
-    "strokeLigatureConstructionRail",
-    "traceLigatureConstructionBand",
-    "traceLigatureCryptSeal",
-    "renderMoireChoir",
-    "renderMoireChoirLegacy",
-    "renderChimeraGraft",
-    "renderChimeraGraftLegacy",
-    "renderMorphProcession",
-    "morphPathPoint",
-    "paintFeatureMorphTile",
-    "surfaceMorphFieldSample",
-    "strokeMorphCorrespondence",
-    "morphPathGeometry",
-    "surfaceMorphGlyphDescriptor",
-    "surfaceMorphGlyphField",
-    "surfaceMorphProcessionPairs",
-    "renderMorphProcessionLegacy",
-    "renderRecursiveShrine",
-    "drawRecursiveShrineRailsV32",
-    "recursiveShrineFrameV32",
-    "drawRecursiveNodeMaskV32",
-    "recursiveShrineGraphV32",
-    "renderRecursiveShrineLegacy",
-    "drawRecursiveMask",
-    "renderVoidPortal",
-    "renderVoidPortalComponentV33",
-    "voidPortalTransformPointV33",
-    "drawVoidPortalMaskV33",
-    "voidPortalSectionStateV33",
-    "voidPortalComponentV33",
-    "voidPortalAperturesV33",
-    "voidPortalLabelComponentsV33",
-    "renderVoidPortalLegacy",
-    "renderTexturaMatrix",
-    "traceTexturaGrammarStem",
-    "traceTexturaStem",
-    "renderTexturaDuctusV60",
-    "texturaDuctusGeometryV60",
-    "texturaDuctusExtendedPointsV60",
-    "texturaDuctusClampV60",
-    "texturaDuctusPrepareV60",
-    "texturaDuctusSimplifyV60",
-    "texturaDuctusPointLineDistanceV60",
-    "texturaDuctusMapPointV60",
-    "texturaDuctusTraceV60",
-    "texturaDuctusEdgeKeyV60",
-    "texturaDuctusNeighborsV60",
-    "texturaDuctusThinV60",
-    "texturaDuctusChamferV60",
-    "texturaDuctusDownsampleV60",
-    "texturaDuctusBoundsV60",
-    "texturaDuctusSignatureV60",
-    "renderTexturaMatrixLegacy",
-    "renderPrismSacrament",
-    "renderPrismSacramentV23",
-    "renderPrismSacramentLegacy",
-    "renderPrismBirefringentV61",
-    "prismBeamPathV61",
-    "prismRgbaV61",
-    "prismBoundaryEmittersV61",
-    "prismFacetCellV61",
-    "renderCloisterFold",
-    "cloisterFacetTone",
-    "renderCloisterFoldLegacy",
-    "renderNaveCutter",
-    "renderNaveCutterLegacy",
-    "renderChromeReliquary",
-    "chromeReflectionMotion",
-    "renderChromeStudio",
-    "chromeStudioPlate",
-    "chromeStudioEnvironment",
-    "chromeStudioBlur",
-    "chromeStudioRelief",
-    "conditionSurfaceRenderer",
-    "fieldMaterialRenderer",
-    "fieldMaterialSourceKey",
-    "structuralSurfaceRenderer",
-    "renderLigatureBody",
-    "renderLigatureBodyV29",
-    "surfaceLigatureShoulder",
+    "drawRasterGravureV58",
+    "renderRasterPress",
+    "drawAdaptiveHatchFamily",
+    "hatchCopperSmooth",
+    "hatchCopperCoverage",
+    "hatchCopperPlate",
+    "hatchCopperRender",
+    "renderHatchEngrave",
+    "surfaceBoundaryDistance",
+    "surfaceBoundaryEnvelopeCanvas",
+    "surfaceSignedDistanceValue",
+    "surfaceFieldNormal",
+    "surfaceDistanceFromSeeds",
+    "surfaceVoidTopology",
+    "surfaceSmoothCoverage",
+    "renderCalligraphicStressLegacy",
+    "renderCounterformEngineLegacy",
+    "surfaceTerminalShapeLegacy",
+    "renderTerminalExcessLegacy",
     "surfaceLigatureCurve",
     "surfaceSnapToMaskPoint",
     "renderLigatureBodyLegacy",
-    "renderLigatureCounterbodyV62",
-    "surfaceLigatureLensV62",
-    "surfaceLigatureWaistV62",
-    "surfaceLigatureRibbonV62",
-    "surfaceLigatureBezierPointV62",
-    "surfaceLigatureAnchorV62",
-    "renderTerminalExcess",
-    "surfaceTerminalShape",
+    "surfaceGlyphAnatomyMetas",
     "surfaceNearestGlyphMeta",
-    "surfaceTerminalBranches",
-    "renderTerminalExcessLegacy",
-    "surfaceTerminalShapeLegacy",
-    "renderCounterformEngine",
-    "counterformSetRenderError",
-    "counterformDrawVariant",
-    "spectralGlyphFrame",
-    "counterformVariantData",
-    "counterformTrim",
-    "counterformPresentation",
-    "counterformPreparedData",
-    "counterformTouch",
-    "counterformSourceData",
-    "counterformSourceKey",
-    "counterformVariantKey",
-    "renderCounterformEngineV29",
-    "surfaceCounterExit",
-    "surfaceDistanceFromSeeds",
-    "renderCounterformEngineLegacy",
-    "counterformOldGrammar",
-    "counterformProfileSettings",
-    "renderMarblingTypeDirect",
-    "marblingTraceRings",
-    "renderAuxeticTypeDirect",
-    "auxeticTraceRings",
-    "auxeticIsNativeAtPhase",
-    "renderConformalTypeDirect",
-    "conformalTraceRings",
-    "renderDifferentialType",
-    "renderSpectralType",
-    "spectralSynthesize",
-    "spectralBasis",
-    "spectralGlyphData",
-    "spectralPrepareGlyphContours",
-    "spectralContourContains",
-    "spectralCompileContour",
-    "renderAsemicDuctus",
-    "asemicCutCounters",
+    "asemicMetaParam",
+    "asemicMetaChoice",
+    "asemicCounterComponents",
+    "asemicCanonicalPoint",
+    "asemicCandidatePool",
+    "asemicSelectAnchors",
+    "asemicOrderAnchors",
+    "asemicBuildAnchors",
     "asemicOffsetPath",
     "asemicRenderPath",
     "asemicRenderChamber",
     "asemicBodyBounds",
-    "asemicBuildAnchors",
-    "asemicCanonicalPoint",
-    "asemicSelectAnchors",
-    "asemicOrderAnchors",
-    "asemicCandidatePool",
-    "asemicCounterComponents",
-    "asemicMetaParam",
-    "asemicMetaChoice",
-    "renderCalligraphicStress",
+    "asemicCutCounters",
+    "spectralTraceContours",
+    "spectralBasis",
+    "spectralCompileContour",
+    "spectralContourContains",
+    "spectralPrepareGlyphContours",
+    "spectralSynthesize",
+    "spectralGlyphData",
+    "spectralGlyphFrame",
+    "renderSpectralType",
+    "differentialGlyphSettings",
+    "differentialSourceKey",
+    "differentialGlyphData",
+    "differentialRequests",
+    "differentialPrepare",
+    "differentialAssertReady",
+    "differentialShape",
+    "differentialEffectPad",
+    "renderDifferentialType",
+    "marblingClearGeometry",
+    "marblingPhase",
+    "marblingGlyphSettings",
+    "marblingSource",
+    "marblingGlyphData",
+    "marblingRequests",
+    "marblingPrepare",
+    "marblingAssertReady",
+    "marblingShape",
+    "marblingEffectPad",
+    "marblingTraceRings",
+    "renderMarblingTypeDirect",
+    "auxeticGlyphSettings",
+    "auxeticIsNative",
+    "auxeticIsNativeAtPhase",
+    "auxeticSourceKey",
+    "auxeticGlyphData",
+    "auxeticRequests",
+    "auxeticPrepare",
+    "auxeticAssertReady",
+    "auxeticEffectPad",
+    "auxeticTraceRings",
+    "renderAuxeticTypeDirect",
+    "conformalGlyphSettings",
+    "conformalSourceKey",
+    "conformalIsNative",
+    "conformalGlyphData",
+    "conformalRequests",
+    "conformalPrepare",
+    "conformalAssertReady",
+    "conformalEffectPad",
+    "conformalTraceRings",
+    "renderConformalTypeDirect",
+    "renderAsemicDuctus",
+    "calligraphyGlyphSettings",
     "calligraphyGlyphData",
-    "renderCalligraphicStressLegacy",
-    "renderRisoSeparation",
-    "risoLoopMotion",
-    "renderRisoSeparationLegacy",
-    "renderRisoDuotone",
-    "risoDuotonePlates",
-    "risoScreenCoverage",
-    "risoToneRadii",
-    "risoStrokeWidths",
-    "renderMisregistration",
+    "calligraphyEffectPad",
+    "renderCalligraphicStress",
+    "surfaceCounterExit",
+    "renderCounterformEngineV29",
+    "counterformProfileSettings",
+    "counterformOldGrammar",
+    "counterformSourceKey",
+    "counterformTouch",
+    "counterformTrim",
+    "counterformSourceData",
+    "counterformPreparedData",
+    "counterformVariantKey",
+    "counterformPresentation",
+    "counterformVariantData",
+    "counterformDrawVariant",
+    "renderCounterformEngine",
+    "surfaceTerminalShape",
+    "surfaceTerminalBranches",
+    "renderTerminalExcess",
+    "surfaceLigatureShoulder",
+    "renderLigatureBodyV29",
+    "surfaceLigatureBezierPointV62",
+    "surfaceLigatureRibbonV62",
+    "surfaceLigatureWaistV62",
+    "surfaceLigatureLensV62",
+    "surfaceLigatureAnchorV62",
+    "renderLigatureCounterbodyV62",
+    "renderLigatureBody",
+    "renderEtchantBloomLegacy",
+    "strokeEtchantContours",
+    "renderEtchantBloom",
+    "renderSinewTorqueLegacy",
+    "renderSinewTorque",
+    "renderSinewTorqueField",
+    "renderBoneTrabecularV36",
+    "boneLamellarSeeds",
+    "boneLamellarFullMask",
+    "renderBoneLamellar",
+    "renderBoneScaffold",
+    "renderRoseEngine",
+    "surfaceHexRgb",
+    "chromeReflectionMotion",
+    "chromeStudioBlur",
+    "chromeStudioEnvironment",
+    "chromeStudioRelief",
+    "chromeStudioPlate",
+    "renderChromeStudio",
+    "renderChromeReliquary",
+    "ligatureCryptCurve",
+    "traceLigatureCryptBand",
+    "strokeLigatureCryptSpine",
+    "traceLigatureCryptSeal",
+    "cutLigatureCryptAperture",
+    "ligatureConstructionGeometry",
+    "traceLigatureConstructionBand",
+    "strokeLigatureConstructionRail",
+    "ligatureConstructionPoint",
+    "renderLigatureCryptV31",
+    "ligatureCryptPairCompatibleV32",
+    "ligatureCryptMaskAlphaV32",
+    "ligatureCryptMaskAnchorV32",
+    "ligatureCryptPairsV32",
+    "ligatureCryptDrawMortiseMaskV32",
+    "ligatureCryptBraidPathV32",
+    "ligatureCryptDrawBraidMaskV32",
+    "ligatureCryptPrepareSutureV32",
+    "ligatureCryptNearestInkV32",
+    "ligatureCryptPrepareSolitaryV32",
+    "ligatureCryptPaintMortiseV32",
+    "ligatureCryptPaintBraidV32",
+    "ligatureCryptThreadPathV32",
+    "ligatureCryptPaintSutureV32",
+    "ligatureCryptPaintSolitaryV32",
+    "renderLigatureCryptV32",
+    "renderLigatureCrypt",
+    "renderMoireChoirLegacy",
+    "renderNaveCutterLegacy",
+    "renderCloisterFoldLegacy",
+    "renderPrismSacramentLegacy",
+    "traceTexturaStem",
+    "renderTexturaMatrixLegacy",
+    "surfaceToneCss",
+    "renderMoireChoir",
+    "renderNaveCutter",
+    "cloisterFacetTone",
+    "renderCloisterFold",
+    "prismFacetCellV61",
+    "prismBoundaryEmittersV61",
+    "prismRgbaV61",
+    "prismBeamPathV61",
+    "renderPrismBirefringentV61",
+    "renderPrismSacramentV23",
+    "renderPrismSacrament",
+    "traceTexturaGrammarStem",
+    "texturaDuctusClampV60",
+    "texturaDuctusBoundsV60",
+    "texturaDuctusSignatureV60",
+    "texturaDuctusDownsampleV60",
+    "texturaDuctusChamferV60",
+    "texturaDuctusThinV60",
+    "texturaDuctusNeighborsV60",
+    "texturaDuctusEdgeKeyV60",
+    "texturaDuctusTraceV60",
+    "texturaDuctusPointLineDistanceV60",
+    "texturaDuctusSimplifyV60",
+    "texturaDuctusMapPointV60",
+    "texturaDuctusPrepareV60",
+    "texturaDuctusExtendedPointsV60",
+    "texturaDuctusGeometryV60",
+    "renderTexturaDuctusV60",
+    "renderTexturaMatrix",
+    "surfaceVoidApertureMask",
+    "renderVoidPortalLegacy",
+    "voidPortalGlyphPointV33",
+    "voidPortalGlyphBoundsV33",
+    "voidPortalGlyphScanV33",
+    "voidPortalLabelComponentsV33",
+    "voidPortalAperturesV33",
+    "voidPortalComponentV33",
+    "voidPortalSectionStateV33",
+    "voidPortalTransformPointV33",
+    "drawVoidPortalMaskV33",
+    "renderVoidPortalComponentV33",
+    "renderVoidPortal",
+    "drawRecursiveMask",
+    "renderRecursiveShrineLegacy",
+    "drawRecursiveNodeMaskV32",
+    "recursiveShrineGraphV32",
+    "recursiveShrineFrameV32",
+    "drawRecursiveShrineRailsV32",
+    "renderRecursiveShrine",
+    "surfaceMorphGlyphField",
+    "renderMorphProcessionLegacy",
+    "surfaceMorphGlyphDescriptor",
+    "surfaceMorphFieldSample",
+    "paintFeatureMorphTile",
+    "morphPathGeometry",
+    "strokeMorphCorrespondence",
+    "morphPathPoint",
+    "surfaceMorphProcessionPairs",
+    "renderMorphProcession",
+    "renderContourEtchLegacy",
+    "contourReliefFieldV57",
+    "contourReliefSignedV57",
+    "contourReliefNormalV57",
+    "contourReliefWarpV57",
+    "contourReliefMarkFitsV57",
+    "contourReliefHachuresV57",
+    "contourReliefCounterTicksV57",
+    "contourReliefDrawBladeV57",
+    "contourReliefDrawMarksV57",
+    "renderContourReliefV57",
+    "renderContourEtch",
+    "contourEtchEffectPad",
+    "rasterPressEffectPad",
+    "hatchEngraveEffectPad",
+    "renderMonolithCastLegacy",
+    "monolithGlyphBoundsV35",
+    "monolithNearestAnchorV35",
+    "monolithBodyV35",
+    "monolithClipLocalV35",
+    "monolithDrawStrataV35",
+    "monolithDrawAshlarV35",
+    "monolithDrawVaultV35",
+    "monolithDrawStereotomyV35",
+    "monolithDrawMarksV35",
+    "renderMonolithCast",
+    "renderChimeraGraftLegacy",
+    "renderChimeraGraft",
+    "renderPressureStrokeLegacy",
+    "pressureContinuousNoise",
+    "renderPressureStroke",
+    "renderCellFractureLegacy",
+    "renderRibbonEchoLegacy",
+    "fractureColorizeAndOutput",
+    "fractureMaskBounds",
+    "drawTransformedFractureFragment",
+    "traceFracturePlate",
+    "fractureGlyphExtent",
+    "fractureImpactOrigin",
+    "fractureSnapOriginToInk",
+    "strokeFracturePolyline",
+    "renderImpactFractureV31",
+    "renderFaultFractureV31",
+    "renderCrystalFractureV31",
+    "renderSpallFractureV31",
+    "renderCellFracture",
+    "ribbonOutlineMaskV31",
+    "ribbonSectionStateV31",
+    "ribbonTransformPointV31",
+    "ribbonApplyStateV31",
+    "ribbonDrawSectionV31",
+    "ribbonStrokeRailV31",
+    "ribbonSkinStripV31",
+    "ribbonFanLeavesV31",
+    "ribbonLaminaPoint",
+    "ribbonLaminaTriangle",
+    "renderRibbonLamina",
+    "renderRibbonEcho",
+    "ribbonLaminaEffectPad",
+    "ribbonEchoEffectPad",
+    "surfaceNoise01",
+    "colorizeSurfaceCanvas",
     "drawRegistrationSliceField",
-    "renderCopyDecay",
-    "renderCopyDecayLegacy",
-    "renderCopyTransfer",
-    "copyTransferStep",
-    "copyTransferSample",
+    "renderMisregistration",
+    "dataMoshFrameIndex",
     "renderDataMosh",
-    "dataMoshFrameIndex"
+    "blobTrackSurfaceSources",
+    "renderBlobTrack",
+    "renderCopyDecayLegacy",
+    "copyTransferSample",
+    "copyTransferPad",
+    "copyTransferStep",
+    "renderCopyTransfer",
+    "renderCopyDecay",
+    "renderRisoSeparationLegacy",
+    "risoLoopMotion",
+    "risoToneRadii",
+    "risoScreenCoverage",
+    "risoStrokeWidths",
+    "risoDuotonePlates",
+    "renderRisoDuotone",
+    "renderRisoSeparation",
+    "renderSlitSweepLegacy",
+    "slitTimeCoordinateV31",
+    "slitTemporalSamplesV31",
+    "slitDrawTemporalStateV31",
+    "renderSlitSweep",
+    "renderSigilForgeLegacy",
+    "prepareSigilComponentsV31",
+    "sigilComponentTransformV31",
+    "sigilSuperellipsePathV31",
+    "sigilRosettePathV31",
+    "sigilCurveLinkV31",
+    "sigilCutV31",
+    "renderSigilForge",
+    "thornSpine",
+    "thornOrganPaths",
+    "thornContourRoots",
+    "renderThornRooted",
+    "renderThornCrown",
+    "thornRootedExtent",
+    "renderThornCrownLegacy",
+    "renderCipherLiturgy",
+    "surfaceCanonicalRasterPlan",
+    "structuralSurfaceRenderer",
+    "fieldMaterialSourceKey",
+    "fieldMaterialRenderer",
+    "conditionSurfaceRenderer",
+    "contentBounds",
+    "compositionAxisIsVertical",
+    "compositionSourceTokens",
+    "createLoopClock",
+    "compositionLoopNoise",
+    "compileCompositionSource",
+    "compositionMacro",
+    "compositionPalette",
+    "lerpHex",
+    "orientedCompositionPoint",
+    "compositionGlyph",
+    "compositionSignalSource",
+    "compositionSignalShape",
+    "applyCompositionSignalRouter",
+    "compositionEffectiveQuality",
+    "compositionLimit",
+    "generateFieldScene",
+    "generateFluxScene",
+    "cascadePalette",
+    "cascadeTokenCode",
+    "cascadeColorFor",
+    "cascadeGlyphColor",
+    "cascadeShapeItem",
+    "cascadeBackdrop",
+    "cascadePostProcess",
+    "cascadeSeed",
+    "cascadeAutomatonStep",
+    "cascadeLifeStep",
+    "cascadeGridColumns",
+    "generateCascadeAutomaton",
+    "generateCascadeCircuit",
+    "cascadeOpticalField",
+    "generateCascadeSdf",
+    "generateCascadeMoire",
+    "generateCascadeRadar",
+    "generateCascadeBands",
+    "contourScalar",
+    "contourEdgePoint",
+    "contourSegmentsForCell",
+    "generateContourAtlasScene",
+    "generateFeedbackChamberScene",
+    "generateCascadeScene",
+    "generateTypeMatrixScene",
+    "pathLoomSmoothPoints",
+    "pathLoomPolylineInfo",
+    "pathLoomPointAt",
+    "pathLoomResample",
+    "createPathLoomBasePath",
+    "offsetPathLoomPolyline",
+    "generatePathLoomScene",
+    "glyphVesselImageValues",
+    "glyphVesselRasterGlyph",
+    "glyphVesselBuildField",
+    "glyphVesselSample",
+    "glyphVesselGradient",
+    "glyphVesselMakeToken",
+    "glyphVesselUnits",
+    "glyphVesselGuideBands",
+    "generateGlyphVesselScene",
+    "applyCompositionLegibility",
+    "compositionFxModule",
+    "fxNumber",
+    "fxEnabled",
+    "compositionFxBudget",
+    "copySceneGlyph",
+    "copySceneBand",
+    "transformScenePoint",
+    "transformSceneGlyph",
+    "transformSceneBand",
+    "appendTransformedScenePass",
+    "applyEchoTrailFx",
+    "applyFeedbackFx",
+    "hexLuminance",
+    "applySignalMaskFx",
+    "applyChromaticSplitFx",
+    "quantizeHex",
+    "applyRasterMaterialFx",
+    "enforceCompositionPrimitiveBudget",
+    "webglCompositionAvailable",
+    "compileCompositionShader",
+    "ensureCompositionWebGL",
+    "webglHexColor",
+    "updateCompositionWebGLTextTexture",
+    "renderCompositionWebGLPass",
+    "applyCompositionFxRack",
+    "baselineOffset",
+    "surfaceEffectPad",
+    "evaluateCompositionScene"
   ],
   "variables": [
-    "glyphVesselFieldCache",
-    "BATCH_TARGETS",
-    "CONFUSE_DATA",
+    "SURFACE_BLEND_MODES",
+    "SURFACE_OPACITY_KEYS",
+    "SURFACE_SOURCE_OPACITY_KEYS",
+    "SURFACE_BLEND_KEYS",
+    "batchResolvedProfiles",
+    "batchResolvedSource",
+    "batchResolvedDictionary",
+    "graphemeSegmenter",
     "uni",
     "punctStr",
     "charInfoCache",
-    "marblingPool",
-    "MarblingType",
-    "marblingFontRevision",
-    "SURFACE_OPACITY_KEYS",
-    "auxeticPool",
-    "AuxeticType",
-    "auxeticFontRevision",
-    "conformalPool",
-    "ConformalType",
-    "conformalFontRevision",
-    "differentialController",
-    "DifferentialGrowth",
-    "differentialMaskPoints",
-    "differentialMaskCache",
-    "differentialFontRevision",
-    "marblingTimer",
-    "marblingCachePoints",
-    "marblingCache",
-    "marblingRenderError",
-    "auxeticTimer",
-    "auxeticRenderError",
-    "conformalTimer",
-    "conformalRenderError",
-    "compositionWebGLState",
-    "graphemeSegmenter",
-    "SURFACE_BLEND_MODES",
-    "SURFACE_BLEND_KEYS",
-    "surfaceEnvelopeScale",
-    "CalligraphyField",
-    "BATCH_PARAM_OPTIONS",
-    "ribbonEchoEffectPadCache",
     "EMPTY_OPERATOR_STATE",
-    "batchResolvedProfiles",
-    "batchResolvedDictionary",
-    "batchProfiles",
-    "batchResolvedSource",
-    "metrics",
-    "SURFACE_COLOR_KEYS",
+    "surfaceEnvelopeScale",
     "SURFACE_SOURCE_MODE_KEYS",
-    "SURFACE_SOURCE_OPACITY_KEYS",
-    "TEXTURA_DUCTUS_NEIGHBORS_V60",
-    "texturaDuctusPreparedCacheV60",
-    "counterformVariantCells",
-    "CounterformEngine",
-    "counterformPreparedCells",
-    "counterformPreparedCache",
-    "counterformSourceCells",
-    "counterformSourceCache",
-    "counterformFontRevision",
-    "counterformVariantCache",
+    "SURFACE_COLOR_KEYS",
+    "spectralGlyphCache",
     "spectralBasisCache",
     "spectralCachePoints",
-    "spectralGlyphCache",
-    "calligraphyCachePoints",
+    "DifferentialGrowth",
+    "differentialController",
+    "differentialFontRevision",
+    "differentialMaskCache",
+    "differentialMaskPoints",
+    "MarblingType",
+    "marblingPool",
+    "marblingFontRevision",
+    "marblingTimer",
+    "marblingRenderError",
+    "marblingCache",
+    "marblingCachePoints",
+    "AuxeticType",
+    "auxeticPool",
+    "auxeticFontRevision",
+    "auxeticTimer",
+    "auxeticRenderError",
+    "ConformalType",
+    "conformalPool",
+    "conformalFontRevision",
+    "conformalTimer",
+    "conformalRenderError",
+    "CalligraphyField",
     "calligraphyGlyphCache",
-    "calligraphyFontRevision"
+    "calligraphyCachePoints",
+    "calligraphyFontRevision",
+    "CounterformEngine",
+    "counterformFontRevision",
+    "counterformSourceCache",
+    "counterformSourceCells",
+    "counterformPreparedCache",
+    "counterformPreparedCells",
+    "counterformVariantCache",
+    "counterformVariantCells",
+    "TEXTURA_DUCTUS_NEIGHBORS_V60",
+    "texturaDuctusPreparedCacheV60",
+    "ribbonEchoEffectPadCache",
+    "glyphVesselFieldCache",
+    "compositionWebGLState",
+    "renderCompositionGenerators"
   ],
-  "unknown": []
+  "modules": [
+    {
+      "path": "render-source/surface-geometry.js",
+      "declarations": 57
+    },
+    {
+      "path": "render-source/glyph-geometry.js",
+      "declarations": 254
+    },
+    {
+      "path": "render-source/surface-renderers.js",
+      "declarations": 87
+    },
+    {
+      "path": "render-source/calligraphy-render.js",
+      "declarations": 9
+    },
+    {
+      "path": "render-source/counterform-render.js",
+      "declarations": 22
+    },
+    {
+      "path": "render-source/spectral-render.js",
+      "declarations": 12
+    },
+    {
+      "path": "render-source/differential-render.js",
+      "declarations": 14
+    },
+    {
+      "path": "render-source/marbling-render.js",
+      "declarations": 19
+    },
+    {
+      "path": "render-source/auxetic-render.js",
+      "declarations": 16
+    },
+    {
+      "path": "render-source/conformal-render.js",
+      "declarations": 15
+    },
+    {
+      "path": "render-source/composition-render.js",
+      "declarations": 55
+    }
+  ],
+  "environment": [
+    {
+      "name": "params",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "compositionState",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "renderedSourceText",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "surfaceFxPhase",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "dataMoshFrame",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "blobTrackState",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "surfaceFxScratchCanvases",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "compositionScene",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "compositionQualityOverride",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "CONFUSE_DATA",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "batchProfiles",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "metrics",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "BATCH_TARGETS",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "BATCH_PARAM_OPTIONS",
+      "kind": "state",
+      "ownership": "environment"
+    },
+    {
+      "name": "differentialScheduleWork",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "conformalScheduleWork",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "auxeticScheduleWork",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "marblingScheduleWork",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "differentialUpdateStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "conformalUpdateStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "auxeticUpdateStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "marblingUpdateStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "fontMetrics",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "updateConformalStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "updateAuxeticStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "updateMarblingStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "createCompositionInputBus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "snapshotGlyphs",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "counterformSetRenderError",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "glyphFontSpec",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "isIOSLike",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "updateDifferentialStatus",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "scheduleSurfaceFxDraw",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "scheduleCompositionDraw",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "reportRubyMappings",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "performance",
+      "kind": "capability",
+      "ownership": "environment"
+    },
+    {
+      "name": "setTimeout",
+      "kind": "capability",
+      "ownership": "environment"
+    },
+    {
+      "name": "cancelAnimationFrame",
+      "kind": "capability",
+      "ownership": "environment"
+    },
+    {
+      "name": "Worker",
+      "kind": "capability",
+      "ownership": "environment"
+    },
+    {
+      "name": "createRenderCanvas",
+      "kind": "function",
+      "ownership": "environment"
+    },
+    {
+      "name": "matchesRenderMedia",
+      "kind": "function",
+      "ownership": "environment"
+    }
+  ],
+  "globals": [
+    "Array",
+    "Boolean",
+    "Error",
+    "Float32Array",
+    "Float64Array",
+    "Infinity",
+    "Int32Array",
+    "Intl",
+    "JSON",
+    "Map",
+    "Math",
+    "NaN",
+    "Number",
+    "Object",
+    "Path2D",
+    "Promise",
+    "RangeError",
+    "RegExp",
+    "Set",
+    "String",
+    "Symbol",
+    "TypeDeformerConditionsOperators",
+    "TypeDeformerFieldMaterials",
+    "TypeDeformerOperatorRegistry",
+    "TypeDeformerRenderContext",
+    "TypeDeformerSharedSurface",
+    "TypeDeformerStructuralOperators",
+    "TypeDeformerTextLayout",
+    "TypeError",
+    "Uint16Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "atob",
+    "globalThis",
+    "isFinite",
+    "parseInt",
+    "undefined"
+  ],
+  "globalProperties": [
+    "Array",
+    "Math",
+    "Number",
+    "Object",
+    "TypeDeformerCompositionPresentation",
+    "TypeDeformerParameters",
+    "TypeDeformerRenderContext",
+    "TypeDeformerRenderEnvelope",
+    "TypeDeformerRenderJobs",
+    "TypeDeformerWorkerRuntime",
+    "performance",
+    "scheduler"
+  ],
+  "dependencies": {
+    "SURFACE_BLEND_MODES": [],
+    "SURFACE_OPACITY_KEYS": [
+      "TypeDeformerOperatorRegistry"
+    ],
+    "SURFACE_SOURCE_OPACITY_KEYS": [
+      "TypeDeformerOperatorRegistry"
+    ],
+    "SURFACE_BLEND_KEYS": [
+      "TypeDeformerOperatorRegistry"
+    ],
+    "surfaceOperatorStrength": [
+      "Math",
+      "numericManual",
+      "readOperatorState"
+    ],
+    "surfaceEnvelopeScale": [],
+    "surfaceGlyphStrength": [
+      "Math",
+      "Number",
+      "isFinite"
+    ],
+    "SURFACE_SOURCE_MODE_KEYS": [
+      "TypeDeformerOperatorRegistry"
+    ],
+    "SURFACE_COLOR_KEYS": [
+      "TypeDeformerOperatorRegistry"
+    ],
+    "surfaceSourceMode": [
+      "SURFACE_SOURCE_MODE_KEYS",
+      "params"
+    ],
+    "surfaceSourceOpacity": [
+      "Math",
+      "NaN",
+      "Number",
+      "SURFACE_SOURCE_OPACITY_KEYS",
+      "isFinite",
+      "params",
+      "surfaceSourceMode"
+    ],
+    "surfaceEffectColor": [
+      "SURFACE_COLOR_KEYS",
+      "params"
+    ],
+    "surfaceOutputOpacity": [
+      "Math",
+      "Number",
+      "SURFACE_OPACITY_KEYS",
+      "isFinite",
+      "params"
+    ],
+    "surfaceBlendMode": [
+      "SURFACE_BLEND_KEYS",
+      "SURFACE_BLEND_MODES",
+      "params"
+    ],
+    "surfaceAggregate": [
+      "Math",
+      "Number",
+      "isFinite",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceChoice": [
+      "Object",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceScratch": [
+      "createRenderCanvas",
+      "globalThis",
+      "surfaceFxScratchCanvases",
+      "undefined"
+    ],
+    "surfaceGlyphTextSpec": [
+      "Math",
+      "baselineOffset",
+      "glyphFontSpec",
+      "params"
+    ],
+    "drawSurfaceGlyph": [
+      "Math",
+      "surfaceGlyphTextSpec"
+    ],
+    "surfaceGlyphNode": [
+      "Math",
+      "hash",
+      "params",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceNodesForGlyphs": [
+      "Math",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceFieldNodesForGlyphs": [
+      "Math",
+      "hash",
+      "params",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceGraphEdges": [
+      "Array",
+      "Infinity",
+      "Math",
+      "hash",
+      "params"
+    ],
+    "surfaceCurveSpec": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "drawSurfaceTube": [
+      "Math",
+      "cubicSurfacePoint",
+      "surfaceCurveSpec"
+    ],
+    "surfaceBoundaryDistance": [
+      "Float32Array",
+      "Math",
+      "Uint8Array"
+    ],
+    "surfaceBoundaryEnvelopeCanvas": [
+      "Float64Array",
+      "Math",
+      "globalThis",
+      "surfaceScratch"
+    ],
+    "surfaceSignedDistanceValue": [],
+    "surfaceFieldNormal": [
+      "Math",
+      "surfaceSignedDistanceValue"
+    ],
+    "surfaceDistanceFromSeeds": [
+      "Float32Array",
+      "Math"
+    ],
+    "surfaceVoidTopology": [
+      "Int32Array",
+      "Math",
+      "Uint8Array"
+    ],
+    "surfaceSmoothCoverage": [
+      "Math"
+    ],
+    "surfaceTerminalShapeLegacy": [
+      "Math"
+    ],
+    "surfaceLigatureCurve": [
+      "Math"
+    ],
+    "surfaceSnapToMaskPoint": [
+      "Infinity",
+      "Math"
+    ],
+    "surfaceGlyphAnatomyMetas": [
+      "Math",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceNearestGlyphMeta": [
+      "Infinity"
+    ],
+    "surfaceCounterExit": [
+      "Math"
+    ],
+    "surfaceTerminalShape": [
+      "Math"
+    ],
+    "surfaceTerminalBranches": [
+      "Int32Array",
+      "Math",
+      "Uint8Array"
+    ],
+    "surfaceLigatureShoulder": [
+      "Math"
+    ],
+    "surfaceLigatureBezierPointV62": [
+      "Math"
+    ],
+    "surfaceLigatureRibbonV62": [
+      "Math",
+      "surfaceLigatureBezierPointV62"
+    ],
+    "surfaceLigatureWaistV62": [
+      "Math"
+    ],
+    "surfaceLigatureLensV62": [],
+    "surfaceLigatureAnchorV62": [
+      "params",
+      "surfaceGlyphNode",
+      "surfaceSnapToMaskPoint"
+    ],
+    "surfaceHexRgb": [
+      "parseInt"
+    ],
+    "surfaceToneCss": [
+      "Math"
+    ],
+    "surfaceVoidApertureMask": [
+      "Int32Array",
+      "Math",
+      "TypeDeformerRenderContext",
+      "Uint8Array",
+      "globalThis",
+      "surfaceBoundaryDistance",
+      "surfaceScratch"
+    ],
+    "surfaceMorphGlyphField": [
+      "Float32Array",
+      "Math",
+      "glyphFontSpec",
+      "params",
+      "surfaceBoundaryDistance",
+      "surfaceScratch"
+    ],
+    "surfaceMorphGlyphDescriptor": [
+      "Math",
+      "surfaceMorphGlyphField"
+    ],
+    "surfaceMorphFieldSample": [
+      "Math"
+    ],
+    "surfaceMorphProcessionPairs": [
+      "Math",
+      "String",
+      "surfaceGlyphStrength"
+    ],
+    "surfaceNoise01": [
+      "Math"
+    ],
+    "surfaceCanonicalRasterPlan": [
+      "Math",
+      "auxeticEffectPad",
+      "calligraphyEffectPad",
+      "conformalEffectPad",
+      "contentBounds",
+      "contourEtchEffectPad",
+      "differentialEffectPad",
+      "globalThis",
+      "hatchEngraveEffectPad",
+      "isFinite",
+      "marblingEffectPad",
+      "rasterPressEffectPad",
+      "ribbonEchoEffectPad",
+      "surfaceEffectPad",
+      "surfaceEnvelopeScale"
+    ],
+    "contentBounds": [
+      "Infinity",
+      "Math"
+    ],
+    "surfaceEffectPad": [
+      "Math",
+      "TypeDeformerConditionsOperators",
+      "TypeDeformerFieldMaterials",
+      "TypeDeformerOperatorRegistry",
+      "TypeDeformerStructuralOperators",
+      "batchProfileForKey",
+      "copyTransferPad",
+      "metrics",
+      "params",
+      "surfaceOperatorStrength",
+      "thornRootedExtent"
+    ],
+    "batchResolvedProfiles": [
+      "Map"
+    ],
+    "batchResolvedSource": [
+      "batchProfiles"
+    ],
+    "batchResolvedDictionary": [
+      "CONFUSE_DATA"
+    ],
+    "sourceParameterProfile": [
+      "Object"
+    ],
+    "batchSourceText": [],
+    "batchProfileForKey": [
+      "BATCH_TARGETS",
+      "CONFUSE_DATA",
+      "Object",
+      "batchProfiles",
+      "batchResolvedDictionary",
+      "batchResolvedProfiles",
+      "batchResolvedSource",
+      "batchSourceText",
+      "params",
+      "sourceParameterProfile"
+    ],
+    "graphemeSegmenter": [
+      "Intl"
+    ],
+    "toGraphemes": [
+      "Array",
+      "fallbackGraphemes",
+      "graphemeSegmenter"
+    ],
+    "fallbackGraphemes": [
+      "TypeDeformerTextLayout"
+    ],
+    "uni": [
+      "RegExp"
+    ],
+    "classify": [
+      "uni"
+    ],
+    "punctStr": [],
+    "isPunctCluster": [
+      "punctStr",
+      "uni"
+    ],
+    "charInfoCache": [
+      "Map"
+    ],
+    "charInfo": [
+      "charInfoCache",
+      "classify",
+      "isPunctCluster",
+      "uni"
+    ],
+    "batchKeyFor": [
+      "BATCH_TARGETS"
+    ],
+    "hash": [
+      "Math",
+      "params"
+    ],
+    "tokenizeLine": [
+      "TypeDeformerTextLayout",
+      "charInfo",
+      "toGraphemes"
+    ],
+    "EMPTY_OPERATOR_STATE": [
+      "Object"
+    ],
+    "readOperatorState": [
+      "EMPTY_OPERATOR_STATE"
+    ],
+    "numericManual": [
+      "Number",
+      "isFinite"
+    ],
+    "buildSurfaceMask": [
+      "drawSurfaceGlyph",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "paintSurfaceMask": [
+      "surfaceScratch"
+    ],
+    "compositeSurfaceSource": [
+      "paintSurfaceMask",
+      "params",
+      "surfaceScratch",
+      "surfaceSourceOpacity"
+    ],
+    "sampleMaskNeighborhoodAlpha": [
+      "Math"
+    ],
+    "sampleSurfaceMask": [
+      "Math"
+    ],
+    "orderedPlotterPoints": [
+      "Infinity",
+      "Math",
+      "hash",
+      "params"
+    ],
+    "strokeSurfaceCurve": [
+      "surfaceCurveSpec"
+    ],
+    "cubicSurfacePoint": [],
+    "fillOrganicNode": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "tracePointKeyV34": [
+      "Math"
+    ],
+    "tracePathMetricsV34": [
+      "Math"
+    ],
+    "traceSimplifyPointsV34": [
+      "Math"
+    ],
+    "traceMaskContoursV34": [
+      "Infinity",
+      "Math",
+      "Object",
+      "Uint8Array",
+      "tracePathMetricsV34",
+      "tracePointKeyV34",
+      "traceSimplifyPointsV34"
+    ],
+    "traceAssignGlyphsV34": [
+      "Infinity",
+      "Math",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength"
+    ],
+    "traceClonePathV34": [
+      "tracePathMetricsV34"
+    ],
+    "traceWarpPathV34": [
+      "Math",
+      "hash",
+      "params",
+      "traceClonePathV34",
+      "tracePathMetricsV34"
+    ],
+    "traceEndpointChoiceV34": [],
+    "traceOrientSequenceV34": [
+      "traceClonePathV34",
+      "traceEndpointChoiceV34"
+    ],
+    "traceGreedyOrderV34": [
+      "Math",
+      "traceClonePathV34",
+      "traceEndpointChoiceV34"
+    ],
+    "traceOrderPathsV34": [
+      "Math",
+      "params",
+      "traceClonePathV34",
+      "traceEndpointChoiceV34",
+      "traceGreedyOrderV34",
+      "traceOrientSequenceV34"
+    ],
+    "traceTravelPointsV34": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "traceTimelineV34": [
+      "Math",
+      "hash",
+      "params",
+      "tracePathMetricsV34",
+      "traceTravelPointsV34"
+    ],
+    "traceStrokePathV34": [],
+    "traceStrokeItemsV34": [
+      "traceStrokePathV34"
+    ],
+    "traceStrokeAgeBandV34": [
+      "Math"
+    ],
+    "tracePointOnPathV34": [
+      "Math"
+    ],
+    "traceTimelineHeadV34": [
+      "Math",
+      "tracePointOnPathV34"
+    ],
+    "traceDrawLiftMarkersV34": [
+      "Math"
+    ],
+    "traceDrawHeadV34": [
+      "Math"
+    ],
+    "strokeWebCatenary": [
+      "TypeDeformerSharedSurface"
+    ],
+    "drawHatchFamily": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "rasterPressOutput": [
+      "surfaceBoundaryEnvelopeCanvas"
+    ],
+    "rasterGravureCellPathV58": [
+      "Math"
+    ],
+    "rasterGravurePlanV58": [
+      "Infinity",
+      "Math",
+      "hash",
+      "sampleMaskNeighborhoodAlpha",
+      "surfaceFieldNormal"
+    ],
+    "drawRasterGravureV58": [
+      "Math",
+      "rasterGravureCellPathV58"
+    ],
+    "drawAdaptiveHatchFamily": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "hatchCopperSmooth": [
+      "Float32Array",
+      "Math"
+    ],
+    "hatchCopperCoverage": [
+      "Math"
+    ],
+    "hatchCopperPlate": [
+      "Math",
+      "Uint8ClampedArray",
+      "globalThis",
+      "hash",
+      "hatchCopperCoverage",
+      "hatchCopperSmooth",
+      "surfaceBoundaryDistance"
+    ],
+    "hatchCopperRender": [
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hatchCopperPlate",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "asemicMetaParam": [
+      "Math",
+      "NaN",
+      "Number",
+      "isFinite"
+    ],
+    "asemicMetaChoice": [],
+    "asemicCounterComponents": [
+      "Math",
+      "surfaceNearestGlyphMeta"
+    ],
+    "asemicCanonicalPoint": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "asemicCandidatePool": [
+      "Math",
+      "asemicCanonicalPoint",
+      "hash",
+      "surfaceNearestGlyphMeta"
+    ],
+    "asemicSelectAnchors": [
+      "Infinity",
+      "Math",
+      "hash"
+    ],
+    "asemicOrderAnchors": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "asemicBuildAnchors": [
+      "Math",
+      "asemicCandidatePool",
+      "asemicCanonicalPoint",
+      "asemicOrderAnchors",
+      "asemicSelectAnchors",
+      "hash"
+    ],
+    "asemicOffsetPath": [
+      "Math"
+    ],
+    "asemicRenderPath": [
+      "Math",
+      "hash"
+    ],
+    "asemicRenderChamber": [
+      "Math",
+      "asemicRenderPath",
+      "params"
+    ],
+    "asemicBodyBounds": [
+      "Infinity",
+      "Math",
+      "Number"
+    ],
+    "asemicCutCounters": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "strokeEtchantContours": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "boneLamellarSeeds": [
+      "Math",
+      "Object",
+      "hash"
+    ],
+    "boneLamellarFullMask": [
+      "Object",
+      "drawSurfaceGlyph",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "chromeReflectionMotion": [
+      "Math"
+    ],
+    "chromeStudioBlur": [
+      "Float32Array",
+      "Math"
+    ],
+    "chromeStudioEnvironment": [
+      "Float32Array",
+      "Math"
+    ],
+    "chromeStudioRelief": [
+      "Float32Array",
+      "Math"
+    ],
+    "chromeStudioPlate": [
+      "Math",
+      "Uint8ClampedArray",
+      "chromeStudioBlur",
+      "chromeStudioEnvironment",
+      "chromeStudioRelief",
+      "globalThis",
+      "surfaceBoundaryDistance"
+    ],
+    "ligatureCryptCurve": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "traceLigatureCryptBand": [
+      "Math"
+    ],
+    "strokeLigatureCryptSpine": [
+      "Math"
+    ],
+    "traceLigatureCryptSeal": [],
+    "cutLigatureCryptAperture": [],
+    "ligatureConstructionGeometry": [
+      "Math"
+    ],
+    "traceLigatureConstructionBand": [
+      "ligatureConstructionGeometry"
+    ],
+    "strokeLigatureConstructionRail": [
+      "ligatureConstructionGeometry"
+    ],
+    "ligatureConstructionPoint": [
+      "ligatureConstructionGeometry"
+    ],
+    "ligatureCryptPairCompatibleV32": [
+      "Number",
+      "isFinite"
+    ],
+    "ligatureCryptMaskAlphaV32": [
+      "Math"
+    ],
+    "ligatureCryptMaskAnchorV32": [
+      "Infinity",
+      "Math",
+      "isFinite",
+      "ligatureCryptMaskAlphaV32"
+    ],
+    "ligatureCryptPairsV32": [
+      "Math",
+      "hash",
+      "ligatureCryptMaskAnchorV32",
+      "ligatureCryptPairCompatibleV32",
+      "params"
+    ],
+    "ligatureCryptDrawMortiseMaskV32": [
+      "Math"
+    ],
+    "ligatureCryptBraidPathV32": [
+      "Math"
+    ],
+    "ligatureCryptDrawBraidMaskV32": [
+      "Math",
+      "ligatureCryptBraidPathV32"
+    ],
+    "ligatureCryptPrepareSutureV32": [
+      "Math"
+    ],
+    "ligatureCryptNearestInkV32": [
+      "Infinity",
+      "Math",
+      "ligatureCryptMaskAlphaV32"
+    ],
+    "ligatureCryptPrepareSolitaryV32": [
+      "Math",
+      "hash",
+      "ligatureCryptNearestInkV32",
+      "params"
+    ],
+    "ligatureCryptPaintMortiseV32": [
+      "Math",
+      "params"
+    ],
+    "ligatureCryptPaintBraidV32": [
+      "Math",
+      "ligatureCryptBraidPathV32",
+      "params",
+      "surfaceEffectColor"
+    ],
+    "ligatureCryptThreadPathV32": [],
+    "ligatureCryptPaintSutureV32": [
+      "Math",
+      "ligatureCryptThreadPathV32",
+      "params",
+      "surfaceEffectColor"
+    ],
+    "ligatureCryptPaintSolitaryV32": [
+      "Math",
+      "params",
+      "surfaceEffectColor"
+    ],
+    "traceTexturaStem": [
+      "Math"
+    ],
+    "cloisterFacetTone": [
+      "Math"
+    ],
+    "prismFacetCellV61": [
+      "Infinity",
+      "Math",
+      "hash"
+    ],
+    "prismBoundaryEmittersV61": [
+      "Math",
+      "hash",
+      "surfaceFieldNormal"
+    ],
+    "prismRgbaV61": [
+      "Math"
+    ],
+    "prismBeamPathV61": [
+      "Math",
+      "prismRgbaV61"
+    ],
+    "traceTexturaGrammarStem": [
+      "Math",
+      "params",
+      "traceTexturaStem"
+    ],
+    "TEXTURA_DUCTUS_NEIGHBORS_V60": [],
+    "texturaDuctusPreparedCacheV60": [],
+    "texturaDuctusClampV60": [
+      "Math"
+    ],
+    "texturaDuctusBoundsV60": [
+      "Math"
+    ],
+    "texturaDuctusSignatureV60": [
+      "JSON",
+      "Math",
+      "Number",
+      "String",
+      "params",
+      "surfaceGlyphStrength"
+    ],
+    "texturaDuctusDownsampleV60": [
+      "Error",
+      "Math",
+      "Uint8Array",
+      "texturaDuctusClampV60"
+    ],
+    "texturaDuctusChamferV60": [
+      "Float32Array",
+      "Math"
+    ],
+    "texturaDuctusThinV60": [
+      "Int32Array",
+      "Uint8Array"
+    ],
+    "texturaDuctusNeighborsV60": [
+      "Math",
+      "TEXTURA_DUCTUS_NEIGHBORS_V60"
+    ],
+    "texturaDuctusEdgeKeyV60": [],
+    "texturaDuctusTraceV60": [
+      "Set",
+      "Uint8Array",
+      "texturaDuctusEdgeKeyV60",
+      "texturaDuctusNeighborsV60"
+    ],
+    "texturaDuctusPointLineDistanceV60": [
+      "Math",
+      "texturaDuctusClampV60"
+    ],
+    "texturaDuctusSimplifyV60": [
+      "texturaDuctusPointLineDistanceV60"
+    ],
+    "texturaDuctusMapPointV60": [
+      "Math"
+    ],
+    "texturaDuctusPrepareV60": [
+      "Math",
+      "Object",
+      "texturaDuctusChamferV60",
+      "texturaDuctusDownsampleV60",
+      "texturaDuctusMapPointV60",
+      "texturaDuctusPreparedCacheV60",
+      "texturaDuctusSimplifyV60",
+      "texturaDuctusThinV60",
+      "texturaDuctusTraceV60"
+    ],
+    "texturaDuctusExtendedPointsV60": [
+      "Math",
+      "Object"
+    ],
+    "texturaDuctusGeometryV60": [
+      "Math",
+      "Number",
+      "params",
+      "texturaDuctusClampV60",
+      "texturaDuctusExtendedPointsV60"
+    ],
+    "voidPortalGlyphPointV33": [
+      "Math",
+      "isFinite"
+    ],
+    "voidPortalGlyphBoundsV33": [
+      "Math",
+      "isFinite",
+      "params",
+      "voidPortalGlyphPointV33"
+    ],
+    "voidPortalGlyphScanV33": [
+      "Math",
+      "baselineOffset",
+      "glyphFontSpec",
+      "params",
+      "surfaceScratch"
+    ],
+    "voidPortalLabelComponentsV33": [
+      "Int32Array",
+      "Math",
+      "Uint16Array"
+    ],
+    "voidPortalAperturesV33": [
+      "Math",
+      "Uint8Array",
+      "params",
+      "surfaceBoundaryDistance",
+      "surfaceVoidTopology",
+      "voidPortalLabelComponentsV33"
+    ],
+    "voidPortalComponentV33": [
+      "Array",
+      "Float32Array",
+      "Math",
+      "TypeDeformerRenderContext",
+      "globalThis",
+      "surfaceBoundaryDistance",
+      "surfaceScratch"
+    ],
+    "voidPortalSectionStateV33": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "voidPortalTransformPointV33": [
+      "Math"
+    ],
+    "drawVoidPortalMaskV33": [
+      "Math"
+    ],
+    "drawRecursiveMask": [],
+    "drawRecursiveNodeMaskV32": [
+      "Math"
+    ],
+    "recursiveShrineGraphV32": [
+      "Math"
+    ],
+    "recursiveShrineFrameV32": [
+      "Math"
+    ],
+    "drawRecursiveShrineRailsV32": [
+      "Math",
+      "recursiveShrineFrameV32"
+    ],
+    "paintFeatureMorphTile": [
+      "Math",
+      "globalThis",
+      "surfaceMorphFieldSample"
+    ],
+    "morphPathGeometry": [
+      "Math"
+    ],
+    "strokeMorphCorrespondence": [],
+    "morphPathPoint": [],
+    "contourReliefFieldV57": [
+      "Float32Array",
+      "Math",
+      "surfaceSignedDistanceValue"
+    ],
+    "contourReliefSignedV57": [
+      "surfaceSignedDistanceValue"
+    ],
+    "contourReliefNormalV57": [
+      "Math",
+      "contourReliefSignedV57",
+      "surfaceFieldNormal"
+    ],
+    "contourReliefWarpV57": [
+      "Math"
+    ],
+    "contourReliefMarkFitsV57": [
+      "Math"
+    ],
+    "contourReliefHachuresV57": [
+      "Math",
+      "contourReliefMarkFitsV57",
+      "contourReliefNormalV57",
+      "contourReliefSignedV57",
+      "hash"
+    ],
+    "contourReliefCounterTicksV57": [
+      "Math",
+      "contourReliefMarkFitsV57",
+      "contourReliefNormalV57",
+      "hash"
+    ],
+    "contourReliefDrawBladeV57": [],
+    "contourReliefDrawMarksV57": [
+      "Math",
+      "contourReliefDrawBladeV57"
+    ],
+    "contourEtchEffectPad": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceGlyphStrength"
+    ],
+    "rasterPressEffectPad": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "contentBounds",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceGlyphStrength"
+    ],
+    "hatchEngraveEffectPad": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "contentBounds",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceGlyphStrength"
+    ],
+    "monolithGlyphBoundsV35": [
+      "Math",
+      "voidPortalGlyphBoundsV33"
+    ],
+    "monolithNearestAnchorV35": [
+      "Infinity"
+    ],
+    "monolithBodyV35": [
+      "Float64Array",
+      "Math",
+      "globalThis",
+      "hash",
+      "surfaceBoundaryDistance",
+      "surfaceScratch",
+      "surfaceSignedDistanceValue",
+      "surfaceSmoothCoverage",
+      "surfaceVoidTopology"
+    ],
+    "monolithClipLocalV35": [],
+    "monolithDrawStrataV35": [
+      "Math",
+      "hash"
+    ],
+    "monolithDrawAshlarV35": [
+      "Math",
+      "hash"
+    ],
+    "monolithDrawVaultV35": [
+      "Math",
+      "hash"
+    ],
+    "monolithDrawStereotomyV35": [
+      "Math",
+      "hash",
+      "monolithNearestAnchorV35"
+    ],
+    "monolithDrawMarksV35": [
+      "Math",
+      "hash"
+    ],
+    "pressureContinuousNoise": [
+      "Math",
+      "surfaceNoise01"
+    ],
+    "fractureColorizeAndOutput": [],
+    "fractureMaskBounds": [
+      "Math"
+    ],
+    "drawTransformedFractureFragment": [],
+    "traceFracturePlate": [
+      "Math"
+    ],
+    "fractureGlyphExtent": [
+      "Math"
+    ],
+    "fractureImpactOrigin": [
+      "hash",
+      "params",
+      "surfaceGlyphNode"
+    ],
+    "fractureSnapOriginToInk": [
+      "Math"
+    ],
+    "strokeFracturePolyline": [],
+    "ribbonOutlineMaskV31": [
+      "Math",
+      "surfaceScratch"
+    ],
+    "ribbonSectionStateV31": [
+      "Math"
+    ],
+    "ribbonTransformPointV31": [
+      "Math"
+    ],
+    "ribbonApplyStateV31": [],
+    "ribbonDrawSectionV31": [
+      "Math",
+      "ribbonApplyStateV31"
+    ],
+    "ribbonStrokeRailV31": [
+      "Math",
+      "ribbonTransformPointV31"
+    ],
+    "ribbonSkinStripV31": [
+      "Math",
+      "ribbonTransformPointV31"
+    ],
+    "ribbonFanLeavesV31": [
+      "Math",
+      "ribbonTransformPointV31"
+    ],
+    "ribbonLaminaPoint": [
+      "Math"
+    ],
+    "ribbonLaminaTriangle": [
+      "Math"
+    ],
+    "ribbonLaminaEffectPad": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "contentBounds",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceGlyphStrength"
+    ],
+    "ribbonEchoEffectPadCache": [],
+    "ribbonEchoEffectPad": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "contentBounds",
+      "globalThis",
+      "params",
+      "ribbonEchoEffectPadCache",
+      "ribbonLaminaEffectPad",
+      "ribbonSectionStateV31",
+      "ribbonTransformPointV31",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceGlyphStrength"
+    ],
+    "colorizeSurfaceCanvas": [
+      "surfaceScratch"
+    ],
+    "drawRegistrationSliceField": [
+      "Math",
+      "params",
+      "surfaceNoise01"
+    ],
+    "dataMoshFrameIndex": [
+      "Math",
+      "compositionState",
+      "dataMoshFrame"
+    ],
+    "blobTrackSurfaceSources": [
+      "Math",
+      "blobTrackState",
+      "compositionState",
+      "hash",
+      "params",
+      "surfaceFieldNodesForGlyphs",
+      "surfaceFxPhase"
+    ],
+    "copyTransferSample": [],
+    "copyTransferPad": [
+      "Math",
+      "globalThis"
+    ],
+    "copyTransferStep": [
+      "Math",
+      "copyTransferSample"
+    ],
+    "risoLoopMotion": [
+      "Math"
+    ],
+    "risoToneRadii": [
+      "Float32Array",
+      "Math"
+    ],
+    "risoScreenCoverage": [
+      "Math"
+    ],
+    "risoStrokeWidths": [
+      "Float32Array",
+      "Math"
+    ],
+    "risoDuotonePlates": [
+      "Float64Array",
+      "Math",
+      "Uint8ClampedArray",
+      "globalThis",
+      "risoLoopMotion",
+      "risoScreenCoverage",
+      "risoStrokeWidths",
+      "risoToneRadii",
+      "surfaceBoundaryDistance",
+      "surfaceNoise01"
+    ],
+    "slitTimeCoordinateV31": [
+      "Math"
+    ],
+    "slitTemporalSamplesV31": [
+      "Math"
+    ],
+    "slitDrawTemporalStateV31": [
+      "Math"
+    ],
+    "prepareSigilComponentsV31": [
+      "Math",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength"
+    ],
+    "sigilComponentTransformV31": [
+      "Math",
+      "baselineOffset",
+      "glyphFontSpec",
+      "params"
+    ],
+    "sigilSuperellipsePathV31": [
+      "Math"
+    ],
+    "sigilRosettePathV31": [
+      "Math"
+    ],
+    "sigilCurveLinkV31": [
+      "Math",
+      "hash",
+      "params"
+    ],
+    "sigilCutV31": [
+      "Math"
+    ],
+    "thornSpine": [
+      "Math"
+    ],
+    "thornOrganPaths": [
+      "Math",
+      "hash",
+      "params",
+      "thornSpine"
+    ],
+    "thornContourRoots": [
+      "Math",
+      "hash"
+    ],
+    "thornRootedExtent": [
+      "Math"
+    ],
+    "structuralSurfaceRenderer": [
+      "Math",
+      "TypeDeformerStructuralOperators",
+      "buildSurfaceMask",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "params",
+      "renderedSourceText",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceFxPhase",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "fieldMaterialSourceKey": [
+      "surfaceGlyphTextSpec"
+    ],
+    "fieldMaterialRenderer": [
+      "TypeDeformerFieldMaterials",
+      "charInfo",
+      "contentBounds",
+      "drawSurfaceGlyph",
+      "fieldMaterialSourceKey",
+      "globalThis",
+      "glyphFontSpec",
+      "params",
+      "spectralTraceContours",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "conditionSurfaceRenderer": [
+      "Math",
+      "TypeDeformerConditionsOperators",
+      "buildSurfaceMask",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "params",
+      "renderedSourceText",
+      "reportRubyMappings",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceFxPhase",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "lerpHex": [
+      "Math",
+      "parseInt"
+    ],
+    "orientedCompositionPoint": [
+      "Math",
+      "compositionAxisIsVertical"
+    ],
+    "generateCascadeAutomaton": [
+      "Array",
+      "Math",
+      "Number",
+      "cascadeAutomatonStep",
+      "cascadeBackdrop",
+      "cascadeColorFor",
+      "cascadeGlyphColor",
+      "cascadeGridColumns",
+      "cascadeLifeStep",
+      "cascadePostProcess",
+      "cascadeSeed",
+      "cascadeShapeItem",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionState",
+      "createLoopClock",
+      "hash",
+      "params"
+    ],
+    "generateCascadeCircuit": [
+      "Math",
+      "cascadeBackdrop",
+      "cascadeColorFor",
+      "cascadePalette",
+      "cascadePostProcess",
+      "cascadeShapeItem",
+      "cascadeTokenCode",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionState",
+      "createCompositionInputBus",
+      "createLoopClock",
+      "hash",
+      "lerpHex",
+      "params"
+    ],
+    "generateCascadeSdf": [
+      "Math",
+      "cascadeBackdrop",
+      "cascadeColorFor",
+      "cascadeGlyphColor",
+      "cascadeGridColumns",
+      "cascadeOpticalField",
+      "cascadePalette",
+      "cascadePostProcess",
+      "cascadeShapeItem",
+      "cascadeTokenCode",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionState",
+      "createLoopClock",
+      "lerpHex",
+      "params"
+    ],
+    "generateCascadeMoire": [
+      "Math",
+      "cascadeBackdrop",
+      "cascadeColorFor",
+      "cascadeGlyphColor",
+      "cascadePalette",
+      "cascadePostProcess",
+      "cascadeShapeItem",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionState",
+      "params"
+    ],
+    "generateCascadeRadar": [
+      "Math",
+      "cascadeBackdrop",
+      "cascadeColorFor",
+      "cascadeGlyphColor",
+      "cascadePalette",
+      "cascadePostProcess",
+      "cascadeShapeItem",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionState",
+      "params"
+    ],
+    "generateCascadeBands": [
+      "Math",
+      "cascadeBackdrop",
+      "cascadeColorFor",
+      "cascadeGlyphColor",
+      "cascadePalette",
+      "cascadePostProcess",
+      "cascadeShapeItem",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionState",
+      "generateCascadeMoire",
+      "generateCascadeRadar",
+      "params"
+    ],
+    "contourScalar": [
+      "Infinity",
+      "Math",
+      "cascadeTokenCode",
+      "compositionState",
+      "hash"
+    ],
+    "contourEdgePoint": [
+      "Math"
+    ],
+    "contourSegmentsForCell": [
+      "contourEdgePoint"
+    ],
+    "createPathLoomBasePath": [
+      "Math",
+      "pathLoomResample",
+      "pathLoomSmoothPoints"
+    ],
+    "offsetPathLoomPolyline": [
+      "Math"
+    ],
+    "fxNumber": [
+      "Array",
+      "Math",
+      "Number",
+      "isFinite"
+    ],
+    "fxEnabled": [
+      "fxNumber"
+    ],
+    "copySceneGlyph": [
+      "Object"
+    ],
+    "copySceneBand": [
+      "Object"
+    ],
+    "transformScenePoint": [
+      "Math"
+    ],
+    "transformSceneGlyph": [
+      "Math",
+      "copySceneGlyph",
+      "transformScenePoint"
+    ],
+    "transformSceneBand": [
+      "Math",
+      "copySceneBand",
+      "transformScenePoint"
+    ],
+    "appendTransformedScenePass": [
+      "Math",
+      "transformSceneBand",
+      "transformSceneGlyph"
+    ],
+    "applyEchoTrailFx": [
+      "Math",
+      "appendTransformedScenePass",
+      "compositionState",
+      "fxEnabled",
+      "fxNumber"
+    ],
+    "applyFeedbackFx": [
+      "Math",
+      "appendTransformedScenePass",
+      "compositionState",
+      "fxEnabled",
+      "fxNumber"
+    ],
+    "hexLuminance": [
+      "parseInt"
+    ],
+    "applySignalMaskFx": [
+      "Math",
+      "compositionState",
+      "fxEnabled",
+      "fxNumber",
+      "hexLuminance",
+      "params"
+    ],
+    "applyChromaticSplitFx": [
+      "Math",
+      "compositionState",
+      "copySceneGlyph",
+      "fxEnabled",
+      "fxNumber",
+      "params"
+    ],
+    "quantizeHex": [
+      "Math",
+      "parseInt"
+    ],
+    "applyRasterMaterialFx": [
+      "Math",
+      "compositionState",
+      "fxEnabled",
+      "fxNumber",
+      "params",
+      "quantizeHex"
+    ],
+    "enforceCompositionPrimitiveBudget": [
+      "Math"
+    ],
+    "webglCompositionAvailable": [
+      "compositionWebGLState",
+      "createRenderCanvas",
+      "globalThis"
+    ],
+    "ensureCompositionWebGL": [
+      "Error",
+      "Float32Array",
+      "Math",
+      "TypeDeformerRenderContext",
+      "compileCompositionShader",
+      "compositionWebGLState",
+      "createRenderCanvas",
+      "globalThis",
+      "scheduleCompositionDraw",
+      "webglCompositionAvailable"
+    ],
+    "webglHexColor": [
+      "parseInt"
+    ],
+    "updateCompositionWebGLTextTexture": [
+      "Error",
+      "Math",
+      "TypeDeformerRenderContext",
+      "createRenderCanvas",
+      "globalThis",
+      "params",
+      "renderedSourceText"
+    ],
+    "baselineOffset": [
+      "fontMetrics"
+    ],
+    "renderPlotterTraceLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "cubicSurfacePoint",
+      "hash",
+      "orderedPlotterPoints",
+      "params",
+      "sampleSurfaceMask",
+      "strokeSurfaceCurve",
+      "surfaceAggregate",
+      "surfaceCurveSpec",
+      "surfaceEffectColor",
+      "surfaceGraphEdges",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderTraceTimelineV34": [
+      "Math",
+      "traceDrawHeadV34",
+      "traceDrawLiftMarkersV34",
+      "traceStrokeAgeBandV34",
+      "traceStrokeItemsV34",
+      "traceTimelineHeadV34"
+    ],
+    "renderPlotterTrace": [
+      "BATCH_PARAM_OPTIONS",
+      "TypeDeformerSharedSurface",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "params",
+      "renderPlotterTraceLegacy",
+      "renderTraceTimelineV34",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceScratch",
+      "traceAssignGlyphsV34",
+      "traceMaskContoursV34",
+      "traceOrderPathsV34",
+      "traceTimelineV34",
+      "traceWarpPathV34"
+    ],
+    "renderWebbingLegacy": [
+      "Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "hash",
+      "params",
+      "strokeWebCatenary",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceFieldNodesForGlyphs",
+      "surfaceGraphEdges",
+      "surfaceScratch"
+    ],
+    "renderWebbing": [
+      "BATCH_PARAM_OPTIONS",
+      "TypeDeformerSharedSurface",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "hash",
+      "params",
+      "renderWebbingLegacy",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceFieldNodesForGlyphs",
+      "surfaceGraphEdges",
+      "surfaceScratch"
+    ],
+    "renderSoftBlobSporeField": [
+      "TypeDeformerSharedSurface",
+      "fillOrganicNode",
+      "hash",
+      "params",
+      "surfaceScratch"
+    ],
+    "renderSoftBlob": [
+      "TypeDeformerSharedSurface",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "cubicSurfacePoint",
+      "drawSurfaceTube",
+      "fillOrganicNode",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "renderSoftBlobSporeField",
+      "strokeSurfaceCurve",
+      "surfaceAggregate",
+      "surfaceCurveSpec",
+      "surfaceEffectColor",
+      "surfaceFieldNodesForGlyphs",
+      "surfaceFxPhase",
+      "surfaceGraphEdges",
+      "surfaceScratch"
+    ],
+    "renderRasterPressLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "hash",
+      "params",
+      "sampleMaskNeighborhoodAlpha",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderHatchEngraveLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawHatchFamily",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderRasterPress": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawRasterGravureV58",
+      "globalThis",
+      "hash",
+      "params",
+      "rasterGravurePlanV58",
+      "rasterPressOutput",
+      "renderRasterPressLegacy",
+      "sampleMaskNeighborhoodAlpha",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderHatchEngrave": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawAdaptiveHatchFamily",
+      "globalThis",
+      "hash",
+      "hatchCopperRender",
+      "params",
+      "renderHatchEngraveLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceBoundaryEnvelopeCanvas",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderTerminalExcessLegacy": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "sampleSurfaceMask",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceFieldNormal",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength",
+      "surfaceScratch",
+      "surfaceTerminalShapeLegacy"
+    ],
+    "renderLigatureBodyLegacy": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength",
+      "surfaceLigatureCurve",
+      "surfaceScratch",
+      "surfaceSnapToMaskPoint"
+    ],
+    "renderAsemicDuctus": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "String",
+      "asemicBodyBounds",
+      "asemicBuildAnchors",
+      "asemicCounterComponents",
+      "asemicCutCounters",
+      "asemicMetaChoice",
+      "asemicMetaParam",
+      "asemicOffsetPath",
+      "asemicRenderChamber",
+      "asemicRenderPath",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "paintSurfaceMask",
+      "params",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphAnatomyMetas",
+      "surfaceScratch",
+      "surfaceVoidTopology"
+    ],
+    "renderTerminalExcess": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderTerminalExcessLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphAnatomyMetas",
+      "surfaceNearestGlyphMeta",
+      "surfaceScratch",
+      "surfaceTerminalBranches",
+      "surfaceTerminalShape"
+    ],
+    "renderLigatureBodyV29": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderLigatureBodyLegacy",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength",
+      "surfaceLigatureCurve",
+      "surfaceLigatureShoulder",
+      "surfaceScratch",
+      "surfaceSnapToMaskPoint"
+    ],
+    "renderLigatureCounterbodyV62": [
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "hash",
+      "isFinite",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceLigatureAnchorV62",
+      "surfaceLigatureCurve",
+      "surfaceLigatureLensV62",
+      "surfaceLigatureRibbonV62",
+      "surfaceLigatureShoulder",
+      "surfaceLigatureWaistV62",
+      "surfaceScratch"
+    ],
+    "renderLigatureBody": [
+      "BATCH_PARAM_OPTIONS",
+      "params",
+      "renderLigatureBodyV29",
+      "renderLigatureCounterbodyV62",
+      "surfaceChoice"
+    ],
+    "renderEtchantBloomLegacy": [
+      "Float32Array",
+      "Float64Array",
+      "Int32Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderEtchantBloom": [
+      "BATCH_PARAM_OPTIONS",
+      "Float32Array",
+      "Float64Array",
+      "Int32Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "renderEtchantBloomLegacy",
+      "strokeEtchantContours",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderSinewTorqueLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderSinewTorque": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "Object",
+      "String",
+      "params",
+      "renderSinewTorqueField",
+      "renderSinewTorqueLegacy",
+      "surfaceChoice"
+    ],
+    "renderSinewTorqueField": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceScratch"
+    ],
+    "renderBoneTrabecularV36": [
+      "Float64Array",
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "surfaceBoundaryDistance",
+      "surfaceBoundaryEnvelopeCanvas",
+      "surfaceEffectColor",
+      "surfaceGlyphAnatomyMetas",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderBoneLamellar": [
+      "Infinity",
+      "Math",
+      "Object",
+      "boneLamellarFullMask",
+      "boneLamellarSeeds",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch"
+    ],
+    "renderBoneScaffold": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "hash",
+      "params",
+      "renderBoneLamellar",
+      "renderBoneTrabecularV36",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphAnatomyMetas",
+      "surfaceScratch"
+    ],
+    "renderRoseEngine": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderChromeStudio": [
+      "Math",
+      "buildSurfaceMask",
+      "chromeStudioPlate",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch"
+    ],
+    "renderChromeReliquary": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "chromeReflectionMotion",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "renderChromeStudio",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderLigatureCryptV31": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "cutLigatureCryptAperture",
+      "hash",
+      "ligatureConstructionGeometry",
+      "ligatureConstructionPoint",
+      "ligatureCryptCurve",
+      "params",
+      "strokeLigatureConstructionRail",
+      "strokeLigatureCryptSpine",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch",
+      "traceLigatureConstructionBand",
+      "traceLigatureCryptBand",
+      "traceLigatureCryptSeal"
+    ],
+    "renderLigatureCryptV32": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "ligatureCryptDrawBraidMaskV32",
+      "ligatureCryptDrawMortiseMaskV32",
+      "ligatureCryptPaintBraidV32",
+      "ligatureCryptPaintMortiseV32",
+      "ligatureCryptPaintSolitaryV32",
+      "ligatureCryptPaintSutureV32",
+      "ligatureCryptPairsV32",
+      "ligatureCryptPrepareSolitaryV32",
+      "ligatureCryptPrepareSutureV32",
+      "params",
+      "renderLigatureCryptV31",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderLigatureCrypt": [
+      "BATCH_PARAM_OPTIONS",
+      "params",
+      "renderLigatureCryptV31",
+      "renderLigatureCryptV32",
+      "surfaceChoice"
+    ],
+    "renderMoireChoirLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch"
+    ],
+    "renderNaveCutterLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderCloisterFoldLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch"
+    ],
+    "renderPrismSacramentLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch"
+    ],
+    "renderTexturaMatrixLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch",
+      "traceTexturaStem"
+    ],
+    "renderMoireChoir": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "renderMoireChoirLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderNaveCutter": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "Number",
+      "Object",
+      "String",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "renderNaveCutterLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderCloisterFold": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "cloisterFacetTone",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "renderCloisterFoldLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderPrismBirefringentV61": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "params",
+      "prismBeamPathV61",
+      "prismBoundaryEmittersV61",
+      "prismFacetCellV61",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceFieldNormal",
+      "surfaceHexRgb",
+      "surfaceScratch"
+    ],
+    "renderPrismSacramentV23": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "params",
+      "renderPrismSacramentLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderPrismSacrament": [
+      "BATCH_PARAM_OPTIONS",
+      "params",
+      "renderPrismBirefringentV61",
+      "renderPrismSacramentV23",
+      "surfaceChoice"
+    ],
+    "renderTexturaDuctusV60": [
+      "Math",
+      "surfaceScratch",
+      "texturaDuctusGeometryV60"
+    ],
+    "renderTexturaMatrix": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "hash",
+      "params",
+      "renderTexturaDuctusV60",
+      "renderTexturaMatrixLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss",
+      "texturaDuctusBoundsV60",
+      "texturaDuctusPrepareV60",
+      "texturaDuctusPreparedCacheV60",
+      "texturaDuctusSignatureV60",
+      "traceTexturaGrammarStem"
+    ],
+    "renderVoidPortalLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch",
+      "surfaceVoidApertureMask"
+    ],
+    "renderVoidPortalComponentV33": [
+      "Math",
+      "drawVoidPortalMaskV33",
+      "ribbonOutlineMaskV31",
+      "voidPortalSectionStateV33",
+      "voidPortalTransformPointV33"
+    ],
+    "renderVoidPortal": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderVoidPortalComponentV33",
+      "renderVoidPortalLegacy",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss",
+      "voidPortalAperturesV33",
+      "voidPortalComponentV33",
+      "voidPortalGlyphBoundsV33",
+      "voidPortalGlyphScanV33"
+    ],
+    "renderRecursiveShrineLegacy": [
+      "Float64Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawRecursiveMask",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderRecursiveShrine": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawRecursiveNodeMaskV32",
+      "drawRecursiveShrineRailsV32",
+      "drawSurfaceGlyph",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "recursiveShrineGraphV32",
+      "renderRecursiveShrineLegacy",
+      "ribbonOutlineMaskV31",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderMorphProcessionLegacy": [
+      "Float64Array",
+      "JSON",
+      "Math",
+      "Object",
+      "String",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength",
+      "surfaceMorphGlyphField",
+      "surfaceScratch"
+    ],
+    "renderMorphProcession": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "JSON",
+      "Math",
+      "Object",
+      "String",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "morphPathGeometry",
+      "morphPathPoint",
+      "paintFeatureMorphTile",
+      "paintSurfaceMask",
+      "params",
+      "renderMorphProcessionLegacy",
+      "strokeMorphCorrespondence",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceMorphGlyphDescriptor",
+      "surfaceMorphProcessionPairs",
+      "surfaceScratch"
+    ],
+    "renderContourEtchLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderContourReliefV57": [
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "contourReliefCounterTicksV57",
+      "contourReliefDrawMarksV57",
+      "contourReliefFieldV57",
+      "contourReliefHachuresV57",
+      "contourReliefSignedV57",
+      "contourReliefWarpV57",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceScratch",
+      "surfaceSmoothCoverage",
+      "surfaceVoidTopology"
+    ],
+    "renderContourEtch": [
+      "BATCH_PARAM_OPTIONS",
+      "Float64Array",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "renderContourEtchLegacy",
+      "renderContourReliefV57",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderMonolithCastLegacy": [
+      "Float64Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceNoise01",
+      "surfaceScratch",
+      "surfaceVoidApertureMask"
+    ],
+    "renderMonolithCast": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "monolithBodyV35",
+      "monolithClipLocalV35",
+      "monolithDrawAshlarV35",
+      "monolithDrawMarksV35",
+      "monolithDrawStereotomyV35",
+      "monolithDrawStrataV35",
+      "monolithDrawVaultV35",
+      "monolithGlyphBoundsV35",
+      "paintSurfaceMask",
+      "params",
+      "renderMonolithCastLegacy",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss",
+      "voidPortalGlyphScanV33"
+    ],
+    "renderChimeraGraftLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "hash",
+      "isFinite",
+      "paintSurfaceMask",
+      "params",
+      "sampleSurfaceMask",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "renderChimeraGraft": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "fillOrganicNode",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "renderChimeraGraftLegacy",
+      "sampleSurfaceMask",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphNode",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "renderPressureStrokeLegacy": [
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceEffectColor",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderPressureStroke": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "pressureContinuousNoise",
+      "renderPressureStrokeLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderCellFractureLegacy": [
+      "Array",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "hash",
+      "params",
+      "sampleMaskNeighborhoodAlpha",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderRibbonEchoLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderImpactFractureV31": [
+      "Math",
+      "drawTransformedFractureFragment",
+      "fractureGlyphExtent",
+      "fractureImpactOrigin",
+      "fractureSnapOriginToInk",
+      "hash",
+      "params",
+      "strokeFracturePolyline",
+      "traceFracturePlate"
+    ],
+    "renderFaultFractureV31": [
+      "Math",
+      "drawTransformedFractureFragment",
+      "hash",
+      "params",
+      "strokeFracturePolyline"
+    ],
+    "renderCrystalFractureV31": [
+      "Math",
+      "drawTransformedFractureFragment",
+      "fractureGlyphExtent",
+      "hash",
+      "params",
+      "strokeFracturePolyline",
+      "surfaceGlyphNode"
+    ],
+    "renderSpallFractureV31": [
+      "Math",
+      "drawTransformedFractureFragment",
+      "fractureGlyphExtent",
+      "fractureImpactOrigin",
+      "fractureSnapOriginToInk",
+      "hash",
+      "params",
+      "strokeFracturePolyline",
+      "traceFracturePlate"
+    ],
+    "renderCellFracture": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "fractureColorizeAndOutput",
+      "fractureMaskBounds",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderCellFractureLegacy",
+      "renderCrystalFractureV31",
+      "renderFaultFractureV31",
+      "renderImpactFractureV31",
+      "renderSpallFractureV31",
+      "sampleSurfaceMask",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "renderRibbonLamina": [
+      "Float32Array",
+      "Infinity",
+      "Math",
+      "Number",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "fractureMaskBounds",
+      "globalThis",
+      "params",
+      "ribbonLaminaPoint",
+      "ribbonLaminaTriangle",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderRibbonEcho": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "fractureMaskBounds",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderRibbonEchoLegacy",
+      "renderRibbonLamina",
+      "ribbonApplyStateV31",
+      "ribbonDrawSectionV31",
+      "ribbonFanLeavesV31",
+      "ribbonOutlineMaskV31",
+      "ribbonSectionStateV31",
+      "ribbonSkinStripV31",
+      "ribbonStrokeRailV31",
+      "ribbonTransformPointV31",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceHexRgb",
+      "surfaceScratch",
+      "surfaceToneCss"
+    ],
+    "renderMisregistration": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "drawRegistrationSliceField",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceScratch"
+    ],
+    "renderDataMosh": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "dataMoshFrameIndex",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderBlobTrack": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "blobTrackSurfaceSources",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "globalThis",
+      "hash",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceCurveSpec",
+      "surfaceEffectColor",
+      "surfaceFxPhase",
+      "surfaceGraphEdges",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderCopyDecayLegacy": [
+      "Float64Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderCopyTransfer": [
+      "Float32Array",
+      "Float64Array",
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "copyTransferPad",
+      "copyTransferStep",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderCopyDecay": [
+      "BATCH_PARAM_OPTIONS",
+      "Float64Array",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderCopyDecayLegacy",
+      "renderCopyTransfer",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderRisoSeparationLegacy": [
+      "Float64Array",
+      "Math",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "surfaceAggregate",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderRisoDuotone": [
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "risoDuotonePlates",
+      "risoLoopMotion",
+      "surfaceAggregate",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "renderRisoSeparation": [
+      "BATCH_PARAM_OPTIONS",
+      "Float64Array",
+      "Math",
+      "buildSurfaceMask",
+      "colorizeSurfaceCanvas",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "params",
+      "renderRisoDuotone",
+      "renderRisoSeparationLegacy",
+      "risoLoopMotion",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceNoise01",
+      "surfaceScratch"
+    ],
+    "renderSlitSweepLegacy": [
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceFxPhase",
+      "surfaceScratch"
+    ],
+    "renderSlitSweep": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderSlitSweepLegacy",
+      "slitDrawTemporalStateV31",
+      "slitTemporalSamplesV31",
+      "slitTimeCoordinateV31",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceFxPhase",
+      "surfaceScratch"
+    ],
+    "renderSigilForgeLegacy": [
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "hash",
+      "params",
+      "surfaceAggregate",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderSigilForge": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "hash",
+      "paintSurfaceMask",
+      "params",
+      "prepareSigilComponentsV31",
+      "renderSigilForgeLegacy",
+      "sigilComponentTransformV31",
+      "sigilCurveLinkV31",
+      "sigilCutV31",
+      "sigilRosettePathV31",
+      "sigilSuperellipsePathV31",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGraphEdges",
+      "surfaceScratch"
+    ],
+    "renderThornRooted": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "Object",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "hash",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch",
+      "thornContourRoots",
+      "thornOrganPaths"
+    ],
+    "renderThornCrown": [
+      "params",
+      "renderThornCrownLegacy",
+      "renderThornRooted",
+      "surfaceGlyphStrength"
+    ],
+    "renderThornCrownLegacy": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "hash",
+      "params",
+      "sampleSurfaceMask",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceScratch"
+    ],
+    "renderCipherLiturgy": [
+      "BATCH_PARAM_OPTIONS",
+      "Infinity",
+      "Math",
+      "Object",
+      "String",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "hash",
+      "params",
+      "surfaceAggregate",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceNodesForGlyphs",
+      "surfaceScratch"
+    ],
+    "renderCalligraphicStressLegacy": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceEffectColor",
+      "surfaceFieldNormal",
+      "surfaceScratch",
+      "surfaceSignedDistanceValue",
+      "surfaceSmoothCoverage"
+    ],
+    "CalligraphyField": [
+      "Float32Array",
+      "Infinity",
+      "Math",
+      "Number",
+      "Object",
+      "RangeError",
+      "TypeError",
+      "Uint8Array"
+    ],
+    "calligraphyGlyphCache": [
+      "Map"
+    ],
+    "calligraphyCachePoints": [],
+    "calligraphyFontRevision": [],
+    "calligraphyGlyphSettings": [
+      "BATCH_PARAM_OPTIONS",
+      "Number",
+      "params"
+    ],
+    "calligraphyGlyphData": [
+      "CalligraphyField",
+      "Math",
+      "Number",
+      "RangeError",
+      "String",
+      "calligraphyCachePoints",
+      "calligraphyFontRevision",
+      "calligraphyGlyphCache",
+      "createRenderCanvas",
+      "glyphFontSpec",
+      "params",
+      "spectralTraceContours"
+    ],
+    "calligraphyEffectPad": [
+      "CalligraphyField",
+      "Math",
+      "String",
+      "calligraphyGlyphSettings",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "renderCalligraphicStress": [
+      "CalligraphyField",
+      "String",
+      "buildSurfaceMask",
+      "calligraphyGlyphData",
+      "calligraphyGlyphSettings",
+      "compositeSurfaceSource",
+      "compositionState",
+      "globalThis",
+      "paintSurfaceMask",
+      "renderCalligraphicStressLegacy",
+      "spectralGlyphFrame",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "renderCounterformEngineLegacy": [
+      "BATCH_PARAM_OPTIONS",
+      "Float64Array",
+      "Math",
+      "Uint8Array",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceDistanceFromSeeds",
+      "surfaceEffectColor",
+      "surfaceFieldNormal",
+      "surfaceScratch",
+      "surfaceSignedDistanceValue",
+      "surfaceSmoothCoverage",
+      "surfaceVoidTopology"
+    ],
+    "renderCounterformEngineV29": [
+      "BATCH_PARAM_OPTIONS",
+      "Float64Array",
+      "Math",
+      "Uint8Array",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderCounterformEngineLegacy",
+      "surfaceAggregate",
+      "surfaceBoundaryDistance",
+      "surfaceChoice",
+      "surfaceCounterExit",
+      "surfaceDistanceFromSeeds",
+      "surfaceEffectColor",
+      "surfaceScratch",
+      "surfaceSmoothCoverage",
+      "surfaceVoidTopology"
+    ],
+    "CounterformEngine": [
+      "Float32Array",
+      "Int32Array",
+      "Map",
+      "Math",
+      "Number",
+      "Object",
+      "RangeError",
+      "TypeError",
+      "Uint8Array",
+      "Uint8ClampedArray",
+      "undefined"
+    ],
+    "counterformFontRevision": [],
+    "counterformSourceCache": [
+      "Map"
+    ],
+    "counterformSourceCells": [],
+    "counterformPreparedCache": [
+      "Map"
+    ],
+    "counterformPreparedCells": [],
+    "counterformVariantCache": [
+      "Map"
+    ],
+    "counterformVariantCells": [],
+    "counterformProfileSettings": [
+      "BATCH_PARAM_OPTIONS",
+      "Math",
+      "Number",
+      "params"
+    ],
+    "counterformOldGrammar": [],
+    "counterformSourceKey": [
+      "counterformFontRevision",
+      "glyphFontSpec",
+      "params"
+    ],
+    "counterformTouch": [],
+    "counterformTrim": [],
+    "counterformSourceData": [
+      "Math",
+      "Number",
+      "RangeError",
+      "String",
+      "Uint8ClampedArray",
+      "counterformSourceCache",
+      "counterformSourceCells",
+      "counterformSourceKey",
+      "counterformTouch",
+      "counterformTrim",
+      "createRenderCanvas",
+      "glyphFontSpec",
+      "params"
+    ],
+    "counterformPreparedData": [
+      "CounterformEngine",
+      "counterformPreparedCache",
+      "counterformPreparedCells",
+      "counterformTouch",
+      "counterformTrim"
+    ],
+    "counterformVariantKey": [
+      "TypeDeformerRenderContext",
+      "globalThis"
+    ],
+    "counterformPresentation": [
+      "Math",
+      "TypeDeformerRenderContext"
+    ],
+    "counterformVariantData": [
+      "CounterformEngine",
+      "Math",
+      "TypeDeformerRenderContext",
+      "counterformPreparedData",
+      "counterformPresentation",
+      "counterformSourceData",
+      "counterformSourceKey",
+      "counterformTouch",
+      "counterformTrim",
+      "counterformVariantCache",
+      "counterformVariantCells",
+      "counterformVariantKey",
+      "createRenderCanvas",
+      "globalThis"
+    ],
+    "counterformDrawVariant": [
+      "spectralGlyphFrame"
+    ],
+    "renderCounterformEngine": [
+      "CounterformEngine",
+      "Math",
+      "String",
+      "TypeDeformerRenderContext",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "counterformDrawVariant",
+      "counterformOldGrammar",
+      "counterformProfileSettings",
+      "counterformSetRenderError",
+      "counterformVariantData",
+      "drawSurfaceGlyph",
+      "globalThis",
+      "paintSurfaceMask",
+      "params",
+      "renderCounterformEngineLegacy",
+      "renderCounterformEngineV29",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch",
+      "undefined"
+    ],
+    "spectralGlyphCache": [
+      "Map"
+    ],
+    "spectralBasisCache": [
+      "Map"
+    ],
+    "spectralCachePoints": [],
+    "spectralTraceContours": [
+      "Map",
+      "Math",
+      "Uint8Array",
+      "undefined"
+    ],
+    "spectralBasis": [
+      "Float64Array",
+      "Math",
+      "spectralBasisCache"
+    ],
+    "spectralCompileContour": [
+      "Math",
+      "spectralBasis"
+    ],
+    "spectralContourContains": [],
+    "spectralPrepareGlyphContours": [
+      "Infinity",
+      "Math",
+      "spectralContourContains"
+    ],
+    "spectralSynthesize": [
+      "Math",
+      "spectralBasis"
+    ],
+    "spectralGlyphData": [
+      "Map",
+      "Math",
+      "Number",
+      "String",
+      "createRenderCanvas",
+      "globalThis",
+      "glyphFontSpec",
+      "params",
+      "spectralCachePoints",
+      "spectralCompileContour",
+      "spectralGlyphCache",
+      "spectralPrepareGlyphContours",
+      "spectralTraceContours"
+    ],
+    "spectralGlyphFrame": [
+      "Math",
+      "baselineOffset",
+      "params"
+    ],
+    "renderSpectralType": [
+      "BATCH_PARAM_OPTIONS",
+      "JSON",
+      "Math",
+      "Number",
+      "String",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "params",
+      "spectralGlyphData",
+      "spectralGlyphFrame",
+      "spectralSynthesize",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "DifferentialGrowth": [
+      "Array",
+      "Error",
+      "Float64Array",
+      "Infinity",
+      "JSON",
+      "Map",
+      "Math",
+      "Number",
+      "Object",
+      "Promise",
+      "RangeError",
+      "Symbol",
+      "TypeError",
+      "globalThis",
+      "performance",
+      "setTimeout"
+    ],
+    "differentialController": [
+      "DifferentialGrowth"
+    ],
+    "differentialFontRevision": [],
+    "differentialMaskCache": [
+      "Map"
+    ],
+    "differentialMaskPoints": [],
+    "differentialGlyphSettings": [
+      "DifferentialGrowth",
+      "Number",
+      "String",
+      "params"
+    ],
+    "differentialSourceKey": [
+      "differentialFontRevision",
+      "glyphFontSpec",
+      "params"
+    ],
+    "differentialGlyphData": [
+      "Math",
+      "Number",
+      "createRenderCanvas",
+      "differentialMaskCache",
+      "differentialMaskPoints",
+      "differentialSourceKey",
+      "glyphFontSpec",
+      "params",
+      "spectralTraceContours"
+    ],
+    "differentialRequests": [
+      "Array",
+      "DifferentialGrowth",
+      "Map",
+      "String",
+      "differentialGlyphData",
+      "differentialGlyphSettings",
+      "differentialSourceKey",
+      "params",
+      "surfaceGlyphStrength"
+    ],
+    "differentialPrepare": [
+      "Worker",
+      "differentialController",
+      "differentialRequests",
+      "differentialScheduleWork",
+      "globalThis"
+    ],
+    "differentialAssertReady": [
+      "Error",
+      "Worker",
+      "differentialController",
+      "differentialRequests",
+      "globalThis"
+    ],
+    "differentialShape": [
+      "DifferentialGrowth",
+      "Number",
+      "compositionState",
+      "differentialController",
+      "differentialSourceKey",
+      "params"
+    ],
+    "differentialEffectPad": [
+      "JSON",
+      "Map",
+      "Math",
+      "String",
+      "differentialGlyphSettings",
+      "differentialShape",
+      "differentialSourceKey",
+      "params",
+      "surfaceGlyphStrength"
+    ],
+    "renderDifferentialType": [
+      "JSON",
+      "Map",
+      "String",
+      "buildSurfaceMask",
+      "compositeSurfaceSource",
+      "differentialGlyphSettings",
+      "differentialShape",
+      "differentialSourceKey",
+      "drawSurfaceGlyph",
+      "spectralGlyphFrame",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceScratch"
+    ],
+    "MarblingType": [
+      "Error",
+      "Infinity",
+      "JSON",
+      "Map",
+      "Promise",
+      "RangeError",
+      "TypeError",
+      "globalThis",
+      "setTimeout",
+      "undefined"
+    ],
+    "marblingPool": [
+      "MarblingType"
+    ],
+    "marblingFontRevision": [],
+    "marblingTimer": [],
+    "marblingRenderError": [],
+    "marblingCache": [
+      "Map"
+    ],
+    "marblingCachePoints": [],
+    "marblingClearGeometry": [
+      "marblingCache",
+      "marblingCachePoints"
+    ],
+    "marblingPhase": [
+      "Number",
+      "compositionState"
+    ],
+    "marblingGlyphSettings": [
+      "MarblingType",
+      "Number",
+      "params"
+    ],
+    "marblingSource": [
+      "String",
+      "glyphFontSpec",
+      "marblingFontRevision",
+      "marblingGlyphData",
+      "params"
+    ],
+    "marblingGlyphData": [
+      "Error",
+      "MarblingType",
+      "Math",
+      "Number",
+      "Object",
+      "RangeError",
+      "createRenderCanvas",
+      "glyphFontSpec",
+      "spectralTraceContours"
+    ],
+    "marblingRequests": [
+      "Array",
+      "Map",
+      "String",
+      "marblingGlyphSettings",
+      "marblingSource",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "marblingPrepare": [
+      "Set",
+      "Worker",
+      "cancelAnimationFrame",
+      "globalThis",
+      "marblingCache",
+      "marblingCachePoints",
+      "marblingClearGeometry",
+      "marblingPool",
+      "marblingRenderError",
+      "marblingRequests",
+      "marblingScheduleWork",
+      "marblingTimer"
+    ],
+    "marblingAssertReady": [
+      "Error",
+      "Worker",
+      "globalThis",
+      "marblingPool",
+      "marblingRequests"
+    ],
+    "marblingShape": [
+      "JSON",
+      "MarblingType",
+      "marblingCache",
+      "marblingCachePoints",
+      "marblingFontRevision",
+      "marblingPhase"
+    ],
+    "marblingEffectPad": [
+      "Math",
+      "String",
+      "marblingGlyphSettings",
+      "marblingPhase",
+      "marblingPool",
+      "marblingRenderError",
+      "marblingShape",
+      "marblingSource",
+      "marblingUpdateStatus",
+      "params",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "marblingTraceRings": [],
+    "renderMarblingTypeDirect": [
+      "Error",
+      "JSON",
+      "Map",
+      "MarblingType",
+      "Math",
+      "Object",
+      "Path2D",
+      "RangeError",
+      "String",
+      "TypeDeformerRenderContext",
+      "drawSurfaceGlyph",
+      "globalThis",
+      "marblingGlyphSettings",
+      "marblingPhase",
+      "marblingPool",
+      "marblingRenderError",
+      "marblingShape",
+      "marblingSource",
+      "marblingTraceRings",
+      "marblingUpdateStatus",
+      "spectralGlyphFrame",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "AuxeticType": [
+      "Error",
+      "Infinity",
+      "Map",
+      "Math",
+      "Number",
+      "Object",
+      "RangeError",
+      "String",
+      "TypeError",
+      "globalThis"
+    ],
+    "auxeticPool": [
+      "AuxeticType"
+    ],
+    "auxeticFontRevision": [],
+    "auxeticTimer": [],
+    "auxeticRenderError": [],
+    "auxeticGlyphSettings": [
+      "AuxeticType",
+      "Number",
+      "params"
+    ],
+    "auxeticIsNative": [],
+    "auxeticIsNativeAtPhase": [
+      "Math",
+      "Number",
+      "auxeticIsNative"
+    ],
+    "auxeticSourceKey": [
+      "auxeticFontRevision",
+      "glyphFontSpec",
+      "params"
+    ],
+    "auxeticGlyphData": [
+      "AuxeticType",
+      "Math",
+      "Number",
+      "RangeError",
+      "createRenderCanvas",
+      "glyphFontSpec",
+      "spectralTraceContours"
+    ],
+    "auxeticRequests": [
+      "Array",
+      "Map",
+      "String",
+      "auxeticGlyphData",
+      "auxeticGlyphSettings",
+      "auxeticIsNative",
+      "auxeticSourceKey",
+      "params",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "auxeticPrepare": [
+      "Worker",
+      "auxeticPool",
+      "auxeticRenderError",
+      "auxeticRequests",
+      "auxeticScheduleWork",
+      "auxeticTimer",
+      "cancelAnimationFrame",
+      "globalThis"
+    ],
+    "auxeticAssertReady": [
+      "Error",
+      "Worker",
+      "auxeticPool",
+      "auxeticRequests",
+      "globalThis"
+    ],
+    "auxeticEffectPad": [
+      "AuxeticType",
+      "Map",
+      "Math",
+      "String",
+      "auxeticGlyphSettings",
+      "auxeticIsNative",
+      "auxeticPool",
+      "auxeticRenderError",
+      "auxeticSourceKey",
+      "auxeticUpdateStatus",
+      "compositionState",
+      "params",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "auxeticTraceRings": [],
+    "renderAuxeticTypeDirect": [
+      "AuxeticType",
+      "Error",
+      "JSON",
+      "Map",
+      "Math",
+      "Path2D",
+      "String",
+      "TypeDeformerRenderContext",
+      "auxeticGlyphSettings",
+      "auxeticIsNativeAtPhase",
+      "auxeticPool",
+      "auxeticRenderError",
+      "auxeticSourceKey",
+      "auxeticTraceRings",
+      "auxeticUpdateStatus",
+      "compositionState",
+      "drawSurfaceGlyph",
+      "globalThis",
+      "spectralGlyphFrame",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "ConformalType": [
+      "Array",
+      "Error",
+      "Infinity",
+      "Map",
+      "Math",
+      "Number",
+      "Object",
+      "RangeError",
+      "String",
+      "TypeError",
+      "globalThis"
+    ],
+    "conformalPool": [
+      "ConformalType"
+    ],
+    "conformalFontRevision": [],
+    "conformalTimer": [],
+    "conformalRenderError": [],
+    "conformalGlyphSettings": [
+      "ConformalType",
+      "Number",
+      "params"
+    ],
+    "conformalSourceKey": [
+      "conformalFontRevision",
+      "glyphFontSpec",
+      "params"
+    ],
+    "conformalIsNative": [],
+    "conformalGlyphData": [
+      "ConformalType",
+      "Math",
+      "Number",
+      "RangeError",
+      "createRenderCanvas",
+      "glyphFontSpec",
+      "spectralTraceContours"
+    ],
+    "conformalRequests": [
+      "Array",
+      "Map",
+      "String",
+      "conformalGlyphData",
+      "conformalGlyphSettings",
+      "conformalIsNative",
+      "conformalSourceKey",
+      "params",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "conformalPrepare": [
+      "Worker",
+      "cancelAnimationFrame",
+      "conformalPool",
+      "conformalRenderError",
+      "conformalRequests",
+      "conformalScheduleWork",
+      "conformalTimer",
+      "globalThis"
+    ],
+    "conformalAssertReady": [
+      "Error",
+      "Worker",
+      "conformalPool",
+      "conformalRequests",
+      "globalThis"
+    ],
+    "conformalEffectPad": [
+      "ConformalType",
+      "JSON",
+      "Map",
+      "Math",
+      "String",
+      "compositionState",
+      "conformalGlyphSettings",
+      "conformalIsNative",
+      "conformalPool",
+      "conformalRenderError",
+      "conformalSourceKey",
+      "conformalUpdateStatus",
+      "params",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "conformalTraceRings": [],
+    "renderConformalTypeDirect": [
+      "ConformalType",
+      "Error",
+      "JSON",
+      "Map",
+      "Math",
+      "Path2D",
+      "String",
+      "TypeDeformerRenderContext",
+      "compositionState",
+      "conformalGlyphSettings",
+      "conformalIsNative",
+      "conformalPool",
+      "conformalRenderError",
+      "conformalSourceKey",
+      "conformalTraceRings",
+      "conformalUpdateStatus",
+      "drawSurfaceGlyph",
+      "globalThis",
+      "spectralGlyphFrame",
+      "surfaceEffectColor",
+      "surfaceGlyphStrength",
+      "surfaceOutputOpacity"
+    ],
+    "compositionAxisIsVertical": [
+      "compositionState",
+      "params"
+    ],
+    "compositionSourceTokens": [
+      "renderedSourceText",
+      "tokenizeLine"
+    ],
+    "createLoopClock": [
+      "Math",
+      "Number"
+    ],
+    "compositionLoopNoise": [
+      "Math",
+      "hash"
+    ],
+    "compileCompositionSource": [
+      "compositionSourceTokens",
+      "createCompositionInputBus",
+      "createLoopClock"
+    ],
+    "compositionMacro": [
+      "Math",
+      "Number",
+      "compositionState",
+      "isFinite"
+    ],
+    "compositionPalette": [
+      "compositionState",
+      "params"
+    ],
+    "compositionGlyph": [
+      "Math",
+      "Object",
+      "compositionScene",
+      "orientedCompositionPoint",
+      "params"
+    ],
+    "compositionSignalSource": [
+      "Math",
+      "Number",
+      "Object",
+      "compositionState",
+      "hash",
+      "params"
+    ],
+    "compositionSignalShape": [
+      "Math",
+      "hash"
+    ],
+    "applyCompositionSignalRouter": [
+      "Math",
+      "compositionSignalShape",
+      "compositionSignalSource",
+      "compositionState",
+      "createLoopClock",
+      "lerpHex",
+      "params"
+    ],
+    "compositionEffectiveQuality": [
+      "compositionQualityOverride",
+      "compositionState"
+    ],
+    "compositionLimit": [
+      "Math",
+      "compositionEffectiveQuality",
+      "matchesRenderMedia"
+    ],
+    "generateFieldScene": [
+      "Math",
+      "String",
+      "batchKeyFor",
+      "cascadeTokenCode",
+      "charInfo",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionLoopNoise",
+      "compositionMacro",
+      "compositionPalette",
+      "compositionState",
+      "createCompositionInputBus",
+      "createLoopClock",
+      "hash",
+      "lerpHex",
+      "params"
+    ],
+    "generateFluxScene": [
+      "Math",
+      "cascadeTokenCode",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionLoopNoise",
+      "compositionMacro",
+      "compositionPalette",
+      "compositionState",
+      "createCompositionInputBus",
+      "createLoopClock",
+      "params"
+    ],
+    "cascadePalette": [
+      "compositionState"
+    ],
+    "cascadeTokenCode": [],
+    "cascadeColorFor": [
+      "Math",
+      "cascadePalette",
+      "cascadeTokenCode",
+      "compositionState",
+      "lerpHex"
+    ],
+    "cascadeGlyphColor": [
+      "compositionState",
+      "parseInt"
+    ],
+    "cascadeShapeItem": [
+      "Math",
+      "compositionState"
+    ],
+    "cascadeBackdrop": [
+      "compositionState"
+    ],
+    "cascadePostProcess": [
+      "Math",
+      "compositionState"
+    ],
+    "cascadeSeed": [
+      "Math",
+      "batchKeyFor",
+      "cascadeTokenCode",
+      "charInfo",
+      "compositionState",
+      "hash",
+      "params"
+    ],
+    "cascadeAutomatonStep": [
+      "Array"
+    ],
+    "cascadeLifeStep": [
+      "Array",
+      "String"
+    ],
+    "cascadeGridColumns": [
+      "Math",
+      "matchesRenderMedia"
+    ],
+    "cascadeOpticalField": [
+      "Math"
+    ],
+    "generateContourAtlasScene": [
+      "Float32Array",
+      "Math",
+      "compositionEffectiveQuality",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionMacro",
+      "compositionPalette",
+      "compositionState",
+      "contourScalar",
+      "contourSegmentsForCell",
+      "createCompositionInputBus",
+      "createLoopClock",
+      "params"
+    ],
+    "generateFeedbackChamberScene": [
+      "Math",
+      "cascadeTokenCode",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionLoopNoise",
+      "compositionPalette",
+      "compositionState",
+      "createCompositionInputBus",
+      "createLoopClock",
+      "params"
+    ],
+    "generateCascadeScene": [
+      "compositionState",
+      "generateCascadeAutomaton",
+      "generateCascadeBands",
+      "generateCascadeCircuit",
+      "generateCascadeSdf"
+    ],
+    "generateTypeMatrixScene": [
+      "Math",
+      "Object",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionMacro",
+      "compositionPalette",
+      "compositionState",
+      "createLoopClock",
+      "hash",
+      "lerpHex",
+      "params"
+    ],
+    "pathLoomSmoothPoints": [
+      "Math",
+      "Number"
+    ],
+    "pathLoomPolylineInfo": [
+      "Math"
+    ],
+    "pathLoomPointAt": [
+      "Math",
+      "Number"
+    ],
+    "pathLoomResample": [
+      "Math",
+      "pathLoomPointAt",
+      "pathLoomPolylineInfo"
+    ],
+    "generatePathLoomScene": [
+      "Math",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionMacro",
+      "compositionPalette",
+      "compositionState",
+      "createLoopClock",
+      "createPathLoomBasePath",
+      "hash",
+      "lerpHex",
+      "offsetPathLoomPolyline",
+      "params",
+      "pathLoomPointAt",
+      "pathLoomPolylineInfo"
+    ],
+    "glyphVesselFieldCache": [],
+    "glyphVesselImageValues": [
+      "Float32Array",
+      "Math",
+      "atob"
+    ],
+    "glyphVesselRasterGlyph": [
+      "Float32Array",
+      "Math",
+      "createRenderCanvas",
+      "globalThis",
+      "params"
+    ],
+    "glyphVesselBuildField": [
+      "Float32Array",
+      "Math",
+      "Uint8Array",
+      "compositionState",
+      "glyphVesselFieldCache",
+      "glyphVesselImageValues",
+      "glyphVesselRasterGlyph",
+      "hash",
+      "params"
+    ],
+    "glyphVesselSample": [
+      "Math"
+    ],
+    "glyphVesselGradient": [
+      "Math",
+      "glyphVesselSample"
+    ],
+    "glyphVesselMakeToken": [
+      "Math",
+      "Object",
+      "params"
+    ],
+    "glyphVesselUnits": [
+      "Boolean",
+      "createRenderCanvas",
+      "globalThis",
+      "glyphVesselMakeToken",
+      "params"
+    ],
+    "glyphVesselGuideBands": [
+      "Float32Array",
+      "Math",
+      "contourSegmentsForCell",
+      "glyphVesselGradient"
+    ],
+    "generateGlyphVesselScene": [
+      "Array",
+      "Math",
+      "Object",
+      "compositionGlyph",
+      "compositionLimit",
+      "compositionMacro",
+      "compositionState",
+      "createLoopClock",
+      "glyphVesselBuildField",
+      "glyphVesselGradient",
+      "glyphVesselGuideBands",
+      "glyphVesselSample",
+      "glyphVesselUnits",
+      "hash",
+      "lerpHex",
+      "matchesRenderMedia",
+      "params"
+    ],
+    "applyCompositionLegibility": [
+      "compositionMacro"
+    ],
+    "compositionFxModule": [
+      "compositionState"
+    ],
+    "compositionFxBudget": [
+      "compositionEffectiveQuality",
+      "matchesRenderMedia"
+    ],
+    "compositionWebGLState": [],
+    "compileCompositionShader": [
+      "Error"
+    ],
+    "renderCompositionWebGLPass": [
+      "Math",
+      "compositionState",
+      "compositionWebGLState",
+      "ensureCompositionWebGL",
+      "params",
+      "updateCompositionWebGLTextTexture",
+      "webglCompositionAvailable",
+      "webglHexColor"
+    ],
+    "applyCompositionFxRack": [
+      "Math",
+      "applyChromaticSplitFx",
+      "applyEchoTrailFx",
+      "applyFeedbackFx",
+      "applyRasterMaterialFx",
+      "applySignalMaskFx",
+      "compositionFxBudget",
+      "compositionFxModule",
+      "compositionState",
+      "enforceCompositionPrimitiveBudget",
+      "renderCompositionWebGLPass"
+    ],
+    "renderCompositionGenerators": [
+      "generateCascadeScene",
+      "generateContourAtlasScene",
+      "generateFeedbackChamberScene",
+      "generateFieldScene",
+      "generateFluxScene",
+      "generateGlyphVesselScene",
+      "generatePathLoomScene",
+      "generateTypeMatrixScene"
+    ],
+    "evaluateCompositionScene": [
+      "Math",
+      "applyCompositionLegibility",
+      "applyCompositionSignalRouter",
+      "compileCompositionSource",
+      "compositionEffectiveQuality",
+      "compositionQualityOverride",
+      "compositionScene",
+      "compositionState",
+      "renderCompositionGenerators"
+    ]
+  },
+  "workerEntrypoint": {
+    "path": "surface-worker.js",
+    "dependencies": [
+      "Array",
+      "Error",
+      "FontFace",
+      "Map",
+      "Math",
+      "Object",
+      "OffscreenCanvas",
+      "Promise",
+      "RangeError",
+      "RegExp",
+      "Set",
+      "TypeDeformerAxes",
+      "TypeDeformerFieldMaterials",
+      "TypeDeformerNumerics",
+      "TypeDeformerParameters",
+      "TypeDeformerRenderContext",
+      "TypeDeformerRenderEnvelope",
+      "TypeDeformerSurfaceState",
+      "Uint8Array",
+      "createImageBitmap",
+      "crypto",
+      "fetch",
+      "globalThis",
+      "importScripts",
+      "parseInt",
+      "performance",
+      "self",
+      "setTimeout",
+      "undefined",
+      "workerEngine"
+    ],
+    "globalProperties": [
+      "TypeDeformerCompositionPresentation"
+    ],
+    "unknown": []
+  },
+  "unknown": [],
+  "sharedRenderers": [
+    {
+      "id": "plotterTrace",
+      "module": "shared-surface-renderers.js",
+      "export": "renderPlotterTrace"
+    },
+    {
+      "id": "webbing",
+      "module": "shared-surface-renderers.js",
+      "export": "renderWebbing"
+    },
+    {
+      "id": "softBlob",
+      "module": "shared-surface-renderers.js",
+      "export": "renderSoftBlob"
+    }
+  ]
 }

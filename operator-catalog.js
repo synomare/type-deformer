@@ -1,5 +1,7 @@
 (function(root){
   'use strict';
+  const registry=root.TypeDeformerOperatorRegistry;
+  if(!registry)throw new Error('Load operator-registry.js before operator-catalog.js');
   const groups={
     '字形そのもの':['confuse','stretch','rotate','skew','mirror','axisField','calligraphicStress','asemicDuctus','spectralType','differentialType','conformalType','auxeticType','marblingType','counterformEngine','terminalExcess','ligatureBody','fiberBody','glyphMutation','livingTextField','innerEruption','structuralCollision','peelWeave','voidPressure','pressureStroke','sinewTorque','chimeraGraft','contextualFit','scrollType','anamorphicType','boneScaffold','naveCutter','cloisterFold','texturaMatrix','voidPortal','monolithCast','cellFracture'],
     '文字間':['contextualFit','ligatureBody','ligatureCrypt','morphProcession','webbing','ribbonEcho','recursiveShrine','suspendedSyntax','recursiveGraft','structuralCollision','peelWeave','voidPressure'],
@@ -32,7 +34,7 @@
     '文字の条件':['rubyUsurper','punctuationLoom','counterpage','rendererDebt','ligatureContagion','strokeCommons']
   };
   const basic=['stretch','rotate','skew','baselineShift','mirror','confuse'];
-  const featured=['stretch','calligraphicStress','asemicDuctus','contextualFit','ligatureBody','plotterTrace','chromeReliquary','risoSeparation','paragraphCurrent','gravityLens','liquidRope','stressGlass'];
+  const featured=registry.specs.filter(s=>s.capabilities.featured).map(s=>s.id);
   const intents=[
     {id:'shape',label:'字形を作り変える'},
     {id:'relation',label:'文字同士を関係づける'},
@@ -49,21 +51,9 @@
     layout:['版面'],
     structure:['模様と張力','双曲の地図','荷重の鋳型','密度から鋳直す','円軌道の織機','面を保つ折り','変成する立体','重力と多重像','粘性糸と堆積','結晶の面と字身','曲線の反発と容器','絡みと曲面','力を映すガラス']
   };
-  const surfaceIds=['wassersteinLetters','repulsiveCurves','wulffBody','liquidRope','gravityLens','kreslingShell','growthBuckle','inversionBody','nibRecast','anatomyWarp','linkedTwist','enneperBody','beltramiFlow','riemannRamification','rationalCusp','bladeBody','blackBastion','inktrapAbyss','strangulation','gillArray','screwExtrusion','harmonicCage','stressGlass','vortexBath','miuraVault','hopfLoom','densityRecast','spinodalAlloy','nodalGlaze','loadpathFoundry','hyperbolicAtlas','quasicrystalBody','nematicFilm','diffractiveGlyph','dendriteCast','ornamentReserve','tensionMembrane','tensorFiligree','chromaticSwarm','gyroidSculpture','causticGlass','plotterTrace','webbing','blobTrack','softBlob','etchantBloom','calligraphicStress','asemicDuctus','spectralType','differentialType','conformalType','auxeticType','marblingType','counterformEngine','terminalExcess','ligatureBody','fiberBody','glyphMutation','suspendedSyntax','livingTextField','innerEruption','recursiveGraft','structuralCollision','peelWeave','voidPressure','rubyUsurper','punctuationLoom','counterpage','rendererDebt','ligatureContagion','strokeCommons','sigilForge','thornCrown','cipherLiturgy','boneScaffold','roseEngine','chromeReliquary','ligatureCrypt','moireChoir','naveCutter','cloisterFold','prismSacrament','texturaMatrix','voidPortal','recursiveShrine','morphProcession','chimeraGraft','monolithCast','rasterPress','hatchEngrave','contourEtch','pressureStroke','sinewTorque','cellFracture','ribbonEcho','copyDecay','risoSeparation','misregistration','dataMosh','slitSweep','contextualFit','scrollType','anamorphicType'];
-  const surfaceSet=new Set(surfaceIds);
-  const asyncPreparation=new Set(['differentialType','conformalType','auxeticType','marblingType']);
-  const cameraOptional=new Set(['blobTrack']);
-  const allIds=Array.from(new Set(Object.values(groups).flat()));
-  function intentIds(id){
-    return intents.map(intent=>intent.id).filter(intent=>intentGroups[intent].some(group=>groups[group]&&groups[group].includes(id)));
-  }
-  const metadata=Object.fromEntries(allIds.map(function(id){
-    var ids=intentIds(id),scopes=['glyph'];
-    if(ids.includes('relation'))scopes.push('relation');
-    if(ids.includes('layout'))scopes.push('layout');
-    if(surfaceSet.has(id))scopes.push('surface');
-    return [id,{intents:ids,featured:featured.includes(id),scopes:Array.from(new Set(scopes)),preparation:asyncPreparation.has(id)?'async':'instant',input:cameraOptional.has(id)?'camera-optional':'text',svgFidelity:surfaceSet.has(id)?'embedded-raster':'native'}];
-  }));
+  const surfaceIds=registry.surfaceIds;
+  const metadata=registry.metadata;
+  function intentIds(id){return metadata[id]?metadata[id].intents.slice():[];}
   function purposes(id){return Object.keys(groups).filter(k=>groups[k].includes(id));}
   function order(ids){return [...basic.filter(id=>ids.includes(id)),...ids.filter(id=>!basic.includes(id))];}
   root.TypeDeformerCatalog={groups,basic,featured,intents,intentGroups,surfaceIds,metadata,purposes,intentIds,order};

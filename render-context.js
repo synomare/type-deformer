@@ -1,6 +1,6 @@
 (function(root){
   'use strict';
-  var current=null,metadata=new WeakMap(),gradientPairs=new WeakMap(),fieldSamplers=new WeakMap(),rasterSources=new WeakMap(),owners=new WeakMap(),scope=null;
+  var current=null,metadata=new WeakMap(),gradientPairs=new WeakMap(),fieldSamplers=new WeakMap(),rasterSources=new WeakMap(),owners=new WeakMap(),scopeOwners=new WeakMap(),retained=new WeakMap(),releasing=new WeakSet(),retainedBytes=0,peakRetainedBytes=0,scope=null;
   var nativeCreate=typeof document!=='undefined'?document.createElement.bind(document):null;
   var MiB=1024*1024;
   var budgets=Object.freeze({workBytes:768*MiB,layerBytes:512*MiB,composeBytes:512*MiB,textureBytes:256*MiB,videoBytes:512*MiB,maxCanvasPixels:64*MiB});
@@ -12,7 +12,37 @@
     if(purpose==='export')return mobile?mobileExportBudgets:exportBudgets;
     return {workBytes:(mobile?128:256)*MiB,layerBytes:(mobile?64:128)*MiB,composeBytes:(mobile?96:192)*MiB,textureBytes:64*MiB,videoBytes:budgets.videoBytes,maxCanvasPixels:(mobile?8:16)*MiB};
   }
+  // Reservations coordinate independent iframe/video jobs. These are declared
+  // working-set estimates, not a claim to measure DOM, driver or JS heap bytes.
+  function createResourcePool(capacity){
+    var leases=new Map(),sequence=0,bytes=0,peakBytes=0;
+    function reserve(label,estimate,exclusive,group){
+      if(!Number.isFinite(estimate)||estimate<0||estimate>capacity-bytes)throw Object.assign(new Error('同時描画のメモリ予約が上限を超えます。実行中の書き出しや探索を終了して再試行してください。'),{code:'RENDER_RESERVATION_EXCEEDED'});
+      if(exclusive&&Array.from(leases.values()).some(function(item){return item.exclusive&&item.group!==group;}))throw Object.assign(new Error('別の書き出し・探索が描画資源を使用しています。終了または取消後に再試行してください。'),{code:'RENDER_RESOURCE_BUSY'});
+      var id=++sequence,closed=false;group=group||'render-job-'+id;leases.set(id,{id:id,label:label,bytes:estimate,exclusive:!!exclusive,group:group});bytes+=estimate;peakBytes=Math.max(bytes,peakBytes);
+      return {group:group,release:function(){if(closed)return;closed=true;bytes-=leases.get(id).bytes;leases.delete(id);}};
+    }
+    return {reserve:reserve,inspect:function(){return {capacity:capacity,reservedBytes:bytes,peakReservedBytes:peakBytes,leases:Array.from(leases.values()).map(function(item){return Object.assign({},item);})};}};
+  }
+  var resources;
+  try{resources=root.parent&&root.parent!==root&&root.parent.TypeDeformerRenderContext&&root.parent.TypeDeformerRenderContext.resources;}catch(error){/* standalone/cross-origin realm */}
+  if(!resources)resources=createResourcePool(limits('export').workBytes+limits('edit').workBytes+budgets.videoBytes);
   function nativeCanvas(w,h){var c=nativeCreate?nativeCreate('canvas'):new OffscreenCanvas(w||1,h||1);c.width=w||1;c.height=h||1;return c;}
+  function dimension(value){value=Number(value);if(!Number.isFinite(value)||value<0||value>4294967295)throw Object.assign(new RangeError('描画面の寸法が不正です。'),{code:'RENDER_MEMORY_EXCEEDED'});return Math.floor(value);}
+  function checkDimensions(width,height,context){if(context&&width*height>context.maxCanvasPixels)throw Object.assign(new Error('描画面が作業メモリ予算を超えました。設定値は保持されています。'),{code:'RENDER_MEMORY_EXCEEDED'});}
+  function guardDimensions(canvas){
+    ['width','height'].forEach(function(key){
+      var descriptor,prototype=canvas,value=canvas[key];while(prototype&&!descriptor){descriptor=Object.getOwnPropertyDescriptor(prototype,key);prototype=Object.getPrototypeOf(prototype);}
+      if(!descriptor||descriptor.configurable===false&&Object.prototype.hasOwnProperty.call(canvas,key))return;
+      Object.defineProperty(canvas,key,{configurable:true,enumerable:descriptor.enumerable,get:function(){return descriptor.get?descriptor.get.call(canvas):value;},set:function(next){
+        if(releasing.has(canvas)){if(descriptor.set)descriptor.set.call(canvas,next);else value=next;return;}
+        next=dimension(next);var width=key==='width'?next:canvas.width,height=key==='height'?next:canvas.height,owner=owners.get(canvas)||current,planned=width*height*4;
+        checkDimensions(width,height,owner);assertAllocation(planned,owner&&owner.accounted.get(canvas),owner);
+        if(descriptor.set)descriptor.set.call(canvas,next);else value=next;
+        if(retained.has(canvas)){unretain(canvas);retained.set(canvas,planned);retainedBytes+=planned;peakRetainedBytes=Math.max(peakRetainedBytes,retainedBytes);}else if(owner)account(canvas,planned,owner);
+      }});
+    });return canvas;
+  }
   function make(options){options=options||{};var purpose=['edit','proof','export'].includes(options.purpose)?options.purpose:'edit',budget=limits(purpose,options.mobile);
     var c={purpose:purpose,presentation:options.presentation==='low'&&purpose==='edit'?'low':'standard',
       width:Math.max(1,Number(options.width)||1),height:Math.max(1,Number(options.height)||1),
@@ -23,27 +53,33 @@
       accounted:new WeakMap(),bytes:0,peakBytes:0,created:0};
     c.key=[purpose,c.presentation,c.software?'cpu':'auto',c.factor,c.tile&&[c.tile.x,c.tile.y,c.tile.width,c.tile.height].join(',')].join('/');if(c.nativeLocalDensity)c.key+='/local-native';return c;
   }
-  function withContext(context,fn){var before=current;current=context;try{return fn();}finally{current=before;}}
+  function synchronous(fn){
+    if(typeof fn!=='function'||Object.prototype.toString.call(fn)==='[object AsyncFunction]')throw Object.assign(new TypeError('RenderContext scopes require a synchronous callback; scope each render step after awaiting preparation.'),{code:'RENDER_ASYNC_SCOPE'});
+    var result=fn();if(result&&typeof result.then==='function'){Promise.resolve(result).catch(function(){});throw Object.assign(new TypeError('RenderContext scopes cannot return a Promise; scope each synchronous render step separately.'),{code:'RENDER_ASYNC_SCOPE'});}return result;
+  }
+  function withContext(context,fn){var before=current;current=context;try{return synchronous(fn);}finally{current=before;}}
   // Renderers are synchronous. Reclaim a glyph/tile's temporaries even when
   // drawing fails; explicitly retained cache images have a separate byte cap.
-  function withScope(fn){var before=scope,local=new Set();scope=local;try{return fn();}finally{scope=before;local.forEach(release);}}
-  function retain(value){if(scope)scope.delete(value);unaccount(value);return value;}
+  function withScope(fn){var before=scope,local=new Set();scope=local;try{return synchronous(fn);}finally{scope=before;local.forEach(release);}}
+  function unscope(value){var owner=scopeOwners.get(value);if(owner){owner.delete(value);scopeOwners.delete(value);}}
+  function unretain(value){var bytes=retained.get(value);if(bytes!=null){retainedBytes-=bytes;retained.delete(value);}}
+  function retain(value){unscope(value);unaccount(value);unretain(value);var bytes=byteSize(value);retained.set(value,bytes);retainedBytes+=bytes;peakRetainedBytes=Math.max(peakRetainedBytes,retainedBytes);return value;}
   function unaccount(value){var owner=owners.get(value);if(owner){owner.bytes-=owner.accounted.get(value)||0;owner.accounted.delete(value);owners.delete(value);}}
-  function assertAllocation(bytes,old){if(!current)return;var next=current.bytes+bytes-(old||0);
-    if(next>current.memoryBudget)throw Object.assign(new Error('描画に必要な作業メモリが '+Math.ceil(next/MiB)+' MB になり、予算 '+Math.round(current.memoryBudget/MiB)+' MB を超えました。設定値は保持されています。'),{code:'RENDER_MEMORY_EXCEEDED'});
+  function assertAllocation(bytes,old,context){context=context||current;if(!Number.isFinite(bytes)||bytes<0)throw Object.assign(new RangeError('描画メモリ量が不正です。'),{code:'RENDER_MEMORY_EXCEEDED'});if(!context)return;var next=context.bytes+bytes-(old||0);
+    if(next>context.memoryBudget)throw Object.assign(new Error('描画に必要な作業メモリが '+Math.ceil(next/MiB)+' MB になり、予算 '+Math.round(context.memoryBudget/MiB)+' MB を超えました。設定値は保持されています。'),{code:'RENDER_MEMORY_EXCEEDED'});
   }
-  function account(canvas,plannedBytes){if(!current)return;var bytes=plannedBytes==null?byteSize(canvas):plannedBytes,old=current.accounted.get(canvas)||0,next=current.bytes+bytes-old;
-    assertAllocation(bytes,old);
-    if(owners.get(canvas)!==current)unaccount(canvas);
-    current.accounted.set(canvas,bytes);current.bytes=next;current.peakBytes=Math.max(current.peakBytes,next);
-    owners.set(canvas,current);if(scope&&!old)scope.add(canvas);
+  function account(canvas,plannedBytes,context){context=context||current;if(!context)return;var bytes=plannedBytes==null?byteSize(canvas):plannedBytes,old=context.accounted.get(canvas)||0,next=context.bytes+bytes-old;
+    assertAllocation(bytes,old,context);
+    if(owners.get(canvas)!==context){unaccount(canvas);unscope(canvas);}unretain(canvas);
+    context.accounted.set(canvas,bytes);context.bytes=next;context.peakBytes=Math.max(context.peakBytes,next);
+    owners.set(canvas,context);if(scope&&!scopeOwners.has(canvas)){scope.add(canvas);scopeOwners.set(canvas,scope);}
   }
   function physical(canvas){return metadata.get(canvas)?.visual||canvas;}
   function analysis(canvas){return metadata.get(canvas)?.logical||canvas;}
   function byteSize(canvas){if(ArrayBuffer.isView(canvas)||canvas instanceof ArrayBuffer)return canvas.byteLength;var m=metadata.get(canvas);return m?(m.logical.width*m.logical.height+m.visual.width*m.visual.height)*4:(canvas.width||0)*(canvas.height||0)*4;}
-  function release(canvas){var m=metadata.get(canvas);unaccount(canvas);if(scope)scope.delete(canvas);
+  function release(canvas){var m=metadata.get(canvas);unaccount(canvas);unretain(canvas);unscope(canvas);
     if(ArrayBuffer.isView(canvas)||canvas instanceof ArrayBuffer)return;
-    if(m){m.logical.width=m.logical.height=m.visual.width=m.visual.height=1;}else if(canvas)canvas.width=canvas.height=1;
+    if(m){m.logical.width=m.logical.height=m.visual.width=m.visual.height=1;}else if(canvas){releasing.add(canvas);try{canvas.width=canvas.height=1;}finally{releasing.delete(canvas);}}
   }
   function imageRect(source,args,visual){
     var m=metadata.get(source),sw=m?m.logical.width:source.width,sh=m?m.logical.height:source.height;
@@ -74,19 +110,23 @@
     return false;
   }
   function createCanvas(w,h,options){
+    w=dimension(w||1);h=dimension(h||1);
     if(current&&Math.max(1,w||1)*Math.max(1,h||1)>current.maxCanvasPixels)throw Object.assign(new Error('描画面が作業メモリ予算を超えました。文字サイズや効果を軽くしてください。設定値は保持されています。'),{code:'RENDER_MEMORY_EXCEEDED'});
     var preferred=options&&options.willReadFrequently||current&&current.software?{willReadFrequently:true}:undefined;
     var requestedFactor=options&&Number.isFinite(options.factor)&&options.factor>0?options.factor:current&&current.factor;
     assertAllocation(Math.max(1,w||1)*Math.max(1,h||1)*4);
-    if(!current || (Math.abs(requestedFactor-1)<1e-8&&!current.tile)){var normal=nativeCanvas(w,h);try{if(preferred)requireContext(normal.getContext('2d',preferred));account(normal);}catch(error){release(normal);throw error;}return normal;}
+    if(!current || (Math.abs(requestedFactor-1)<1e-8&&!current.tile)){var normal=nativeCanvas(w,h);try{if(preferred)requireContext(normal.getContext('2d',preferred));account(normal);guardDimensions(normal);}catch(error){release(normal);throw error;}return normal;}
     var context=current,logical=nativeCanvas(w,h),visual=nativeCanvas(1,1),m={logical:logical,visual:visual,factor:requestedFactor,originX:0,originY:0,context:context},proxy,ctxProxy;
-    function resize(){
-      var tile=context.tile,clipped=options&&options.tiled&&tile&&logical.width===context.referenceWidth&&logical.height===context.referenceHeight;
+    function resize(key,value){
+      var logicalWidth=key==='width'?dimension(value):logical.width,logicalHeight=key==='height'?dimension(value):logical.height;
+      checkDimensions(logicalWidth,logicalHeight,context);
+      var tile=context.tile,clipped=options&&options.tiled&&tile&&logicalWidth===context.referenceWidth&&logicalHeight===context.referenceHeight;
       var pad=clipped?context.overscan:0;
       m.originX=clipped?(tile.x-pad)/m.factor:0;m.originY=clipped?(tile.y-pad)/m.factor:0;
-      var width=clipped?tile.width+pad*2:Math.max(1,Math.ceil(logical.width*m.factor)),height=clipped?tile.height+pad*2:Math.max(1,Math.ceil(logical.height*m.factor));
+      var width=clipped?tile.width+pad*2:Math.max(1,Math.ceil(logicalWidth*m.factor)),height=clipped?tile.height+pad*2:Math.max(1,Math.ceil(logicalHeight*m.factor));
       if(width*height>context.maxCanvasPixels)throw Object.assign(new Error('効果の描画面 '+width+' × '+height+' px が1枚の作業上限を超えました。分割できる出力領域を選ぶか、文字サイズを調整してください。設定値は保持されています。'),{code:'RENDER_MEMORY_EXCEEDED'});
-      if(proxy)account(proxy,(logical.width*logical.height+width*height)*4);
+      if(proxy)account(proxy,(logicalWidth*logicalHeight+width*height)*4,context);
+      if(key)logical[key]=dimension(value);
       visual.width=width;visual.height=height;
       requireContext(visual.getContext('2d',preferred)).setTransform(m.factor,0,0,m.factor,-m.originX*m.factor,-m.originY*m.factor);
     }
@@ -132,7 +172,7 @@
         set:function(target,key,value){target[key]=pair(value,0);var presented=pair(value,1);if(['shadowBlur','shadowOffsetX','shadowOffsetY'].includes(key))presented=Number(value)*m.factor;if(key==='filter'&&typeof value==='string')presented=value.replace(/([\d.]+)px/g,function(_,v){return Number(v)*m.factor+'px';});high[key]=presented;return true;}
       });return ctxProxy;
     }
-    proxy=new Proxy(logical,{get:function(target,key){if(key==='getContext')return function(type,options){if(type!=='2d')throw new Error('Only 2D rendering is supported');return context2d(options);};if(key==='tdContextKey')return context.key;var value=target[key];return typeof value==='function'?value.bind(target):value;},set:function(target,key,value){target[key]=value;if(key==='width'||key==='height')resize();return true;}});
+    proxy=new Proxy(logical,{get:function(target,key){if(key==='getContext')return function(type,options){if(type!=='2d')throw new Error('Only 2D rendering is supported');return context2d(options);};if(key==='tdContextKey')return context.key;var value=target[key];return typeof value==='function'?value.bind(target):value;},set:function(target,key,value){if(key==='width'||key==='height')resize(key,value);else target[key]=value;return true;}});
     metadata.set(proxy,m);try{resize();}catch(error){release(proxy);throw error;}context.created++;return proxy;
   }
   // A solve uses its fixed reference grid. Only its final shader runs at the
@@ -157,8 +197,8 @@
     return (values[(iy*w+ix)*channels+channel]*(1-fx)+values[(iy*w+jx)*channels+channel]*fx)*(1-fy)+(values[(jy*w+ix)*channels+channel]*(1-fx)+values[(jy*w+jx)*channels+channel]*fx)*fy;
   }
   function alphaSampler(canvas){var m=metadata.get(canvas),c=physical(canvas),w=c.width,h=c.height,factor=m?m.factor:1,ox=m?m.originX:0,oy=m?m.originY:0;
-    var alpha=new Uint8Array(w*h),rows=Math.max(1,Math.floor(1048576/w));account(alpha);
-    for(var row=0;row<h;row+=rows){var strip=c.getContext('2d').getImageData(0,row,w,Math.min(rows,h-row));account(strip.data);for(var i=0;i<strip.data.length/4;i++)alpha[row*w+i]=strip.data[i*4+3];release(strip.data);}
+    assertAllocation(w*h);var alpha=new Uint8Array(w*h),rows=Math.max(1,Math.floor(1048576/w));account(alpha);
+    try{for(var row=0;row<h;row+=rows){assertAllocation(w*Math.min(rows,h-row)*4);var strip=c.getContext('2d').getImageData(0,row,w,Math.min(rows,h-row));try{account(strip.data);for(var i=0;i<strip.data.length/4;i++)alpha[row*w+i]=strip.data[i*4+3];}finally{release(strip.data);}}}catch(error){release(alpha);throw error;}
     var sampler=function(x,y){x=(x-ox)*factor-.5;y=(y-oy)*factor-.5;if(x<-.5||y<-.5||x>w-.5||y>h-.5)return 0;return sample(alpha,w,h,x,y)/255;};sampler.release=function(){release(alpha);};return sampler;
   }
   function rasterSample(data,w,h,x,y,channel){var record=rasterSources.get(data);if(record){if(!record.data){record.width=record.canvas.width;record.height=record.canvas.height;record.data=record.canvas.getContext('2d').getImageData(0,0,record.width,record.height).data;account(record.data);}x=(x+.5-record.originX)*record.factor-.5;y=(y+.5-record.originY)*record.factor-.5;w=record.width;h=record.height;data=record.data;}if(x<-.5||y<-.5||x>w-.5||y>h-.5)return 0;return sample(data,w,h,x,y,4,channel||0);}
@@ -174,9 +214,9 @@
     try{withContext(null,function(){paint(ctx,m.factor,m);});}finally{ctx.restore();}return true;
   }
   function applyAlpha(canvas,sampler){var m=metadata.get(canvas);if(!m)return false;var c=m.visual,ctx=c.getContext('2d'),rows=Math.max(1,Math.floor(1048576/c.width));ctx.save();ctx.resetTransform();
-    try{for(var y=0;y<c.height;y+=rows){var im=ctx.getImageData(0,y,c.width,Math.min(rows,c.height-y));account(im.data);
+    try{for(var y=0;y<c.height;y+=rows){assertAllocation(c.width*Math.min(rows,c.height-y)*4);var im=ctx.getImageData(0,y,c.width,Math.min(rows,c.height-y));try{account(im.data);
       for(var py=0;py<im.height;py++)for(var x=0;x<im.width;x++){var coverage=sampler((x+.5)/m.factor+m.originX,(y+py+.5)/m.factor+m.originY,1/m.factor);im.data[(py*im.width+x)*4+3]*=Math.max(0,Math.min(1,coverage));}
-      ctx.putImageData(im,0,y);release(im.data);
+      ctx.putImageData(im,0,y);}finally{release(im.data);}
     }}finally{ctx.restore();}return true;
   }
   function mesh(canvas,vertices,triangles,draw,options){
@@ -186,10 +226,13 @@
     var bounds=triangles.map(function(t){return [Math.min(v[t[0]][0],v[t[1]][0],v[t[2]][0]),Math.min(v[t[0]][1],v[t[1]][1],v[t[2]][1]),Math.max(v[t[0]][0],v[t[1]][0],v[t[2]][0]),Math.max(v[t[0]][1],v[t[1]][1],v[t[2]][1])];});
     var ctx=m.visual.getContext('2d');ctx.save();ctx.resetTransform();ctx.clearRect(0,0,m.visual.width,m.visual.height);
     try{for(var tile of tiles(m.visual.width,m.visual.height,512)){
+      assertAllocation(tile.width*tile.height*12);
       var target={w:tile.width,h:tile.height,depth:new Float32Array(tile.width*tile.height).fill(-Infinity),pixels:new Uint8ClampedArray(tile.width*tile.height*4),fragments:0};
+      var im;try{account(target.depth);account(target.pixels);
       for(var i=0;i<triangles.length;i++){var b=bounds[i];if(b[2]<tile.x||b[3]<tile.y||b[0]>tile.x+tile.width||b[1]>tile.y+tile.height)continue;
         var t=triangles[i],p=t.map(function(j){var a=v[j].slice();a[0]-=tile.x;a[1]-=tile.y;return a;});draw(target,p[0],p[1],p[2],i);
-      }if(options.afterTile)options.afterTile(target,tile,m);var im=ctx.createImageData(tile.width,tile.height);im.data.set(target.pixels);ctx.putImageData(im,tile.x,tile.y);
+      }if(options.afterTile)options.afterTile(target,tile,m);im=ctx.createImageData(tile.width,tile.height);account(im.data);im.data.set(target.pixels);ctx.putImageData(im,tile.x,tile.y);
+      }finally{release(target.depth);release(target.pixels);if(im)release(im.data);}
     }}finally{ctx.restore();}return true;
   }
   function shadedMesh(canvas,faces,shade,options){options=options||{};var vertices=[],indices=[],rgba=new Float64Array(4);
@@ -206,4 +249,7 @@
   function tiles(width,height,size){size=size||2048;var out=[];for(var y=0;y<height;y+=size)for(var x=0;x<width;x+=size)out.push({x:x,y:y,width:Math.min(size,width-x),height:Math.min(size,height-y)});return out;}
   root.TypeDeformerRenderContext={assertCanvas:assertCanvas,budgets:budgets,limits:limits,make:make,withContext:withContext,withScope:withScope,retain:retain,current:function(){return current;},createCanvas:createCanvas,physical:physical,analysis:analysis,byteSize:byteSize,drawImage:drawImage,account:account,release:release,tiles:tiles,field:field,copyField:copyField,sample:sample,alphaSampler:alphaSampler,rasterSample:rasterSample,signed:signed,normal:normal,present:present,applyAlpha:applyAlpha,mesh:mesh,shadedMesh:shadedMesh,key:function(){return current?current.key:'analysis';}};
   root.TypeDeformerRenderContext.hasVisiblePixels=hasVisiblePixels;
+  root.TypeDeformerRenderContext.resources=resources;
+  root.TypeDeformerRenderContext.createResourcePool=createResourcePool;
+  root.TypeDeformerRenderContext.memoryStats=function(){return {workBytes:current?current.bytes:0,peakWorkBytes:current?current.peakBytes:0,retainedBytes:retainedBytes,peakRetainedBytes:peakRetainedBytes,reservations:resources.inspect()};};
 })(typeof globalThis!=='undefined'?globalThis:this);

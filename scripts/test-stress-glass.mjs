@@ -1,10 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};vm.createContext(ctx);
+const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};createAuthoredTestContext(ctx);
 const shared=path.resolve(here,'../loadpath-foundry-operator.js');
 vm.runInContext(fs.readFileSync(fs.existsSync(shared)?shared:'C:/Users/soran/Documents/Codex/2026-08-03/synomare-type-deformer-https-github-com/work/type-deformer/loadpath-foundry-operator.js','utf8'),ctx);
 vm.runInContext(fs.readFileSync(path.join(here,'../stress-glass-operator.js'),'utf8'),ctx);
@@ -19,4 +24,4 @@ test('Uniform boundary traction produces the analytical plane-stress solution an
 test('Nodal interpolation preserves affine tensors and matches independently differenced gradients',()=>{const mesh=rectangle(3,2),v=new Float64Array(mesh.nodes.length*3);mesh.nodes.forEach((p,i)=>{v[i*3]=2+.4*p.x-.7*p.y;v[i*3+1]=-1+.2*p.x+.3*p.y;v[i*3+2]=.6*p.x+.9*p.y;});const out=new Float64Array(9),x=1.27,y=.61;I.sampleStress(mesh,v,x,y,out);near(out[0],2+.4*x-.7*y);near(out[1],-1+.2*x+.3*y);near(out[2],.6*x+.9*y);const e=1e-5,left=I.sampleStress(mesh,v,x-e,y),right=I.sampleStress(mesh,v,x+e,y),top=I.sampleStress(mesh,v,x,y-e),bottom=I.sampleStress(mesh,v,x,y+e);for(let k=0;k<3;k++){near(out[3+k],(right[k]-left[k])/(2*e),1e-9);near(out[6+k],(bottom[k]-top[k])/(2*e),1e-9);}});
 test('Disconnected glyph components are independently supported; mechanics respond to mode and angle',()=>{const s={w:40,h:32,scale:1,alpha:new Float32Array(40*32)};for(let y=4;y<26;y++)for(let x=4;x<18;x++)if(!(x>9&&y>9&&y<18))s.alpha[y*40+x]=1;for(let y=6;y<10;y++)for(let x=30;x<34;x++)s.alpha[y*40+x]=1;const mesh=F.meshFromMask(s,24);assert.equal(mesh.components.length,2);const hashes=[];for(const mode of ['bridge','cantilever','shear']){const a=I.solveElastic(mesh,mode,12),b=I.solveElastic(mesh,mode,12),other=I.solveElastic(mesh,mode,-58);assert.ok(a.residual<1e-6);assert.equal(a.loadCount,2);assert.deepEqual(a.stress,b.stress);assert.notDeepEqual(a.stress,other.stress);assert.ok(a.reference>0);hashes.push(Array.from(a.stress).map(v=>v.toFixed(4)).join(','));}assert.equal(new Set(hashes).size,3);assert.equal(I.solveElastic({cells:[]},'bridge',0).stress.length,0);});
 
-test('Photoelastic stress body has every host control, shared glyph renderer and output path',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['stressGlass']);assert.ok(html.includes('<script src="stress-glass-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,stressGlass.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('stressGlass')"));assert.ok(html.includes("fieldMaterialPad('stressGlass')"));for(const k of Object.keys(api.schemas.stressGlass.defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('Photoelastic stress body has every host control, shared glyph renderer and output path',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['stressGlass']);assert.ok(markup.includes('<script src="stress-glass-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,stressGlass.renderers)'));assert.ok(renderRoutes.stressGlass === "fieldMaterialRenderer('stressGlass')");assert.ok(authoredSource.includes("fieldMaterialPad('stressGlass')"));for(const k of Object.keys(api.schemas.stressGlass.defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

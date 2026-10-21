@@ -1,20 +1,23 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
 
 function functionSource(name) {
-  const match = html.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'));
+  const match = authoredSource.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'));
   if (!match) throw new Error('Missing actual function: ' + name);
   return match[0];
 }
 
 function runtime(operatorIds) {
-  const empty = html.match(/^      var EMPTY_OPERATOR_STATE = .*;$/m);
+  const empty = authoredSource.match(/^      var EMPTY_OPERATOR_STATE = .*;$/m);
   assert.ok(empty, 'missing EMPTY_OPERATOR_STATE');
-  const context = vm.createContext({
+  const context = createAuthoredTestContext({
     Object,
     OPERATOR_IDS: operatorIds,
     OPERATOR_DEFS: Object.fromEntries(operatorIds.map(id => [id, { id }])),
@@ -83,4 +86,25 @@ test('hot paths iterate instantiated glyph states instead of every Operator', ()
   assert.doesNotMatch(create, /OPERATOR_IDS/);
   assert.match(snapshot, /var surface = snapshotSurfaceState\(m, deform, misreg, surfaceSnapshots/);
   assert.match(functionSource('snapshotSurfaceState'), /if \(!hasVisibleSurfaceOperator\(metric\)\) return null/);
+});
+
+test('restoring Surface manual offsets preserves pairs before the scalar strength fallback', () => {
+  const ids = ['stretch', 'dataMosh', 'blobTrack', 'misregistration', 'boneScaffold'];
+  const context = runtime(ids);
+  context.isSurfaceOperator = id => id !== 'stretch';
+  vm.runInContext(['clampFinite', 'normalizeOperatorManual', 'restoreOperatorStates'].map(functionSource).join('\n'), context);
+  const metric = { operatorStates: context.createOperatorStates() };
+  const saved = { dataMosh: { t: 1, i: .7, m: { x: 112, y: -94 } }, blobTrack: { t: 1, i: 1, m: { x: -740, y: 1500 } },
+    misregistration: { t: 1, i: 1, m: { x: 15, y: -11 } }, boneScaffold: { t: 1, i: .4, m: .35 } };
+  const original = JSON.stringify(saved);
+  context.restoreOperatorStates(metric, saved);
+  for (const id of ['dataMosh', 'blobTrack', 'misregistration']) assert.deepEqual({ ...metric.operatorStates[id].manual }, saved[id].m);
+  assert.equal(metric.operatorStates.boneScaffold.manual, .35);
+  assert.equal(JSON.stringify(saved), original, 'restoring never rewrites the saved original');
+  for (const [id, bound] of [['dataMosh', 640], ['blobTrack', 2000], ['misregistration', 120]]) {
+    assert.deepEqual({ ...context.normalizeOperatorManual(id, { x: bound + 1, y: -bound - 1 }) }, { x: bound, y: -bound });
+    assert.equal(context.normalizeOperatorManual(id, .6), .6, id + ' scalar compatibility');
+  }
+  assert.equal(context.normalizeOperatorManual('boneScaffold', 2), 1);
+  assert.equal(context.normalizeOperatorManual('boneScaffold', -1), 0);
 });

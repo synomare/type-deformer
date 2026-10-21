@@ -2,9 +2,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
+import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import { canvas, html, extract, createThornFixture, textMask } from './thorn-rooted-fixture.mjs';
+import { canvas, authoredSource, extract, createThornFixture, textMask } from './thorn-rooted-fixture.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const pixels = c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -124,9 +125,10 @@ test('needle weight responds below the old length-driven plateau', () => {
 
 test('Rooted bounds retain full-length faded tips and cover extreme organ envelopes', () => {
   const c = createThornFixture(mask);
+  vm.runInContext(fs.readFileSync(new URL('../operator-registry.js', import.meta.url), 'utf8'), c);
   vm.runInContext(['thornRootedExtent', 'surfaceEffectPad', 'proofOperatorPad'].map(extract).join('\n'), c);
   let strength = 1;
-  c.metrics = [{}]; c.batchProfileForKey = () => c.params;
+  c.metrics = [{operatorStates: {thornCrown: {current: 1}}}]; c.batchProfileForKey = () => c.params;
   c.surfaceOperatorStrength = (_m, id) => id === 'thornCrown' ? strength : 0;
   const pad = c.surfaceEffectPad(); strength = .1;
   assert.equal(c.surfaceEffectPad(), pad, 'fade must not reduce geometric bounds');
@@ -169,26 +171,28 @@ test('extreme settings, thin small type and Japanese masks render without corrup
   t.diagnostic(JSON.stringify({ maxMs: +maxMs.toFixed(1), scope: '700x520 native Canvas, isolated mask; not browser frame rate or long-document performance' }));
 });
 
-test('v45 defaults and actual load prelude preserve old projects as Legacy', () => {
+test('v45 defaults and actual migration service preserve old projects as Legacy', () => {
   const c = createThornFixture(mask);
-  c.PARAM_DEFAULTS = { ...c.params }; c.projectLoadError = () => '';
-  // Execute the actual version/default-loading prelude, not the full UI loader.
-  const loadPrelude = extract('loadProject').split('        // v20 and earlier')[0] + '\n return true;\n}';
-  vm.runInContext(loadPrelude, c);
+  const defaults = { ...c.params };
+  vm.runInContext(fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8'),c);
+  // Keep the historical pre-normalization scope while exercising the shipped service.
+  const migrate = data => { c.params=c.TypeDeformerProjectMigrations.migrate(data,{defaults,batchOptions:c.BATCH_PARAM_OPTIONS,
+    normalizeParams:values=>values,normalizeBatchProfiles:raw=>raw}).params; };
+  assert.ok(authoredSource.includes('TypeDeformerProjectMigrations.migrate(data,projectMigrationOptions())'));
   assert.equal(c.params.thornConstruction, 'rooted');
   for (const version of [1, 43, 44]) {
-    c.loadProject({ version, params: {} }, true);
+    migrate({ version, params: {} });
     assert.equal(c.params.thornConstruction, 'legacy');
   }
-  c.loadProject({ version: 45, params: {} }, true); assert.equal(c.params.thornConstruction, 'rooted');
-  c.loadProject({ version: 44, params: { thornConstruction: 'rooted', thornClearance: 0 } }, true);
+  migrate({ version: 45, params: {} }); assert.equal(c.params.thornConstruction, 'rooted');
+  migrate({ version: 44, params: { thornConstruction: 'rooted', thornClearance: 0 } });
   assert.equal(c.params.thornConstruction, 'rooted'); assert.equal(c.params.thornClearance, 0);
-  c.loadProject({ version: 45, params: JSON.parse(JSON.stringify(c.params)) }, true);
+  migrate({ version: 45, params: JSON.parse(JSON.stringify(c.params)) });
   assert.equal(c.params.thornConstruction, 'rooted'); assert.equal(c.params.thornClearance, 0);
   for (const key of ['thornConstruction', 'thornClearance']) {
-    assert.ok(html.match(/var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0].includes("'" + key + "'"));
+    assert.ok(authoredSource.match(/var BATCH_PARAM_KEYS = \[[^]*?\n      \];/)[0].includes("'" + key + "'"));
     assert.ok(extract('snapshotGlyphs').includes(key + ': deform.' + key));
   }
-  assert.ok(html.includes("bindProfileSelect('pThornConstruction', 'thornConstruction'"));
-  assert.ok(html.includes("bindRange('pThornClearance', 'vThornClearance', 'thornClearance'"));
+  assert.ok(authoredSource.includes("bindProfileSelect('pThornConstruction', 'thornConstruction'"));
+  assert.ok(authoredSource.includes("bindRange('pThornClearance', 'vThornClearance', 'thornClearance'"));
 });

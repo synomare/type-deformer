@@ -1,10 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../hopf-loom-operator.js'),'utf8'),ctx);
+const here=path.dirname(fileURLToPath(import.meta.url)),ctx={};createAuthoredTestContext(ctx);vm.runInContext(fs.readFileSync(path.join(here,'../hopf-loom-operator.js'),'utf8'),ctx);
 const api=ctx.TypeDeformerHopfLoom,I=api.internals,defaults=api.schemas.hopfLoom.defaults;
 const dist=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
@@ -39,4 +44,4 @@ test('all body modes stay finite inside the declared envelope; tiny sources stil
  const empty=I.geometry(mask(10,10,()=>false),defaults);assert.equal(empty.triangles.length+empty.lines.length,0);
 });
 
-test('Hopf orbital body has every host control, shared glyph renderer and output path',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['hopfLoom']);assert.ok(html.includes('<script src="hopf-loom-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,hopfLoom.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('hopfLoom')"));assert.ok(html.includes("fieldMaterialPad('hopfLoom')"));for(const k of Object.keys(api.schemas.hopfLoom.defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('Hopf orbital body has every host control, shared glyph renderer and output path',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['hopfLoom']);assert.ok(markup.includes('<script src="hopf-loom-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,hopfLoom.renderers)'));assert.ok(renderRoutes.hopfLoom === "fieldMaterialRenderer('hopfLoom')");assert.ok(authoredSource.includes("fieldMaterialPad('hopfLoom')"));for(const k of Object.keys(api.schemas.hopfLoom.defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

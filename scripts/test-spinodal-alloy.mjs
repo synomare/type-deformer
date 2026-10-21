@@ -1,3 +1,7 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
@@ -41,4 +45,4 @@ test('Retained fields key exact domains, phase parameters and seed, while empty 
  assert.equal(I.phaseField(graph(3,3,()=>false),'duplex',.52,.05,17).nodes,0);const tiny=I.phaseField(graph(1,1),'wetting',.25,1,17);near(tiny.values[0],-.5);near(tiny.massError,0);
 });
 
-test('phase-separating body has every host control, shared glyph renderer and output path',()=>{const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['spinodalAlloy']);assert.ok(html.includes('<script src="spinodal-alloy-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,spinodalAlloy.renderers)'));assert.ok(html.includes("fieldMaterialRenderer('spinodalAlloy')"));assert.ok(html.includes("fieldMaterialPad('spinodalAlloy')"));for(const k of Object.keys(api.schemas.spinodalAlloy.defaults))assert.ok(html.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});
+test('phase-separating body has every host control, shared glyph renderer and output path',()=>{const authoredSource=readAuthoredSource(),field=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.deepEqual(Array.from(api.ids),['spinodalAlloy']);assert.ok(markup.includes('<script src="spinodal-alloy-operator.js"></script>'));assert.ok(field.includes('Object.assign(renderers,spinodalAlloy.renderers)'));assert.ok(renderRoutes.spinodalAlloy === "fieldMaterialRenderer('spinodalAlloy')");assert.ok(authoredSource.includes("fieldMaterialPad('spinodalAlloy')"));for(const k of Object.keys(api.schemas.spinodalAlloy.defaults))assert.ok(markup.includes('id="p'+k[0].toUpperCase()+k.slice(1)+'"'));});

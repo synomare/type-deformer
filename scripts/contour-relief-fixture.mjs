@@ -1,9 +1,10 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual Contour Etch renderer in an isolated native-Canvas fixture.
 // This validates the renderer, not the browser editor, DOM layout, or device UI.
 import vm from 'node:vm';
-import { canvas, html, textMask } from './thorn-rooted-fixture.mjs';
+import { canvas, authoredSource, textMask } from './thorn-rooted-fixture.mjs';
 
-export { canvas, html, textMask };
+export { canvas, authoredSource, textMask };
 
 function functionSource(source, name) {
   const match = source.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'));
@@ -17,10 +18,10 @@ function objectSource(source, name) {
   return match[0];
 }
 
-export function createContourFixture(mask, settings = {}, source = html) {
+export function createContourFixture(mask, settings = {}, source = authoredSource) {
   const width = mask.width;
   const height = mask.height;
-  const context = vm.createContext({
+  const context = createAuthoredTestContext({
     Math,
     document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {},

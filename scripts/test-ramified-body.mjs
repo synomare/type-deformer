@@ -1,5 +1,11 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
+import '../operator-registry.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const c={};vm.createContext(c);vm.runInContext(fs.readFileSync(new URL('../ramified-body-operators.js',import.meta.url),'utf8'),c);const A=c.TypeDeformerRamifiedBody,I=A.internals,near=(a,b,t=1e-7)=>assert.ok(Math.abs(a-b)<=t,`${a} != ${b}`);
+const c={};createAuthoredTestContext(c);vm.runInContext(fs.readFileSync(new URL('../ramified-body-operators.js',import.meta.url),'utf8'),c);const A=c.TypeDeformerRamifiedBody,I=A.internals,near=(a,b,t=1e-7)=>assert.ok(Math.abs(a-b)<=t,`${a} != ${b}`);
 function circle(cx,cy,r,n=128,sign=1){return Array.from({length:n},(_,i)=>({x:cx+r*Math.cos(sign*i*Math.PI*2/n),y:cy+r*Math.sin(sign*i*Math.PI*2/n)}));}
 function power(p,n){let x=1,y=0;for(let j=0;j<n;j++){const nx=x*p.x-y*p.y;y=x*p.y+y*p.x;x=nx;}return {x,y};}
 function inside(p,rings){let winding=0;for(const ring of rings)for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],cross=(b.x-a.x)*(p.y-a.y)-(p.x-a.x)*(b.y-a.y);if(a.y<=p.y&&b.y>p.y&&cross>0)winding++;if(a.y>p.y&&b.y<=p.y&&cross<0)winding--;}return winding!==0;}
@@ -36,6 +42,6 @@ test('Painted polynomial preimages agree with direct polynomial membership inclu
  for(const degree of [2,3])for(const depth of [1,2]){const result=I.ramifyPolynomial(source,degree,depth,c,a,.0001);let samples=0;for(let y=-1.9;y<1.9;y+=.091)for(let x=-1.9;x<1.9;x+=.097){let w={x,y};for(let j=0;j<depth;j++){const p=power(w,degree);w={x:p.x-a*w.x+c.x,y:p.y-a*w.y+c.y};}const margin=Math.min(Math.abs(Math.hypot(w.x,w.y)-1.1),Math.abs(Math.hypot(w.x-.25,w.y-.12)-.31));if(margin<.006)continue;assert.equal(inside({x,y},result.rings),inside(w,source),`degree ${degree} depth ${depth} at ${x},${y}`);samples++;}assert.ok(samples>1000);}
 });
 test('Both operators register every control, per-glyph state, source/effect mixer and output path',()=>{
- const h=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),f=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.equal(A.ids.length,2);assert.ok(f.includes('Object.assign(renderers,ramifiedBody.renderers)'));assert.ok(f.includes('boundedBodyIds.forEach'));
- for(const id of A.ids){assert.ok(h.includes(`value="${id}"`));assert.ok(h.includes(`${id}: fieldMaterialRenderer('${id}')`));for(const suffix of ['Color','SourceMode','SourceOpacity','Opacity','Blend'])assert.ok(h.includes(`${id}${suffix}`));for(const k of Object.keys(A.schemas[id].defaults)){const cap=k[0].toUpperCase()+k.slice(1);assert.ok(h.includes('id="p'+cap+'"'));assert.ok(h.includes(k+': deform.'+k));assert.ok(h.includes(k+': params.'+k));}}
+ const h=readAuthoredSource(),f=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.equal(A.ids.length,2);assert.ok(f.includes('Object.assign(renderers,ramifiedBody.renderers)'));assert.ok(f.includes('boundedBodyIds.forEach'));
+ for(const id of A.ids){assert.ok(markup.includes(`value="${id}"`));assert.ok(renderRoutes[id] === `fieldMaterialRenderer('${id}')`);for(const suffix of ['Color','SourceMode','SourceOpacity','Opacity','Blend'])assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id].keys[suffix[0].toLowerCase()+suffix.slice(1)],id+suffix);for(const k of Object.keys(A.schemas[id].defaults)){const cap=k[0].toUpperCase()+k.slice(1);assert.ok(markup.includes('id="p'+cap+'"'));assert.ok(h.includes(k+': deform.'+k));assert.ok(h.includes(k+': params.'+k));}}
 });

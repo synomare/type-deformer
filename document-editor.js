@@ -36,7 +36,8 @@
       return {append(node,line){if(!objects.length){fragment.append(node);return;}const o=objects.find(o=>line.sourceStart>=o.start&&(line.sourceStart<o.end||o.start===o.end&&line.sourceStart===o.start||line.sourceStart===o.end&&/[\r\n]/.test(text[o.end-1]||'')));if(o){nodes.get(o.id).append(node);for(const span of node.querySelectorAll('.c'))span.dataset.textObject=o.id;}}};
     }
     function style(){
-      const objects=records(),world=by('stageWorld'),cs=getComputedStyle(world),px=parseFloat(cs.paddingLeft)||0,py=parseFloat(cs.paddingTop)||0;
+      const objects=records();if(!objects.length){refresh();return;}
+      const world=by('stageWorld'),cs=getComputedStyle(world),px=parseFloat(cs.paddingLeft)||0,py=parseFloat(cs.paddingTop)||0;
       for(const node of world.querySelectorAll('.text-object')){const o=objects.find(o=>o.id===node.dataset.textObject);if(!o)continue;node.setAttribute('aria-label',o.label);const enabled=!p.gridEnabled;
         Object.assign(node.style,{position:enabled?'absolute':'',left:enabled?(px+o.x)+'px':'',top:enabled?(py+o.y)+'px':'',fontSize:enabled?(p.fontSize*o.scale)+'px':'',letterSpacing:p.letterSpacing+'em',color:o.ink||'',inlineSize:enabled?(o.measure>0?o.measure+'em':p.textMeasure>0?p.textMeasure+'em':'max-content'):'',minInlineSize:'0',textAlign:p.align});
       }

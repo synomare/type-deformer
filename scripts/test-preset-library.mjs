@@ -1,9 +1,12 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import fs from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const c = vm.createContext({});
+const c = createAuthoredTestContext({});
 vm.runInContext(fs.readFileSync(new URL('../assets/presets/atlas-v66.js', import.meta.url), 'utf8'), c);
 vm.runInContext(fs.readFileSync(new URL('../assets/presets/atlas-v81.js', import.meta.url), 'utf8'), c);
 vm.runInContext(fs.readFileSync(new URL('../assets/presets/atlas-v82.js', import.meta.url), 'utf8'), c);
@@ -25,7 +28,7 @@ const bodies = library.recipes.filter(recipe => recipe.projectVersion === 82);
 const plain = value => JSON.parse(JSON.stringify(value));
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+const authoredSource = readAuthoredSource().replaceAll('\r\n', '\n');
 const loaderSource = fs.readFileSync(new URL('../preset-loader.js', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
 test('all 120 reconstructed projects match the original rendered atlas fingerprints', () => {
@@ -96,7 +99,7 @@ test('example application restores the original source and layout while retainin
 
 test('editor integration records a document Undo, protects pending IME and retains prior history', () => {
   const applied = [];
-  const context = vm.createContext({ window: { TypeDeformerPresets: library }, TypeDeformerPresets: library, textComposing: false,
+  const context = createAuthoredTestContext({ window: { TypeDeformerPresets: library }, TypeDeformerPresets: library, textComposing: false,
     projectData: () => ({ text: '字', params: {}, letters: [{}], lookMemory: { slots: [] } }),
     metrics: [{ text: '字' }], batchSourceText: metric => metric.text,
     projectLoadError: () => '', undoStack: ['previous'], redoStack: ['future'], pendingControlHistory: 1,
@@ -104,7 +107,7 @@ test('editor integration records a document Undo, protects pending IME and retai
     loadProject: project => { applied.push(project); vm.runInContext('undoStack = []; redoStack = []', context); return true; },
     recordHistorySnapshot: snapshot => { context.undoStack.push(snapshot); }, syncHistoryControls() {}, setMode() {}, markAutosaveDirty() {}, scheduleAutosave() {}
   });
-  const fn = html.match(/^      function applyCombinationPreset\([^]*?^      \}/m)?.[0];
+  const fn = authoredSource.match(/^      function applyCombinationPreset\([^]*?^      \}/m)?.[0];
   assert.ok(fn); vm.runInContext(fn, context);
   assert.equal(context.applyCombinationPreset('001-steel-thorns', 'current'), true);
   assert.equal(context.undoStack[0], 'previous');
@@ -149,8 +152,8 @@ test('the 24 new rendered projects extend the catalog without sharing IDs or cha
   const newScript = loaderSource.indexOf("'assets/presets/atlas-v81.js'");
   const libraryScript = loaderSource.indexOf("'preset-library.js'");
   assert.ok(oldScript >= 0 && newScript > oldScript && libraryScript > newScript);
-  assert.equal(html.includes('src="assets/presets/atlas-v66.js"'), false);
-  assert.match(html, /src="preset-loader\.js"/);
+  assert.equal(markup.includes('src="assets/presets/atlas-v66.js"'), false);
+  assert.match(markup, /src="preset-loader\.js"/);
 });
 
 test('new recipes preserve the current source on Apply and reconstruct the complete sample on Example', () => {
@@ -194,9 +197,9 @@ function mountLibrary() {
     showModal() { this.open = true; }
     close() { this.open = false; return this.dispatch('close'); }
   }
-  for (const match of html.matchAll(/id="((?:presetLibrary|btnPresetLibrary)[^"]*)"/g)) elements.set(match[1], new Element());
+  for (const match of markup.matchAll(/id="((?:presetLibrary|btnPresetLibrary)[^"]*)"/g)) elements.set(match[1], new Element());
   document.activeElement = elements.get('btnPresetLibrary');
-  const context = vm.createContext({ document, requestAnimationFrame: callback => callback() });
+  const context = createAuthoredTestContext({ document, requestAnimationFrame: callback => callback() });
   for (const file of ['assets/presets/atlas-v66.js', 'assets/presets/atlas-v81.js', 'assets/presets/atlas-v82.js', 'assets/presets/atlas-v83.js', 'assets/presets/atlas-v84.js', 'assets/presets/atlas-v85.js', 'assets/presets/atlas-overdrive-240.js', 'assets/presets/atlas-v86.js', 'assets/presets/atlas-v87.js', 'assets/presets/atlas-v88.js', 'assets/presets/atlas-v89.js', 'assets/presets/atlas-v90.js', 'assets/presets/atlas-v91.js', 'preset-library.js']) {
     vm.runInContext(fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8'), context);
   }

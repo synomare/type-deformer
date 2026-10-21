@@ -1,8 +1,10 @@
 # Operator computation and cache boundaries
 
-This change optimizes the existing operator definitions. It preserves the source
-resolution, numerical iteration counts, seeds, preview/export geometry and the
-post-pixel render envelope. It does not add an operator or change project v92.
+This records the operator optimizations measured on 2026-09-28. Those changes
+preserved source resolution, numerical iteration counts, seeds, preview/export
+geometry and the post-pixel render envelope, without adding an operator or
+changing the then-current Project v92 format. The current local repair tree uses
+Project v93; see [current architecture](current-architecture.md).
 
 ## Shared numerical kernels
 
@@ -42,7 +44,10 @@ an exact source comparison establishes a hit, including under a hash collision.
 `TypeDeformerNumerics.cacheStats()` reports retained numeric storage by solver.
 `clearCaches()` releases it. These figures do not include JS object overhead,
 existing geometry/history caches, browser/driver allocations or total process RAM.
-The existing 256/128 MiB edit and 768 MiB explicit-output working budgets remain.
+The current working ceilings are 256/128 MiB for desktop/mobile editing,
+768 MiB for proof, and 2 GiB/1 GiB for desktop/mobile export. These are application
+allocation limits, not measured total process memory; see the
+[runtime pipeline](runtime-pipeline.md#explicit-image-output).
 
 ## Avoid rasterizing a source to discover a cache hit
 

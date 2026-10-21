@@ -1,18 +1,21 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 // Portable contracts for the real editor loop: software-alpha group oracle
 // and conservative bounds of the actual emitted path primitives. Not UI QA.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource();
 const extract = name => {
-  const match = html.match(new RegExp(`^      function ${name}\\([\\s\\S]*?^      \\}`, 'm'));
+  const match = authoredSource.match(new RegExp(`^      function ${name}\\([\\s\\S]*?^      \\}`, 'm'));
   assert.ok(match, name);
   return match[0];
 };
 const grammars = ['current', 'chamber', 'incised', 'polyphonic'];
 const load = (context, names) => {
-  vm.createContext(context);
+  createAuthoredTestContext(context);
   new vm.Script(names.map(extract).join('\n')).runInContext(context);
   return context;
 };

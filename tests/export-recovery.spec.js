@@ -2,6 +2,9 @@ import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {loadImage,createCanvas} from '@napi-rs/canvas';
+import {editorHookTarget} from '../scripts/editor-hook.mjs';
+import {replaceSourceOnce} from '../scripts/source-reader.mjs';
+const editorTarget = editorHookTarget();
 
 function pixels(bytes) {
  return loadImage(bytes).then(img=>{const c=createCanvas(img.width,img.height),ctx=c.getContext('2d');ctx.drawImage(img,0,0);const data=ctx.getImageData(0,0,c.width,c.height).data;
@@ -13,6 +16,16 @@ async function difference(a,b){
  const x=await data(a),y=await data(b);expect(y.length).toBe(x.length);let total=0,large=0;
  for(let i=0;i<x.length;i+=4){let max=0;for(let j=0;j<4;j++){const d=Math.abs(x[i+j]-y[i+j]);total+=d;max=Math.max(max,d);}if(max>8)large++;}
  return {mean:total/x.length,large:large/(x.length/4)};
+}
+async function importProject(page,project,name){
+ await page.locator('#projFile').setInputFiles({name,mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
+ // Import checkpoints the current document before applying the next one.
+ await expect(page.locator('#projectActionStatus')).toContainText('Project loaded · '+name);
+ await expect(page.locator('#textInput')).toHaveValue(project.text);
+ await expect(page.locator('#pArtboard')).toHaveValue(project.params.artboard);
+ await expect(page.locator('#pAbW')).toHaveValue(String(project.params.abW));
+ await expect(page.locator('#pAbH')).toHaveValue(String(project.params.abH));
+ await expect(page.locator('#pScale')).toHaveValue(String(project.params.exportScale));
 }
 async function setup(page,context,options={}) {
  await context.addInitScript(()=>{
@@ -42,16 +55,17 @@ async function setup(page,context,options={}) {
    }return super.postMessage(message,...rest);
   }};
  });
- await page.route('**/*',async route=>{
-  if(route.request().resourceType()!=='document')return route.continue();
-  const response=await route.fetch();let html=await response.text();
-  html=html.replace('var studioOutputOptions','window.__outputReference=snapshotOutputReference;var studioOutputOptions');
-  if(options.updateFrame)html=html.replace('var frame=surfaceWorkerSnapshot(glyphs,fm);',
+ await page.route('**/' + editorTarget.path,async route=>{
+  const response=await route.fetch();let source=await response.text();
+  source=replaceSourceOnce(source,'var studioOutputOptions','window.__outputReference=snapshotOutputReference;var studioOutputOptions','export reference hook');
+  if(options.updateFrame)source=replaceSourceOnce(source,'var frame=surfaceWorkerSnapshot(glyphs,fm);',
    'var frame=surfaceWorkerSnapshot(glyphs,fm);if(studioRendererMode){if(surfaceWorkerOutput&&surfaceWorkerOutput.completed>0)window.__frameUpdated=true;if(window.__frameUpdated&&frame.glyphs[0])frame.glyphs[0].tx+=0.00001;}');
-  return route.fulfill({response,body:html});
+  return route.fulfill({response,body:source});
  });
  await page.route(/fonts\.googleapis\.com/,r=>r.fulfill({status:200,contentType:'text/css',body:''}));
  await page.goto('/');await page.waitForFunction(()=>document.querySelector('#stageWorld')?.children.length>0);
+  await expect(page.locator('body')).toHaveAttribute('data-workspace-state','ready');
+  await expect(page.locator('body')).toHaveJSProperty('inert',false);
  const saved=page.waitForEvent('download');await page.locator('#btnSaveProj').evaluate(e=>e.click());
  const project=JSON.parse(fs.readFileSync(await (await saved).path(),'utf8'));
  const ids=['tensorFiligree','contextualFit','copyDecay','risoSeparation','slitSweep'];
@@ -59,7 +73,7 @@ async function setup(page,context,options={}) {
  Object.assign(project.params,{fontFamily:'Arial',fontSize:240,seed:41,artboard:'custom',abW:1536,abH:1536,exportScale:1,transparentBg:false,paper:'#e2d9c9',ink:'#304f67',surfaceOrder:ids.join(','),tensorFiligreeOpacity:.63,tensorFiligreeBlend:'multiply',copyOpacity:.72,copyBlend:'screen',risoOpacity:.48,risoBlend:'multiply',frozenMoment:JSON.stringify({schema:1,phase:0,surfacePhase:0,dataMoshFrame:0,quality:'high',logicalWidth:960,logicalHeight:680})});
  project.letters=Array.from(project.text,()=>({t:0,l:0,i:0,o:Object.fromEntries(ids.map(id=>[id,{t:1,i:1}]))}));
   if(options.auto)Object.assign(project.params,{artboard:'auto',exportRegion:'work',deformedOnly:false,transparentBg:true,fontSize:100,exportTight:true,exportLongEdge:1024});
- await page.locator('#projFile').setInputFiles({name:'five-effects.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
+  await importProject(page,project,'five-effects.json');
  return project;
 }
 async function png(page) {
@@ -128,7 +142,7 @@ test('five heavy field effects produce nonempty 4K PNG and proof under CPU press
  const ids=['gravityLens','liquidRope','tensorFiligree','risoSeparation','slitSweep'];
  Object.assign(project.params,{fontSize:180,abW:2048,abH:2048,exportScale:2,transparentBg:true,surfaceOrder:ids.join(',')});
  project.letters=Array.from(project.text,()=>({t:0,l:0,i:0,o:Object.fromEntries(ids.map(id=>[id,{t:1,i:1}]))}));
- await page.locator('#projFile').setInputFiles({name:'heavy-fields.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
+  await importProject(page,project,'heavy-fields.json');
  const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:2});
  const bytes=await png(page),image=await pixels(bytes);expect(image.width).toBe(4096);expect(image.height).toBe(4096);expect(image.changed).toBeGreaterThan(5000);
  await page.locator('#btnPreview').evaluate(e=>e.click());await expect(page.locator('#previewOverlay')).toBeVisible({timeout:120000});

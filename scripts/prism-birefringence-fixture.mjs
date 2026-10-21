@@ -1,19 +1,18 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Isolated native-Canvas fixture for the real Prism Sacrament renderer.
 // It validates geometry/material behavior, not the browser editor or export UI.
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import {readPageMarkup, readRenderUnits, extractDeclaredFunction} from './source-reader.mjs';
 
 const require = createRequire(import.meta.url);
 export const canvas = require(process.env.TYPE_DEFORMER_CANVAS_MODULE
   || '@napi-rs/canvas');
-export const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+export const html = readPageMarkup();
+const renderUnits = readRenderUnits();
 
 export function extract(name) {
-  const start = html.indexOf(`      function ${name}(`);
-  if (start < 0) throw new Error(`Missing actual function: ${name}`);
-  const next = html.indexOf('\n      function ', start + 20);
-  return html.slice(start, next < 0 ? html.length : next);
+  return extractDeclaredFunction(renderUnits, name);
 }
 
 const actualNames = [
@@ -109,7 +108,7 @@ export function createPrismFixture(source, settings = {}) {
     surfaceNodesForGlyphs() { return nodes.map(node => ({ ...node, strength: sandbox.strength })); },
     strength: 1
   };
-  const context = vm.createContext(sandbox);
+  const context = createAuthoredTestContext(sandbox);
   new vm.Script(actualNames.map(extract).join('\n')).runInContext(context);
   function render(optics = sandbox.params.prismOptics, phase = 0, enabled = false, direct = false) {
     sandbox.params.prismOptics = optics;

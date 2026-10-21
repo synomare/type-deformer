@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { canvas, fixture, textMask, html, extract } from './ribbon-lamina-fixture.mjs';
+import { canvas, fixture, textMask, authoredSource, extract } from './ribbon-lamina-fixture.mjs';
 const pixels = c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
 const alpha = c => pixels(c).filter((_, i) => i % 4 === 3);
 const mask = textMask('B O', 120, 'Times New Roman', 600, 440);
@@ -12,7 +12,7 @@ test('new mode uses existing profile/snapshot/save channels, old five modes rema
   const c = fixture(mask);
   for (const mode of ['legacy', 'extrude', 'helix', 'fan', 'braid', 'lamina']) assert.ok(c.BATCH_PARAM_OPTIONS.ribbonPath.includes(mode));
   assert.ok(extract('snapshotGlyphs').includes('ribbonPath: deform.ribbonPath'));
-  assert.ok(html.includes("bindProfileSelect('pRibbonPath', 'ribbonPath'"));
+  assert.ok(authoredSource.includes("bindProfileSelect('pRibbonPath', 'ribbonPath'"));
   assert.ok(extract('sceneContentBounds').includes('ribbonEchoEffectPad(scene.glyphs)'));
 });
 
@@ -119,16 +119,20 @@ test('old renderer body is unchanged apart from new-path dispatch', () => {
   }
 });
 
-test('actual load prelude preserves old defaults and explicit mode, v47 starts Lamina', () => {
-  const c = fixture(mask); c.PARAM_DEFAULTS = { ...c.params }; c.projectLoadError = () => '';
-  vm.runInContext(extract('loadProject').split('        // v20 and earlier')[0] + '\n return true;\n}', c);
+test('actual migration service preserves old defaults and explicit mode, v47 starts Lamina', () => {
+  const c = fixture(mask), defaults = { ...c.params };
+  vm.runInContext(fs.readFileSync(new URL('../project-migrations.js',import.meta.url),'utf8'),c);
+  // Keep the historical pre-normalization scope while exercising the shipped service.
+  const migrate = data => { c.params=c.TypeDeformerProjectMigrations.migrate(data,{defaults,batchOptions:c.BATCH_PARAM_OPTIONS,
+    normalizeParams:values=>values,normalizeBatchProfiles:raw=>raw}).params; };
+  assert.ok(authoredSource.includes('TypeDeformerProjectMigrations.migrate(data,projectMigrationOptions())'));
   for (const version of [1, 23, 24, 31, 46, 47]) {
-    c.loadProject({ version, params: {} }, true);
+    migrate({ version, params: {} });
     assert.equal(c.params.ribbonPath, version < 24 ? 'legacy' : version < 47 ? 'helix' : 'lamina');
   }
   for (const mode of ['helix', 'fan', 'braid', 'extrude', 'lamina']) {
-    c.loadProject({ version: 46, params: { ribbonPath: mode, ribbonDepth: -110, ribbonFade: .4 } }, true);
+    migrate({ version: 46, params: { ribbonPath: mode, ribbonDepth: -110, ribbonFade: .4 } });
     assert.equal(c.params.ribbonPath, mode); assert.equal(c.params.ribbonDepth, -110);
   }
-  assert.ok(extract('projectData').includes('version: 92'));
+  assert.ok(extract('projectData').includes('version: 93'));
 });

@@ -1,5 +1,11 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
+import '../operator-registry.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const c={};vm.createContext(c);for(const file of ['loadpath-foundry-operator.js','letterform-body-operators.js'])vm.runInContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),c);
+const c={};createAuthoredTestContext(c);for(const file of ['loadpath-foundry-operator.js','letterform-body-operators.js'])vm.runInContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),c);
 const A=c.TypeDeformerLetterformBody,I=A.internals,D=c.TypeDeformerLoadpathFoundry.internals.euclideanDistance,near=(a,b,e=1e-8)=>assert.ok(Math.abs(a-b)<e,`${a} != ${b}`);
 function mask(w,h,fn){return {w,h,alpha:Float32Array.from({length:w*h},(_,k)=>+fn(k%w,Math.floor(k/w)))};}
 function components(s,foreground=true){const seen=new Uint8Array(s.w*s.h);let count=0;for(let k=0;k<seen.length;k++){if(seen[k]||!!s.alpha[k]!==foreground)continue;const todo=[k];seen[k]=1;let outer=false;while(todo.length){const q=todo.pop(),x=q%s.w,y=Math.floor(q/s.w);outer||=!x||!y||x===s.w-1||y===s.h-1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if((!dx&&!dy)||(!foreground&&dx&&dy)||x+dx<0||y+dy<0||x+dx>=s.w||y+dy>=s.h)continue;const n=(y+dy)*s.w+x+dx;if(!seen[n]&&!!s.alpha[n]===foreground){seen[n]=1;todo.push(n);}}}if(foreground||!outer)count++;}return count;}
@@ -32,6 +38,6 @@ test('adaptive anatomy paths retain outer and hole orientation in one shared coo
  const rings=[[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1}],[{x:.3,y:.3},{x:.3,y:.7},{x:.7,y:.7},{x:.7,y:.3}]],area=r=>r.reduce((v,a,i)=>{const b=r[(i+1)%r.length];return v+(a.x*b.y-a.y*b.x)/2;},0);for(const p of [A.schemas.anatomyWarp.defaults,{...A.schemas.anatomyWarp.defaults,anatomyX:.35,anatomyY:2.8,anatomyBowX:.25,anatomyBowY:-.25}]){const mapped=rings.map(r=>I.ring(r,q=>{const v=I.map(q,p);return{x:v.x*300,y:v.y*300};}));assert.ok(area(mapped[0])>0&&area(mapped[1])<0);for(const r of mapped)assert.ok(r.every(q=>Number.isFinite(q.x+q.y)));}
 });
 test('every letterform control is connected to editor, per-glyph persistence and native rendering',()=>{
- const h=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),f=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.equal(A.ids.length,2);assert.ok(f.includes('Object.assign(renderers,letterformBody.renderers)'));assert.ok(f.includes('letterformBody?letterformBody.ids:[]'));
- for(const id of A.ids){assert.ok(h.includes(`value="${id}"`));assert.ok(h.includes(`${id}: fieldMaterialRenderer('${id}')`));for(const suffix of ['Color','SourceMode','SourceOpacity','Opacity','Blend'])assert.ok(h.includes(`${id}${suffix}`));for(const k of Object.keys(A.schemas[id].defaults)){const cap=k[0].toUpperCase()+k.slice(1);assert.ok(h.includes('id="p'+cap+'"'));assert.ok(h.includes(k+': deform.'+k));assert.ok(h.includes(k+': params.'+k));}}
+ const h=readAuthoredSource(),f=fs.readFileSync(new URL('../field-material-operators.js',import.meta.url),'utf8');assert.equal(A.ids.length,2);assert.ok(f.includes('Object.assign(renderers,letterformBody.renderers)'));assert.ok(f.includes('letterformBody?letterformBody.ids:[]'));
+ for(const id of A.ids){assert.ok(markup.includes(`value="${id}"`));assert.ok(renderRoutes[id] === `fieldMaterialRenderer('${id}')`);for(const suffix of ['Color','SourceMode','SourceOpacity','Opacity','Blend'])assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id].keys[suffix[0].toLowerCase()+suffix.slice(1)],id+suffix);for(const k of Object.keys(A.schemas[id].defaults)){const cap=k[0].toUpperCase()+k.slice(1);assert.ok(markup.includes('id="p'+cap+'"'));assert.ok(h.includes(k+': deform.'+k));assert.ok(h.includes(k+': params.'+k));}}
 });

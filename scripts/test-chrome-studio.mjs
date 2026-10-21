@@ -1,12 +1,13 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {exportFixture,canvas,html} from './export-fixture.mjs';
+import {exportFixture,canvas,authoredSource} from './export-fixture.mjs';
 import {extract} from './paragraph-current-fixture.mjs';
 import {installHatchOutput} from './hatch-copper-fixture.mjs';
 const kernelNames=['chromeStudioBlur','chromeStudioEnvironment','chromeStudioRelief','chromeStudioPlate'];
-function core(){const c=vm.createContext({Math});vm.runInContext(['surfaceBoundaryDistance',...kernelNames].map(extract).join('\n'),c);return c;}
+function core(){const c=createAuthoredTestContext({Math});vm.runInContext(['surfaceBoundaryDistance',...kernelNames].map(extract).join('\n'),c);return c;}
 function mask(){const m=canvas.createCanvas(160,150),ctx=m.getContext('2d');ctx.fillStyle='white';ctx.font='bold 132px Arial';ctx.fillText('B',30,122);return ctx.getImageData(0,0,160,150).data;}
 const settings={bevel:18,angle:-.6,bands:7,contrast:1.35,warp:.3,voltage:3.2,roughness:.12,color:[126,143,166],phase:0};
 function install(c){
@@ -17,11 +18,11 @@ function install(c){
 test('Studio kernel is integrated exactly, selectable and keeps the prior Acid default',()=>{
   const prototype=fs.readFileSync(new URL('../.codex/prototypes/chrome-studio/kernel.js',import.meta.url),'utf8').replace(/\r\n/g,'\n');
   for(const name of kernelNames.filter(name=>name!=='chromeStudioPlate'))assert.ok(prototype.includes(extract(name).replace(/\r\n/g,'\n')),'integrated '+name);
-  const original=vm.createContext({Math});vm.runInContext(extract('surfaceBoundaryDistance')+'\n'+prototype,original);
+  const original=createAuthoredTestContext({Math});vm.runInContext(extract('surfaceBoundaryDistance')+'\n'+prototype,original);
   const current=core(),shape=mask();
   for(const variant of [settings,{...settings,phase:1.7,roughness:.9},{...settings,bevel:4,bands:18}])assert.deepEqual(Array.from(current.chromeStudioPlate(shape,shape,160,150,variant)),Array.from(original.chromeStudioPlate(shape,shape,160,150,variant)),'reference-resolution pixels remain identical');
-  assert.match(html,/chromeModel: 'acid'/);assert.match(html,/chromeModel: \['acid', 'studio'\]/);
-  assert.match(html,/bindProfileSelect\('pChromeModel'/);assert.match(html,/chromeRoughness: deform.chromeRoughness/);
+  assert.match(authoredSource,/chromeModel: 'acid'/);assert.match(authoredSource,/chromeModel: \['acid', 'studio'\]/);
+  assert.match(authoredSource,/bindProfileSelect\('pChromeModel'/);assert.match(authoredSource,/chromeRoughness: deform.chromeRoughness/);
 });
 test('screened relief has zero exterior and solves a smooth nonnegative interior without a medial seam',()=>{
   const c=core(),shape=mask(),field=c.surfaceBoundaryDistance(shape,160,150),height=c.chromeStudioRelief(field,160,150,18);
@@ -69,7 +70,7 @@ test('actual shared compositor and PNG/SVG carry Studio with TEXT/FX independent
 });
 test('Batch mode and softness normalize into the existing profile/snapshot machinery',()=>{
   const {c}=exportFixture();install(c);c.PARAM_DEFAULTS={...c.params};
-  vm.runInContext(['BATCH_PARAM_KEYS','BATCH_PARAM_LIMITS'].map(name=>html.match(new RegExp('      var '+name+' = [^]*?\\n      [}\\]];'))[0]).join('\n'),c);
+  vm.runInContext(['BATCH_PARAM_KEYS','BATCH_PARAM_LIMITS'].map(name=>authoredSource.match(new RegExp('      var '+name+' = [^]*?\\n      [}\\]];'))[0]).join('\n'),c);
   c.BATCH_PROFILE_KEYS=['latin'];c.BATCH_TARGETS={byKey:{latin:{}}};vm.runInContext(extract('normalizeBatchProfiles'),c);
   const profile=c.normalizeBatchProfiles({latin:{chromeModel:'studio',chromeRoughness:.65}});
   assert.equal(profile.latin.chromeModel,'studio');assert.equal(profile.latin.chromeRoughness,.65);
@@ -79,7 +80,7 @@ test('Batch mode and softness normalize into the existing profile/snapshot machi
   const g=c.snapshotGlyphs(true)[0];assert.equal(g.surface.chromeModel,'studio');assert.equal(g.surface.chromeRoughness,.65);
 });
 test('Mirror softness is available only when the effective profile selects Studio',()=>{
-  const input={disabled:false},c=vm.createContext({activeBatchProfile:'latin',document:{getElementById:id=>id==='pChromeRoughness'?input:null}});
+  const input={disabled:false},c=createAuthoredTestContext({activeBatchProfile:'latin',document:{getElementById:id=>id==='pChromeRoughness'?input:null}});
   vm.runInContext(['parameterDisabledReasons','updateParameterRowAvailability','setParameterDisabledReason','syncChromeControls']
     .map(extract).join('\n'),c);
   c.batchProfileForKey=()=>({chromeModel:'acid'});c.syncChromeControls();assert.equal(input.disabled,true);

@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
-import { fixture, metric, html } from './paragraph-current-fixture.mjs';
+import { fixture, metric, authoredSource } from './paragraph-current-fixture.mjs';
 
 const require = createRequire(import.meta.url);
 const runtime = process.env.TYPE_DEFORMER_CANVAS_MODULE
@@ -87,7 +87,7 @@ for (const order of ['AB', 'BA']) {
 }
 
 fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({
-  sourceSha256: createHash('sha256').update(html).digest('hex'), records,
+  sourceSha256: createHash('sha256').update(authoredSource).digest('hex'), records,
   comparison: { A: 'punctuation gap only', B: 'selected paragraph-wide clause lattice', reverseOrder: true },
   limitations: ['Synthetic wrapping and native system fonts.', 'No browser CSS layout, IME, Compose playback, file-handler, real iPhone, or production claim.', 'System fonts are used for local evidence only and are not redistributed.']
 }, null, 2));

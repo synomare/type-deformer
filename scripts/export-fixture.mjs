@@ -2,8 +2,8 @@
 // No browser, CSS layout, font-loading, OS download, or iPhone evidence.
 import vm from 'node:vm';
 import { canvas } from './thorn-rooted-fixture.mjs';
-import { fixture, metric, extract, html } from './paragraph-current-fixture.mjs';
-export { canvas, html };
+import { fixture, metric, extract, authoredSource } from './paragraph-current-fixture.mjs';
+export { canvas, authoredSource };
 const registeredJapaneseTestFont = canvas.GlobalFonts.registerFromPath('C:/Windows/Fonts/yumin.ttf', 'Yu Mincho');
 if (process.platform === 'win32' && !registeredJapaneseTestFont) throw Error('Native Japanese test font unavailable');
 export function exportFixture() {
@@ -17,7 +17,7 @@ export function exportFixture() {
       result.toBlob = callback => callback(new Blob([result.toBuffer('image/png')], { type: 'image/png' }));
       return result;
     } },
-    flushPendingTextRebuild() {},
+    flushPendingTextRebuild() {}, imagePreflightStale: false, imagePreflightPending: null, latestImagePreflight: null,
     compositionState: { enabled: false, phase: 0 }, surfaceFxPhase: 0, dataMoshFrame: 0,
     surfaceEffectPad: () => 16, copyTransferEffectPad: () => 0, ribbonEchoEffectPad: () => 0, contourEtchEffectPad: () => 0,
     rasterPressEffectPad: () => 0, hatchEngraveEffectPad: () => 0,
@@ -36,15 +36,15 @@ export function exportFixture() {
   const names = ['contentBounds', 'contextualBounds', 'sceneContentBounds', 'exportLayout', 'compositionExportLayout',
     'exportRegionState', 'prepareExportOutput', 'exportScenePlan', 'tightImageExport', 'imageExportScale', 'measuredInkLayout', 'exportClipRect', 'clipExportCanvas', 'exportRegionSuffix',
     'rasterOutputDimensions', 'createSafeCanvas', 'previewScaleForLayout', 'renderCanvas', 'snapshotRenderableScene',
-    'markSceneRenderClock', 'withSceneRenderClock', 'exportBoundsPad', 'nothingToExport',
+    'markSceneRenderClock', 'withSceneRenderClock', 'exportBoundsPad', 'nothingToExport', 'cancelImageExportPreflight', 'flushImageExportPreflight',
     'hasExportDeformation', 'operatorAffectsMetric', 'sculptureUsesIsolatedOutput', 'exportPng', 'exportSvg', 'runSvgExport', 'exportReadyMessage',
     'downloadOutcomeLabel', 'cleanExportName', 'imageExportName', 'imageExportPreflightDimensions', 'imageOutputPurpose', 'refineImageInkLayout', 'pngCrc32', 'escXml', 'escXmlAttr', 'stamp'];
-  if (html.includes('function inspectExport(')) names.push('inspectExport');
+  if (authoredSource.includes('function inspectExport(')) names.push('inspectExport');
   vm.runInContext(names.map(extract).join('\n'), c);
-  vm.runInContext(html.match(/      async function pngWithDpi\([^]*?\n      }/)[0], c);
+  vm.runInContext(authoredSource.match(/      async function pngWithDpi\([^]*?\n      }/)[0], c);
   Object.assign(c.params, { fontFamily: '"Yu Mincho"', fontWeight: 400, fontSize: 18,
     artboard: 'custom', abW: 1200, abH: 1500, anchor: 'cc', fit: true, marginPct: 6,
-    deformedOnly: false, exportScale: 1, transparentBg: false });
+    deformedOnly: false, exportScale: 1, transparentBg: false, svgMode: 'text', svgMetadata: true });
   c.setSource = (source, kind = 'paragraphCurrent', states = null) => {
     c.textInput.value = source; c.renderedSourceText = source; c.metrics = [];
     let row = 0, column = 0, paragraph = 0;

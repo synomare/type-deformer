@@ -9,7 +9,7 @@
     if(entries.has(input))return entries.get(input);
     var model=root.TypeDeformerParameters,d=model.byControl[input.id];
     key=key||(d&&d.key)||input.id||'numeric-'+(++serial);
-    if(!d)d=model.register(input.id||key,key,input.min||0,input.max||100,input.step||1,false);
+    if(!d)throw new Error('Numeric control has no explicit parameter specification: '+key);
     var initial=initialValue==null?nativeValue.get.call(input):String(initialValue);
     nativeValue.set.call(input,initial);
     var entry={input:input,key:key,value:initial,editing:false,pointer:false,committing:false};

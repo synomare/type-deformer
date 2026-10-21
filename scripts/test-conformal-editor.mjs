@@ -1,13 +1,21 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const catalogRuntime=vm.createContext({});catalogRuntime.globalThis=catalogRuntime;
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource().replace(/\r\n/g, '\n');
+const catalogRuntime=createAuthoredTestContext({});catalogRuntime.globalThis=catalogRuntime;
+new vm.Script(fs.readFileSync(new URL('../operator-registry.js',import.meta.url),'utf8')).runInContext(catalogRuntime);
+const operatorRegistry=catalogRuntime.TypeDeformerOperatorRegistry;
+const registryIds=name=>operatorRegistry[{SURFACE_OPERATOR_IDS:'surfaceIds',GLYPH_BODY_OPERATOR_IDS:'glyphBodyIds',SURFACE_RENDER_ORDER_DEFAULT:'renderOrder'}[name]];
 new vm.Script(fs.readFileSync(new URL('../operator-catalog.js',import.meta.url),'utf8')).runInContext(catalogRuntime);
-const generated = html.match(/^      \/\/ BEGIN CONFORMAL TYPE GENERATED\n[\s\S]*?^      \/\/ END CONFORMAL TYPE GENERATED/m)?.[0];
-assert.ok(generated, 'embedded Conformal runtime');
+const generated = readNativeIntegrationSource('conformal');
+assert.ok(generated, 'authored Conformal runtime and editor adapter');
 const extract = name => {
-  const found = html.match(new RegExp('^      (?:async )?function '+name+'\\([\\s\\S]*?^      \\}', 'm'));
+  const found = authoredSource.match(new RegExp('^      (?:async )?function '+name+'\\([\\s\\S]*?^      \\}', 'm'));
   assert.ok(found, name); return found[0];
 };
 let calls=[], native=0, history=0, autosaves=0, scheduled=0;
@@ -19,7 +27,7 @@ const context=()=>new Proxy({canvas:{width:640,height:480},globalAlpha:1,
 const work=context(), target=context(), elements=new Map(), rafs=new Map();let nextRaf=0;
 const params={fontWeight:400,fontFamily:'Mock Serif',fontSize:192,vertical:false,
   conformalAmount:.82,conformalPower:-1,conformalSpiral:0,conformalAngle:-35,conformalMotion:.55,conformalColor:'#123456'};
-const runtime=vm.createContext({params,compositionState:{enabled:false,phase:0},metrics:[],
+const runtime=createAuthoredTestContext({params,compositionState:{enabled:false,phase:0},metrics:[],
   surfaceGlyphStrength:(g,id)=>g.surface?.[id]||0,surfaceOperatorStrength:(g,id)=>g.surface?.[id]||0,
   surfaceEffectColor:()=>params.conformalColor,drawSurfaceGlyph(){native++;},baselineOffset:()=>32,
   surfaceOutputOpacity:()=>1,
@@ -60,14 +68,13 @@ params.conformalAmount=.82;assert.throws(()=>runtime.renderSurfaceFxLayer(target
 assert.doesNotThrow(()=>runtime.renderSurfaceFxLayer({canvas:runtime.surfaceFxCanvas},[g],1,{dx:0,dy:0,s:1},{},false));
 
 for(const field of ['Amount','Power','Spiral','Angle','Motion']){
-  assert.match(html,new RegExp(`bindRange\\('pConformal${field}', 'vConformal${field}', 'conformal${field}'`));
-  assert.match(html,new RegExp(`conformal${field}: deform.conformal${field}`));
-  assert.match(html,new RegExp(`clampParam\\('conformal${field}'`));
+  assert.match(authoredSource,new RegExp(`bindRange\\('pConformal${field}', 'vConformal${field}', 'conformal${field}'`));
+  assert.match(authoredSource,new RegExp(`conformal${field}: deform.conformal${field}`));
+  assert.match(migrations,new RegExp(`clampParam\\('conformal${field}'`));
 }
-for(const suffix of ['Opacity','SourceOpacity','Color','SourceMode','Blend'])assert.ok(html.includes(`conformalType: 'conformal${suffix}'`));
+for(const suffix of ['Opacity','SourceOpacity','Color','SourceMode','Blend'])assert.equal(operatorRegistry.byId.conformalType.keys[suffix[0].toLowerCase()+suffix.slice(1)],`conformal${suffix}`);
 for(const name of ['SURFACE_OPERATOR_IDS','GLYPH_BODY_OPERATOR_IDS','SURFACE_RENDER_ORDER_DEFAULT']){
-  const ids=name==='SURFACE_OPERATOR_IDS'?Array.from(catalogRuntime.TypeDeformerCatalog.surfaceIds):
-    html.match(new RegExp(`var ${name} = \\[([^\\]]+)`))[1].match(/'[^']+'/g).map(id=>id.slice(1,-1));
+  const ids=registryIds(name);
   assert.ok(ids.includes('conformalType'));
 }
 const layer=extract('renderSurfaceFxLayer');
@@ -75,6 +82,7 @@ assert.ok(layer.includes("id === 'conformalType'"));assert.ok(layer.includes("su
 assert.ok(layer.includes('renderConformalTypeDirect(direct.ctx, glyphs, scale, L, fm, livePreview)'));
 assert.ok(extract('sceneContentBounds').includes('conformalEffectPad(scene.glyphs)'));
 assert.ok(extract('startVideoExport').includes('conformalAssertReady(exportGlyphs)'));
-assert.ok(extract('projectData').includes('version: 92'));assert.ok(html.includes("a: 'td', v: 92"));assert.ok(html.includes('data.version > 92'));
-assert.ok(!html.match(/src=["'][^"']*conformal/),'one-file editor has no module fetch');
+assert.ok(extract('projectData').includes('version: 93'));assert.ok(authoredSource.includes("a: 'td', v: 93"));assert.ok(authoredSource.includes('data.version > 93'));
+assert.ok(markup.includes('src="render-engine.js"'));
+assert.ok(!markup.match(/src=["'][^"']*conformal/),'the shared render engine supplies Conformal without a separate module fetch');
 console.log('Conformal editor: source sharing/preparation, strict export guard, native zero/pending, direct destination LOD, nonzero fill, presets, Compose loop, camera-independent local geometry, font reset, Mixer/Batch/state/v40 wiring passed (VM/mocks, not browser QA).');

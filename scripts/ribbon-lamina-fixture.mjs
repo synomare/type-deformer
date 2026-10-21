@@ -1,16 +1,17 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Real renderer; supplied native masks, no browser or full output-handler claim.
 import vm from 'node:vm';
-import { canvas, html, extract, textMask } from './thorn-rooted-fixture.mjs';
-export { canvas, html, extract, textMask };
+import { canvas, authoredSource, extract, textMask } from './thorn-rooted-fixture.mjs';
+export { canvas, authoredSource, extract, textMask };
 const names = ['renderRibbonEcho', 'renderRibbonLamina', 'renderRibbonEchoLegacy',
   'surfaceScratch', 'paintSurfaceMask', 'fractureMaskBounds', 'surfaceHexRgb', 'surfaceToneCss',
   'surfaceAggregate', 'surfaceChoice', 'surfaceGlyphStrength', 'hash',
-  ...[...html.matchAll(/^      function (ribbon\w+)\(/gm)].map(m => m[1])];
+  ...[...authoredSource.matchAll(/^      function (ribbon\w+)\(/gm)].map(m => m[1])];
 export function fixture(mask, settings = {}, oldSource = '') {
-  const c = vm.createContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
+  const c = createAuthoredTestContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 },
     ribbonEchoEffectPadCache: { key: '', value: 0 }, compositeSurfaceSource() {} });
-  vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(n => html.match(new RegExp('      var ' + n + ' = \\{[^]*?\\n      };'))[0]).join('\n')
+  vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(n => authoredSource.match(new RegExp('      var ' + n + ' = \\{[^]*?\\n      };'))[0]).join('\n')
     + '\n' + [...new Set(names)].map(extract).join('\n') + '\n' + oldSource, c);
   Object.assign(c.params, { seed: 41, paper: '#f3f0e8' }, settings);
   c.buildSurfaceMask = () => mask;

@@ -1,22 +1,24 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Isolated real renderer + native Canvas. Does not emulate the browser editor.
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import {readAuthoredUnits, readPageMarkup, extractDeclaredFunction} from './source-reader.mjs';
 const require = createRequire(import.meta.url);
 export const canvas = require(process.env.TYPE_DEFORMER_CANVAS_MODULE || '@napi-rs/canvas');
-export const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const authoredUnits = readAuthoredUnits();
+export const authoredSource = authoredUnits.map(unit=>unit.source).join('\n\n');
+export const markup = readPageMarkup();
 export const extract = name => {
-  const source = html.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))?.[0];
-  if (!source) throw new Error('Missing actual function: ' + name);
-  return source;
+  return extractDeclaredFunction(authoredUnits, name);
 };
 const names = ['renderThornCrown', 'renderThornCrownLegacy', 'renderThornRooted', 'thornSpine', 'thornOrganPaths', 'thornContourRoots',
   'surfaceScratch', 'sampleSurfaceMask', 'surfaceAggregate', 'surfaceChoice', 'surfaceGlyphStrength', 'hash'];
 export function createThornFixture(mask, settings = {}, oldSource = '') {
   const { width, height } = mask;
-  const c = vm.createContext({ document: { createElement: () => canvas.createCanvas(1, 1) }, surfaceFxScratchCanvases: {},
+  const c = createAuthoredTestContext({ document: { createElement: () => canvas.createCanvas(1, 1) }, surfaceFxScratchCanvases: {},
     compositeSurfaceSource() {}, surfaceEffectColor: () => c.params.thornColor });
-  vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(name => html.match(new RegExp('      var ' + name + ' = \\{[^]*?\\n      };'))[0]).join('\n')
+  vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(name => authoredSource.match(new RegExp('      var ' + name + ' = \\{[^]*?\\n      };'))[0]).join('\n')
     + '\n' + names.map(extract).join('\n') + '\n' + oldSource, c);
   Object.assign(c.params, { seed: 41, paper: '#f3f0e8' }, settings);
   c.buildSurfaceMask = glyphs => {

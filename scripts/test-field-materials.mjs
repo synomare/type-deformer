@@ -1,11 +1,16 @@
+import {readRenderManifest} from './source-reader.mjs';
+const renderRoutes = readRenderManifest().routes;
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import '../numerical-kernels.js';
+import '../operator-registry.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import '../field-material-operators.js';
 const api=globalThis.TypeDeformerFieldMaterials,I=api.internals;
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const authoredSource=readAuthoredSource();
 
 test('weighted Lloyd relaxation reduces weighted quantization error and computes true centroids',()=>{
  const points=[[0,0],[10,0]], samples=[[0,0,1],[2,0,3],[8,0,1],[10,0,1]];
@@ -68,21 +73,21 @@ test('glyph-local sources include measured ink beyond the CSS layout box',()=>{
 });
 
 test('operator short keys remain unique for lossless share and project decoding',()=>{
- const definitions=[...html.matchAll(/\w+: \{ id: '(\w+)', short: '(\w+)'/g)];assert.equal(definitions.length,116);assert.equal(new Set(definitions.map(m=>m[2])).size,116);
+ const definitions=globalThis.TypeDeformerOperatorRegistry.specs;assert.equal(definitions.length,116);assert.equal(new Set(definitions.map(spec=>spec.short)).size,116);
 });
 
 test('new operators integrate independent source/effect mixing, per-glyph profiles and export',()=>{
  for(const id of api.ids){
-  for(const suffix of ['Opacity','SourceOpacity','Blend','SourceMode','Color'])assert.ok(html.includes(`${id}: '${id+suffix}'`),id+' '+suffix);
-  assert.ok(html.includes(`${id}: fieldMaterialRenderer('${id}')`));
-  assert.ok(html.includes(`${id}: surfaceOperatorStrength(m, '${id}')`));
+  for(const suffix of ['Opacity','SourceOpacity','Blend','SourceMode','Color'])assert.equal(globalThis.TypeDeformerOperatorRegistry.byId[id].keys[suffix[0].toLowerCase()+suffix.slice(1)],id+suffix);
+  assert.ok(renderRoutes[id] === `fieldMaterialRenderer('${id}')`);
+  assert.ok(authoredSource.includes(`${id}: renderEngine.surfaceOperatorStrength(m, '${id}')`));
   for(const [key,value] of Object.entries(api.schemas[id].defaults)){
-   assert.ok(html.includes(`${key}: deform.${key}`),key+' per-glyph');assert.ok(html.includes(`${key}: params.${key}`),key+' SVG metadata');
-   const c=key[0].toUpperCase()+key.slice(1);assert.ok(html.includes('id="p'+c+'"'));
-   assert.ok(html.includes("'"+key+"'"),key+' batch registration');
+   assert.ok(authoredSource.includes(`${key}: deform.${key}`),key+' per-glyph');assert.ok(authoredSource.includes(`${key}: params.${key}`),key+' SVG metadata');
+   const c=key[0].toUpperCase()+key.slice(1);assert.ok(markup.includes('id="p'+c+'"'));
+   assert.ok(authoredSource.includes("'"+key+"'"),key+' batch registration');
   }
  }
- assert.ok(html.includes('version: 92'));assert.ok(html.includes("a: 'td', v: 92"));assert.ok(html.includes('data.version > 92'));
+ assert.ok(authoredSource.includes('version: 93'));assert.ok(authoredSource.includes("a: 'td', v: 93"));assert.ok(authoredSource.includes('data.version > 93'));
 });
 
 test('seeded raster cache is bounded and clearable',()=>{

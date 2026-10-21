@@ -92,7 +92,10 @@
   // One separate face per imported variable font, not one full font per glyph.
   // Canvas operations are synchronous; each draw/measurement activates its own
   // frozen coordinates. DOM spans use CSS coordinates on the original face.
-  function createRuntime(){
+  function createRuntime(options={}){
+    // Browser and Worker FontFaceSets are real capabilities, supplied without
+    // inventing a document object inside a Worker.
+    const fontSet=options.fonts||root.document?.fonts||root.fonts;
     const entries=new Map();let sequence=0;
     async function register(record){
       if(entries.has(record.family))return entries.get(record.family);
@@ -100,7 +103,7 @@
       if(!meta.axes.length)return entry;
       if(typeof FontFace==='undefined'||!('variationSettings' in FontFace.prototype)){entry.reason='このブラウザはCanvasの可変フォントに未対応です。';return entry;}
       const family='TypeDeformer Axis Canvas '+(++sequence),face=new FontFace(family,record.buffer,{variationSettings:css(coordinates(meta,{},400))});
-      try{await face.load();document.fonts.add(face); if(globalThis.TypeDeformerFieldMaterials)globalThis.TypeDeformerFieldMaterials.invalidateSources();entry.face=face;entry.family=family;}
+      try{await face.load();fontSet.add(face); if(globalThis.TypeDeformerFieldMaterials)globalThis.TypeDeformerFieldMaterials.invalidateSources();entry.face=face;entry.family=family;}
       catch{entry.reason='可変字形を読み込めませんでした。別のフォントをお試しください。';}
       return entry;
     }
@@ -112,7 +115,7 @@
       const value=css(axes);if(entry.face.variationSettings!==value)entry.face.variationSettings=value;
       return {font:'400 '+size+'px "'+entry.family+'", '+sourceFamily,key,axes,family:sourceFamily,weight};
     }
-    return {register,find,activate,dispose(){for(const e of entries.values())if(e.face)document.fonts.delete(e.face);entries.clear();}};
+    return {register,find,activate,dispose(){for(const e of entries.values())if(e.face)fontSet.delete(e.face);entries.clear();}};
   }
   root.TypeDeformerAxes={parse,inspect,coordinates,field,css,fromCSS,rawValues,createRuntime};
 })(typeof globalThis!=='undefined'?globalThis:this);

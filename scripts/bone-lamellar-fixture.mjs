@@ -1,7 +1,8 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Real Bone kernels on native Canvas. Glyph layout transport is isolated, not browser evidence.
 import vm from 'node:vm';
-import { canvas, html } from './thorn-rooted-fixture.mjs';
-export { canvas, html };
+import { canvas, authoredSource } from './thorn-rooted-fixture.mjs';
+export { canvas, authoredSource };
 export function boneMask(text, size = 270, font = 'Arial Black', width = 650, height = 420) {
   const mask = canvas.createCanvas(width, height), ctx = mask.getContext('2d');
   ctx.font = `${size}px "${font}"`; ctx.fillStyle = '#fff';
@@ -18,7 +19,7 @@ export function boneMask(text, size = 270, font = 'Arial Black', width = 650, he
   }
   return { mask, metas };
 }
-export function fixture(input, settings = {}, source = html) {
+export function fixture(input, settings = {}, source = authoredSource) {
   const mask = input.mask || input;
   const offsets = new Map([...source.matchAll(/^      function (\w+)\(/gm)].map(m => [m[1], m.index]));
   const functions = new Map();
@@ -37,7 +38,7 @@ export function fixture(input, settings = {}, source = html) {
     for (const call of body(name).matchAll(/\b(\w+)\s*\(/g)) visit(call[1]);
   }
   visit('renderBoneScaffold');
-  const c = vm.createContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
+  const c = createAuthoredTestContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 }, compositeSurfaceSource() {} });
   vm.runInContext(['params', 'BATCH_PARAM_OPTIONS'].map(n => source.match(new RegExp('      var ' + n + ' = \\{[^]*?\\n      };'))[0]).join('\n')
     + '\n' + [...needed].map(n => functions.get(n)).join('\n'), c);

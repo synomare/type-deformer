@@ -1,17 +1,18 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual Textura Matrix renderer with a synthetic mask. This is native Canvas,
 // not browser/editor/device evidence.
 import vm from 'node:vm';
-import { canvas, html, textMask } from './thorn-rooted-fixture.mjs';
+import { canvas, authoredSource, textMask } from './thorn-rooted-fixture.mjs';
 
-export { canvas, html, textMask };
+export { canvas, authoredSource, textMask };
 
-export function texturaFixture(mask, settings = {}, source = html) {
+export function texturaFixture(mask, settings = {}, source = authoredSource) {
   const extract = name => {
     const fn = source.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))?.[0];
     if (!fn) throw new Error('Missing actual function: ' + name);
     return fn;
   };
-  const c = vm.createContext({
+  const c = createAuthoredTestContext({
     Math,
     document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {},

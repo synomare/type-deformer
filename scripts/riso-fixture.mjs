@@ -1,14 +1,15 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual separation/compositing functions + native Canvas; not a browser/editor.
 import vm from 'node:vm';
-import { canvas, html, textMask } from './thorn-rooted-fixture.mjs';
-export { canvas, html, textMask };
-export function fixture(mask, settings = {}, source = html) {
+import { canvas, authoredSource, textMask } from './thorn-rooted-fixture.mjs';
+export { canvas, authoredSource, textMask };
+export function fixture(mask, settings = {}, source = authoredSource) {
   const extract = name => {
     const code = source.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'))?.[0];
     if (!code) throw new Error('Missing actual function: ' + name);
     return code;
   };
-  const c = vm.createContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
+  const c = createAuthoredTestContext({ document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {}, compositionState: { enabled: true, phase: 0 }, compositeSurfaceSource() {} });
   const names = [...[...source.matchAll(/^      function (renderRiso\w+)\(/gm)].map(m => m[1]), 'surfaceScratch', 'colorizeSurfaceCanvas',
     'surfaceBoundaryDistance', 'surfaceAggregate', 'surfaceChoice', 'surfaceGlyphStrength', 'surfaceNoise01', 'hash',

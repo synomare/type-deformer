@@ -145,8 +145,10 @@ function marblingShape(compiled, settings, phase, tolerance, sourceKey) {
 function marblingEffectPad(glyphs, phase) {
   var extra = 0; if (surfaceOutputOpacity('marblingType') <= .002) return 0;
   glyphs.forEach(function (g) {
-    var settings = marblingGlyphSettings(g);
-    if (surfaceGlyphStrength(g, 'marblingType') <= .002 || !String(g.ch || '').trim() || g.opacity === 0 || settings.amount === 0) return;
+    // Strength first: normalising settings for every unaffected glyph made
+    // export preflight scale with document length even with Marbling off.
+    if (surfaceGlyphStrength(g, 'marblingType') <= .002 || !String(g.ch || '').trim() || g.opacity === 0) return;
+    var settings = marblingGlyphSettings(g); if (settings.amount === 0) return;
     var request = marblingSource(g.ch,g), ticket = marblingPool.peek(request); if (!ticket || ticket.status !== 'ready') return;
     try {
       var compiled = ticket.result, fm = compiled.glyph.nativeMetrics;

@@ -5,6 +5,7 @@
     const byId=id=>document.getElementById(id),axisSelect=byId('pAxisFieldAxis');
     function current(){const p=api.params(),entry=runtime.find(p.fontFamily);return {p,entry,meta:entry?.meta||{axes:[]}};}
     function format(n){return String(Math.round(n*1000)/1000);}
+    function axisSpec(axis,step){return {slider:{min:axis.min,max:axis.max,step:Number(step)},domain:{min:axis.min,max:axis.max,integer:false},budget:{absolute:Math.max(1e6,Math.abs(axis.min),Math.abs(axis.max))},reason:'書体ファイルで定義された実軸の範囲'};}
     function refresh(){
       const {p,entry,meta}=current(),visible=meta.axes.filter(a=>!a.hidden&&a.max>a.min),key=JSON.stringify([p.fontFamily,p.axisFieldAxis,visible]);
       const picker=byId('pAxisFieldFont'),nextFonts=JSON.stringify([[...fonts.keys()],p.fontFamily]);
@@ -18,7 +19,7 @@
       axisSelect.value=p.axisFieldAxis;axisSelect.disabled=!entry?.face||!visible.length;
       const axis=visible.find(a=>a.tag===p.axisFieldAxis),available=!!axis&&!!entry?.face;
       for(const id of ['pAxisFieldFrom','pAxisFieldTo','pAxisFieldDistribution','pAxisFieldCycles','pAxisFieldPhase'])api.disabled(id,'font-axis',!available);
-      for(const id of ['pAxisFieldFrom','pAxisFieldTo'])if(axis){const input=byId(id);input.min=axis.min;input.max=axis.max;input.step=(axis.max-axis.min)>=100?'1':'0.001';const definition=root.TypeDeformerParameters?.byControl[id];if(definition){definition.slider.min=axis.min;definition.slider.max=axis.max;definition.slider.step=Number(input.step);definition.domain.min=axis.min;definition.domain.max=axis.max;definition.reason='書体ファイルで定義された実軸の範囲';}}
+      for(const id of ['pAxisFieldFrom','pAxisFieldTo'])if(axis){const input=byId(id);input.min=axis.min;input.max=axis.max;input.step=(axis.max-axis.min)>=100?'1':'0.001';const definition=root.TypeDeformerParameters?.byControl[id];if(definition)root.TypeDeformerParameters.register(id,definition.key,axisSpec(axis,input.step));}
       api.disabled('pAxisFieldCycles','font-distribution',p.axisFieldDistribution!=='wave'&&p.axisFieldDistribution!=='steps');
       api.disabled('pAxisFieldPhase','font-distribution',p.axisFieldDistribution!=='wave');
       const override=!!entry?.face&&Object.prototype.hasOwnProperty.call(A.rawValues(p.fontAxes),'wght');
@@ -38,7 +39,7 @@
           let editing=false;
           input.addEventListener('input',()=>{if(!root.TypeDeformerNumericControls&&!editing){api.history();editing=true;}const raw=A.rawValues(api.params().fontAxes);raw[a.tag]=Number(input.value);api.params().fontAxes=JSON.stringify(raw);value.textContent=format(raw[a.tag]);api.redraw();api.dirty();});
           input.addEventListener('change',()=>{editing=false;});row.append(label,input,value);box.append(row);
-          if(root.TypeDeformerNumericControls&&root.TypeDeformerParameters){const key='fontAxes.'+a.tag,definition=root.TypeDeformerParameters.register(input.id,key,a.min,a.max,Number(input.step),false);definition.domain.min=a.min;definition.domain.max=a.max;definition.reason='書体ファイルで定義された実軸の範囲';root.TypeDeformerNumericControls.mount(input,key);input.value=values[a.tag];}
+          if(root.TypeDeformerNumericControls&&root.TypeDeformerParameters){const key='fontAxes.'+a.tag;root.TypeDeformerParameters.register(input.id,key,axisSpec(a,input.step));root.TypeDeformerNumericControls.mount(input,key);input.value=values[a.tag];}
         }
       }
     }

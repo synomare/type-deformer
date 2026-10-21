@@ -1,8 +1,27 @@
 # Editor and renderer boundaries
 
-The editable document remains the source of truth. Project schema v92, seeded
-operator geometry, and post-render alpha envelope checks are independent of the
-runtime optimizations described here.
+The editable document remains the source of truth. Project schema v93 records
+document identity, logical source references and font dependencies. See
+[current architecture](current-architecture.md) for storage and layout boundaries.
+Seeded operator geometry and post-render alpha envelope checks remain separate
+from the runtime optimizations described here.
+
+## Shared rendering source
+
+The editor and Surface/Compose Worker instantiate the same `render-engine.js`
+factory. Its authored inputs are listed in `render-source/manifest.json`;
+`build-surface-worker.mjs` reads and validates those modules without reading
+the editor HTML or runtime entry. Function implementations have one owner.
+The build rewrites declared external references to explicit environment ports,
+and rejects unknown dependencies.
+
+The editor supplies live scene access and UI scheduling callbacks. The Worker
+adapter supplies captured frame values, OffscreenCanvas allocation, its font
+set and native-preparation scheduling. It does not emulate DOM globals.
+`renderedSourceText` is the committed source corresponding to the glyph
+snapshot; a newer textarea draft must not change Batch classification in an
+older render request. Mobile and reduced-motion preferences travel as separate
+snapshot fields.
 
 ## Input and visual updates
 
@@ -11,6 +30,14 @@ runtime optimizations described here.
 animation frame. A `change` event and `snapshotGlyphs` flush pending callbacks
 before a committed value is rendered or exported. Numeric drafts still commit
 through the existing input/change/history path.
+
+Long primary-text edits prepare in bounded JavaScript batches, preserving
+surviving glyph nodes and cancelling superseded generations. The current
+generation commits its structure and authored state together. Unchanged
+paragraphs can retain local layout boxes under the checked shaping/width/font
+contract. A changed constraint invokes full native measurement. Browser layout,
+DOM commit and an explicit pending-edit flush remain synchronous boundaries;
+multi-object text edits retain their existing full rebuild path.
 
 Do not move parameter writes or history capture into the visual scheduler.
 Consumers that read derived geometry must flush first. Bulk glyph updates pass
@@ -32,6 +59,11 @@ must copy it before overriding fields. Do not retain the interning cache across
 source revisions: Batch profiles and global parameters are mutable. Ink bounds
 measurements are also local to the snapshot, keyed by text, font, alignment,
 baseline and variable-font coordinates.
+
+Neutral glyphs with no effective Surface state skip per-operator envelope and
+profile calculations. Manual strengths, including explicit zero, take
+precedence over animated current values. This shortcut retains the original
+minimum pad and does not reduce the envelope of an active effect.
 
 ## Worker transport
 
@@ -107,6 +139,43 @@ checked before transferring/encoding images and again after asynchronous PNG
 encoding, so a lost drawing surface is not accepted as a successful empty PNG.
 The proof overlay opens after its image decodes; decode failures stay visible.
 
+## Video capture and encoding
+
+`captureVideoRequest` captures the document, frozen render clocks, viewport,
+available imported font buffers and output settings synchronously before
+encoder setup can yield. Canvas-sized output also records its camera. Font
+buffers are copied; the request is deeply frozen. External CSS fonts are still
+external dependencies, not immutable byte captures.
+
+`videoFrameRequest` copies this request and derives Compose phase from the frame
+index, initial phase, direction and loop count. One persistent isolated renderer
+handles the sequence. Its child applies the captured state and produces a PNG;
+the parent decodes that PNG into the encoder canvas and closes the intermediate
+bitmap. Frame generation does not reread the live editor or alter its phase or
+playback. Completion and cancellation redraw the editor's current state instead
+of restoring the state from the start of export, preserving intervening edits.
+
+The child currently reloads the captured Project, waits for font readiness and
+remeasures layout for each frame. This adds per-frame work and is not a startup
+or throughput improvement claim. The iframe is a state-isolation boundary,
+not a guarantee of a separate CPU thread: long synchronous native rendering
+sections remain nonpreemptible until control returns to the event loop.
+
+The encoder and child renderer use one reservation group, while their estimated
+bytes are added separately to the shared capacity. This coordinates concurrent
+jobs; it does not measure DOM, driver or total JavaScript heap usage.
+[video-encoder.js](../video-encoder.js) preflights frame dimensions and estimated
+encoded size, then checks encoded packets and the final buffer against its
+memory allowance. Mediabunny still uses `BufferTarget`, and MP4 uses in-memory
+fast-start storage. The encoded buffer, muxer data and final Blob can coexist;
+the copy factors are estimates rather than an exact browser peak-memory bound.
+
+Cancellation invalidates the job and suppresses late frame/download results.
+The muxer's finalization cannot be interrupted. If cancellation arrives during
+finalization, the encoder keeps its reservation until that operation settles,
+then releases resources without publishing the result. Neither iframe disposal
+nor an abort signal promises immediate preemption of every native operation.
+
 ## Auto artwork framing and resolution
 
 For Auto / whole artwork outside Compose, `exportTight` defaults to true and
@@ -167,7 +236,10 @@ Blob exists only in the current tab and does not enter Project/autosave data.
 - `npm test`, `npm run test:preview`, `npm run check:release:local`: complete local
   regression and runtime dependency closure.
 
-The worker kernels are generated from the editor. After changing a shared kernel,
-run `node scripts/build-surface-worker.mjs`, then its `--check` mode. Do not edit
-`surface-worker-kernels.js` directly or equate a smaller payload with lower total
-browser RAM; rendering buffers and retained caches have their own budgets.
+The remaining legacy worker kernels are generated from the editor. Plotter Trace,
+Webbing and Soft Blob use the authored `shared-surface-renderers.js` module in
+both contexts; see [Operator contracts](operator-contracts.md). After changing a
+legacy kernel or its dependency graph, run `node scripts/build-surface-worker.mjs`,
+then its `--check` mode. Do not edit `surface-worker-kernels.js` directly or equate
+a smaller payload with lower total browser RAM; rendering buffers and retained
+caches have their own budgets.

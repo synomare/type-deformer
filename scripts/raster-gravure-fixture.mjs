@@ -1,9 +1,10 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
 // Actual Raster Press renderer in an isolated native-Canvas fixture.
 // This validates deterministic pixels, not the browser editor or a device UI.
 import vm from 'node:vm';
-import { canvas, html, textMask } from './thorn-rooted-fixture.mjs';
+import { canvas, authoredSource, textMask } from './thorn-rooted-fixture.mjs';
 
-export { canvas, html, textMask };
+export { canvas, authoredSource, textMask };
 
 function functionSource(source, name) {
   const match = source.match(new RegExp('^      function ' + name + '\\([^]*?^      }', 'm'));
@@ -17,9 +18,9 @@ function objectSource(source, name) {
   return match[0];
 }
 
-export function createRasterFixture(mask, settings = {}, source = html) {
+export function createRasterFixture(mask, settings = {}, source = authoredSource) {
   const { width, height } = mask;
-  const context = vm.createContext({
+  const context = createAuthoredTestContext({
     Math,
     document: { createElement: () => canvas.createCanvas(1, 1) },
     surfaceFxScratchCanvases: {},

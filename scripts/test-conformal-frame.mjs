@@ -1,8 +1,12 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8').replace(/\r\n/g,'\n');
-const block=html.match(/^      \/\/ BEGIN CONFORMAL TYPE GENERATED\n[\s\S]*?^      \/\/ END CONFORMAL TYPE GENERATED/m)[0];
+const authoredSource=readAuthoredSource().replace(/\r\n/g,'\n');
+const block = readNativeIntegrationSource('conformal');
 let paths=0, native=[], paints=[], matrix={a:1,b:0,c:0,d:1}, matrixStack=[], active;
 class TestPath { constructor(){paths++;this.commands=[];} moveTo(x,y){this.commands.push(['M',x,y]);} lineTo(x,y){this.commands.push(['L',x,y]);} closePath(){this.commands.push(['Z']);} }
 const ctx={save(){matrixStack.push(matrix);},restore(){matrix=matrixStack.pop();},getTransform(){return matrix;},
@@ -10,7 +14,7 @@ const ctx={save(){matrixStack.push(matrix);},restore(){matrix=matrixStack.pop();
   beginPath(){this.commands=[];},moveTo:TestPath.prototype.moveTo,lineTo:TestPath.prototype.lineTo,closePath:TestPath.prototype.closePath};
 const elements=new Map();
 const params={fontFamily:'Synthetic',fontWeight:400,fontSize:192,conformalAmount:.82,conformalPower:-1,conformalSpiral:0,conformalAngle:-35,conformalMotion:.55};
-const runtime=vm.createContext({params,compositionState:{enabled:true,phase:.3},Path2D:TestPath,
+const runtime=createAuthoredTestContext({params,compositionState:{enabled:true,phase:.3},Path2D:TestPath,
   surfaceGlyphStrength:(g,id)=>g.surface?.[id]||0,surfaceOutputOpacity:()=>1,surfaceEffectColor:()=> '#321',
   spectralGlyphFrame(ctx,g,scale,L){active=g;matrix={a:g.scaleX*scale*L.s,b:0,c:g.skewX||0,d:g.scaleY*scale*L.s};},
   drawSurfaceGlyph(ctx,g){native.push(g.id);},scheduleSurfaceFxDraw(){},scheduleCompositionDraw(){},

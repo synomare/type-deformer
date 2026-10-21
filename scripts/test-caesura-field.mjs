@@ -1,7 +1,11 @@
+import {readPageMarkup} from './source-reader.mjs';
+const markup=readPageMarkup();
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { fixture, metric, html, extract } from './paragraph-current-fixture.mjs';
+import { fixture, metric, authoredSource, extract } from './paragraph-current-fixture.mjs';
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const number = (m, key, fallback = 0) => {
@@ -54,13 +58,14 @@ test('v63 registers Caesura Field as the 54th operator with one focused five-axi
   assert.equal(c.OPERATOR_IDS.length, 116);
   assert.equal(c.OPERATOR_DEFS.caesuraField.layer, 'box');
   assert.equal(c.OPERATOR_BY_SHORT.ca, 'caesuraField');
-  assert.match(html, /<option value="caesuraField">Caesura Field · 句読点の呼吸<\/option>/);
-  assert.match(html, /data-operator-panel="caesuraField"/);
-  for (const key of ['Grammar', 'Breath', 'Lift', 'Hierarchy', 'Angle', 'Span']) assert.ok(html.includes(`id="pCaesura${key}"`), key);
-  assert.match(html, /caesuraField: \['--op-caesura-x', '--op-caesura-y', '--op-caesura-sx', '--op-caesura-sy', '--op-caesura-rotate'\]/);
-  assert.match(extract('projectData'), /version: 92/);
-  assert.match(extract('normalizeParams'), /clampParam\('caesuraAngle', -120, 120/);
-  assert.match(html, /caesuraField: \['caesuraGrammar', 'caesuraBreath', 'caesuraLift', 'caesuraHierarchy', 'caesuraAngle', 'caesuraSpan'\]/);
+  assert.match(markup, /<option value="caesuraField">Caesura Field · 句読点の呼吸<\/option>/);
+  assert.match(markup, /data-operator-panel="caesuraField"/);
+  for (const key of ['Grammar', 'Breath', 'Lift', 'Hierarchy', 'Angle', 'Span']) assert.ok(markup.includes(`id="pCaesura${key}"`), key);
+  assert.match(authoredSource, /caesuraField: \['--op-caesura-x', '--op-caesura-y', '--op-caesura-sx', '--op-caesura-sy', '--op-caesura-rotate'\]/);
+  assert.match(extract('projectData'), /version: 93/);
+  assert.match(migrations, /clampParam\('caesuraAngle', -120, 120/);
+  assert.ok(extract('normalizeParams').includes('TypeDeformerProjectMigrations.normalizeParams(params,projectMigrationOptions())'));
+  assert.match(authoredSource, /caesuraField: \['caesuraGrammar', 'caesuraBreath', 'caesuraLift', 'caesuraHierarchy', 'caesuraAngle', 'caesuraSpan'\]/);
 });
 
 test('explicit Japanese and Latin punctuation form clauses; closing marks remain with their terminal', () => {

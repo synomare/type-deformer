@@ -1,12 +1,17 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const generated = html.match(/^      \/\/ BEGIN COUNTERFORM ENGINE GENERATED\n[\s\S]*?^      \/\/ END COUNTERFORM ENGINE GENERATED/m)?.[0];
-assert.ok(generated, 'embedded Counterform Engine runtime');
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
+const authoredSource = readAuthoredSource().replace(/\r\n/g, '\n');
+const generated = readNativeIntegrationSource('counterform');
+assert.ok(generated, 'authored Counterform Engine runtime and editor adapter');
 const extract = name => {
-  const found = html.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'));
+  const found = authoredSource.match(new RegExp('^      function ' + name + '\\([\\s\\S]*?^      \\}', 'm'));
   assert.ok(found, name);
   return found[0];
 };
@@ -25,7 +30,7 @@ let oldCalls = [];
 let outputOpacity = 1;
 const statusElement = { hidden: true, textContent: '' };
 const workContext = { setTransform() {}, clearRect() {} };
-const runtime = vm.createContext({
+const runtime = createAuthoredTestContext({
   params,
   document: { getElementById: id => id === 'counterformWorkStatus' ? statusElement : null },
   BATCH_PARAM_OPTIONS: { counterformGrammar: grammarOptions },
@@ -45,7 +50,14 @@ const runtime = vm.createContext({
   renderCounterformEngineLegacy: (ctx, glyphs, w, h, p, L, fm, cover) => oldCalls.push(['legacy', glyphs.length, cover]),
   renderCounterformEngineV29: (ctx, glyphs, w, h, p, L, fm, cover) => oldCalls.push(['v29', glyphs.length, cover])
 });
+const historicalDispatch = {
+  renderCounterformEngineLegacy: runtime.renderCounterformEngineLegacy,
+  renderCounterformEngineV29: runtime.renderCounterformEngineV29
+};
 new vm.Script(generated).runInContext(runtime);
+// The authored unit also owns both historical implementations. This integration
+// test observes their dispatch, while their raster behavior has separate tests.
+Object.assign(runtime, historicalDispatch);
 
 runtime.counterformVariantData = (ch, settings) => {
   variants.push({ ch, settings: { ...settings } });
@@ -164,7 +176,7 @@ runtime.counterformInvalidateFonts();
 runtime.counterformSourceData('Q'); assert.equal(captures, 3);
 
 // Compare the actual cropped-mask draw transform with native text placement.
-const frameRuntime = vm.createContext({ params, baselineOffset: () => 17 });
+const frameRuntime = createAuthoredTestContext({ params, baselineOffset: () => 17 });
 new vm.Script(extract('spectralGlyphFrame') + '\n' + extract('surfaceGlyphTextSpec') + '\n' + extract('drawSurfaceGlyph') + '\n' + extract('counterformDrawVariant')).runInContext(frameRuntime);
 function frameContext() {
   return {
@@ -210,23 +222,24 @@ for (const fontSize of [96, 192]) for (const vertical of [false, true]) for (con
 params.fontSize = 192; params.vertical = false;
 
 for (const id of ['pCounterformGrammar', 'pCounterformPressure', 'pCounterformBridge',
-  'pCounterformAperture', 'pCounterformAngle', 'pCounterformTrap']) assert.ok(html.includes(`id="${id}"`), id);
-for (const name of ['chamber', 'stencil', 'reservoir', 'canal']) assert.ok(html.includes(`data-counterform-preset="${name}"`), name);
+  'pCounterformAperture', 'pCounterformAngle', 'pCounterformTrap']) assert.ok(markup.includes(`id="${id}"`), id);
+for (const name of ['chamber', 'stencil', 'reservoir', 'canal']) assert.ok(markup.includes(`data-counterform-preset="${name}"`), name);
 for (const hidden of ['apertureV29', 'stencilV29', 'trapV29', 'channelV29']) {
-  assert.match(html, new RegExp(`value="${hidden}" hidden`), `${hidden} hidden option`);
+  assert.match(markup, new RegExp(`value="${hidden}" hidden`), `${hidden} hidden option`);
 }
-assert.ok(html.includes("counterformGrammar: ['legacy', 'apertureV29', 'stencilV29', 'trapV29', 'channelV29', 'aperture', 'stencil', 'trap', 'channel']"));
-assert.ok(html.includes('var legacyCounterformV29 = Number(data.version || 0) < 42'));
-assert.ok(html.includes("return ['aperture', 'stencil', 'trap', 'channel'].indexOf(value) !== -1 ? value + 'V29' : value"));
-assert.ok(html.includes('batchProfiles[counterformProfileKey].counterformGrammar = preserveV29CounterformGrammar'));
+assert.ok(authoredSource.includes("counterformGrammar: ['legacy', 'apertureV29', 'stencilV29', 'trapV29', 'channelV29', 'aperture', 'stencil', 'trap', 'channel']"));
+assert.ok(migrations.includes('var legacyCounterformV29 = Number(data.version || 0) < 42'));
+assert.ok(migrations.includes("return ['aperture', 'stencil', 'trap', 'channel'].indexOf(value) !== -1 ? value + 'V29' : value"));
+assert.ok(migrations.includes('batchProfiles[counterformProfileKey].counterformGrammar = preserveV29CounterformGrammar'));
 assert.match(extract('renderSurfaceFxLayer'), /canonicalLayout,\s*fm,\s*false,\s*livePreview,\s*context/);
 assert.ok(extract('renderSurfaceFxLayer').includes('counterformResetInactive(glyphs)'));
 assert.ok(extract('renderSurfaceFxPreview').includes('counterformResetInactive([])'));
-assert.ok(html.includes('id="counterformWorkStatus" role="status" aria-live="polite"'));
-assert.ok(html.includes('counterformInvalidateFonts(); refreshConfuseFontCandidates()'));
-assert.ok(extract('projectData').includes('version: 92'));
-assert.ok(html.includes("a: 'td', v: 92"));
-assert.ok(html.includes('data.version > 92'));
-assert.ok(!html.match(/src=["'][^"']*counterform/i), 'one-file editor has no Counterform module fetch');
+assert.ok(markup.includes('id="counterformWorkStatus" role="status" aria-live="polite"'));
+assert.ok(authoredSource.includes('counterformInvalidateFonts(); refreshConfuseFontCandidates()'));
+assert.ok(extract('projectData').includes('version: 93'));
+assert.ok(authoredSource.includes("a: 'td', v: 93"));
+assert.ok(authoredSource.includes('data.version > 93'));
+assert.ok(markup.includes('src="render-engine.js"'));
+assert.ok(!markup.match(/src=["'][^"']*counterform/i), 'the shared render engine supplies Counterform without a separate module fetch');
 
 console.log('Counterform editor: four starts, per-Batch settings, 16 native frames, 768px capture, native/live fallback with status/reset, strict non-live failure, v29/legacy preservation, LRU/oversized accounting, font invalidation and schema v42 wiring passed (VM/static, not browser QA).');

@@ -2,6 +2,11 @@
 (function (root) {
   'use strict';
   const clone = value => JSON.parse(JSON.stringify(value));
+  function snapshotRequest(payload) {
+    const value = clone(payload);
+    function freeze(item) { if (item && typeof item === 'object') { Object.values(item).forEach(freeze); Object.freeze(item); } return item; }
+    return freeze(value);
+  }
   const clamp = (value, lo, hi, fallback) => Number.isFinite(Number(value))
     ? Math.max(lo, Math.min(hi, Number(value))) : fallback;
   function parse(value) {
@@ -96,7 +101,7 @@
   // params/leases with the artwork. Validate source as well as request identity;
   // file:// uses an opaque origin, so checking origin alone is insufficient.
   function rendererClient(api) {
-    let frame = null, ready = null, seq = 0, pending = new Map(), loadTimer = null, rejectLoad = null, closedError = null;
+    let frame = null, ready = null, seq = 0, pending = new Map(), loadTimer = null, rejectLoad = null, closedError = null, lease = null, reservedBytes = 0, rendering = false;
     const token = Array.from(root.crypto.getRandomValues(new Uint32Array(4))).join('-');
     const failure = (message, code) => Object.assign(new Error(message), { code });
     function stop(error) {
@@ -106,17 +111,17 @@
       for (const request of pending.values()) { clearTimeout(request.timer); request.reject(error); }
       pending.clear();
       if (frame) { frame.onload = frame.onerror = null; frame.remove(); frame = null; }
+      lease?.release(); lease = null; reservedBytes = 0;
       root.removeEventListener('message', receive);
     }
     function receive(event) {
       if (!frame || closedError || event.source !== frame.contentWindow || event.data?.token !== token) return;
       const message = event.data, request = pending.get(message.id);
       if (!request) return;
-      if (message.progress) { request.progress?.(message.progress); return; }
+      if (message.progress) { try { request.progress?.(message.progress); } catch (error) { stop(error); } return; }
       pending.delete(message.id); clearTimeout(request.timer);
       if (message.error) request.reject(failure(message.error, message.code || '')); else request.resolve(message.result);
     }
-    root.addEventListener('message', receive);
     function call(type, payload, progress) {
       return new Promise((resolve, reject) => {
         if (closedError) { reject(closedError); return; }
@@ -134,6 +139,7 @@
       if (closedError) return Promise.reject(closedError);
       if (ready) return ready;
       ready = new Promise((resolve, reject) => {
+        root.addEventListener('message', receive);
         rejectLoad = reject;
         loadTimer = setTimeout(() => stop(failure('描画画面を読み込めませんでした。接続を確認して再試行してください。', 'RENDER_START_FAILED')), 120000);
         frame = document.createElement('iframe');
@@ -155,8 +161,25 @@
       return ready;
     }
     return {
-      async render(payload, progress) { await start(); if (closedError) throw closedError; return call('render', payload, progress); },
-      dispose() { stop(failure('生成を取り消しました。', 'RENDER_CANCELLED')); }
+      async render(payload, progress) {
+        if (closedError) throw closedError;
+        if (rendering) throw failure('前の描画が完了してから次の候補を要求してください。', 'RENDER_RESOURCE_BUSY');
+        // Capture before fonts/iframe loading can yield to an editor change.
+        const request = snapshotRequest(payload), R = root.TypeDeformerRenderContext;
+        rendering = true;
+        try {
+          const purpose = request.output?.purpose || (request.output ? 'export' : 'edit'), estimate = R?.limits(purpose).workBytes;
+          if (R?.resources && (!lease || estimate > reservedBytes)) {
+            const group = api.resourceGroup || lease?.group; lease?.release(); lease = null;
+            lease = R.resources.reserve('isolated-' + purpose, estimate, true, group); reservedBytes = estimate;
+          }
+          if (request.output?.deadline && request.output.deadline <= Date.now()) throw failure('描画の制限時間を過ぎました。再試行してください。', 'RENDER_TIMEOUT');
+          await start(); if (closedError) throw closedError; return await call('render', request, progress);
+        } catch (error) { stop(error); throw error; }
+        finally { rendering = false; }
+      },
+      dispose() { stop(failure('生成を取り消しました。', 'RENDER_CANCELLED')); },
+      inspect() { return { pending: pending.size, active: rendering, closed: !!closedError, reserved: !!lease }; }
     };
   }
   function installRenderer(api) {
@@ -385,7 +408,8 @@
           const image = new Image(); image.src = preview; await image.decode();
           const canvas = (globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas')), scale = Math.min(1, 960 / image.width, 600 / image.height);
           canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale));
-          canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height); preview = canvas.toDataURL('image/jpeg', .72);
+          try { canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height); preview = canvas.toDataURL('image/jpeg', .72); }
+          finally { if (root.TypeDeformerRenderContext) root.TypeDeformerRenderContext.release(canvas); else canvas.width = canvas.height = 1; }
         }
         if (identity !== job) throw new Error('編集状態が変わったため保存を取り消しました。Lookは変更していません。');
         api.saveLook(choice, state, preview); replacement = null;
@@ -441,8 +465,10 @@
       const gap = 16, margin = 32, cellWidth = (width - margin * 2 - gap * (columns - 1)) / columns;
       const imageHeight = cellWidth * viewport.height / viewport.width;
       const cellHeight = imageHeight + (labels ? 54 : 0), rows = Math.ceil(items.length / columns);
-      const canvas = (globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas() : document.createElement('canvas')); canvas.width = width * scale; canvas.height = Math.ceil(100 + rows * (cellHeight + gap) + margin) * scale;
-      if (canvas.height > 16384 || canvas.width * canvas.height > 32000000) throw new Error('シートが大きすぎます。Columnsを増やすかScaleを1xにしてください。');
+      const outputWidth = width * scale, outputHeight = Math.ceil(100 + rows * (cellHeight + gap) + margin) * scale;
+      if (outputHeight > 16384 || outputWidth * outputHeight > 32000000) throw new Error('シートが大きすぎます。Columnsを増やすかScaleを1xにしてください。');
+      const canvas = (globalThis.TypeDeformerRenderContext ? globalThis.TypeDeformerRenderContext.createCanvas(outputWidth, outputHeight) : document.createElement('canvas')); canvas.width = outputWidth; canvas.height = outputHeight;
+      try {
       const ctx = canvas.getContext('2d'); ctx.scale(scale, scale); ctx.fillStyle = source.params.paper; ctx.fillRect(0, 0, width, canvas.height / scale);
       ctx.fillStyle = source.params.ink; ctx.font = '600 18px sans-serif'; ctx.fillText('TYPE DEFORMER / DESIGN SPACE', margin, 40);
       ctx.font = '12px sans-serif'; ctx.fillText('Seed ' + source.params.seed + ' · SAME CAMERA · ' + mode.toUpperCase(), margin, 65);
@@ -456,6 +482,7 @@
       if (!blob) throw new Error('PNG sheetを作れませんでした。Scaleを下げてください。');
       api.download(blob, 'type-deformer-design-space.png');
       sheet('status').textContent = '比較用PNGを保存しました。作品の高解像度出力は候補を採用してPNG / SVGから。';
+      } finally { if (root.TypeDeformerRenderContext) root.TypeDeformerRenderContext.release(canvas); else canvas.width = canvas.height = 1; }
     }
     function safeExport() { exportSheet().catch(e => { sheet('status').textContent = e.message; status(e.message, true); }); }
     el('play').addEventListener('click', () => {
@@ -506,5 +533,5 @@
       inspect: () => ({ active: !!source, playing, pending: inFlight, generation, candidateCount: candidates.length,
         accepted: accepted ? { position: accepted.position, values: clone(accepted.values), phase: accepted.phase } : null }) };
   }
-  root.TypeDeformerExplorer = { normalize, normalizeMoment, boundedAxes, variant, positions, mount, installRenderer, rendererClient };
+  root.TypeDeformerExplorer = { normalize, normalizeMoment, boundedAxes, variant, positions, mount, installRenderer, rendererClient, snapshotRequest };
 })(globalThis);

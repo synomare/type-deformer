@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { createLigatureFixture, extract, html, pixels, textMask } from './ligature-counterbody-fixture.mjs';
+import {readEditorSource, readEditorUnits, extractDeclaredFunction} from './source-reader.mjs';
+const editor=readEditorSource(), editorUnits=readEditorUnits();
+const migrations = fs.readFileSync(new URL('../project-migrations.js', import.meta.url), 'utf8');
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const alphaSum = data => data.reduce((sum, value, index) => sum + (index % 4 === 3 ? value : 0), 0);
@@ -49,14 +53,15 @@ test('the four v29 Ligature Body grammars remain pixel-identical through the v62
 });
 
 test('v62 starts new work in Compound counterbody while partial v29-v61 projects retain Interlock', () => {
-  assert.ok(html.includes("ligatureBodyGrammar: 'counterbody'"));
+  assert.ok(editor.includes("ligatureBodyGrammar: 'counterbody'"));
   assert.ok(html.includes('<option value="counterbody" selected>Compound counterbody</option>'));
-  assert.ok(html.includes("ligatureBodyGrammar: ['legacy', 'counterbody', 'interlock'"));
-  assert.ok(html.includes("Number(data.version || 0) >= 29 && Number(data.version || 0) < 62"));
-  assert.ok(html.includes("params.ligatureBodyGrammar = 'interlock'"));
-  assert.ok(extract('projectData').includes('version: 92'));
-  assert.ok(html.includes("a: 'td', v: 92"));
-  assert.ok(html.includes('data.version > 92'));
+  assert.ok(editor.includes("ligatureBodyGrammar: ['legacy', 'counterbody', 'interlock'"));
+  assert.ok(migrations.includes("Number(data.version || 0) >= 29 && Number(data.version || 0) < 62"));
+  assert.ok(migrations.includes("params.ligatureBodyGrammar = 'interlock'"));
+  assert.ok(editor.includes('TypeDeformerProjectMigrations.migrate(data,projectMigrationOptions())'));
+  assert.ok(extractDeclaredFunction(editorUnits,'projectData').includes('version: 93'));
+  assert.ok(editor.includes("a: 'td', v: 93"));
+  assert.ok(editor.includes('data.version > 93'));
 });
 
 test('Counterbody makes one source-specific word body instead of a renamed single bridge', () => {

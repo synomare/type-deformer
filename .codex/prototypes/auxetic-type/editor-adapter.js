@@ -58,8 +58,8 @@ function auxeticRequests(glyphs) {
   var requests = new Map(), font = params.fontWeight + ' 768px ' + params.fontFamily;
   if (surfaceOutputOpacity('auxeticType') <= .002) return [];
   for (var i = 0; i < glyphs.length; i++) {
-    var g = glyphs[i], settings = auxeticGlyphSettings(g);
-    if (surfaceGlyphStrength(g, 'auxeticType') <= .002 || !String(g.ch || '').trim() || auxeticIsNative(settings)) continue;
+    var g = glyphs[i]; if (surfaceGlyphStrength(g, 'auxeticType') <= .002 || !String(g.ch || '').trim()) continue;
+    var settings = auxeticGlyphSettings(g); if (auxeticIsNative(settings)) continue;
     var key = auxeticSourceKey(g.ch, settings, g);
     if (!requests.has(key)) requests.set(key, { key: key,
       load: auxeticGlyphData.bind(null, g.ch, { key: key, font: font, glyph: g.fontAxes ? g : null }, settings) });
@@ -124,8 +124,8 @@ function auxeticHasAppliedBody() {
 function auxeticEffectPad(glyphs) {
   var extra = 0, extents = new Map(); if (surfaceOutputOpacity('auxeticType') <= .002) return 0;
   for (var i = 0; i < glyphs.length; i++) {
-    var g = glyphs[i], settings = auxeticGlyphSettings(g);
-    if (surfaceGlyphStrength(g, 'auxeticType') <= .002 || !String(g.ch || '').trim() || auxeticIsNative(settings)) continue;
+    var g = glyphs[i]; if (surfaceGlyphStrength(g, 'auxeticType') <= .002 || !String(g.ch || '').trim()) continue;
+    var settings = auxeticGlyphSettings(g); if (auxeticIsNative(settings)) continue;
     var key = auxeticSourceKey(g.ch, settings, g), data = auxeticPool.read(key); if (!data) continue;
     var phase = compositionState.enabled ? compositionState.phase : 0, extentKey = key + ':' + settings.opening + ':' + settings.ligament + ':' + settings.motion + ':' + phase;
     var extent = extents.get(extentKey);

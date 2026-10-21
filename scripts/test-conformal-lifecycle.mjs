@@ -1,13 +1,17 @@
+import {createAuthoredTestContext} from './authored-test-context.mjs';
+import {readNativeIntegrationSource} from './generated-declarations.mjs';
+import {readAuthoredSource, readPageMarkup} from './source-reader.mjs';
+const markup = readPageMarkup();
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8').replace(/\r\n/g,'\n');
-const block=html.match(/^      \/\/ BEGIN CONFORMAL TYPE GENERATED\n[\s\S]*?^      \/\/ END CONFORMAL TYPE GENERATED/m)[0];
+const authoredSource=readAuthoredSource().replace(/\r\n/g,'\n');
+const block = readNativeIntegrationSource('conformal');
 const elements=new Map(), rafs=new Map();let raf=0, native=0, history=0;
 const params={fontFamily:'Synthetic',fontWeight:400,fontSize:192,conformalAmount:.82,conformalPower:-1,
   conformalSpiral:0,conformalAngle:-35,conformalMotion:.55};
 let fx=1;
-const runtime=vm.createContext({studioRendererMode:false,snapshotOutputRequest:null,params,compositionState:{enabled:false,phase:0},
+const runtime=createAuthoredTestContext({studioRendererMode:false,snapshotOutputRequest:null,params,compositionState:{enabled:false,phase:0},
   surfaceGlyphStrength:(g,id)=>g.surface?.[id]||0,surfaceOutputOpacity:()=>fx,
   surfaceEffectColor:()=> '#000',drawSurfaceGlyph(){native++;},
   scheduleSurfaceFxDraw(){},scheduleCompositionDraw(){},
@@ -47,9 +51,9 @@ runtime.conformalPrepare([g('bad'),a]);runtime.conformalPool.advance();runtime.c
 assert.doesNotThrow(()=>runtime.conformalAssertReady([a]),'An unrelated failed source must not block a ready subset');
 assert.throws(()=>runtime.conformalAssertReady([g('bad')]),e=>e.code==='CONFORMAL_ERROR');
 sourceFailure=false;runtime.conformalRetry();runtime.conformalPool.advance();runtime.conformalAssertReady([a,g('bad')]);
-const extract=name=>html.match(new RegExp('^      function '+name+'\\([\\s\\S]*?^      \\}', 'm'))[0];
+const extract=name=>authoredSource.match(new RegExp('^      function '+name+'\\([\\s\\S]*?^      \\}', 'm'))[0];
 Object.assign(runtime,{surfaceFxCtx:{setTransform(){},clearRect(){}},metrics:[],differentialPrepare(){},auxeticPrepare(){},counterformResetInactive(){},marblingPrepare(){}});
-new vm.Script(extract('renderSurfaceFxPreview')).runInContext(runtime);
+new vm.Script(extract('hasVisibleSurfaceOperator') + '\n' + extract('renderSurfaceFxPreview')).runInContext(runtime);
 runtime.renderSurfaceFxPreview(0);assert.equal(runtime.conformalPool.state().total,0,'empty-text branch releases Conformal work');
 runtime.conformalPrepare([a]);
 Object.assign(runtime,{metrics:[a],metricsDirty:false,snapshotGlyphs:()=>[a],surfaceAnyEffectPresent:()=>false,
@@ -57,6 +61,6 @@ Object.assign(runtime,{metrics:[a],metricsDirty:false,snapshotGlyphs:()=>[a],sur
   window:{matchMedia:()=>({matches:false})},surfaceFxLastPaint:0,surfaceFxCanvas:{hidden:false,width:10,height:10}});
 runtime.renderSurfaceFxPreview(0);assert.equal(runtime.conformalPool.state().total,0,'no-active-FX branch releases Conformal work');
 assert.equal(runtime.surfaceFxCanvas.hidden,true);assert.equal(rafs.size,0);
-assert.match(html,/if \(!surfaceFxCtx \|\| !metrics.length\) \{ differentialPrepare\(\[\]\); conformalPrepare\(\[\]\); auxeticPrepare\(\[\]\); counterformResetInactive\(\[\]\); return; \}/);
-assert.match(html,/if \(!hasEffects\) \{\s*marblingPrepare\(\[\]\);\s*differentialPrepare\(\[\]\); conformalPrepare\(\[\]\); auxeticPrepare\(\[\]\);/);
+assert.match(authoredSource,/if \(!surfaceFxCtx \|\| !metrics.length\) \{ renderEngine\.differentialPrepare\(\[\]\); renderEngine\.conformalPrepare\(\[\]\); renderEngine\.auxeticPrepare\(\[\]\); counterformResetInactive\(\[\]\); return; \}/);
+assert.match(authoredSource,/if \(!hasEffects\) \{\s*renderEngine\.marblingPrepare\(\[\]\);\s*renderEngine\.differentialPrepare\(\[\]\); renderEngine\.conformalPrepare\(\[\]\); renderEngine\.auxeticPrepare\(\[\]\);/);
 console.log('Conformal lifecycle: read-only subset/missing export preflight, native identity and muted-FX bypass, stale-error isolation, release/cancel/status passed (VM, not browser).');

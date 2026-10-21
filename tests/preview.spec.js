@@ -416,10 +416,11 @@ test('font ink outside its CSS line box survives Surface preview, Output Preview
 
   const [png] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.locator('#btnPng').evaluate(element => element.click())]);
   expect(fs.statSync(await png.path()).size).toBeGreaterThan(1000);
+  await page.locator('#pSvgMode').selectOption('text', { force: true });
   const [svg] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.locator('#btnSvg').evaluate(element => element.click())]);
   const svgText = fs.readFileSync(await svg.path(), 'utf8');
-  expect(svgText).toContain('data-effect-layer="surface-fx"');
-  expect(svgText).toContain('data:image/png;base64,');
+  expect(svgText.includes('data-effect-layer="surface-fx"'), 'text SVG retains its separate effect image').toBe(true);
+  expect(svgText.includes('data:image/png;base64,'), 'effect image is embedded').toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -489,14 +490,15 @@ test('wide Contour field is not cut by the shared raster in preview, Output Prev
   expect(png.suggestedFilename()).toMatch(/\.png$/);
   expect(fs.statSync(await png.path()).size).toBeGreaterThan(100000);
 
+  await page.locator('#pSvgMode').selectOption('text', { force: true });
   const [svg] = await Promise.all([
     page.waitForEvent('download', { timeout: 60000 }),
     page.locator('#btnSvg').evaluate(element => element.click())
   ]);
   expect(svg.suggestedFilename()).toMatch(/\.svg$/);
   const svgText = fs.readFileSync(await svg.path(), 'utf8');
-  expect(svgText).toContain('data-effect-layer="surface-fx"');
-  expect(svgText).toContain('data:image/png;base64,');
+  expect(svgText.includes('data-effect-layer="surface-fx"'), 'text SVG retains its separate effect image').toBe(true);
+  expect(svgText.includes('data:image/png;base64,'), 'effect image is embedded').toBe(true);
   expect(errors).toEqual([]);
 });
 
